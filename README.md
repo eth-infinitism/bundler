@@ -6,12 +6,11 @@ basic eip4337 "bundler"
 
 
 usage: 
-1. run `hardhat node` in one window.
-2. run `node bundler.js --network goerli --mnemonic file` in another window.
+1. run `node bundler.js --network goerli --mnemonic file` in another window.
   so it will listen on port 3000
-2 in the account-abstraction project, run:
+2. in the account-abstraction project, run:
   ```
-  AA_USER=http://localhost:3000/rpc yarn runop --network goerli
+  AA_URL=http://localhost:3000/rpc yarn runop --network goerli
   ```
 
 it should be able to mine the transaction

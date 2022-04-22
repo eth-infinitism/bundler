@@ -3,12 +3,11 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 const minimist = require('minimist')
 const fs = require("fs")
-const entryPointArtifact = require('../account-abstraction/artifacts/contracts/EntryPoint.sol/EntryPoint.json')
+const entryPointArtifact = require('./EntryPoint.json')
 const {Contract, BigNumber, Wallet, utils} = require("ethers");
 
 const supportedEntryPoints = [
-    '0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69',
-    '0x90f3E1105E63C877bF9587DE5388C23Cdb702c6B'
+  '0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69'
 ]
 
 const ethers = require('ethers')
