@@ -6,7 +6,7 @@ basic eip4337 "bundler"
 
 
 usage: 
-1. run `node bundler.js --network goerli --mnemonic file` in another window.
+1. run `yarn run bundler --network goerli --mnemonic file` in another window.
   so it will listen on port 3000
 2. in the account-abstraction project, run:
   ```
