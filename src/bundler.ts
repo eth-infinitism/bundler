@@ -2,7 +2,7 @@ import minimist from "minimist";
 //import {EntryPoint__factory} from "@account-abstraction/contracts/typechain/factories/EntryPoint__factory";
 import {ethers, utils, Wallet} from "ethers";
 import * as fs from "fs";
-import {formatEther, formatUnits, parseEther} from "ethers/lib/utils";
+import {formatEther, parseEther} from "ethers/lib/utils";
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
@@ -16,7 +16,8 @@ ethers.BigNumber.prototype[inspect_custom_symbol] = function () {
   return `BigNumber ${parseInt(this._hex)}`
 }
 
-const DefaultBundlerHelperAddress = '0x6a4Fc27DC03d8e2aA200F40AAf63282C7d4CB291';
+//deploy with "hardhat deploy --network goerli"
+const DefaultBundlerHelperAddress = '0xdD747029A0940e46D20F17041e747a7b95A67242';
 
 const supportedEntryPoints = [
   '0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69'
@@ -39,13 +40,27 @@ function fatal(msg: string): never {
   process.exit(1)
 }
 
+function usage(msg: string) {
+  console.log(msg)
+  console.log(`
+usage: yarn run bundler [options]
+  --port - server listening port (default to 3000)
+  --beneficiary address to receive funds (defaults to signer)
+  --minBalance - below this signer balance, use itself, not --beneficiary  
+  --gasFactor - require that much on top of estimated gas (default=1)
+  --network - network name/url
+  --mnemonic - file
+  --helper - BundlerHelper contract. deploy with "hardhat deploy"
+  `)
+}
+
 function getParam(name: string, defValue?: string | number): string {
   let value = args[name] || process.env[name] || defValue
   if (typeof defValue == 'number') {
     value = parseFloat(value)
   }
   if (value == null) {
-    fatal(`missing --${name}`)
+    usage(`missing --${name}`)
   }
   // console.log(`getParam(${name}) = "${value}"`)
   return value
@@ -61,7 +76,7 @@ const beneficiary = getParam('beneficiary', signer.address)
 // TODO: this is "hardhat deploy" deterministic address.
 const helperAddress = getParam('helper', DefaultBundlerHelperAddress)
 const minBalance = parseEther(getParam('minBalance', '0'))
-const gasFactor = getParam('gasFactor', 1)
+const gasFactor = parseFloat(getParam('gasFactor', 1))
 const port = getParam('port', 3000)
 
 const bundlerHelper = BundlerHelper__factory.connect(helperAddress, signer)
@@ -88,18 +103,24 @@ class MethodHandler {
     // below min-balance redeem to the signer, to keep it active.
     if (currentBalance.lte(minBalance)) {
       b = signer.address
+      console.log('low balance. using ', b, 'as beneficiary instead of ', beneficiary)
     }
 
-    let estimateGas = await bundlerHelper.estimateGas.handleOps(0, entryPointAddress, [userOp], b)
-    estimateGas = estimateGas.mul(64).div(63)
-    const gasPrice = await provider.getGasPrice()
-    const expectedRedeem = gasPrice.mul(estimateGas).mul(gasFactor)
-    console.log('estimated gas', estimateGas.toString(), 'current price', formatUnits(gasPrice, 'gwei'), 'expected', formatEther(expectedRedeem))
-
-    const ret = await bundlerHelper.callStatic.handleOps(0, entryPointAddress, [userOp], b, {gasLimit: estimateGas})
-    console.log('ret=', ret)
+    const [estimateGasRet, estHandleOp, staticRet] = await Promise.all([
+      bundlerHelper.estimateGas.handleOps(0, entryPointAddress, [userOp], b),
+      entryPoint.estimateGas.handleOps([userOp], b),
+      bundlerHelper.callStatic.handleOps(0, entryPointAddress, [userOp], b),
+    ])
+    const estimateGas = estimateGasRet.mul(64).div(63)
+    console.log('estimated gas', estimateGas.toString())
+    console.log('handleop est ', estHandleOp.toString())
+    console.log('ret=', staticRet)
+    console.log('preVerificationGas', parseInt(userOp.preVerificationGas))
+    console.log('verificationGas', parseInt(userOp.verificationGas))
+    console.log('callGas', parseInt(userOp.callGas))
     const reqid = entryPoint.getRequestId(userOp)
-    await bundlerHelper.handleOps(expectedRedeem, entryPointAddress, [userOp], b)
+    const estimateGasFactored = estimateGas.mul(Math.round(gasFactor * 100000)).div(100000)
+    await bundlerHelper.handleOps(estimateGasFactored, entryPointAddress, [userOp], b)
     return await reqid
   }
 }
@@ -125,7 +146,7 @@ async function main() {
   }
 
   if (await provider.getCode(bundlerHelper.address) == '0x') {
-    fatal('helper not delpoyed. run "hardhat deploy --network ..."')
+    fatal('helper not deployed. run "hardhat deploy --network ..."')
   }
 
   const app = express()
@@ -147,13 +168,14 @@ async function main() {
       })
       .catch(err => {
         const error = {message: err.error?.reason ?? err.error, code: -32000}
-        //todo: extract the error without garbage..
         console.log('failed: ', method, error)
-        res.send({jsonrpc, id, error: error.message})
+        res.send({jsonrpc, id, error})
       })
   })
   app.listen(port)
-  console.log(`connected to network`, await provider.getNetwork())
+  console.log(`connected to network`, await provider.getNetwork().then(net => {
+    net.name, net.chainId
+  }))
   console.log(`running on http://localhost:${port}`)
 }
 

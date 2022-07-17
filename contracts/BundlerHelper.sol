@@ -17,10 +17,12 @@ contract BundlerHelper {
         uint preBalance = beneficiary.balance;
         ep.handleOps(ops, beneficiary);
         paid = beneficiary.balance - preBalance;
-        require(paid >= expectedPayment, string.concat(
-                "didn't pay enough: paid ",
-                paid.toString(),
+        if (paid < expectedPayment) {
+            revert(string.concat(
+                "didn't pay enough: paid ", paid.toString(),
+                " expected ", expectedPayment.toString(),
                 " gasPrice ", gasPrice.toString()
             ));
+        }
     }
 }
