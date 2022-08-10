@@ -10,10 +10,10 @@ import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 export class ERC4337EthersSigner extends Signer {
   constructor (
     private readonly originalSigner: Signer,
-    provider: ERC4337EthersProvider
+    readonly erc4337provider: ERC4337EthersProvider
   ) {
     super()
-    defineReadOnly(this, 'provider', provider)
+    defineReadOnly(this, 'provider', erc4337provider.originalProvider)
   }
 
   // This one is cvalled by Contract. It signs the request and passes in to Provider to be sent.
@@ -33,8 +33,22 @@ export class ERC4337EthersSigner extends Signer {
     // 3. send to
   }
 
-  convertToUserOperation (): Partial<UserOperation> {
-    return {}
+  async convertToUserOperation (transactionRequest: TransactionRequest): Promise<Partial<UserOperation>> {
+    if (transactionRequest.to == null) {
+      throw new Error('Missing call target')
+    }
+    if (transactionRequest.data == null && transactionRequest.value == null) {
+      // TBD: banning no-op UserOps seems to make sense on provider level
+      throw new Error('Missing call data or value')
+    }
+    const callData = await this.erc4337provider.encodeUserOpCalldata({
+      target: transactionRequest.to,
+      data: transactionRequest.data,
+      value: transactionRequest.value
+    })
+    return {
+      callData
+     }
   }
 
   connect (provider: Provider): Signer {

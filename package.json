@@ -23,6 +23,7 @@
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps"
   },
   "dependencies": {
+    "typescript": "^4.7.4",
     "lerna": "^5.4.0",
     "eslint": "^8.21.0",
     "eslint-config-standard-with-typescript": "^22.0.0",

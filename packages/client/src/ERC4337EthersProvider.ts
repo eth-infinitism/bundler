@@ -14,9 +14,9 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   constructor (
     network: Networkish,
-    private readonly url: ConnectionInfo | string,
-    private readonly originalSigner: Signer,
-    private readonly originalProvider: Provider,
+    readonly url: ConnectionInfo | string,
+    readonly originalSigner: Signer,
+    readonly originalProvider: Provider,
     private readonly bundlerUrl: string,
     private readonly paymasterAPI: PaymasterAPI,
     private readonly smartWalletAPI: SmartWalletAPI,
@@ -50,5 +50,9 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
     return await super.getTransactionReceipt(transactionHash)
+  }
+
+  async encodeUserOpCalldata(arg0: { target: string, data: any, value: any }): Promise<string> {
+    throw new Error('Method not implemented.')
   }
 }
