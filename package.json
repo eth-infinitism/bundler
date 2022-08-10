@@ -19,5 +19,8 @@
     "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix",
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps"
+  },
+  "dependencies": {
+    "lerna": "^5.4.0"
   }
 }
