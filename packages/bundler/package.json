@@ -7,7 +7,6 @@
   ],
   "scripts": {
     "tsc": "tsc",
-    "hardhat-compile": "rm -rf artifacts packages/bundler/src/typechain-types; hardhat compile",
     "lint": "eslint -f unix ."
   },
   "dependencies": {

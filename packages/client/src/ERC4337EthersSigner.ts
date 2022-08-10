@@ -2,7 +2,7 @@ import { Deferrable, defineReadOnly } from '@ethersproject/properties'
 import { Provider, TransactionRequest, TransactionResponse } from '@ethersproject/providers'
 import { Signer } from '@ethersproject/abstract-signer'
 
-import { UserOperation } from '@erc4337/common/dist/UserOperation'
+import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
 
 import { Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
@@ -33,8 +33,8 @@ export class ERC4337EthersSigner extends Signer {
     // 3. send to
   }
 
-  convertToUserOperation (): UserOperation {
-
+  convertToUserOperation (): Partial<UserOperation> {
+    return {}
   }
 
   connect (provider: Provider): Signer {

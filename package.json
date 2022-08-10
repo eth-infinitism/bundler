@@ -13,6 +13,7 @@
     ]
   },
   "scripts": {
+    "preprocess": "lerna run hardhat-compile && yarn tsc",
     "tsc": "lerna run tsc",
     "lerna-test": "lerna run hardhat-test --stream --no-prefix",
     "lerna-lint": "lerna run lint --stream --parallel",
