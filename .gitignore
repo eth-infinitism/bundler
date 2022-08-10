@@ -9,8 +9,9 @@ packages/bundler/src/typechain-types
 cache
 artifacts
 /packages/**/dist/
-/packages/contracts/types/
+/packages/hardhat/types/
 .DS_Store
 /.idea/bundler.iml
 /.idea/modules.xml
 /packages/bundler/tsconfig.tsbuildinfo
+/packages/hardhat/deployments/

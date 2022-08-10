@@ -1,12 +1,16 @@
 {
   "name": "@erc4337/helper-contracts",
   "version": "0.1.0",
+  "license": "MIT",
   "files": [
     "src/*",
     "README.md"
   ],
   "scripts": {
-    "hardhat-compile": "rm -rf artifacts types; hardhat compile"
+    "hardhat-compile": "rm -rf artifacts types; hardhat compile",
+    "hardhat-deploy": "hardhat deploy",
+    "hardhat-node": "hardhat node",
+    "hardhat-test": "hardhat test"
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.1.0"

@@ -46,7 +46,7 @@ jobs: # a collection of steps
           at: .
       - run: # run tests
           name: test
-          command: yarn lerna-run-test-only-with-hardhat | tee /tmp/test-dev-results.log
+          command: yarn lerna-test | tee /tmp/test-dev-results.log
       - store_test_results: # special step to upload test results for display in Test Summary
           path: /tmp/test-dev-results.log
   lint:
