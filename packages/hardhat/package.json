@@ -10,7 +10,8 @@
     "hardhat-compile": "rm -rf artifacts types; hardhat compile",
     "hardhat-deploy": "hardhat deploy",
     "hardhat-node": "hardhat node",
-    "hardhat-test": "hardhat test"
+    "hardhat-test": "hardhat test",
+    "lint": "eslint -f unix ."
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.1.0"

@@ -8,7 +8,6 @@ import { Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 
 export class ERC4337EthersSigner extends Signer {
-
   constructor (
     private readonly originalSigner: Signer,
     provider: ERC4337EthersProvider
@@ -19,11 +18,11 @@ export class ERC4337EthersSigner extends Signer {
 
   // This one is cvalled by Contract. It signs the request and passes in to Provider to be sent.
   async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
-
     // code from super;
     this._checkProvider('sendTransaction')
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     const signedTx = await this.signTransaction(tx)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await this.provider!.sendTransaction(signedTx)
 
     // must do:
@@ -42,15 +41,15 @@ export class ERC4337EthersSigner extends Signer {
     throw new Error('changing providers is not supported')
   }
 
-  getAddress (): Promise<string> {
-    return this.originalSigner.getAddress()
+  async getAddress (): Promise<string> {
+    return await this.originalSigner.getAddress()
   }
 
-  signMessage (message: Bytes | string): Promise<string> {
-    return this.originalSigner.signMessage(message)
+  async signMessage (message: Bytes | string): Promise<string> {
+    return await this.originalSigner.signMessage(message)
   }
 
-  signTransaction (transaction: Deferrable<TransactionRequest>): Promise<string> {
-    return Promise.resolve('')
+  async signTransaction (transaction: Deferrable<TransactionRequest>): Promise<string> {
+    return await Promise.resolve('')
   }
 }

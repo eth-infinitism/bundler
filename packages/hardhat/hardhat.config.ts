@@ -4,7 +4,7 @@ import 'hardhat-deploy'
 
 const config: HardhatUserConfig = {
   paths: {
-    sources: 'src/',
+    sources: 'src/'
   },
   typechain: {
     outDir: 'types',

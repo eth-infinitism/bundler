@@ -1,11 +1,7 @@
-import { PromiseOrValue } from '../../bundler/src/typechain-types/common'
-import { BigNumberish, BytesLike } from 'ethers'
-
 // export type UserOperationStruct = {
 // user input:
 //   sender: PromiseOrValue<string>;
 //   callData: PromiseOrValue<BytesLike>;
-
 
 // wallet-specific:
 //   nonce: PromiseOrValue<BigNumberish>;
@@ -25,13 +21,11 @@ import { BigNumberish, BytesLike } from 'ethers'
 //   signature: PromiseOrValue<BytesLike>;
 // };
 
-
 // here goes execution after all wallet-specific fields are filled.
 // this class fills what is not dependent on Wallet implementation:
 
 export class UserOpAPI {
-
-  async getGasFees(): Promise<number> {
+  async getGasFees (): Promise<number> {
     return 0
   }
 }

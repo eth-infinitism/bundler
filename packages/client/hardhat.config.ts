@@ -4,9 +4,11 @@ import 'hardhat-deploy'
 import * as fs from 'fs'
 
 const mnemonicFile: string | undefined = process.env.MNEMONIC_FILE
-const accounts = mnemonicFile == undefined ? undefined : {
-  mnemonic: fs.readFileSync(process.env.MNEMONIC_FILE as string, 'ascii')
-}
+const accounts = mnemonicFile == null
+  ? undefined
+  : {
+      mnemonic: fs.readFileSync(process.env.MNEMONIC_FILE as string, 'ascii')
+    }
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -21,7 +23,7 @@ const config: HardhatUserConfig = {
       accounts
     },
     dev: {
-      url: 'http://localhost:8545',
+      url: 'http://localhost:8545'
       //  accounts
     }
   },

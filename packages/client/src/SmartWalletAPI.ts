@@ -14,5 +14,4 @@ export class SmartWalletAPI {
   async getPreVerificationGas (): Promise<number> {
     return 0
   }
-
 }
