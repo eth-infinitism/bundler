@@ -15,6 +15,7 @@
   "scripts": {
     "tsc": "lerna run tsc",
     "bundler": "ts-node packages/bundler/src/bundler.ts --network https://goerli.infura.io/v3/f40be2b1a3914db682491dc62a19ad43 --mnemonic ./file",
-    "deploy": "hardhat packages/deploy --network goerli"
+    "deploy": "hardhat packages/deploy --network goerli",
+    "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps"
   }
 }
