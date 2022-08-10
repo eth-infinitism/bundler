@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@erc4337/common": "0.1.0",
-    "@erc4337/contracts": "0.1.0",
+    "@erc4337/helper-contracts": "0.1.0",
     "ethers": "^5.6.9"
   },
   "devDependencies": {
