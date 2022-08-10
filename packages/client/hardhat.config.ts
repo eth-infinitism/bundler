@@ -1,7 +1,7 @@
-import {HardhatUserConfig} from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
+import { HardhatUserConfig } from 'hardhat/config'
+import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-deploy'
-import * as fs from "fs";
+import * as fs from 'fs'
 
 const mnemonicFile: string | undefined = process.env.MNEMONIC_FILE
 const accounts = mnemonicFile == undefined ? undefined : {
@@ -12,7 +12,7 @@ const config: HardhatUserConfig = {
   solidity: {
     version: '0.8.15',
     settings: {
-      optimizer: {enabled: true}
+      optimizer: { enabled: true }
     }
   },
   networks: {
@@ -21,8 +21,8 @@ const config: HardhatUserConfig = {
       accounts
     },
     dev: {
-      url: "http://localhost:8545",
-    //  accounts
+      url: 'http://localhost:8545',
+      //  accounts
     }
   },
   namedAccounts: {
@@ -30,6 +30,6 @@ const config: HardhatUserConfig = {
       default: 0
     }
   }
-};
+}
 
-export default config;
+export default config

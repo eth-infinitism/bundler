@@ -1,15 +1,14 @@
 import minimist from "minimist";
-//import {EntryPoint__factory} from "@account-abstraction/contracts/typechain/factories/EntryPoint__factory";
 import {ethers, utils, Wallet} from "ethers";
 import * as fs from "fs";
 import {formatEther, parseEther} from "ethers/lib/utils";
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
-import {BundlerHelper__factory, EntryPoint__factory} from "../typechain-types";
+import {BundlerHelper__factory, EntryPoint__factory} from "./typechain-types";
 import {network} from "hardhat";
 
-
+// this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspect_custom_symbol = Symbol.for('nodejs.util.inspect.custom')
 // @ts-ignore
 ethers.BigNumber.prototype[inspect_custom_symbol] = function () {

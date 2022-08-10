@@ -1,0 +1,33 @@
+{
+  "name": "@erc4337/client",
+  "version": "0.1.0",
+  "files": [
+    "dist/*",
+    "README.md"
+  ],
+  "scripts": {
+    "tsc": "tsc"
+  },
+  "dependencies": {
+    "@erc4337/common": "0.1.0",
+    "ethers": "^5.6.9"
+  },
+  "devDependencies": {
+    "@ethersproject/abi": "^5.4.7",
+    "@ethersproject/abstract-signer": "^5.6.2",
+    "@ethersproject/providers": "^5.4.7",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.2",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.3",
+    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "@nomiclabs/hardhat-etherscan": "^3.0.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@typechain/ethers-v5": "^10.1.0",
+    "@typechain/hardhat": "^6.1.2",
+    "@types/chai": "^4.2.0",
+    "@types/minimist": "^1.2.2",
+    "@types/mocha": "^9.1.0",
+    "@types/node": ">=12.0.0",
+    "chai": "^4.3.6"
+  }
+}

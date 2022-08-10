@@ -6,6 +6,15 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist",
     "strict": true,
-    "skipLibCheck": true
+    "composite": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "sourceMap": true
   }
 }

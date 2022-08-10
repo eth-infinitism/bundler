@@ -3,8 +3,14 @@ node_modules
 coverage
 coverage.json
 typechain
-typechain-types
+packages/bundler/src/typechain-types
 
 #Hardhat files
 cache
 artifacts
+/packages/**/dist/
+/packages/contracts/types/
+.DS_Store
+/.idea/bundler.iml
+/.idea/modules.xml
+/packages/bundler/tsconfig.tsbuildinfo

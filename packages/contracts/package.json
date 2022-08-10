@@ -1,0 +1,17 @@
+{
+  "name": "@erc4337/helper-contracts",
+  "version": "0.1.0",
+  "files": [
+    "src/*",
+    "README.md"
+  ],
+  "scripts": {
+    "hardhat-compile": "rm -rf artifacts types; hardhat compile"
+  },
+  "dependencies": {
+    "@account-abstraction/contracts": "^0.1.0"
+  },
+  "devDependencies": {
+    "hardhat": "^2.10.1"
+  }
+}

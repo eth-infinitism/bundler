@@ -1,0 +1,11 @@
+{
+  "name": "@erc4337/common",
+  "version": "0.1.0",
+  "scripts": {
+    "tsc": "tsc"
+  },
+  "files": [
+    "dist/*",
+    "README.md"
+  ]
+}
