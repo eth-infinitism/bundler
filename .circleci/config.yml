@@ -37,7 +37,7 @@ jobs: # a collection of steps
           paths:
             - .
 
-  test_dev:
+  test:
     working_directory: ~/gls # directory where steps will run
     docker: # run the steps with Docker
       - image: cimg/node:16.6.2
