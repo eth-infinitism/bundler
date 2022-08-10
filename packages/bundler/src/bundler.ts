@@ -1,22 +1,24 @@
-import minimist from "minimist";
-import {ethers, utils, Wallet} from "ethers";
-import * as fs from "fs";
-import {formatEther, parseEther} from "ethers/lib/utils";
+/* eslint-disable @typescript-eslint/no-base-to-string */
+
+import minimist from 'minimist'
+import { ethers, utils, Wallet } from 'ethers'
+import * as fs from 'fs'
+import { formatEther, parseEther } from 'ethers/lib/utils'
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
-import {BundlerHelper__factory, EntryPoint__factory} from "./typechain-types";
-import {network} from "hardhat";
+import { BundlerHelper__factory, EntryPoint__factory } from '@erc4337/helper-contracts/types'
+import { UserOperation } from '@erc4337/common/src/UserOperation'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
-export const inspect_custom_symbol = Symbol.for('nodejs.util.inspect.custom')
+export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
 // @ts-ignore
-ethers.BigNumber.prototype[inspect_custom_symbol] = function () {
+ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
   return `BigNumber ${parseInt(this._hex)}`
 }
 
-//deploy with "hardhat deploy --network goerli"
-const DefaultBundlerHelperAddress = '0xdD747029A0940e46D20F17041e747a7b95A67242';
+// deploy with "hardhat deploy --network goerli"
+const DefaultBundlerHelperAddress = '0xdD747029A0940e46D20F17041e747a7b95A67242'
 
 const supportedEntryPoints = [
   '0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69'
@@ -34,12 +36,12 @@ const args = minimist(process.argv.slice(2), {
   }
 })
 
-function fatal(msg: string): never {
+function fatal (msg: string): never {
   console.error('fatal:', msg)
   process.exit(1)
 }
 
-function usage(msg: string) {
+function usage (msg: string): void {
   console.log(msg)
   console.log(`
 usage: yarn run bundler [options]
@@ -53,9 +55,9 @@ usage: yarn run bundler [options]
   `)
 }
 
-function getParam(name: string, defValue?: string | number): string {
-  let value = args[name] || process.env[name] || defValue
-  if (typeof defValue == 'number') {
+function getParam (name: string, defValue?: string | number): string {
+  let value = args[name] ?? process.env[name] ?? defValue
+  if (typeof defValue === 'number') {
     value = parseFloat(value)
   }
   if (value == null) {
@@ -82,16 +84,15 @@ const bundlerHelper = BundlerHelper__factory.connect(helperAddress, signer)
 
 // noinspection JSUnusedGlobalSymbols
 class MethodHandler {
-
-  async eth_chainId() {
-    return provider.getNetwork().then(net => utils.hexlify(net.chainId))
+  async eth_chainId (): Promise<string | undefined> {
+    return await provider.getNetwork().then(net => utils.hexlify(net.chainId))
   }
 
-  async eth_supportedEntryPoints() {
+  async eth_supportedEntryPoints (): Promise<string[]> {
     return supportedEntryPoints
   }
 
-  async eth_sendUserOperation(userOp: any, entryPointAddress: string) {
+  async eth_sendUserOperation (userOp: UserOperation, entryPointAddress: string): Promise<string> {
     const entryPoint = EntryPoint__factory.connect(entryPointAddress, signer)
     if (!supportedEntryPoints.includes(utils.getAddress(entryPointAddress))) {
       throw new Error(`entryPoint "${entryPointAddress}" not supported. use one of ${supportedEntryPoints.toString()}`)
@@ -108,15 +109,15 @@ class MethodHandler {
     const [estimateGasRet, estHandleOp, staticRet] = await Promise.all([
       bundlerHelper.estimateGas.handleOps(0, entryPointAddress, [userOp], b),
       entryPoint.estimateGas.handleOps([userOp], b),
-      bundlerHelper.callStatic.handleOps(0, entryPointAddress, [userOp], b),
+      bundlerHelper.callStatic.handleOps(0, entryPointAddress, [userOp], b)
     ])
     const estimateGas = estimateGasRet.mul(64).div(63)
     console.log('estimated gas', estimateGas.toString())
     console.log('handleop est ', estHandleOp.toString())
     console.log('ret=', staticRet)
-    console.log('preVerificationGas', parseInt(userOp.preVerificationGas))
-    console.log('verificationGas', parseInt(userOp.verificationGas))
-    console.log('callGas', parseInt(userOp.callGas))
+    console.log('preVerificationGas', parseInt(userOp.preVerificationGas.toString()))
+    console.log('verificationGas', parseInt(userOp.verificationGas.toString()))
+    console.log('callGas', parseInt(userOp.callGas.toString()))
     const reqid = entryPoint.getRequestId(userOp)
     const estimateGasFactored = estimateGas.mul(Math.round(gasFactor * 100000)).div(100000)
     await bundlerHelper.handleOps(estimateGasFactored, entryPointAddress, [userOp], b)
@@ -126,7 +127,7 @@ class MethodHandler {
 
 const methodHandler: { [key: string]: (...params: any[]) => void } = new MethodHandler() as any
 
-async function handleRpcMethod(method: string, params: any[]): Promise<any> {
+async function handleRpcMethod (method: string, params: any[]): Promise<any> {
   const func = methodHandler[method]
   if (func == null) {
     throw new Error(`method ${method} not found`)
@@ -134,17 +135,16 @@ async function handleRpcMethod(method: string, params: any[]): Promise<any> {
   return func.apply(methodHandler, params)
 }
 
-async function main() {
-
+async function main (): Promise<void> {
   const bal = await provider.getBalance(signer.address)
   console.log('signer', signer.address, 'balance', utils.formatEther(bal))
   if (bal.eq(0)) {
-    fatal(`cannot run with zero balance`)
+    fatal('cannot run with zero balance')
   } else if (bal.lte(minBalance)) {
     console.log('WARNING: initial balance below --minBalance ', formatEther(minBalance))
   }
 
-  if (await provider.getCode(bundlerHelper.address) == '0x') {
+  if (await provider.getCode(bundlerHelper.address) === '0x') {
     fatal('helper not deployed. run "hardhat deploy --network ..."')
   }
 
@@ -152,28 +152,27 @@ async function main() {
   app.use(cors())
   app.use(bodyParser.json())
 
-
   const intro: any = (req: any, res: any) => {
     res.send('Account-Abstraction Bundler. please use "/rpc"')
   }
   app.get('/', intro)
   app.post('/', intro)
   app.post('/rpc', function (req, res) {
-    const {method, params, jsonrpc, id} = req.body
+    const { method, params, jsonrpc, id } = req.body
     handleRpcMethod(method, params)
       .then(result => {
         console.log('sent', method, '-', result)
-        res.send({jsonrpc, id, result})
+        res.send({ jsonrpc, id, result })
       })
       .catch(err => {
-        const error = {message: err.error?.reason ?? err.error, code: -32000}
+        const error = { message: err.error?.reason ?? err.error, code: -32000 }
         console.log('failed: ', method, error)
-        res.send({jsonrpc, id, error})
+        res.send({ jsonrpc, id, error })
       })
   })
   app.listen(port)
-  console.log(`connected to network`, await provider.getNetwork().then(net => {
-    net.name, net.chainId
+  console.log('connected to network', await provider.getNetwork().then(net => {
+    return { name: net.name, chainId: net.chainId }
   }))
   console.log(`running on http://localhost:${port}`)
 }

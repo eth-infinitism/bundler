@@ -4,6 +4,7 @@
   "license": "MIT",
   "files": [
     "src/*",
+    "types/*",
     "README.md"
   ],
   "scripts": {
