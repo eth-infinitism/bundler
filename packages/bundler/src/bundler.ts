@@ -51,17 +51,17 @@ usage: yarn run bundler [options]
   `)
 }
 
-function getParam (name: string, defValue?: string | number): string {
-  let value = args[name] ?? process.env[name] ?? defValue
-  if (typeof defValue === 'number') {
-    value = parseFloat(value)
-  }
-  if (value == null) {
-    usage(`missing --${name}`)
-  }
-  // console.log(`getParam(${name}) = "${value}"`)
-  return value
-}
+// function getParam (name: string, defValue?: string | number): string {
+//   let value = args[name] ?? process.env[name] ?? defValue
+//   if (typeof defValue === 'number') {
+//     value = parseFloat(value)
+//   }
+//   if (value == null) {
+//     usage(`missing --${name}`)
+//   }
+//   // console.log(`getParam(${name}) = "${value}"`)
+//   return value
+// }
 
 const provider = ethers.getDefaultProvider(getParam('network'))
 
@@ -79,26 +79,6 @@ const port = getParam('port', 3000)
 const bundlerHelper = BundlerHelper__factory.connect(helperAddress, signer)
 
 // noinspection JSUnusedGlobalSymbols
-
-async function main (): Promise<void> {
-  const bal = await provider.getBalance(signer.address)
-  console.log('signer', signer.address, 'balance', utils.formatEther(bal))
-  if (bal.eq(0)) {
-    fatal('cannot run with zero balance')
-  } else if (bal.lte(minBalance)) {
-    console.log('WARNING: initial balance below --minBalance ', formatEther(minBalance))
-  }
-
-  if (await provider.getCode(bundlerHelper.address) === '0x') {
-    fatal('helper not deployed. run "hardhat deploy --network ..."')
-  }
-
-
-  console.log('connected to network', await provider.getNetwork().then(net => {
-    return { name: net.name, chainId: net.chainId }
-  }))
-  console.log(`running on http://localhost:${port}`)
-}
 
 main()
   .catch(e => console.log(e))

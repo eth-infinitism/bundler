@@ -6,4 +6,6 @@ describe('ERC4337EthersSigner', function () {
     const bundlerHelper = await deployments.get('BundlerHelper') // Token is available because the fixture was executed
     console.log('bundlerHelper', bundlerHelper.address)
   })
+
+  it('should use ERC-4337 Signer and Provider to send the UserOperation to the bundler')
 })
