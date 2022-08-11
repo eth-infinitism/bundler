@@ -1,13 +1,17 @@
 import { Deferrable, defineReadOnly } from '@ethersproject/properties'
-import { Provider, TransactionRequest, TransactionResponse } from '@ethersproject/providers'
+import { Provider, TransactionReceipt, TransactionRequest, TransactionResponse } from '@ethersproject/providers'
 import { Signer } from '@ethersproject/abstract-signer'
 
 import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
 
-import { Bytes } from 'ethers'
+import { BigNumber, Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
+import { getRequestId, getRequestIdForSigning } from '@erc4337/common/dist/src/ERC4337Utils'
+import { hexValue } from 'ethers/lib/utils'
 
 export class ERC4337EthersSigner extends Signer {
+  private config!: { entryPointAddress: string, chainId: number }
+
   constructor (
     private readonly originalSigner: Signer,
     readonly erc4337provider: ERC4337EthersProvider
@@ -16,24 +20,47 @@ export class ERC4337EthersSigner extends Signer {
     defineReadOnly(this, 'provider', erc4337provider.originalProvider)
   }
 
-  // This one is cvalled by Contract. It signs the request and passes in to Provider to be sent.
+  // This one is called by Contract. It signs the request and passes in to Provider to be sent.
   async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
     // code from super;
-    this._checkProvider('sendTransaction')
-    const tx: TransactionRequest = await this.populateTransaction(transaction)
-    const signedTx = await this.signTransaction(tx)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return await this.provider!.sendTransaction(signedTx)
+    // this._checkProvider('sendTransaction')
+    // const signedTx = await this.signTransaction(tx)
+    // // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // return await this.provider!.sendTransaction(signedTx)
 
+    const tx: TransactionRequest = await this.populateTransaction(transaction)
     // must do:
-    // 1. Turn 'Transaction Request' into partial user op
-    // 2. get 'wallet api' to fill missing parts
-    // 3. get 'paymaster api' to fill missing parts
-    // 3. get 'userOp api' to fill missing parts
-    // 3. send to
+    await this.verifyAllNecessaryFields(tx)
+    const userOperation = await this.erc4337provider.createUserOp({
+      target: tx.to!,
+      data: tx.data,
+      value: tx.value
+    })
+    userOperation.signature = await this.signUserOperation(userOperation)
+    return this.constructUserOpTransactionResponse(userOperation)
   }
 
-  async convertToUserOperation (transactionRequest: TransactionRequest): Promise<Partial<UserOperation>> {
+  async constructUserOpTransactionResponse (userOp: UserOperation): Promise<TransactionResponse> {
+    const requestId = getRequestId(userOp, this.config.entryPointAddress, this.config.chainId)
+    const resp: TransactionResponse = {
+      hash: requestId,
+      confirmations: 0,
+      from: userOp.sender,
+      nonce: BigNumber.from(userOp.nonce).toNumber(),
+      gasLimit: BigNumber.from(userOp.callGas), // ??
+      value: BigNumber.from(0),
+      data: hexValue(userOp.callData), // should extract the actual called method from this "execFromSingleton()" call
+      chainId: this.config.chainId,
+      wait: async function (confirmations?: number): Promise<TransactionReceipt> {
+        // TODO: migrate transaction receipt getter function
+        // @ts-ignore
+        return Promise.resolve()
+      }
+    }
+    return resp
+  }
+
+  async verifyAllNecessaryFields (transactionRequest: TransactionRequest): Promise<void> {
     if (transactionRequest.to == null) {
       throw new Error('Missing call target')
     }
@@ -41,14 +68,6 @@ export class ERC4337EthersSigner extends Signer {
       // TBD: banning no-op UserOps seems to make sense on provider level
       throw new Error('Missing call data or value')
     }
-    const callData = await this.erc4337provider.encodeUserOpCalldata({
-      target: transactionRequest.to,
-      data: transactionRequest.data,
-      value: transactionRequest.value
-    })
-    return {
-      callData
-     }
   }
 
   connect (provider: Provider): Signer {
@@ -65,5 +84,10 @@ export class ERC4337EthersSigner extends Signer {
 
   async signTransaction (transaction: Deferrable<TransactionRequest>): Promise<string> {
     return await Promise.resolve('')
+  }
+
+  private async signUserOperation (userOperation: UserOperation): Promise<string> {
+    const message = getRequestIdForSigning(userOperation, this.config.entryPointAddress, this.config.chainId)
+    return this.originalSigner.signMessage(message)
   }
 }
