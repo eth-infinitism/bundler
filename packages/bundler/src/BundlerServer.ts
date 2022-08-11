@@ -1,15 +1,21 @@
 import express, { Express, Response, Request } from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
-import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { JsonRpcRequest } from 'hardhat/types'
+import { Provider } from '@ethersproject/providers'
+import { Wallet, utils } from 'ethers'
 
+import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { BundlerConfig } from './BundlerConfig'
 export class BundlerServer {
   app: Express
-  private methodHandler!: UserOpMethodHandler
-  private port!: number
 
-  constructor () {
+  constructor(
+    private methodHandler: UserOpMethodHandler,
+    private config: BundlerConfig,
+    private provider: Provider,
+    private wallet: Wallet
+  ) {
     this.app = express()
     this.app.use(cors())
     this.app.use(bodyParser.json())
@@ -19,8 +25,27 @@ export class BundlerServer {
 
     this.app.post('/rpc', this.rpc.bind(this))
 
-    this.app.listen(this.port)
+    this.app.listen(this.config.port)
+  }
 
+
+  async preflightCheck (): Promise<void> {
+    const bal = await this.provider.getBalance(this.wallet.address)
+    console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
+    if (bal.eq(0)) {
+      this.fatal('cannot run with zero balance')
+    } else if (bal.lte(this.config.minBalance)) {
+      console.log('WARNING: initial balance below --minBalance ', utils.formatEther(this.config.minBalance))
+    }
+
+    if (await this.provider.getCode(this.config.helper) === '0x') {
+      this.fatal('helper not deployed. run "hardhat deploy --network ..."')
+    }
+  }
+
+  fatal (msg: string): never {
+    console.error('fatal:', msg)
+    process.exit(1)
   }
 
   intro (req: Request, res: Response): void {

@@ -10,6 +10,8 @@
     "lint": "eslint -f unix ."
   },
   "dependencies": {
+    "@erc4337/common": "0.1.0",
+    "@erc4337/helper-contracts": "0.1.0",
     "@account-abstraction/contracts": "^0.1.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",

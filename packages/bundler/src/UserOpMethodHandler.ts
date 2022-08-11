@@ -1,6 +1,6 @@
 import { BigNumberish, utils } from 'ethers'
 import { UserOperation } from '@erc4337/common/dist/UserOperation'
-import { BundlerHelper, EntryPoint__factory } from '@erc4337/helper-contracts/types'
+import { BundlerHelper, EntryPoint__factory } from '@erc4337/helper-contracts/types/index'
 import { Provider } from '@ethersproject/providers'
 
 export class UserOpMethodHandler {
