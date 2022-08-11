@@ -1,5 +1,5 @@
 export interface TransactionDetailsForUserOp {
-  target: string,
-  data: any,
-  value: any
+  target: string
+  data: string
+  value: string
 }

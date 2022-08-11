@@ -4,11 +4,7 @@ import minimist from 'minimist'
 import { ethers, utils, Wallet } from 'ethers'
 import * as fs from 'fs'
 import { formatEther, parseEther } from 'ethers/lib/utils'
-import express from 'express'
-import cors from 'cors'
-import bodyParser from 'body-parser'
 import { BundlerHelper__factory, EntryPoint__factory } from '@erc4337/helper-contracts/types'
-import { UserOperation } from '@erc4337/common/src/UserOperation'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -83,57 +79,6 @@ const port = getParam('port', 3000)
 const bundlerHelper = BundlerHelper__factory.connect(helperAddress, signer)
 
 // noinspection JSUnusedGlobalSymbols
-class MethodHandler {
-  async eth_chainId (): Promise<string | undefined> {
-    return await provider.getNetwork().then(net => utils.hexlify(net.chainId))
-  }
-
-  async eth_supportedEntryPoints (): Promise<string[]> {
-    return supportedEntryPoints
-  }
-
-  async eth_sendUserOperation (userOp: UserOperation, entryPointAddress: string): Promise<string> {
-    const entryPoint = EntryPoint__factory.connect(entryPointAddress, signer)
-    if (!supportedEntryPoints.includes(utils.getAddress(entryPointAddress))) {
-      throw new Error(`entryPoint "${entryPointAddress}" not supported. use one of ${supportedEntryPoints.toString()}`)
-    }
-    console.log(`userOp ep=${entryPointAddress} sender=${userOp.sender} pm=${userOp.paymaster}`)
-    const currentBalance = await provider.getBalance(signer.address)
-    let b = beneficiary
-    // below min-balance redeem to the signer, to keep it active.
-    if (currentBalance.lte(minBalance)) {
-      b = signer.address
-      console.log('low balance. using ', b, 'as beneficiary instead of ', beneficiary)
-    }
-
-    const [estimateGasRet, estHandleOp, staticRet] = await Promise.all([
-      bundlerHelper.estimateGas.handleOps(0, entryPointAddress, [userOp], b),
-      entryPoint.estimateGas.handleOps([userOp], b),
-      bundlerHelper.callStatic.handleOps(0, entryPointAddress, [userOp], b)
-    ])
-    const estimateGas = estimateGasRet.mul(64).div(63)
-    console.log('estimated gas', estimateGas.toString())
-    console.log('handleop est ', estHandleOp.toString())
-    console.log('ret=', staticRet)
-    console.log('preVerificationGas', parseInt(userOp.preVerificationGas.toString()))
-    console.log('verificationGas', parseInt(userOp.verificationGas.toString()))
-    console.log('callGas', parseInt(userOp.callGas.toString()))
-    const reqid = entryPoint.getRequestId(userOp)
-    const estimateGasFactored = estimateGas.mul(Math.round(gasFactor * 100000)).div(100000)
-    await bundlerHelper.handleOps(estimateGasFactored, entryPointAddress, [userOp], b)
-    return await reqid
-  }
-}
-
-const methodHandler: { [key: string]: (...params: any[]) => void } = new MethodHandler() as any
-
-async function handleRpcMethod (method: string, params: any[]): Promise<any> {
-  const func = methodHandler[method]
-  if (func == null) {
-    throw new Error(`method ${method} not found`)
-  }
-  return func.apply(methodHandler, params)
-}
 
 async function main (): Promise<void> {
   const bal = await provider.getBalance(signer.address)
@@ -148,29 +93,7 @@ async function main (): Promise<void> {
     fatal('helper not deployed. run "hardhat deploy --network ..."')
   }
 
-  const app = express()
-  app.use(cors())
-  app.use(bodyParser.json())
 
-  const intro: any = (req: any, res: any) => {
-    res.send('Account-Abstraction Bundler. please use "/rpc"')
-  }
-  app.get('/', intro)
-  app.post('/', intro)
-  app.post('/rpc', function (req, res) {
-    const { method, params, jsonrpc, id } = req.body
-    handleRpcMethod(method, params)
-      .then(result => {
-        console.log('sent', method, '-', result)
-        res.send({ jsonrpc, id, result })
-      })
-      .catch(err => {
-        const error = { message: err.error?.reason ?? err.error, code: -32000 }
-        console.log('failed: ', method, error)
-        res.send({ jsonrpc, id, error })
-      })
-  })
-  app.listen(port)
   console.log('connected to network', await provider.getNetwork().then(net => {
     return { name: net.name, chainId: net.chainId }
   }))

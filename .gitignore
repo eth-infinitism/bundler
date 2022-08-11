@@ -15,3 +15,4 @@ artifacts
 /.idea/modules.xml
 /packages/bundler/tsconfig.tsbuildinfo
 /packages/hardhat/deployments/
+tsconfig.tsbuildinfo

@@ -2,7 +2,7 @@ import { ConnectionInfo } from '@ethersproject/web'
 import { BaseProvider, Provider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
 import { Networkish } from '@ethersproject/networks'
 
-import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
+import { UserOperation } from '@erc4337/common/src/UserOperation'
 
 import { PaymasterAPI } from './PaymasterAPI'
 import { SmartWalletAPI } from './SmartWalletAPI'

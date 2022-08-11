@@ -2,15 +2,15 @@ import { Deferrable, defineReadOnly } from '@ethersproject/properties'
 import { Provider, TransactionReceipt, TransactionRequest, TransactionResponse } from '@ethersproject/providers'
 import { Signer } from '@ethersproject/abstract-signer'
 
-import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
+import { UserOperation } from '@erc4337/common/dist/UserOperation'
 
 import { BigNumber, Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
-import { getRequestId, getRequestIdForSigning } from '@erc4337/common/dist/src/ERC4337Utils'
+import { getRequestId, getRequestIdForSigning } from '@erc4337/common/dist/ERC4337Utils'
 import { hexValue } from 'ethers/lib/utils'
 
 export class ERC4337EthersSigner extends Signer {
-  private config!: { entryPointAddress: string, chainId: number }
+  private readonly config!: { entryPointAddress: string, chainId: number }
 
   constructor (
     private readonly originalSigner: Signer,
@@ -32,12 +32,12 @@ export class ERC4337EthersSigner extends Signer {
     // must do:
     await this.verifyAllNecessaryFields(tx)
     const userOperation = await this.erc4337provider.createUserOp({
-      target: tx.to!,
-      data: tx.data,
-      value: tx.value
+      target: tx.to ?? '',
+      data: tx.data?.toString() ?? '',
+      value: tx.value?.toString() ?? ''
     })
     userOperation.signature = await this.signUserOperation(userOperation)
-    return this.constructUserOpTransactionResponse(userOperation)
+    return await this.constructUserOpTransactionResponse(userOperation)
   }
 
   async constructUserOpTransactionResponse (userOp: UserOperation): Promise<TransactionResponse> {
@@ -54,7 +54,7 @@ export class ERC4337EthersSigner extends Signer {
       wait: async function (confirmations?: number): Promise<TransactionReceipt> {
         // TODO: migrate transaction receipt getter function
         // @ts-ignore
-        return Promise.resolve()
+        return await Promise.resolve()
       }
     }
     return resp
@@ -88,6 +88,6 @@ export class ERC4337EthersSigner extends Signer {
 
   private async signUserOperation (userOperation: UserOperation): Promise<string> {
     const message = getRequestIdForSigning(userOperation, this.config.entryPointAddress, this.config.chainId)
-    return this.originalSigner.signMessage(message)
+    return await this.originalSigner.signMessage(message)
   }
 }
