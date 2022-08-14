@@ -1,6 +1,6 @@
 {
   "mnemonic": "a a a a",
-  "network": "",
+  "network": "http://localhost:8545/",
   "beneficiary": "",
   "port": 8080,
   "helper": "",

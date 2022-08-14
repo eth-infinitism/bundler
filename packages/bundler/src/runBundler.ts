@@ -1,12 +1,15 @@
+import ow from 'ow'
+import fs from 'fs'
+
 import { program } from 'commander'
 import { erc4337RuntimeVersion } from '@erc4337/common'
 import { ethers, Wallet } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
-import fs from 'fs'
 
-import { BundlerConfig } from './BundlerConfig'
+import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { BundlerHelper, BundlerHelper__factory, EntryPoint, EntryPoint__factory } from './types'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -17,45 +20,52 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 
 program
   .version(erc4337RuntimeVersion)
-  .option('--beneficiary')
+  .option('--beneficiary', 'address to receive funds')
   .option('--gasFactor')
-  .option('--minBalance')
-  .option('--network')
-  .option('--mnemonic')
-  .option('--helper')
-  .option('--port')
+  .option('--minBalance', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
+  .option('--network', 'network name or url')
+  .option('--mnemonic', 'signer account secret key mnemonic')
+  .option('--helper', 'address of the BundlerHelper contract')
+  .option('--port', 'server listening port (default to 3000)')
   .parse()
-console.log(program.opts())
 
-function failWithUsage (missing: string[]): void {
-  console.log(`Missing parameters: [${JSON.stringify(missing)}]`)
-  console.log(`
-create 'bundler.config.json' file or pass the command-line arguments
-usage: yarn run bundler  [options]
-  --port - server listening port (default to 3000)
-  --beneficiary address to receive funds (defaults to signer)
-  --minBalance - below this signer balance, use itself, not --beneficiary  
-  --gasFactor - require that much on top of estimated gas (default=1)
-  --network - network name/url
-  --mnemonic - file
-  --helper - BundlerHelper contract. deploy with "hardhat deploy"
-  `)
-}
+console.log('command-line arguments: ', program.opts())
 
 const CONFIG_FILE_NAME = 'bundler.config.json'
 
-function resolveConfiguration(): BundlerConfig {
+export function resolveConfiguration (): BundlerConfig {
   const fileConfig: Partial<BundlerConfig> = JSON.parse(fs.readFileSync(CONFIG_FILE_NAME, 'ascii'))
-  // TODO: merge
-  // TODO 2: using 'shape' find out what keys are missing and call 'failWithUsage'
+  const mergedConfig = Object.assign({}, bundlerConfigDefault, fileConfig)
+  ow(mergedConfig, ow.object.exactShape(BundlerConfigShape))
   return fileConfig as BundlerConfig
+}
+
+export async function connectContracts (
+  wallet: Wallet,
+  entryPointAddress: string,
+  bundlerHelperAddress: string): Promise<{ entryPoint: EntryPoint, bundlerHelper: BundlerHelper }> {
+  const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
+  const bundlerHelper = BundlerHelper__factory.connect(bundlerHelperAddress, wallet)
+  return {
+    entryPoint,
+    bundlerHelper
+  }
 }
 
 async function main (): Promise<void> {
   const config = resolveConfiguration()
   const provider: BaseProvider = ethers.getDefaultProvider(config.network)
   const wallet: Wallet = Wallet.fromMnemonic(config.mnemonic).connect(provider)
-  const methodHandler = new UserOpMethodHandler()
+
+  const { entryPoint, bundlerHelper } = await connectContracts(wallet, config.entryPoint, config.helper)
+
+  const methodHandler = new UserOpMethodHandler(
+    provider,
+    wallet,
+    config,
+    entryPoint,
+    bundlerHelper
+  )
 
   const bundlerServer = new BundlerServer(
     methodHandler,
@@ -71,3 +81,6 @@ async function main (): Promise<void> {
   }))
   console.log(`running on http://localhost:${config.port}`)
 }
+
+main()
+  .catch(e => console.log(e))

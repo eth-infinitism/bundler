@@ -1,19 +1,27 @@
 // TODO: consider adopting config-loading approach from hardhat to allow code in config file
+import ow from 'ow'
 
 export interface BundlerConfig {
+  beneficiary: string
+  entryPoint: string
+  gasFactor: number
+  helper: string
+  minBalance: string
   mnemonic: string
   network: string
-  beneficiary: string
   port: number
-  helper: string
-  entryPoint: string
-  minBalance: string
-  gasFactor: number
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
 export const BundlerConfigShape = {
-
+  beneficiary: ow.string,
+  entryPoint: ow.string,
+  gasFactor: ow.number,
+  helper: ow.string,
+  minBalance: ow.string,
+  mnemonic: ow.string,
+  network: ow.string,
+  port: ow.number
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation

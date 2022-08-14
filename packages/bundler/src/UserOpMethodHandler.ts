@@ -1,54 +1,81 @@
-import { BigNumberish, utils } from 'ethers'
+import { BigNumber, utils, Wallet } from 'ethers'
+import { JsonRpcSigner, Provider } from '@ethersproject/providers'
+
 import { UserOperation } from '@erc4337/common/dist/UserOperation'
-import { BundlerHelper, EntryPoint__factory } from '@erc4337/helper-contracts/types/index'
-import { Provider } from '@ethersproject/providers'
+
+import { BundlerConfig } from './BundlerConfig'
+import { BundlerHelper, EntryPoint } from './types'
 
 export class UserOpMethodHandler {
-  private supportedEntryPoints: string[] = []
-  provider!: Provider
-  signer: any
-  private beneficiary: string = ''
-  private minBalance!: BigNumberish
-  private bundlerHelper!: BundlerHelper
-  private gasFactor!: number
+
+  constructor (
+    readonly provider: Provider,
+    readonly signer: Wallet | JsonRpcSigner,
+    readonly config: BundlerConfig,
+    readonly entryPoint: EntryPoint,
+    readonly bundlerHelper: BundlerHelper
+  ) {}
 
   async eth_chainId (): Promise<string | undefined> {
     return await this.provider.getNetwork().then(net => utils.hexlify(net.chainId))
   }
 
   async eth_supportedEntryPoints (): Promise<string[]> {
-    return this.supportedEntryPoints
+    return [this.config.entryPoint]
   }
 
-  async eth_sendUserOperation (userOp: UserOperation, entryPointAddress: string): Promise<string> {
-    const entryPoint = EntryPoint__factory.connect(entryPointAddress, this.signer)
-    if (!this.supportedEntryPoints.includes(utils.getAddress(entryPointAddress))) {
-      throw new Error(`entryPoint "${entryPointAddress}" not supported. use one of ${this.supportedEntryPoints.toString()}`)
-    }
-    console.log(`userOp ep=${entryPointAddress} sender=${userOp.sender} pm=${userOp.paymaster}`)
-    const currentBalance = await this.provider.getBalance(this.signer.address)
-    let b = this.beneficiary
+  async selectBeneficiary (): Promise<string> {
+    const currentBalance = await this.provider.getBalance(this.signer.getAddress())
+    let beneficiary = this.config.beneficiary
     // below min-balance redeem to the signer, to keep it active.
-    if (currentBalance.lte(this.minBalance)) {
-      b = this.signer.address
-      console.log('low balance. using ', b, 'as beneficiary instead of ', this.beneficiary)
+    if (currentBalance.lte(this.config.minBalance)) {
+      beneficiary = await this.signer.getAddress()
+      console.log('low balance. using ', beneficiary, 'as beneficiary instead of ', this.config.beneficiary)
+    }
+    return beneficiary
+  }
+
+  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
+
+    if (entryPointInput.toLowerCase() !== utils.getAddress(this.config.entryPoint).toLowerCase()) {
+      throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
 
+    console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${this.config.entryPoint} Paymaster=${userOp.paymaster}`)
+
+    const beneficiary = await this.selectBeneficiary()
+    const requestId = await this.entryPoint.getRequestId(userOp)
+
+    // TODO: this is only printing debug info, remove once not necessary
+    await this.printGasEstimationDebugInfo(userOp, beneficiary)
+
+    const estimateGasFactored = await this.estimateGasForHelperCall(userOp, beneficiary)
+
+    await this.bundlerHelper.handleOps(estimateGasFactored, this.config.entryPoint, [userOp], beneficiary)
+    return requestId
+  }
+
+  async estimateGasForHelperCall (userOp: UserOperation, beneficiary: string): Promise<BigNumber> {
+    const estimateGasRet = await
+      this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
+    const estimateGas = estimateGasRet.mul(64).div(63)
+    return estimateGas.mul(Math.round(this.config.gasFactor * 100000)).div(100000)
+  }
+
+  async printGasEstimationDebugInfo (userOp: UserOperation, beneficiary: string) {
     const [estimateGasRet, estHandleOp, staticRet] = await Promise.all([
-      this.bundlerHelper.estimateGas.handleOps(0, entryPointAddress, [userOp], b),
-      entryPoint.estimateGas.handleOps([userOp], b),
-      this.bundlerHelper.callStatic.handleOps(0, entryPointAddress, [userOp], b)
+      this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary),
+      this.entryPoint.estimateGas.handleOps([userOp], beneficiary),
+      this.bundlerHelper.callStatic.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
     ])
     const estimateGas = estimateGasRet.mul(64).div(63)
+    const estimateGasFactored = estimateGas.mul(Math.round(this.config.gasFactor * 100000)).div(100000)
     console.log('estimated gas', estimateGas.toString())
     console.log('handleop est ', estHandleOp.toString())
     console.log('ret=', staticRet)
     console.log('preVerificationGas', parseInt(userOp.preVerificationGas.toString()))
     console.log('verificationGas', parseInt(userOp.verificationGas.toString()))
     console.log('callGas', parseInt(userOp.callGas.toString()))
-    const reqid = entryPoint.getRequestId(userOp)
-    const estimateGasFactored = estimateGas.mul(Math.round(this.gasFactor * 100000)).div(100000)
-    await this.bundlerHelper.handleOps(estimateGasFactored, entryPointAddress, [userOp], b)
-    return await reqid
+    console.log('Total estimated gas for bundler compensation: ', estimateGasFactored)
   }
 }

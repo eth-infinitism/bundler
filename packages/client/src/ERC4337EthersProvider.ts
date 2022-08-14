@@ -1,6 +1,6 @@
 import { ConnectionInfo } from '@ethersproject/web'
 import { BaseProvider, Provider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
-import { Networkish } from '@ethersproject/networks'
+import { Network, Networkish } from '@ethersproject/networks'
 
 import { UserOperation } from '@erc4337/common/src/UserOperation'
 
@@ -17,9 +17,8 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   constructor (
     network: Networkish,
-    readonly url: ConnectionInfo | string,
     readonly originalSigner: Signer,
-    readonly originalProvider: Provider,
+    readonly originalProvider: BaseProvider,
     private readonly bundlerUrl: string,
     private readonly smartWalletAPI: SmartWalletAPI,
     private readonly userOpAPI: UserOpAPI,
@@ -40,7 +39,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     if (method === 'sendTransaction') {
       throw new Error('Should not get here. Investigate.')
     }
-    return await super.perform(method, params)
+    return await this.originalProvider.perform(method, params)
   }
 
   async sendTransaction (signedTransaction: string | Promise<string>): Promise<TransactionResponse> {
@@ -98,4 +97,9 @@ export class ERC4337EthersProvider extends BaseProvider {
     console.log(encodedData, JSON.stringify(detailsForUserOp))
     return encodedData
   }
+
+  async detectNetwork (): Promise<Network> {
+    return (this.originalProvider as any).detectNetwork()
+  }
+
 }

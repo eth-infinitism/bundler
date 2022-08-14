@@ -1,11 +1,32 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    "target": "es2020",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "composite": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "types": [
+      "./src/custom-types/openzeppelin__test-helpers"
+    ],
+    "typeRoots": [
+      "./node_modules/@nomiclabs/hardhat-ethers"
+    ]
   },
   "include": [
     "src",
+    "hardhat.config.ts",
+    "test/**/*.ts",
     "src/typechain-types"
   ]
 }

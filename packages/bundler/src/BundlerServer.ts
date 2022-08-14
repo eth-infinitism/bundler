@@ -7,6 +7,7 @@ import { Wallet, utils } from 'ethers'
 
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { BundlerConfig } from './BundlerConfig'
+
 export class BundlerServer {
   app: Express
 
@@ -75,7 +76,7 @@ export class BundlerServer {
         result = await this.methodHandler.eth_supportedEntryPoints()
         break
       case 'eth_sendUserOperation':
-        result = await this.methodHandler.eth_sendUserOperation(params[0], params[1])
+        result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
       default:
         throw new Error(`Method ${method} is not supported`)

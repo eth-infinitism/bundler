@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@erc4337/common": "0.1.0",
-    "@erc4337/helper-contracts": "0.1.0",
     "ethers": "^5.6.9"
   },
   "devDependencies": {
@@ -24,7 +23,6 @@
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
     "@nomiclabs/hardhat-ethers": "^2.0.0",
     "@nomiclabs/hardhat-etherscan": "^3.0.0",
-    "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@typechain/ethers-v5": "^10.1.0",
     "@typechain/hardhat": "^6.1.2",
     "@types/chai": "^4.2.0",

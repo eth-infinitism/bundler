@@ -16,3 +16,4 @@ artifacts
 /packages/bundler/tsconfig.tsbuildinfo
 /packages/hardhat/deployments/
 tsconfig.tsbuildinfo
+/packages/bundler/src/types/
