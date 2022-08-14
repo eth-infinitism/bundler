@@ -7,11 +7,16 @@ import { PaymasterAPI } from './PaymasterAPI'
 import { SmartWalletAPI } from './SmartWalletAPI'
 import { UserOpAPI } from './UserOpAPI'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
-import { ethers, Signer } from 'ethers'
+import { BigNumber, ethers, Signer } from 'ethers'
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { ClientConfig } from './ClientConfig'
+import { getRequestId } from '@erc4337/common/dist/src/ERC4337Utils'
+import { EntryPoint } from '@erc4337/common/dist/src/types'
+import { hexValue } from 'ethers/lib/utils'
+import { UserOperationEventListener } from './UserOperationEventListener'
 
 export class ERC4337EthersProvider extends BaseProvider {
+  readonly entryPoint!: EntryPoint
   readonly isErc4337Provider = true
   readonly signer: ERC4337EthersSigner
 
@@ -93,6 +98,42 @@ export class ERC4337EthersProvider extends BaseProvider {
       nonce,
       sender,
       initCode
+    }
+  }
+
+  // fabricate a response in a format usable by ethers users...
+  async constructUserOpTransactionResponse (userOp: UserOperation): Promise<TransactionResponse> {
+    const requestId = getRequestId(userOp, this.config.entryPointAddress, this.config.chainId)
+    // const currentBLock = await this.originalProvider.getBlockNumber()
+
+    const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
+      const listener = new UserOperationEventListener(
+        resolve, reject, this.entryPoint, userOp.sender, userOp.nonce, requestId
+      )
+
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      this.entryPoint.on('UserOperationEvent', listener.listener.bind(listener)) // TODO: i am 90% sure i don't need to bind it again
+      // for some reason, 'on' takes at least 2 seconds to be triggered on local network. so add a one-shot timer:
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      // setTimeout(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId)).then(query => {
+      //   if (query.length > 0) {
+      //     // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      //     listener(query[0])
+      //   }
+      // }), 500)
+    })
+    return {
+      hash: requestId,
+      confirmations: 0,
+      from: userOp.sender,
+      nonce: BigNumber.from(userOp.nonce).toNumber(),
+      gasLimit: BigNumber.from(userOp.callGas), // ??
+      value: BigNumber.from(0),
+      data: hexValue(userOp.callData), // should extract the actual called method from this "execFromSingleton()" call
+      chainId: this.config.chainId,
+      wait: async function (confirmations?: number): Promise<TransactionReceipt> {
+        return await waitPromise
+      }
     }
   }
 
