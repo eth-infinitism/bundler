@@ -2,7 +2,7 @@ import ow from 'ow'
 import fs from 'fs'
 
 import { program } from 'commander'
-import { erc4337RuntimeVersion } from '@erc4337/common'
+import { erc4337RuntimeVersion } from '@erc4337/common/dist/src'
 import { ethers, Wallet } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
 

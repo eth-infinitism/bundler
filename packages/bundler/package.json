@@ -9,14 +9,10 @@
   "scripts": {
     "tsc": "tsc",
     "lint": "eslint -f unix .",
-    "hardhat-compile": "rm -rf artifacts src/types; hardhat compile",
-    "hardhat-deploy": "hardhat deploy",
-    "hardhat-node": "hardhat node",
-    "hardhat-test": "hardhat test"
+    "hardhat-test": "hardhat test --no-compile"
   },
   "dependencies": {
     "@erc4337/common": "0.1.0",
-    "@openzeppelin/test-helpers": "^0.5.15",
     "@account-abstraction/contracts": "^0.1.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
@@ -31,6 +27,8 @@
   },
   "devDependencies": {
     "@erc4337/client": "0.1.0",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "@openzeppelin/contracts": "^4.7.3",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",

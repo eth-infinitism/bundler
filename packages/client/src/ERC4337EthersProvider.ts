@@ -10,6 +10,7 @@ import { UserOpAPI } from './UserOpAPI'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { Signer } from 'ethers'
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
+import { ClientConfig } from './ClientConfig'
 
 export class ERC4337EthersProvider extends BaseProvider {
   readonly isErc4337Provider = true
@@ -17,6 +18,7 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   constructor (
     network: Networkish,
+    readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly originalProvider: BaseProvider,
     private readonly bundlerUrl: string,
@@ -25,7 +27,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     private readonly paymasterAPI?: PaymasterAPI
   ) {
     super(network)
-    this.signer = new ERC4337EthersSigner(originalSigner, this)
+    this.signer = new ERC4337EthersSigner(config, originalSigner, this)
   }
 
   getSigner (addressOrIndex?: string | number): ERC4337EthersSigner {
@@ -70,7 +72,10 @@ export class ERC4337EthersProvider extends BaseProvider {
       paymaster = await this.paymasterAPI.getPaymasterAddress()
       paymasterData = await this.paymasterAPI.getPaymasterData()
     }
-    const { maxFeePerGas, maxPriorityFeePerGas } = await this.getFeeData()
+    const {
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    } = await this.getFeeData()
 
     if (maxPriorityFeePerGas == null || maxFeePerGas == null) {
       throw new Error('Type-0 not supported')

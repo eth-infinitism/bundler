@@ -16,4 +16,7 @@ artifacts
 /packages/bundler/tsconfig.tsbuildinfo
 /packages/hardhat/deployments/
 tsconfig.tsbuildinfo
-/packages/bundler/src/types/
+/packages/common/src/types/
+/.idea/codeStyles/Project.xml
+/.idea/codeStyles/codeStyleConfig.xml
+/.idea/inspectionProfiles/Project_Default.xml

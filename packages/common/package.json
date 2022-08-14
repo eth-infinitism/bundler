@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "hardhat-compile": "rm -rf artifacts src/types; hardhat compile",
+    "hardhat-deploy": "hardhat deploy",
+    "hardhat-node": "hardhat node"
   },
   "files": [
     "dist/*",

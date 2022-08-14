@@ -1,20 +1,19 @@
 import { BigNumber, utils, Wallet } from 'ethers'
 import { JsonRpcSigner, Provider } from '@ethersproject/providers'
-
-import { UserOperation } from '@erc4337/common/dist/UserOperation'
+import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
 
 import { BundlerConfig } from './BundlerConfig'
 import { BundlerHelper, EntryPoint } from './types'
 
 export class UserOpMethodHandler {
-
   constructor (
     readonly provider: Provider,
     readonly signer: Wallet | JsonRpcSigner,
     readonly config: BundlerConfig,
     readonly entryPoint: EntryPoint,
     readonly bundlerHelper: BundlerHelper
-  ) {}
+  ) {
+  }
 
   async eth_chainId (): Promise<string | undefined> {
     return await this.provider.getNetwork().then(net => utils.hexlify(net.chainId))
@@ -36,8 +35,7 @@ export class UserOpMethodHandler {
   }
 
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
-
-    if (entryPointInput.toLowerCase() !== utils.getAddress(this.config.entryPoint).toLowerCase()) {
+    if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
 
@@ -56,13 +54,12 @@ export class UserOpMethodHandler {
   }
 
   async estimateGasForHelperCall (userOp: UserOperation, beneficiary: string): Promise<BigNumber> {
-    const estimateGasRet = await
-      this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
+    const estimateGasRet = await this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
     const estimateGas = estimateGasRet.mul(64).div(63)
     return estimateGas.mul(Math.round(this.config.gasFactor * 100000)).div(100000)
   }
 
-  async printGasEstimationDebugInfo (userOp: UserOperation, beneficiary: string) {
+  async printGasEstimationDebugInfo (userOp: UserOperation, beneficiary: string): Promise<void> {
     const [estimateGasRet, estHandleOp, staticRet] = await Promise.all([
       this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary),
       this.entryPoint.estimateGas.handleOps([userOp], beneficiary),

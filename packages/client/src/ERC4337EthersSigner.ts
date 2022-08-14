@@ -2,18 +2,17 @@ import { Deferrable, defineReadOnly } from '@ethersproject/properties'
 import { Provider, TransactionReceipt, TransactionRequest, TransactionResponse } from '@ethersproject/providers'
 import { Signer } from '@ethersproject/abstract-signer'
 
-import { UserOperation } from '@erc4337/common/dist/UserOperation'
-
 import { BigNumber, Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
-import { getRequestId, getRequestIdForSigning } from '@erc4337/common/dist/ERC4337Utils'
 import { hexValue } from 'ethers/lib/utils'
+import { getRequestId, getRequestIdForSigning } from '@erc4337/common/src/ERC4337Utils'
+import { UserOperation } from '@erc4337/common/src/UserOperation'
+import { ClientConfig } from './ClientConfig'
 
 export class ERC4337EthersSigner extends Signer {
-  private readonly config!: { entryPointAddress: string, chainId: number }
-
   constructor (
-    private readonly originalSigner: Signer,
+    readonly config: ClientConfig,
+    readonly originalSigner: Signer,
     readonly erc4337provider: ERC4337EthersProvider
   ) {
     super()
@@ -86,7 +85,7 @@ export class ERC4337EthersSigner extends Signer {
     return await Promise.resolve('')
   }
 
-  private async signUserOperation (userOperation: UserOperation): Promise<string> {
+  async signUserOperation (userOperation: UserOperation): Promise<string> {
     const message = getRequestIdForSigning(userOperation, this.config.entryPointAddress, this.config.chainId)
     return await this.originalSigner.signMessage(message)
   }
