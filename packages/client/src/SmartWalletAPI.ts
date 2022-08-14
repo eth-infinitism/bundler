@@ -1,7 +1,7 @@
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { BigNumber, BytesLike } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
-import { EntryPoint, SimpleWallet, SimpleWallet__factory } from '@erc4337/common/dist/src/types'
+import { EntryPoint, SimpleWallet, SimpleWallet__factory, TestWallet__factory } from '@erc4337/common/dist/src/types'
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
@@ -46,7 +46,7 @@ export class SmartWalletAPI {
     if (this.isPhantom) {
       return await this._getWalletInitCode()
     }
-    return ''
+    return '0x'
   }
 
   async getNonce (): Promise<BigNumber> {
@@ -54,10 +54,11 @@ export class SmartWalletAPI {
   }
 
   async getVerificationGas (): Promise<number> {
-    return 0
+    return 100000
   }
 
   async getPreVerificationGas (): Promise<number> {
+    // return 21000
     return 0
   }
 
@@ -65,8 +66,13 @@ export class SmartWalletAPI {
    * TBD: We are assuming there is only the Wallet that impacts the resulting CallData here.
    */
   async encodeUserOpCallData (detailsForUserOp: TransactionDetailsForUserOp): Promise<string> {
-    // todo: for SimpleWallet this is encodeABI()
-    return detailsForUserOp.target + detailsForUserOp.data + detailsForUserOp.value
+    return this.simpleWallet.interface.encodeFunctionData(
+      'execFromEntryPoint',
+      [
+        detailsForUserOp.target,
+        detailsForUserOp.value,
+        detailsForUserOp.data
+      ])
   }
 
   async getSender (): Promise<string> {

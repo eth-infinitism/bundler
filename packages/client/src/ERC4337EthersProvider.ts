@@ -1,5 +1,4 @@
-import { ConnectionInfo } from '@ethersproject/web'
-import { BaseProvider, Provider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
+import { BaseProvider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
 import { Network, Networkish } from '@ethersproject/networks'
 
 import { UserOperation } from '@erc4337/common/src/UserOperation'
@@ -8,7 +7,7 @@ import { PaymasterAPI } from './PaymasterAPI'
 import { SmartWalletAPI } from './SmartWalletAPI'
 import { UserOpAPI } from './UserOpAPI'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
-import { Signer } from 'ethers'
+import { ethers, Signer } from 'ethers'
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { ClientConfig } from './ClientConfig'
 
@@ -66,8 +65,8 @@ export class ERC4337EthersProvider extends BaseProvider {
     const verificationGas = await this.smartWalletAPI.getVerificationGas()
     const preVerificationGas = await this.smartWalletAPI.getPreVerificationGas()
 
-    let paymaster: string = ''
-    let paymasterData: string = ''
+    let paymaster: string = ethers.constants.AddressZero
+    let paymasterData: string = '0x'
     if (this.paymasterAPI != null) {
       paymaster = await this.paymasterAPI.getPaymasterAddress()
       paymasterData = await this.paymasterAPI.getPaymasterData()
@@ -106,5 +105,4 @@ export class ERC4337EthersProvider extends BaseProvider {
   async detectNetwork (): Promise<Network> {
     return (this.originalProvider as any).detectNetwork()
   }
-
 }

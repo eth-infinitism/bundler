@@ -47,9 +47,10 @@ export class UserOpMethodHandler {
     // TODO: this is only printing debug info, remove once not necessary
     await this.printGasEstimationDebugInfo(userOp, beneficiary)
 
-    const estimateGasFactored = await this.estimateGasForHelperCall(userOp, beneficiary)
+    // TODO: this is not used and 0 passed insted as transaction does not pay enough
+    // const estimateGasFactored = await this.estimateGasForHelperCall(userOp, beneficiary)
 
-    await this.bundlerHelper.handleOps(estimateGasFactored, this.config.entryPoint, [userOp], beneficiary)
+    await this.bundlerHelper.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
     return requestId
   }
 

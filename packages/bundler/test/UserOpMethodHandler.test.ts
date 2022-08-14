@@ -97,6 +97,12 @@ describe('UserOpMethodHandler', function () {
       const initCode = new SimpleWallet__factory().getDeployTransaction(entryPoint.address, ownerAddress).data
       await singletonFactory.deploy(initCode!, ethers.constants.HashZero)
       const simpleWalletAddress = await entryPoint.getSenderAddress(initCode!, 0)
+
+      await signer.sendTransaction({
+        to: simpleWalletAddress,
+        value: 10e18.toString()
+      })
+
       simpleWallet = SimpleWallet__factory.connect(simpleWalletAddress, signer)
 
       const smartWalletAPI = new SmartWalletAPI(
