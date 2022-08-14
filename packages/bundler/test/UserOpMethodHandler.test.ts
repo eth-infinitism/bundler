@@ -8,6 +8,9 @@ import { SmartWalletAPI } from '@erc4337/client/dist/src/SmartWalletAPI'
 import { UserOpAPI } from '@erc4337/client/dist/src/UserOpAPI'
 import { UserOperation } from '@erc4337/common/src/UserOperation'
 
+// noinspection ES6UnusedImports
+import type {} from '@erc4337/common/src/types/hardhat'
+
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import {
   SimpleWallet,
@@ -16,7 +19,8 @@ import {
   SampleRecipient,
   SingletonFactory,
   SimpleWallet__factory
-} from '../src/types'
+} from '@erc4337/common/src/types'
+
 import { BundlerConfig } from '../src/BundlerConfig'
 import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 

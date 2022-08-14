@@ -70,11 +70,12 @@ export class SmartWalletAPI {
   }
 
   async getSender (): Promise<string> {
-    return ''
+    return this.senderAddress
+
   }
 
   // tbd: not sure this is only dependant on Wallet, but callGas is the gas given to the Wallet, not just target
   async getCallGas (): Promise<number> {
-    return 0
+    return 1000000
   }
 }

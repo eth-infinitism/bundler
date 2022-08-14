@@ -4,12 +4,15 @@
   "main": "dist/index.js",
   "scripts": {
     "tsc": "tsc",
-    "hardhat-compile": "rm -rf artifacts src/types; hardhat compile",
+    "hardhat-compile": "rm -rf artifacts src/types && hardhat compile",
     "hardhat-deploy": "hardhat deploy",
     "hardhat-node": "hardhat node"
   },
   "files": [
     "dist/*",
     "README.md"
-  ]
+  ],
+  "devDependencies": {
+    "copyfiles": "^2.4.1"
+  }
 }
