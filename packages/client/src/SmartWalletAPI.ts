@@ -1,7 +1,7 @@
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { BigNumber, BytesLike } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
-import { EntryPoint, SimpleWallet, SimpleWallet__factory, TestWallet__factory } from '@erc4337/common/dist/src/types'
+import { EntryPoint, SimpleWallet, SimpleWallet__factory } from '@erc4337/common/dist/src/types'
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
@@ -77,7 +77,6 @@ export class SmartWalletAPI {
 
   async getSender (): Promise<string> {
     return this.senderAddress
-
   }
 
   // tbd: not sure this is only dependant on Wallet, but callGas is the gas given to the Wallet, not just target

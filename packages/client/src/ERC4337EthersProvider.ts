@@ -16,7 +16,8 @@ import { hexValue } from 'ethers/lib/utils'
 import { UserOperationEventListener } from './UserOperationEventListener'
 
 export class ERC4337EthersProvider extends BaseProvider {
-  readonly entryPoint!: EntryPoint
+  initializedBlockNumber!: number
+
   readonly isErc4337Provider = true
   readonly signer: ERC4337EthersSigner
 
@@ -25,13 +26,21 @@ export class ERC4337EthersProvider extends BaseProvider {
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly originalProvider: BaseProvider,
-    private readonly bundlerUrl: string,
-    private readonly smartWalletAPI: SmartWalletAPI,
-    private readonly userOpAPI: UserOpAPI,
-    private readonly paymasterAPI?: PaymasterAPI
+    readonly entryPoint: EntryPoint,
+    readonly bundlerUrl: string,
+    readonly smartWalletAPI: SmartWalletAPI,
+    readonly userOpAPI: UserOpAPI,
+    readonly paymasterAPI?: PaymasterAPI
   ) {
     super(network)
     this.signer = new ERC4337EthersSigner(config, originalSigner, this)
+  }
+
+  async init (): Promise<this> {
+    this.initializedBlockNumber = await this.originalProvider.getBlockNumber()
+    await this.smartWalletAPI.init()
+    // await this.signer.init()
+    return this
   }
 
   getSigner (addressOrIndex?: string | number): ERC4337EthersSigner {
@@ -48,16 +57,18 @@ export class ERC4337EthersProvider extends BaseProvider {
     return await this.originalProvider.perform(method, params)
   }
 
-  async sendTransaction (signedTransaction: string | Promise<string>): Promise<TransactionResponse> {
-    return await super.sendTransaction(signedTransaction)
-  }
-
   async getTransaction (transactionHash: string | Promise<string>): Promise<TransactionResponse> {
     return await super.getTransaction(transactionHash)
   }
 
   async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
-    return await super.getTransactionReceipt(transactionHash)
+    const requestId = await transactionHash
+    const sender = await this.smartWalletAPI.getSender()
+    return await new Promise<TransactionReceipt>((resolve, reject) => {
+      new UserOperationEventListener(
+        resolve, reject, this.entryPoint, sender, requestId
+      ).start()
+    })
   }
 
   async createUserOp (detailsForUserOp: TransactionDetailsForUserOp): Promise<UserOperation> {
@@ -104,23 +115,10 @@ export class ERC4337EthersProvider extends BaseProvider {
   // fabricate a response in a format usable by ethers users...
   async constructUserOpTransactionResponse (userOp: UserOperation): Promise<TransactionResponse> {
     const requestId = getRequestId(userOp, this.config.entryPointAddress, this.config.chainId)
-    // const currentBLock = await this.originalProvider.getBlockNumber()
-
     const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
-      const listener = new UserOperationEventListener(
-        resolve, reject, this.entryPoint, userOp.sender, userOp.nonce, requestId
-      )
-
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.entryPoint.on('UserOperationEvent', listener.listener.bind(listener)) // TODO: i am 90% sure i don't need to bind it again
-      // for some reason, 'on' takes at least 2 seconds to be triggered on local network. so add a one-shot timer:
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      // setTimeout(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId)).then(query => {
-      //   if (query.length > 0) {
-      //     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      //     listener(query[0])
-      //   }
-      // }), 500)
+      new UserOperationEventListener(
+        resolve, reject, this.entryPoint, userOp.sender, requestId, userOp.nonce
+      ).start()
     })
     return {
       hash: requestId,

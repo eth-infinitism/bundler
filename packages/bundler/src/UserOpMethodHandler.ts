@@ -12,8 +12,7 @@ export class UserOpMethodHandler {
     readonly config: BundlerConfig,
     readonly entryPoint: EntryPoint,
     readonly bundlerHelper: BundlerHelper
-  ) {
-  }
+  ) {}
 
   async eth_chainId (): Promise<string | undefined> {
     return await this.provider.getNetwork().then(net => utils.hexlify(net.chainId))
@@ -71,8 +70,11 @@ export class UserOpMethodHandler {
     console.log('estimated gas', estimateGas.toString())
     console.log('handleop est ', estHandleOp.toString())
     console.log('ret=', staticRet)
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     console.log('preVerificationGas', parseInt(userOp.preVerificationGas.toString()))
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     console.log('verificationGas', parseInt(userOp.verificationGas.toString()))
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     console.log('callGas', parseInt(userOp.callGas.toString()))
     console.log('Total estimated gas for bundler compensation: ', estimateGasFactored)
   }

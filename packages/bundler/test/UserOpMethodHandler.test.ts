@@ -1,6 +1,6 @@
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { assert } from 'chai'
 import { ethers } from 'hardhat'
-import { expectEvent } from '@openzeppelin/test-helpers'
 
 import { ERC4337EthersProvider } from '@erc4337/client/dist/src/ERC4337EthersProvider'
 import { ERC4337EthersSigner } from '@erc4337/client/dist/src/ERC4337EthersSigner'
@@ -112,7 +112,6 @@ describe('UserOpMethodHandler', function () {
         ownerAddress,
         0
       )
-      await smartWalletAPI.init()
       const userOpAPI = new UserOpAPI()
       const network = await provider.getNetwork()
       const clientConfig: ClientConfig = {
@@ -125,10 +124,12 @@ describe('UserOpMethodHandler', function () {
         clientConfig,
         signer,
         provider,
+        entryPoint,
         '',
         smartWalletAPI,
         userOpAPI
       )
+      await erc4337EthersProvider.init()
       erc4337EtherSigner = erc4337EthersProvider.getSigner()
 
       userOperation = await erc4337EthersProvider.createUserOp({
@@ -144,11 +145,19 @@ describe('UserOpMethodHandler', function () {
       const requestId = await methodHandler.sendUserOperation(userOperation, entryPoint.address)
       const transactionReceipt = await erc4337EthersProvider.getTransactionReceipt(requestId)
 
-      await expectEvent.inTransaction(transactionReceipt.transactionHash, sampleRecipient, 'Sender', {
-        txOrigin: sampleRecipient.address,
-        msgSender: sampleRecipient.address,
-        message: helloWorld
-      })
+      assert.isNotNull(transactionReceipt)
+      const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
+      const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[1])
+      const userOperationEvent = entryPoint.interface.parseLog(transactionReceipt.logs[2])
+      assert.equal(userOperationEvent.name, 'UserOperationEvent')
+      assert.equal(userOperationEvent.args.success, true)
+
+      assert.equal(senderEvent.name, 'Sender')
+      const expectedTxOrigin = await methodHandler.signer.getAddress()
+      assert.equal(senderEvent.args.txOrigin, expectedTxOrigin)
+      assert.equal(senderEvent.args.msgSender, simpleWallet.address)
+
+      assert.equal(depositedEvent.name, 'Deposited')
     })
   })
 

@@ -11,11 +11,11 @@ import { BundlerConfig } from './BundlerConfig'
 export class BundlerServer {
   app: Express
 
-  constructor(
-    private methodHandler: UserOpMethodHandler,
-    private config: BundlerConfig,
-    private provider: Provider,
-    private wallet: Wallet
+  constructor (
+    readonly methodHandler: UserOpMethodHandler,
+    readonly config: BundlerConfig,
+    readonly provider: Provider,
+    readonly wallet: Wallet
   ) {
     this.app = express()
     this.app.use(cors())
@@ -24,11 +24,11 @@ export class BundlerServer {
     this.app.get('/', this.intro.bind(this))
     this.app.post('/', this.intro.bind(this))
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.app.post('/rpc', this.rpc.bind(this))
 
     this.app.listen(this.config.port)
   }
-
 
   async preflightCheck (): Promise<void> {
     const bal = await this.provider.getBalance(this.wallet.address)
