@@ -69,11 +69,8 @@ export class BundlerServer {
   async handleMethod (method: string, params: any[]): Promise<void> {
     let result: any
     switch (method) {
-      case 'eth_chainId':
-        result = await this.methodHandler.eth_chainId()
-        break
       case 'eth_supportedEntryPoints':
-        result = await this.methodHandler.eth_supportedEntryPoints()
+        result = await this.methodHandler.getSupportedEntryPoints()
         break
       case 'eth_sendUserOperation':
         result = await this.methodHandler.sendUserOperation(params[0], params[1])

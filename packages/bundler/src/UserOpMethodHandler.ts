@@ -14,11 +14,7 @@ export class UserOpMethodHandler {
     readonly bundlerHelper: BundlerHelper
   ) {}
 
-  async eth_chainId (): Promise<string | undefined> {
-    return await this.provider.getNetwork().then(net => utils.hexlify(net.chainId))
-  }
-
-  async eth_supportedEntryPoints (): Promise<string[]> {
+  async getSupportedEntryPoints (): Promise<string[]> {
     return [this.config.entryPoint]
   }
 
@@ -56,7 +52,7 @@ export class UserOpMethodHandler {
   async estimateGasForHelperCall (userOp: UserOperation, beneficiary: string): Promise<BigNumber> {
     const estimateGasRet = await this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
     const estimateGas = estimateGasRet.mul(64).div(63)
-    return estimateGas.mul(Math.round(this.config.gasFactor * 100000)).div(100000)
+    return estimateGas.mul(Math.round(parseInt(this.config.gasFactor) * 100000)).div(100000)
   }
 
   async printGasEstimationDebugInfo (userOp: UserOperation, beneficiary: string): Promise<void> {
@@ -66,7 +62,7 @@ export class UserOpMethodHandler {
       this.bundlerHelper.callStatic.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
     ])
     const estimateGas = estimateGasRet.mul(64).div(63)
-    const estimateGasFactored = estimateGas.mul(Math.round(this.config.gasFactor * 100000)).div(100000)
+    const estimateGasFactored = estimateGas.mul(Math.round(parseInt(this.config.gasFactor) * 100000)).div(100000)
     console.log('estimated gas', estimateGas.toString())
     console.log('handleop est ', estHandleOp.toString())
     console.log('ret=', staticRet)

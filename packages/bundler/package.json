@@ -9,7 +9,8 @@
   "scripts": {
     "tsc": "tsc",
     "lint": "eslint -f unix .",
-    "hardhat-test": "hardhat test --no-compile"
+    "hardhat-test": "hardhat test --no-compile --grep '/^((?!Flow).)*$/'",
+    "hardhat-test-flow": "hardhat test --network localhost --no-compile --grep \"Flow\""
   },
   "dependencies": {
     "@erc4337/common": "0.1.0",

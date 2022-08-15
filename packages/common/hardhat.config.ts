@@ -5,6 +5,11 @@ import 'hardhat-deploy'
 import { HardhatUserConfig } from 'hardhat/config'
 
 const config: HardhatUserConfig = {
+  networks: {
+    localhost: {
+      url: 'http://localhost:8545/'
+    }
+  },
   typechain: {
     outDir: 'src/types',
     target: 'ethers-v5'

@@ -1,10 +1,10 @@
 {
-  "mnemonic": "a a a a",
+  "mnemonic": "myth like bonus scare over problem client lizard pioneer submit female collect",
   "network": "http://localhost:8545/",
-  "beneficiary": "",
+  "beneficiary": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
   "port": 8080,
-  "helper": "",
-  "entryPoint": "",
-  "minBalance": "",
+  "helper": "0xdD747029A0940e46D20F17041e747a7b95A67242",
+  "entryPoint": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+  "minBalance": "0",
   "gasFactor": 1
 }

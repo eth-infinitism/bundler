@@ -20,13 +20,14 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 
 program
   .version(erc4337RuntimeVersion)
-  .option('--beneficiary', 'address to receive funds')
-  .option('--gasFactor')
-  .option('--minBalance', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
-  .option('--network', 'network name or url')
-  .option('--mnemonic', 'signer account secret key mnemonic')
-  .option('--helper', 'address of the BundlerHelper contract')
-  .option('--port', 'server listening port (default to 3000)')
+  .option('--beneficiary <string>', 'address to receive funds')
+  .option('--gasFactor <string>')
+  .option('--minBalance <string>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
+  .option('--network <string>', 'network name or url')
+  .option('--mnemonic <string>', 'signer account secret key mnemonic')
+  .option('--helper <string>', 'address of the BundlerHelper contract')
+  .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
+  .option('--port <string>', 'server listening port (default to 3000)')
   .parse()
 
 console.log('command-line arguments: ', program.opts())
@@ -34,10 +35,26 @@ console.log('command-line arguments: ', program.opts())
 const CONFIG_FILE_NAME = 'bundler.config.json'
 
 export function resolveConfiguration (): BundlerConfig {
-  const fileConfig: Partial<BundlerConfig> = JSON.parse(fs.readFileSync(CONFIG_FILE_NAME, 'ascii'))
-  const mergedConfig = Object.assign({}, bundlerConfigDefault, fileConfig)
+  let fileConfig: Partial<BundlerConfig> = {}
+
+  const commandLineParams = getCommandLineParams()
+  if (fs.existsSync(CONFIG_FILE_NAME)) {
+    fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE_NAME, 'ascii'))
+  }
+  const mergedConfig = Object.assign({}, bundlerConfigDefault, fileConfig, commandLineParams)
   ow(mergedConfig, ow.object.exactShape(BundlerConfigShape))
-  return fileConfig as BundlerConfig
+  return mergedConfig
+}
+
+function getCommandLineParams (): Partial<BundlerConfig> {
+  let params: any = {}
+  for (const bundlerConfigShapeKey in BundlerConfigShape) {
+    const optionValue = program.opts()[bundlerConfigShapeKey]
+    if (optionValue != null) {
+      params[bundlerConfigShapeKey] = optionValue
+    }
+  }
+  return params as BundlerConfig
 }
 
 export async function connectContracts (
@@ -83,4 +100,7 @@ async function main (): Promise<void> {
 }
 
 main()
-  .catch(e => console.log(e))
+  .catch(e => {
+    console.log(e)
+    process.exit(1)
+  })
