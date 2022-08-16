@@ -4,7 +4,7 @@ import { ethers } from 'hardhat'
 
 import { ERC4337EthersProvider } from '@erc4337/client/dist/src/ERC4337EthersProvider'
 import { ERC4337EthersSigner } from '@erc4337/client/dist/src/ERC4337EthersSigner'
-import { SmartWalletAPI } from '@erc4337/client/dist/src/SmartWalletAPI'
+import { SimpleWalletAPI } from '@erc4337/client/dist/src/SimpleWalletAPI'
 import { UserOpAPI } from '@erc4337/client/dist/src/UserOpAPI'
 import { UserOperation } from '@erc4337/common/src/UserOperation'
 
@@ -105,10 +105,10 @@ describe('UserOpMethodHandler', function () {
 
       simpleWallet = SimpleWallet__factory.connect(simpleWalletAddress, signer)
 
-      const smartWalletAPI = new SmartWalletAPI(
-        provider,
-        entryPoint,
+      const smartWalletAPI = new SimpleWalletAPI(
         simpleWallet,
+        entryPoint,
+        provider,
         ownerAddress,
         0
       )
@@ -116,16 +116,15 @@ describe('UserOpMethodHandler', function () {
       const network = await provider.getNetwork()
       const clientConfig: ClientConfig = {
         entryPointAddress: entryPoint.address,
+        bundlerUrl: '',
         chainId: network.chainId
       }
 
       erc4337EthersProvider = new ERC4337EthersProvider(
-        network,
         clientConfig,
         signer,
         provider,
         entryPoint,
-        '',
         smartWalletAPI,
         userOpAPI
       )

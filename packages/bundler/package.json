@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "tsc": "tsc",
+    "clear": "rm -rf dist",
     "lint": "eslint -f unix .",
     "hardhat-test": "hardhat test --no-compile --grep '/^((?!Flow).)*$/'",
     "hardhat-test-flow": "hardhat test --network localhost --no-compile --grep \"Flow\""

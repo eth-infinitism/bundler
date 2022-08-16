@@ -1,20 +1,21 @@
-import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { BigNumber, BytesLike } from 'ethers'
+import { ethers, BigNumber, BytesLike } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
 import { EntryPoint, SimpleWallet, SimpleWallet__factory } from '@erc4337/common/dist/src/types'
+
+import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
  */
-export class SmartWalletAPI {
+export class SimpleWalletAPI {
   readonly simpleWalletFactory: SimpleWallet__factory
   private isPhantom: boolean = true
   private senderAddress!: string
 
   constructor (
-    readonly provider: BaseProvider,
+    protected simpleWallet: SimpleWallet,
     readonly entryPoint: EntryPoint,
-    readonly simpleWallet: SimpleWallet,
+    readonly originalProvider: BaseProvider,
     readonly ownerAddress: string,
     readonly index = 0
   ) {
@@ -24,14 +25,20 @@ export class SmartWalletAPI {
   async init (): Promise<this> {
     const initCode = await this._getWalletInitCode()
     this.senderAddress = await this.entryPoint.getSenderAddress(initCode, this.index)
-    const senderAddressCode = await this.provider.getCode(this.senderAddress)
+    const senderAddressCode = await this.originalProvider.getCode(this.senderAddress)
     if (senderAddressCode.length > 2) {
       console.log(`Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
     } else {
       console.log(`Contract already not yet deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
+      this.simpleWallet = this.simpleWallet.attach(this.senderAddress).connect(this.originalProvider)
     }
     return this
+  }
+
+  // TODO: support transitioning from 'phantom wallet' to 'deployed wallet' states
+  async onWalletDeployed (): Promise<void> {
+    throw new Error('not implemented')
   }
 
   async _getWalletInitCode (): Promise<BytesLike> {
@@ -50,6 +57,9 @@ export class SmartWalletAPI {
   }
 
   async getNonce (): Promise<BigNumber> {
+    if (this.simpleWallet.address === ethers.constants.AddressZero) {
+      throw new Error('SimpleWallet address is not initialized!')
+    }
     return await this.simpleWallet.nonce()
   }
 

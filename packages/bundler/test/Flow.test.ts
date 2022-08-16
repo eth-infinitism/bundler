@@ -2,7 +2,13 @@ import childProcess, { ChildProcessWithoutNullStreams } from 'child_process'
 import path from 'path'
 import hre, { ethers } from 'hardhat'
 
+import * as SampleRecipientArtifact
+  from '@erc4337/common/artifacts/contracts/test/SampleRecipient.sol/SampleRecipient.json'
+
 import { BundlerConfig } from '../src/BundlerConfig'
+import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
+import { JsonRpcProvider } from '@ethersproject/providers'
+import { newProvider } from '@erc4337/client/dist/src'
 
 export async function startBundler (options: BundlerConfig): Promise<ChildProcessWithoutNullStreams> {
   const args: any[] = []
@@ -17,11 +23,7 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
   const proc: ChildProcessWithoutNullStreams = childProcess.spawn('./node_modules/.bin/ts-node',
     [runServerPath, ...args])
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  let relaylog = function (_: string): void {}
-  // if (options.relaylog) {
-  //   relaylog = (msg: string) => msg.split('\n').forEach(line => console.log(`relay-${proc.pid?.toString()}> ${line}`))
-  // }
+  const relaylog = (msg: string): void => msg.split('\n').forEach(line => console.log(`relay-${proc.pid?.toString()}> ${line}`))
 
   await new Promise((resolve, reject) => {
     let lastResponse: string
@@ -39,6 +41,7 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
     proc.stderr.on('data', listener)
     const doaListener = (code: Object): void => {
       // @ts-ignore
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       if (!proc.alreadystarted) {
         relaylog(`died before init code=${JSON.stringify(code)}`)
         reject(new Error(lastResponse))
@@ -55,6 +58,8 @@ export function stopBundler (proc: ChildProcessWithoutNullStreams): void {
 
 describe('Flow', function () {
   let relayproc: ChildProcessWithoutNullStreams
+  let entryPointAddress: string
+  let sampleRecipientAddress: string
 
   before(async function () {
     const signer = await hre.ethers.provider.getSigner()
@@ -64,8 +69,16 @@ describe('Flow', function () {
     const SingletonFactoryFactory = await ethers.getContractFactory('SingletonFactory')
     const singletonFactory = await SingletonFactoryFactory.deploy()
 
+    const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
+    const sampleRecipient = await sampleRecipientFactory.deploy()
+    sampleRecipientAddress = sampleRecipient.address
+
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
     const entryPoint = await EntryPointFactory.deploy(singletonFactory.address, 1, 1)
+    entryPointAddress = entryPoint.address
+
+    const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
+    const bundleHelper = await bundleHelperFactory.deploy()
 
     await signer.sendTransaction({
       to: '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1',
@@ -75,12 +88,12 @@ describe('Flow', function () {
     relayproc = await startBundler({
       beneficiary,
       entryPoint: entryPoint.address,
-      helper: '0xdD747029A0940e46D20F17041e747a7b95A67242',
+      helper: bundleHelper.address,
       gasFactor: '1',
       minBalance: '0',
       mnemonic: 'myth like bonus scare over problem client lizard pioneer submit female collect',
       network: 'http://localhost:8545/',
-      port: '8080'
+      port: '5555'
     })
   })
 
@@ -88,8 +101,19 @@ describe('Flow', function () {
     stopBundler(relayproc)
   })
 
-  it('should send transaction and make profit', function () {
-
+  it('should send transaction and make profit', async function () {
+    const config: ClientConfig = {
+      entryPointAddress,
+      bundlerUrl: 'http://localhost:5555/',
+      chainId: 1337
+    }
+    const erc4337Provider = await newProvider(
+      new JsonRpcProvider('http://localhost:8545/'),
+      config
+    )
+    const erc4337Signer = erc4337Provider.getSigner()
+    const sampleRecipientContract = new ethers.Contract(sampleRecipientAddress, SampleRecipientArtifact.abi, erc4337Signer)
+    console.log(sampleRecipientContract.address)
   })
 
   it('should refuse transaction that does not make profit', function () {

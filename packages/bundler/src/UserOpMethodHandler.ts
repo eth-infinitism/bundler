@@ -1,4 +1,4 @@
-import { BigNumber, utils, Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { JsonRpcSigner, Provider } from '@ethersproject/providers'
 import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
 

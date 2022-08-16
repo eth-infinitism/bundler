@@ -1,18 +1,18 @@
 import { BaseProvider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
-import { Network, Networkish } from '@ethersproject/networks'
-
-import { UserOperation } from '@erc4337/common/src/UserOperation'
-
-import { PaymasterAPI } from './PaymasterAPI'
-import { SmartWalletAPI } from './SmartWalletAPI'
-import { UserOpAPI } from './UserOpAPI'
-import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { BigNumber, ethers, Signer } from 'ethers'
-import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { ClientConfig } from './ClientConfig'
-import { getRequestId } from '@erc4337/common/dist/src/ERC4337Utils'
-import { EntryPoint } from '@erc4337/common/dist/src/types'
+import { Network } from '@ethersproject/networks'
 import { hexValue } from 'ethers/lib/utils'
+
+import { EntryPoint } from '@erc4337/common/dist/src/types'
+import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
+import { getRequestId } from '@erc4337/common/dist/src/ERC4337Utils'
+
+import { ClientConfig } from './ClientConfig'
+import { ERC4337EthersSigner } from './ERC4337EthersSigner'
+import { PaymasterAPI } from './PaymasterAPI'
+import { SimpleWalletAPI } from './SimpleWalletAPI'
+import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
+import { UserOpAPI } from './UserOpAPI'
 import { UserOperationEventListener } from './UserOperationEventListener'
 
 export class ERC4337EthersProvider extends BaseProvider {
@@ -22,17 +22,18 @@ export class ERC4337EthersProvider extends BaseProvider {
   readonly signer: ERC4337EthersSigner
 
   constructor (
-    network: Networkish,
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly originalProvider: BaseProvider,
     readonly entryPoint: EntryPoint,
-    readonly bundlerUrl: string,
-    readonly smartWalletAPI: SmartWalletAPI,
+    readonly smartWalletAPI: SimpleWalletAPI,
     readonly userOpAPI: UserOpAPI,
     readonly paymasterAPI?: PaymasterAPI
   ) {
-    super(network)
+    super({
+      name: 'ERC-4337 Custom Network',
+      chainId: config.chainId
+    })
     this.signer = new ERC4337EthersSigner(config, originalSigner, this)
   }
 

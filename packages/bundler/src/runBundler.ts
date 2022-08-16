@@ -47,7 +47,7 @@ export function resolveConfiguration (): BundlerConfig {
 }
 
 function getCommandLineParams (): Partial<BundlerConfig> {
-  let params: any = {}
+  const params: any = {}
   for (const bundlerConfigShapeKey in BundlerConfigShape) {
     const optionValue = program.opts()[bundlerConfigShapeKey]
     if (optionValue != null) {

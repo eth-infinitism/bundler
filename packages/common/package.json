@@ -4,7 +4,8 @@
   "main": "dist/index.js",
   "scripts": {
     "tsc": "tsc",
-    "hardhat-compile": "rm -rf artifacts src/types && hardhat compile",
+    "clear": "rm -rf dist artifacts src/types",
+    "hardhat-compile": "yarn clear && hardhat compile",
     "hardhat-deploy": "hardhat deploy",
     "hardhat-node": "hardhat node"
   },

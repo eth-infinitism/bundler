@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "tsc": "tsc",
+    "clear": "rm -rf dist",
     "lint": "eslint -f unix ."
   },
   "dependencies": {
