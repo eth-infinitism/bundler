@@ -82,6 +82,10 @@ describe('Flow', function () {
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
     const bundleHelper = await bundleHelperFactory.deploy()
+    await signer.sendTransaction({
+      to: '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1',
+      value: 10e18.toString()
+    })
 
     relayproc = await startBundler({
       beneficiary,
