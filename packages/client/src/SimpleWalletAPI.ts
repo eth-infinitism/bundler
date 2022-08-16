@@ -27,11 +27,11 @@ export class SimpleWalletAPI {
     this.senderAddress = await this.entryPoint.getSenderAddress(initCode, this.index)
     const senderAddressCode = await this.originalProvider.getCode(this.senderAddress)
     if (senderAddressCode.length > 2) {
-      console.log(`Contract already deployed at ${this.senderAddress}`)
+      console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
-    } else {
-      console.log(`Contract already not yet deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
       this.simpleWallet = this.simpleWallet.attach(this.senderAddress).connect(this.originalProvider)
+    } else {
+      console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
     }
     return this
   }
@@ -58,7 +58,7 @@ export class SimpleWalletAPI {
 
   async getNonce (): Promise<BigNumber> {
     if (this.simpleWallet.address === ethers.constants.AddressZero) {
-      throw new Error('SimpleWallet address is not initialized!')
+      return BigNumber.from(this.index)
     }
     return await this.simpleWallet.nonce()
   }
@@ -76,11 +76,15 @@ export class SimpleWalletAPI {
    * TBD: We are assuming there is only the Wallet that impacts the resulting CallData here.
    */
   async encodeUserOpCallData (detailsForUserOp: TransactionDetailsForUserOp): Promise<string> {
+    let value = BigNumber.from(0)
+    if (detailsForUserOp.value !== '') {
+      value = BigNumber.from(detailsForUserOp.value)
+    }
     return this.simpleWallet.interface.encodeFunctionData(
       'execFromEntryPoint',
       [
         detailsForUserOp.target,
-        detailsForUserOp.value,
+        value,
         detailsForUserOp.data
       ])
   }

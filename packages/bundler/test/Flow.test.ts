@@ -105,7 +105,7 @@ describe('Flow', function () {
     const config: ClientConfig = {
       entryPointAddress,
       bundlerUrl: 'http://localhost:5555/',
-      chainId: 1337
+      chainId: 31337
     }
     const erc4337Provider = await newProvider(
       new JsonRpcProvider('http://localhost:8545/'),
@@ -114,6 +114,9 @@ describe('Flow', function () {
     const erc4337Signer = erc4337Provider.getSigner()
     const sampleRecipientContract = new ethers.Contract(sampleRecipientAddress, SampleRecipientArtifact.abi, erc4337Signer)
     console.log(sampleRecipientContract.address)
+
+    const receipt = await sampleRecipientContract.something('hello world')
+    console.log(receipt)
   })
 
   it('should refuse transaction that does not make profit', function () {
