@@ -7,6 +7,7 @@ import { ClientConfig } from './ClientConfig'
 import { SimpleWalletAPI } from './SimpleWalletAPI'
 import { UserOpAPI } from './UserOpAPI'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
+import { HttpRpcClient } from './HttpRpcClient'
 
 export async function newProvider (
   originalProvider: JsonRpcProvider,
@@ -19,10 +20,12 @@ export async function newProvider (
   const simpleWallet = new SimpleWallet__factory().attach(ethers.constants.AddressZero)
   const smartWalletAPI = new SimpleWalletAPI(simpleWallet, entryPoint, originalProvider, ownerAddress)
   const userOpAPI = new UserOpAPI()
+  const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, 31337)
   return await new ERC4337EthersProvider(
     config,
     originalSigner,
     originalProvider,
+    httpRpcClient,
     entryPoint,
     smartWalletAPI,
     userOpAPI

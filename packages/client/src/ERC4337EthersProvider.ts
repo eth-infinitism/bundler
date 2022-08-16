@@ -14,6 +14,7 @@ import { SimpleWalletAPI } from './SimpleWalletAPI'
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { UserOpAPI } from './UserOpAPI'
 import { UserOperationEventListener } from './UserOperationEventListener'
+import { HttpRpcClient } from './HttpRpcClient'
 
 export class ERC4337EthersProvider extends BaseProvider {
   initializedBlockNumber!: number
@@ -25,6 +26,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly originalProvider: BaseProvider,
+    readonly httpRpcClient: HttpRpcClient,
     readonly entryPoint: EntryPoint,
     readonly smartWalletAPI: SimpleWalletAPI,
     readonly userOpAPI: UserOpAPI,
@@ -34,7 +36,7 @@ export class ERC4337EthersProvider extends BaseProvider {
       name: 'ERC-4337 Custom Network',
       chainId: config.chainId
     })
-    this.signer = new ERC4337EthersSigner(config, originalSigner, this)
+    this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient)
   }
 
   async init (): Promise<this> {
@@ -49,10 +51,9 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   async perform (method: string, params: any): Promise<any> {
-    if (method === 'eth_sendUserOperation') {
-      return await Promise.resolve()
-    }
-    if (method === 'sendTransaction') {
+    if (method === 'sendTransaction' || method === 'getTransactionReceipt') {
+      // TODO: do we need 'perform' method to be available at all?
+      // there is nobody out there to use it for ERC-4337 methods yet, we have nothing to override in fact.
       throw new Error('Should not get here. Investigate.')
     }
     return await this.originalProvider.perform(method, params)
@@ -64,12 +65,16 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
     const requestId = await transactionHash
-    const sender = await this.smartWalletAPI.getSender()
+    const sender = await this.getSenderWalletAddress()
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, sender, requestId
       ).start()
     })
+  }
+
+  async getSenderWalletAddress (): Promise<string> {
+    return await this.smartWalletAPI.getSender()
   }
 
   async createUserOp (detailsForUserOp: TransactionDetailsForUserOp): Promise<UserOperation> {

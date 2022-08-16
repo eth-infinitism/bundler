@@ -10,8 +10,11 @@ const config: HardhatUserConfig = {
       url: 'http://localhost:8545/'
     }
   },
-  paths: {
-    artifacts: '../common/artifacts'
+  solidity: {
+    version: '0.8.15',
+    settings: {
+      optimizer: { enabled: true }
+    }
   }
 }
 

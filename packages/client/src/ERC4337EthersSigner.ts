@@ -7,12 +7,15 @@ import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { getRequestIdForSigning } from '@erc4337/common/src/ERC4337Utils'
 import { UserOperation } from '@erc4337/common/src/UserOperation'
 import { ClientConfig } from './ClientConfig'
+import { HttpRpcClient } from './HttpRpcClient'
 
 export class ERC4337EthersSigner extends Signer {
+  // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
   constructor (
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
-    readonly erc4337provider: ERC4337EthersProvider
+    readonly erc4337provider: ERC4337EthersProvider,
+    readonly httpRpcClient: HttpRpcClient
   ) {
     super()
     defineReadOnly(this, 'provider', erc4337provider.originalProvider)
@@ -28,7 +31,15 @@ export class ERC4337EthersSigner extends Signer {
       value: tx.value?.toString() ?? ''
     })
     userOperation.signature = await this.signUserOperation(userOperation)
-    return await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
+    const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
+    try {
+      const bundlerResponse = await this.httpRpcClient.sendUserOpToBundler(userOperation)
+      console.log('Bundler response:', bundlerResponse)
+    } catch (error: any) {
+      console.error('sendUserOpToBundler failed', error)
+    }
+    // TODO: handle errors - transaction that is "rejected" by bundler is _not likely_ to ever resolve its "wait()"
+    return transactionResponse
   }
 
   async verifyAllNecessaryFields (transactionRequest: TransactionRequest): Promise<void> {
@@ -46,7 +57,7 @@ export class ERC4337EthersSigner extends Signer {
   }
 
   async getAddress (): Promise<string> {
-    return await this.originalSigner.getAddress()
+    return await this.erc4337provider.getSenderWalletAddress()
   }
 
   async signMessage (message: Bytes | string): Promise<string> {

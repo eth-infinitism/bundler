@@ -11,6 +11,7 @@
   },
   "files": [
     "dist/*",
+    "contracts/*",
     "README.md"
   ],
   "devDependencies": {

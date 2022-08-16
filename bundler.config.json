@@ -2,9 +2,9 @@
   "mnemonic": "myth like bonus scare over problem client lizard pioneer submit female collect",
   "network": "http://localhost:8545/",
   "beneficiary": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
-  "port": 8080,
-  "helper": "0xdD747029A0940e46D20F17041e747a7b95A67242",
+  "port": "5555",
+  "helper": "0x214fadBD244c07ECb9DCe782270d3b673cAD0f9c",
   "entryPoint": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
   "minBalance": "0",
-  "gasFactor": 1
+  "gasFactor": "1"
 }

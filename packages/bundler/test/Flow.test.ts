@@ -9,6 +9,7 @@ import { BundlerConfig } from '../src/BundlerConfig'
 import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { newProvider } from '@erc4337/client/dist/src'
+import { Signer } from 'ethers'
 
 export async function startBundler (options: BundlerConfig): Promise<ChildProcessWithoutNullStreams> {
   const args: any[] = []
@@ -19,6 +20,7 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
   args.push('--minBalance', options.minBalance)
   args.push('--mnemonic', options.mnemonic)
   args.push('--network', options.network)
+  args.push('--port', options.port)
   const runServerPath = path.resolve(__dirname, '../dist/src/runBundler.js')
   const proc: ChildProcessWithoutNullStreams = childProcess.spawn('./node_modules/.bin/ts-node',
     [runServerPath, ...args])
@@ -60,9 +62,10 @@ describe('Flow', function () {
   let relayproc: ChildProcessWithoutNullStreams
   let entryPointAddress: string
   let sampleRecipientAddress: string
+  let signer: Signer
 
   before(async function () {
-    const signer = await hre.ethers.provider.getSigner()
+    signer = await hre.ethers.provider.getSigner()
     const beneficiary = await signer.getAddress()
 
     // TODO: extract to Hardhat Fixture and reuse across test file
@@ -79,11 +82,6 @@ describe('Flow', function () {
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
     const bundleHelper = await bundleHelperFactory.deploy()
-
-    await signer.sendTransaction({
-      to: '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1',
-      value: 10e18.toString()
-    })
 
     relayproc = await startBundler({
       beneficiary,
@@ -104,7 +102,7 @@ describe('Flow', function () {
   it('should send transaction and make profit', async function () {
     const config: ClientConfig = {
       entryPointAddress,
-      bundlerUrl: 'http://localhost:5555/',
+      bundlerUrl: 'http://localhost:5555',
       chainId: 31337
     }
     const erc4337Provider = await newProvider(
@@ -112,10 +110,19 @@ describe('Flow', function () {
       config
     )
     const erc4337Signer = erc4337Provider.getSigner()
+    const simpleWalletPhantomAddress = await erc4337Signer.getAddress()
+
+    await signer.sendTransaction({
+      to: simpleWalletPhantomAddress,
+      value: 10e18.toString()
+    })
+
     const sampleRecipientContract = new ethers.Contract(sampleRecipientAddress, SampleRecipientArtifact.abi, erc4337Signer)
     console.log(sampleRecipientContract.address)
 
-    const receipt = await sampleRecipientContract.something('hello world')
+    const result = await sampleRecipientContract.something('hello world')
+    console.log(result)
+    const receipt = await result.wait()
     console.log(receipt)
   })
 

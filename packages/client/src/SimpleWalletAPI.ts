@@ -64,7 +64,7 @@ export class SimpleWalletAPI {
   }
 
   async getVerificationGas (): Promise<number> {
-    return 100000
+    return 1000000
   }
 
   async getPreVerificationGas (): Promise<number> {

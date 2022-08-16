@@ -20,3 +20,5 @@ tsconfig.tsbuildinfo
 /.idea/codeStyles/Project.xml
 /.idea/codeStyles/codeStyleConfig.xml
 /.idea/inspectionProfiles/Project_Default.xml
+/packages/bundler/typechain-types/
+/packages/bundler/deployments/

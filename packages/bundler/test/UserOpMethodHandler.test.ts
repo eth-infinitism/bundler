@@ -124,6 +124,9 @@ describe('UserOpMethodHandler', function () {
         clientConfig,
         signer,
         provider,
+        // not called here - transaction is created and quitely passed to the Handler
+        // @ts-ignore
+        null,
         entryPoint,
         smartWalletAPI,
         userOpAPI
