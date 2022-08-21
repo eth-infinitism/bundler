@@ -40,19 +40,15 @@ services:
   bundler:
     container_name:   bundler
     ports: [ '8080:80' ] #bypass https-portal
-    image: opengsn/erc4337bundler:0.1.0
+    image: alexforshtat/erc4337bundler:0.1.0
     restart: on-failure
 
-    # /app/data - relay specific folder
-    # /app/config - read-only config folder
     volumes:
       - ./workdir:/app/workdir:ro
 
     environment:
       url: https://${HOST}/
       port: 80
-      workdir: /app/data
-      config: /app/config/bundler.config.json
       LETSENCRYPT_HOST: $HOST
       VIRTUAL_HOST: $HOST
       VIRTUAL_PATH: /

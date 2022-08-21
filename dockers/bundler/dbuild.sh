@@ -7,7 +7,7 @@ yarn preprocess
 test -z "$VERSION" && VERSION=`node -e "console.log(require('../../packages/common/dist/src/Version.js').erc4337RuntimeVersion)"`
 echo version=$VERSION
 
-IMAGE=opengsn/erc4337bundler
+IMAGE=alexforshtat/erc4337bundler
 
 #build docker image of bundler
 #rebuild if there is a newer src file:
