@@ -2,9 +2,9 @@
   "mnemonic": "myth like bonus scare over problem client lizard pioneer submit female collect",
   "network": "https://goerli.infura.io/v3/f40be2b1a3914db682491dc62a19ad43",
   "beneficiary": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
-  "port": "5555",
+  "port": "80",
   "helper": "0x214fadBD244c07ECb9DCe782270d3b673cAD0f9c",
-  "entryPoint": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+  "entryPoint": "0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69",
   "minBalance": "0",
   "gasFactor": "1"
 }

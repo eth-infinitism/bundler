@@ -3,7 +3,11 @@ import { DeployFunction } from 'hardhat-deploy/types'
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy } = hre.deployments
-  const [deployer] = await hre.ethers.provider.listAccounts()
+  const accounts = await hre.ethers.provider.listAccounts()
+  console.log('Available accounts:', accounts)
+  const deployer = accounts[0]
+  console.log('Will deploy from account:', deployer)
+
   if (deployer == null) {
     throw new Error('no deployer. missing MNEMONIC_FILE ?')
   }
