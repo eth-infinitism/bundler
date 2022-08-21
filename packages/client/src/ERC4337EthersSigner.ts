@@ -4,7 +4,7 @@ import { Signer } from '@ethersproject/abstract-signer'
 
 import { Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
-import { getRequestIdForSigning } from '@erc4337/common/src/ERC4337Utils'
+import { getRequestIdForSigning } from '@erc4337/common/dist/src/ERC4337Utils'
 import { UserOperation } from '@erc4337/common/src/UserOperation'
 import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'

@@ -60,6 +60,7 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   async getTransaction (transactionHash: string | Promise<string>): Promise<TransactionResponse> {
+    // TODO
     return await super.getTransaction(transactionHash)
   }
 
