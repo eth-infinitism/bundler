@@ -32,7 +32,7 @@ program
 
 console.log('command-line arguments: ', program.opts())
 
-const CONFIG_FILE_NAME = 'bundler.config.json'
+const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
 export function resolveConfiguration (): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
@@ -42,6 +42,7 @@ export function resolveConfiguration (): BundlerConfig {
     fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE_NAME, 'ascii'))
   }
   const mergedConfig = Object.assign({}, bundlerConfigDefault, fileConfig, commandLineParams)
+  console.log('Merged configuration:', JSON.stringify(mergedConfig))
   ow(mergedConfig, ow.object.exactShape(BundlerConfigShape))
   return mergedConfig
 }
