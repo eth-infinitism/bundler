@@ -135,8 +135,13 @@ export class ERC4337EthersProvider extends BaseProvider {
       value: BigNumber.from(0),
       data: hexValue(userOp.callData), // should extract the actual called method from this "execFromSingleton()" call
       chainId: this.config.chainId,
-      wait: async function (confirmations?: number): Promise<TransactionReceipt> {
-        return await waitPromise
+      wait: async (confirmations?: number): Promise<TransactionReceipt> => {
+        const transactionReceipt = await waitPromise
+        if (userOp.initCode.length !== 0) {
+          // checking if the wallet has been deployed by the transaction; it must be if we are here
+          await this.smartWalletAPI.checkWalletPhantom()
+        }
+        return transactionReceipt
       }
     }
   }

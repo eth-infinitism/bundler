@@ -25,6 +25,11 @@ export class SimpleWalletAPI {
   async init (): Promise<this> {
     const initCode = await this._getWalletInitCode()
     this.senderAddress = await this.entryPoint.getSenderAddress(initCode, this.index)
+    await this.checkWalletPhantom()
+    return this
+  }
+
+  async checkWalletPhantom (): Promise<void> {
     const senderAddressCode = await this.originalProvider.getCode(this.senderAddress)
     if (senderAddressCode.length > 2) {
       console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
@@ -33,13 +38,9 @@ export class SimpleWalletAPI {
     } else {
       console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
     }
-    return this
   }
 
   // TODO: support transitioning from 'phantom wallet' to 'deployed wallet' states
-  async onWalletDeployed (): Promise<void> {
-    throw new Error('not implemented')
-  }
 
   async _getWalletInitCode (): Promise<BytesLike> {
     const deployTransactionData = this.simpleWalletFactory.getDeployTransaction(this.entryPoint.address, this.ownerAddress).data

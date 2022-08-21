@@ -40,19 +40,32 @@ export class UserOpMethodHandler {
     const requestId = await this.entryPoint.getRequestId(userOp)
 
     // TODO: this is only printing debug info, remove once not necessary
-    await this.printGasEstimationDebugInfo(userOp, beneficiary)
+    // await this.printGasEstimationDebugInfo(userOp, beneficiary)
 
-    // TODO: this is not used and 0 passed insted as transaction does not pay enough
-    // const estimateGasFactored = await this.estimateGasForHelperCall(userOp, beneficiary)
-
-    await this.bundlerHelper.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
+    let estimated: BigNumber
+    let factored: BigNumber
+    try {
+      // TODO: this is not used and 0 passed insted as transaction does not pay enough
+      ({ estimated, factored } = await this.estimateGasForHelperCall(userOp, beneficiary))
+    } catch (error: any) {
+      console.log('estimateGasForHelperCall failed:', error)
+      throw error.error
+    }
+    // TODO: estimate gas and pass gas limit that makes sense
+    await this.bundlerHelper.handleOps(factored, this.config.entryPoint, [userOp], beneficiary, { gasLimit: estimated })
     return requestId
   }
 
-  async estimateGasForHelperCall (userOp: UserOperation, beneficiary: string): Promise<BigNumber> {
+  async estimateGasForHelperCall (userOp: UserOperation, beneficiary: string): Promise<{
+    estimated: BigNumber
+    factored: BigNumber
+  }> {
     const estimateGasRet = await this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
-    const estimateGas = estimateGasRet.mul(64).div(63)
-    return estimateGas.mul(Math.round(parseInt(this.config.gasFactor) * 100000)).div(100000)
+    const estimated = estimateGasRet.mul(64).div(63)
+    // const factored = estimated.mul(Math.round(parseInt(this.config.gasFactor) * 100000)).div(100000)
+    // TODO: for some reason 'estimateGas' returns way more then the transaction actually pays for
+    const factored = estimated.div(3)
+    return { estimated, factored }
   }
 
   async printGasEstimationDebugInfo (userOp: UserOperation, beneficiary: string): Promise<void> {

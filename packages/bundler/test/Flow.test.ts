@@ -1,6 +1,9 @@
+import chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
 import childProcess, { ChildProcessWithoutNullStreams } from 'child_process'
-import path from 'path'
 import hre, { ethers } from 'hardhat'
+import path from 'path'
+import sinon from 'sinon'
 
 import * as SampleRecipientArtifact
   from '@erc4337/common/artifacts/contracts/test/SampleRecipient.sol/SampleRecipient.json'
@@ -10,6 +13,10 @@ import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { newProvider } from '@erc4337/client/dist/src'
 import { Signer } from 'ethers'
+import { ERC4337EthersSigner } from '@erc4337/client/dist/src/ERC4337EthersSigner'
+import { ERC4337EthersProvider } from '@erc4337/client/dist/src/ERC4337EthersProvider'
+
+const { expect } = chai.use(chaiAsPromised)
 
 export async function startBundler (options: BundlerConfig): Promise<ChildProcessWithoutNullStreams> {
   const args: any[] = []
@@ -25,7 +32,8 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
   const proc: ChildProcessWithoutNullStreams = childProcess.spawn('./node_modules/.bin/ts-node',
     [runServerPath, ...args])
 
-  const relaylog = (msg: string): void => msg.split('\n').forEach(line => console.log(`relay-${proc.pid?.toString()}> ${line}`))
+  const relaylog = (msg: string): void =>
+    msg.split('\n').forEach(line => console.log(`relay-${proc.pid?.toString()}> ${line}`))
 
   await new Promise((resolve, reject) => {
     let lastResponse: string
@@ -103,17 +111,20 @@ describe('Flow', function () {
     stopBundler(relayproc)
   })
 
+  let erc4337Signer: ERC4337EthersSigner
+  let erc4337Provider: ERC4337EthersProvider
+
   it('should send transaction and make profit', async function () {
     const config: ClientConfig = {
       entryPointAddress,
       bundlerUrl: 'http://localhost:5555',
       chainId: 31337
     }
-    const erc4337Provider = await newProvider(
+    erc4337Provider = await newProvider(
       new JsonRpcProvider('http://localhost:8545/'),
       config
     )
-    const erc4337Signer = erc4337Provider.getSigner()
+    erc4337Signer = erc4337Provider.getSigner()
     const simpleWalletPhantomAddress = await erc4337Signer.getAddress()
 
     await signer.sendTransaction({
@@ -121,7 +132,8 @@ describe('Flow', function () {
       value: 10e18.toString()
     })
 
-    const sampleRecipientContract = new ethers.Contract(sampleRecipientAddress, SampleRecipientArtifact.abi, erc4337Signer)
+    const sampleRecipientContract =
+      new ethers.Contract(sampleRecipientAddress, SampleRecipientArtifact.abi, erc4337Signer)
     console.log(sampleRecipientContract.address)
 
     const result = await sampleRecipientContract.something('hello world')
@@ -130,7 +142,13 @@ describe('Flow', function () {
     console.log(receipt)
   })
 
-  it('should refuse transaction that does not make profit', function () {
-
+  it('should refuse transaction that does not make profit', async function () {
+    sinon.stub(erc4337Signer, 'signUserOperation').returns(Promise.resolve('0x' + '01'.repeat(65)))
+    const sampleRecipientContract =
+      new ethers.Contract(sampleRecipientAddress, SampleRecipientArtifact.abi, erc4337Signer)
+    console.log(sampleRecipientContract.address)
+    await expect(sampleRecipientContract.something('hello world')).to.be.eventually
+      .rejectedWith(
+        'The bundler has failed to include UserOperation in a batch:  "ECDSA: invalid signature \'v\' value"')
   })
 })

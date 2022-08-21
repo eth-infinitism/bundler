@@ -3,6 +3,8 @@ import { TransactionReceipt } from '@ethersproject/providers'
 
 import { EntryPoint } from '@erc4337/common/dist/src/types'
 
+const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
+
 /**
  * This class encapsulates Ethers.js listener function and necessary UserOperation details to
  * discover a TransactionReceipt for the operation.
@@ -17,10 +19,15 @@ export class UserOperationEventListener {
     readonly entryPoint: EntryPoint,
     readonly sender: string,
     readonly requestId: string,
-    readonly nonce?: BigNumberish
+    readonly nonce?: BigNumberish,
+    readonly timeout?: number
   ) {
     console.log('requestId', this.requestId)
     this.listenerBind = this.listenerCallback.bind(this)
+    setTimeout(() => {
+      this.stop()
+      this.reject(new Error('Timed out'))
+    }, this.timeout ?? DEFAULT_TRANSACTION_TIMEOUT)
   }
 
   start (): void {

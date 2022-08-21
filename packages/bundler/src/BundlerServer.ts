@@ -60,8 +60,8 @@ export class BundlerServer {
       console.log('sent', method, '-', result)
       res.send({ jsonrpc, id, result })
     } catch (err: any) {
-      const error = { message: err.error?.reason ?? err.error, code: -32000 }
-      console.log('failed: ', method, error)
+      const error = { message: err.error?.reason ?? err.error.message ?? err, code: -32000 }
+      console.log('failed: ', method, JSON.stringify(error))
       res.send({ jsonrpc, id, error })
     }
   }

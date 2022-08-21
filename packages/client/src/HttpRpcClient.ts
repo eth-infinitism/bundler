@@ -33,10 +33,8 @@ export class HttpRpcClient {
 
     const jsonRequestData: [UserOperation, string] = [hexifiedUserOp, this.entryPointAddress]
     this.printUserOperation(jsonRequestData)
-    return await this.userOpJsonRpcProvider.send(
-      'eth_sendUserOperation', [hexifiedUserOp, this.entryPointAddress]).catch(e => {
-      throw e.error ?? e
-    })
+    return await this.userOpJsonRpcProvider
+      .send('eth_sendUserOperation', [hexifiedUserOp, this.entryPointAddress])
   }
 
   private printUserOperation ([userOp, entryPointAddress]: [UserOperation, string]): void {
