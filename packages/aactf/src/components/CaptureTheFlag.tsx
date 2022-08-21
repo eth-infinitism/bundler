@@ -1,4 +1,6 @@
 import React, { Component } from 'react'
+import { Web3Provider } from '@ethersproject/providers'
+
 import { Progress, Address, ActionButton, Log, sleep } from './utils'
 import { NetSwitcher } from './NetSwitcher'
 import { Ctf, initCtf } from './Ctf'
@@ -26,9 +28,9 @@ export class CaptureTheFlag extends Component {
     const ctf = this.ctf = await initCtf()
 
     // TODO: ALEXF: check metamask connected
-    // if (await (ctf.ethersProvider as Web3Provider).listAccounts().then(arr => arr.length) === 0) {
-    //   throw new Error('Connect metamask first')
-    // }
+    if (await (ctf.provider.originalProvider as Web3Provider).listAccounts().then(arr => arr.length) === 0) {
+      throw new Error('Connect metamask first')
+    }
     const [current, account] = await Promise.all([
       ctf.getCurrentFlagHolder(),
       ctf.getSigner()

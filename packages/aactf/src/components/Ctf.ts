@@ -94,11 +94,11 @@ export class Ctf {
   async capture (): Promise<any> {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.provider.getGasPrice().then(price => console.log('== gas price=', price.toString()))
-    const gasFees = await this.provider.getFeeData()
-    gasFees.maxPriorityFeePerGas = gasFees.maxFeePerGas
-    console.log('gas fees=', gasFees)
+    const { maxFeePerGas, maxPriorityFeePerGas } = await this.provider.getFeeData()
     const gasLimit = 1e6
-    const ret = await this.theContract.captureTheFlag({ gasLimit, ...gasFees })
+    const gasFees = { gasLimit, maxFeePerGas, maxPriorityFeePerGas }
+    console.log('gas fees=', gasFees)
+    const ret = await this.theContract.captureTheFlag(gasFees)
     console.log('post-capture ret=', ret)
     return ret
   }
@@ -155,11 +155,11 @@ export async function initCtf (): Promise<Ctf> {
   // TODO: ALEXF: read entry point from files same as everything else
   const config: ClientConfig = {
     entryPointAddress: '0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69',
-    bundlerUrl: 'http://localhost:5555',
-    chainId: 31337
+    bundlerUrl: 'https://bundler-0-1-0.eip4337.com/',
+    chainId: 5
   }
   const erc4337Provider = await newProvider(
-    new JsonRpcProvider('http://localhost:8545/'),
+    provider,
     config
   )
   const erc4337Signer = erc4337Provider.getSigner()
