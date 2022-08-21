@@ -1,5 +1,6 @@
 # You must have the following environment variable set in .env file:
-#  HOST   | my.example.com   | Your Relay Server URL exactly as it is accessed by GSN Clients
+#  HOST            | my.example.com   | Your Relay Server URL exactly as it is accessed by GSN Clients
+#  DEFAULT_EMAIL   | me@example.com   | Your e-mail for LetsEncrypt to send SSL alerts to
 
 version: '2'
 
@@ -45,7 +46,7 @@ services:
     # /app/data - relay specific folder
     # /app/config - read-only config folder
     volumes:
-      - ./config:/app/config:ro
+      - ./workdir:/app/workdir:ro
 
     environment:
       url: https://${HOST}/
