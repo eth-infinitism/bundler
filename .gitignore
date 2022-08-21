@@ -22,3 +22,4 @@ tsconfig.tsbuildinfo
 /.idea/inspectionProfiles/Project_Default.xml
 /packages/bundler/typechain-types/
 /packages/bundler/deployments/
+/dockers/bundler/dist/bundler.js

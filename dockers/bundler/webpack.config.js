@@ -1,10 +1,14 @@
 const path = require('path')
-const { IgnorePlugin } = require('webpack')
+const { IgnorePlugin, ProvidePlugin } = require('webpack')
 
 module.exports = {
   plugins: [
     new IgnorePlugin({ resourceRegExp: /electron/ }),
-    new IgnorePlugin({ resourceRegExp: /^scrypt$/ })
+    new IgnorePlugin({ resourceRegExp: /^scrypt$/ }),
+    new ProvidePlugin({
+      WebSocket: 'ws',
+      fetch: ['node-fetch', 'default'],
+    }),
   ],
   target: 'node',
   entry: '../../packages/bundler/dist/src/runBundler.js',
