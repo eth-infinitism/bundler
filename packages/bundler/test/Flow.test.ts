@@ -99,7 +99,7 @@ describe('Flow', function () {
       beneficiary,
       entryPoint: entryPoint.address,
       helper: bundleHelper.address,
-      gasFactor: '1',
+      gasFactor: '0.2',
       minBalance: '0',
       mnemonic: 'myth like bonus scare over problem client lizard pioneer submit female collect',
       network: 'http://localhost:8545/',
@@ -117,7 +117,7 @@ describe('Flow', function () {
   it('should send transaction and make profit', async function () {
     const config: ClientConfig = {
       entryPointAddress,
-      bundlerUrl: 'http://localhost:5555',
+      bundlerUrl: 'http://localhost:5555/rpc',
       chainId: 31337
     }
     erc4337Provider = await newProvider(

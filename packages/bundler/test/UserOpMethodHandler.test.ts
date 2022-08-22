@@ -61,7 +61,7 @@ describe('UserOpMethodHandler', function () {
     const config: BundlerConfig = {
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
-      gasFactor: '1',
+      gasFactor: '0.2',
       helper: bundleHelper.address,
       minBalance: '0',
       mnemonic: '',

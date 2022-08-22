@@ -53,7 +53,7 @@ export class UserOpMethodHandler {
       throw error.error
     }
     // TODO: estimate gas and pass gas limit that makes sense
-    await this.bundlerHelper.handleOps(factored, this.config.entryPoint, [userOp], beneficiary, { gasLimit: estimated })
+    await this.bundlerHelper.handleOps(factored, this.config.entryPoint, [userOp], beneficiary, { gasLimit: estimated.mul(3) })
     return requestId
   }
 
