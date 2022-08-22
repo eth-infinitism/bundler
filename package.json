@@ -13,16 +13,17 @@
     ]
   },
   "scripts": {
-    "preprocess": "yarn lerna-clear && lerna run hardhat-compile && yarn lerna-tsc",
-    "lerna-tsc": "lerna run tsc",
-    "lerna-clear": "lerna run clear",
-    "lerna-test": "lerna run hardhat-test --stream --no-prefix",
-    "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
-    "lerna-lint": "lerna run lint --stream --parallel",
     "bundler": "ts-node packages/bundler/src/bundler.ts --network https://goerli.infura.io/v3/f40be2b1a3914db682491dc62a19ad43 --mnemonic ./file",
+    "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
+    "depcheck": "lerna exec --no-bail --stream -- npx depcheck",
     "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix",
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix",
-    "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps"
+    "lerna-clear": "lerna run clear",
+    "lerna-lint": "lerna run lint --stream --parallel",
+    "lerna-test": "lerna run hardhat-test --stream --no-prefix",
+    "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
+    "lerna-tsc": "lerna run tsc",
+    "preprocess": "yarn lerna-clear && lerna run hardhat-compile && yarn lerna-tsc"
   },
   "dependencies": {
     "@types/testing-library__dom": "^7.5.0",
@@ -34,6 +35,7 @@
     "eslint-plugin-n": "^15.2.4",
     "eslint-plugin-promise": "^6.0.0",
     "lerna": "^5.4.0",
+    "depcheck": "^1.4.3",
     "typescript": "^4.7.4",
     "webpack": "^5.74.0",
     "webpack-cli": "^4.10.0"

@@ -102,6 +102,6 @@ workflows:
       - lint:
           requires:
             - build
-#      - depcheck:
-#          requires:
-#            - build
+      - depcheck:
+          requires:
+            - build

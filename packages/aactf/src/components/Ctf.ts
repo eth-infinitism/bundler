@@ -1,8 +1,7 @@
 import { networks } from './config/networks'
 import { Contract, ethers, EventFilter } from 'ethers'
 
-import * as CtfArtifact from '../artifacts/contracts/CaptureTheFlag.sol/CaptureTheFlag.json'
-import { JsonRpcProvider } from '@ethersproject/providers'
+import * as CtfArtifact from '../artifacts/@erc4337/common/contracts/test/CaptureTheFlag.sol/CaptureTheFlag.json'
 
 import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 import { newProvider } from '@erc4337/client/dist/src'

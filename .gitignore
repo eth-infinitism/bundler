@@ -24,3 +24,4 @@ tsconfig.tsbuildinfo
 /packages/bundler/deployments/
 /dockers/bundler/dist/bundler.js
 /dist/
+/packages/aactf/src/types/

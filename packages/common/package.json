@@ -3,19 +3,27 @@
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
-    "tsc": "tsc",
     "clear": "rm -rf dist artifacts src/types",
     "hardhat-compile": "yarn clear && hardhat compile",
     "hardhat-deploy": "hardhat deploy",
-    "hardhat-node": "hardhat node"
+    "hardhat-node": "hardhat node",
+    "tsc": "tsc"
   },
   "files": [
     "dist/*",
     "contracts/*",
     "README.md"
   ],
+  "dependencies": {
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/bytes": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
+    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "ethers": "^5.7.0",
+    "hardhat-deploy": "^0.11.12"
+  },
   "devDependencies": {
-    "copyfiles": "^2.4.1",
     "hardhat": "^2.10.0"
   }
 }

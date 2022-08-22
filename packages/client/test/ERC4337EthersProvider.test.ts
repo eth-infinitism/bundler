@@ -17,3 +17,4 @@
 //     expect(await lock.unlockTime()).to.equal(unlockTime)
 //   })
 // })
+// should throw timeout exception if user operation is not mined after x time
