@@ -11,7 +11,7 @@ const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
  */
 export class UserOperationEventListener {
   resolved: boolean = false
-  listenerBind: (this: any, ...param: any) => Promise<void>
+  boundLisener: (this: any, ...param: any) => Promise<void>
 
   constructor (
     readonly resolve: (t: TransactionReceipt) => void,
@@ -23,21 +23,21 @@ export class UserOperationEventListener {
     readonly timeout?: number
   ) {
     console.log('requestId', this.requestId)
-    this.listenerBind = this.listenerCallback.bind(this)
+    this.boundLisener = this.listenerCallback.bind(this)
     setTimeout(() => {
       this.stop()
       this.reject(new Error('Timed out'))
     }, this.timeout ?? DEFAULT_TRANSACTION_TIMEOUT)
   }
 
-  start (): void {
+  start (requestId: string): void {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.entryPoint.on('UserOperationEvent', this.listenerBind) // TODO: i am 90% sure i don't need to bind it again
+    this.entryPoint.on(this.entryPoint.filters.UserOperationEvent(requestId), this.boundLisener) // TODO: i am 90% sure i don't need to bind it again
   }
 
   stop (): void {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.entryPoint.off('UserOperationEvent', this.listenerBind)
+    this.entryPoint.off('UserOperationEvent', this.boundLisener)
   }
 
   async listenerCallback (this: any, ...param: any): Promise<void> {

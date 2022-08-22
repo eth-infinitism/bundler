@@ -7,6 +7,7 @@ import { Wallet, utils } from 'ethers'
 
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { BundlerConfig } from './BundlerConfig'
+import { erc4337RuntimeVersion } from '@erc4337/common/dist/src/Version'
 
 export class BundlerServer {
   app: Express
@@ -50,7 +51,7 @@ export class BundlerServer {
   }
 
   intro (req: Request, res: Response): void {
-    res.send('Account-Abstraction Bundler. please use "/rpc"')
+    res.send(`Account-Abstraction Bundler v.${erc4337RuntimeVersion}. please use "/rpc"`)
   }
 
   async rpc (req: Request, res: Response): Promise<void> {
@@ -69,6 +70,11 @@ export class BundlerServer {
   async handleMethod (method: string, params: any[]): Promise<void> {
     let result: any
     switch (method) {
+      case 'eth_chainId':
+        // eslint-disable-next-line no-case-declarations
+        const { chainId } = await this.provider.getNetwork()
+        result = chainId
+        break
       case 'eth_supportedEntryPoints':
         result = await this.methodHandler.getSupportedEntryPoints()
         break

@@ -16,9 +16,6 @@
     "emitDecoratorMetadata": true,
     "sourceMap": true,
     "outDir": "dist",
-    "types": [
-      "./src/custom-types/openzeppelin__test-helpers"
-    ],
     "typeRoots": [
       "./node_modules/@nomiclabs/hardhat-ethers"
     ]

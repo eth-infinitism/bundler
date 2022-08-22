@@ -70,7 +70,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, sender, requestId
-      ).start()
+      ).start(requestId)
     })
   }
 
@@ -125,7 +125,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, userOp.sender, requestId, userOp.nonce
-      ).start()
+      ).start(requestId)
     })
     return {
       hash: requestId,

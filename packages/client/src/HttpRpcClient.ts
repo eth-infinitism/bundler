@@ -12,8 +12,7 @@ export class HttpRpcClient {
     readonly entryPointAddress: string,
     readonly chainId: number
   ) {
-    const rpcUrl = this.bundlerUrl + '/rpc'
-    this.userOpJsonRpcProvider = new ethers.providers.JsonRpcProvider(rpcUrl, {
+    this.userOpJsonRpcProvider = new ethers.providers.JsonRpcProvider(this.bundlerUrl, {
       name: 'Not actually connected to network, only talking to the Bundler!',
       chainId
     })

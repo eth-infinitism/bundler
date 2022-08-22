@@ -137,7 +137,8 @@ describe('UserOpMethodHandler', function () {
       userOperation = await erc4337EthersProvider.createUserOp({
         data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
         target: sampleRecipient.address,
-        value: '0'
+        value: '0',
+        gasLimit: ''
       })
 
       userOperation.signature = await erc4337EtherSigner.signUserOperation(userOperation)

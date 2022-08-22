@@ -32,7 +32,7 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
   const proc: ChildProcessWithoutNullStreams = childProcess.spawn('./node_modules/.bin/ts-node',
     [runServerPath, ...args])
 
-  const relaylog = (msg: string): void =>
+  const bundlerlog = (msg: string): void =>
     msg.split('\n').forEach(line => console.log(`relay-${proc.pid?.toString()}> ${line}`))
 
   await new Promise((resolve, reject) => {
@@ -40,7 +40,7 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
     const listener = (data: any): void => {
       const str = data.toString().replace(/\s+$/, '')
       lastResponse = str
-      relaylog(str)
+      bundlerlog(str)
       if (str.indexOf('connected to network ') >= 0) {
         // @ts-ignore
         proc.alreadystarted = 1
@@ -53,7 +53,7 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
       // @ts-ignore
       // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       if (!proc.alreadystarted) {
-        relaylog(`died before init code=${JSON.stringify(code)}`)
+        bundlerlog(`died before init code=${JSON.stringify(code)}`)
         reject(new Error(lastResponse))
       }
     }

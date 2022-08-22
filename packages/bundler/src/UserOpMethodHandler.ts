@@ -62,9 +62,7 @@ export class UserOpMethodHandler {
   }> {
     const estimateGasRet = await this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
     const estimated = estimateGasRet.mul(64).div(63)
-    // const factored = estimated.mul(Math.round(parseInt(this.config.gasFactor) * 100000)).div(100000)
-    // TODO: for some reason 'estimateGas' returns way more then the transaction actually pays for
-    const factored = estimated.div(3)
+    const factored = estimated.mul(Math.round(parseFloat(this.config.gasFactor) * 100000)).div(100000)
     return { estimated, factored }
   }
 

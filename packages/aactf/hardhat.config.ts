@@ -15,15 +15,13 @@ if (mnemonicFileName != null && existsSync(mnemonicFileName)) {
   mnemonic = readFileSync(mnemonicFileName, 'ascii').replace(/(\r\n|\n|\r)/gm, '')
 }
 
-console.log('Mnemonic:\n', mnemonic)
-
 const infuraUrl = (name: string): string => `https://${name}.infura.io/v3/${process.env.INFURA_ID}`
 
 function getNetwork (url: string): NetworkUserConfig {
   return {
     url,
     accounts: {
-      mnemonic: 'digital unknown jealous mother legal hedgehog save glory december universe spread figure custom found six'
+      mnemonic
     }
   }
 }

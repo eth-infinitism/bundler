@@ -4,11 +4,8 @@ coverage
 coverage.json
 typechain
 packages/bundler/src/typechain-types
-
-#Hardhat files
 cache
 artifacts
-/packages/**/dist/
 /packages/hardhat/types/
 .DS_Store
 /.idea/bundler.iml
@@ -22,6 +19,5 @@ tsconfig.tsbuildinfo
 /.idea/inspectionProfiles/Project_Default.xml
 /packages/bundler/typechain-types/
 /packages/bundler/deployments/
-/dockers/bundler/dist/bundler.js
-/dist/
+**/dist/
 /packages/aactf/src/types/

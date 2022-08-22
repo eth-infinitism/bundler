@@ -18,28 +18,30 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
   return `BigNumber ${parseInt(this._hex)}`
 }
 
+const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
+
 program
   .version(erc4337RuntimeVersion)
   .option('--beneficiary <string>', 'address to receive funds')
-  .option('--gasFactor <string>')
-  .option('--minBalance <string>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
+  .option('--gasFactor <number>')
+  .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
   .option('--network <string>', 'network name or url')
   .option('--mnemonic <string>', 'signer account secret key mnemonic')
   .option('--helper <string>', 'address of the BundlerHelper contract')
   .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-  .option('--port <string>', 'server listening port (default to 3000)')
+  .option('--port <number>', 'server listening port (default to 3000)')
+  .option('--config <string>', `path to config file (default to ${CONFIG_FILE_NAME})`, CONFIG_FILE_NAME)
   .parse()
 
 console.log('command-line arguments: ', program.opts())
-
-const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
 export function resolveConfiguration (): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
 
   const commandLineParams = getCommandLineParams()
-  if (fs.existsSync(CONFIG_FILE_NAME)) {
-    fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE_NAME, 'ascii'))
+  const configFileName = program.opts().config
+  if (fs.existsSync(configFileName)) {
+    fileConfig = JSON.parse(fs.readFileSync(configFileName, 'ascii'))
   }
   const mergedConfig = Object.assign({}, bundlerConfigDefault, fileConfig, commandLineParams)
   console.log('Merged configuration:', JSON.stringify(mergedConfig))

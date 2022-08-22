@@ -28,7 +28,8 @@ export class ERC4337EthersSigner extends Signer {
     const userOperation = await this.erc4337provider.createUserOp({
       target: tx.to ?? '',
       data: tx.data?.toString() ?? '',
-      value: tx.value?.toString() ?? ''
+      value: tx.value?.toString() ?? '',
+      gasLimit: tx.gasLimit?.toString() ?? ''
     })
     userOperation.signature = await this.signUserOperation(userOperation)
     const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
@@ -87,7 +88,7 @@ export class ERC4337EthersSigner extends Signer {
   }
 
   async signTransaction (transaction: Deferrable<TransactionRequest>): Promise<string> {
-    return await Promise.resolve('')
+    throw new Error('not implemented')
   }
 
   async signUserOperation (userOperation: UserOperation): Promise<string> {
