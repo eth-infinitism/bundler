@@ -9,7 +9,9 @@ import { BaseProvider } from '@ethersproject/providers'
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { EntryPoint, BundlerHelper, BundlerHelper__factory, EntryPoint__factory } from '@erc4337/common/dist/src/types'
+import { EntryPoint, EntryPoint__factory } from '@erc4337/common/dist/src/types'
+
+import { BundlerHelper, BundlerHelper__factory } from './types'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')

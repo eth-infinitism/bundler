@@ -21,3 +21,4 @@ tsconfig.tsbuildinfo
 /packages/bundler/deployments/
 **/dist/
 /packages/aactf/src/types/
+/packages/bundler/src/types/

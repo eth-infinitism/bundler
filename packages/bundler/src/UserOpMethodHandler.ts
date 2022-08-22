@@ -3,7 +3,8 @@ import { JsonRpcSigner, Provider } from '@ethersproject/providers'
 import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
 
 import { BundlerConfig } from './BundlerConfig'
-import { EntryPoint, BundlerHelper } from '@erc4337/common/dist/src/types'
+import { EntryPoint } from '@erc4337/common/dist/src/types'
+import { BundlerHelper } from './types'
 
 export class UserOpMethodHandler {
   constructor (

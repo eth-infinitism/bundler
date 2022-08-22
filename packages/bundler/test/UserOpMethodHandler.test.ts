@@ -14,7 +14,6 @@ import type {} from '@erc4337/common/src/types/hardhat'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import {
   SimpleWallet,
-  BundlerHelper,
   EntryPoint,
   SampleRecipient,
   SingletonFactory,
@@ -22,6 +21,7 @@ import {
 } from '@erc4337/common/src/types'
 
 import { BundlerConfig } from '../src/BundlerConfig'
+import { BundlerHelper } from '../src/types'
 import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 
 describe('UserOpMethodHandler', function () {
