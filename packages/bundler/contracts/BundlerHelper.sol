@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
-import "solidity-string-utils/StringUtils.sol";
 import "@account-abstraction/contracts/EntryPoint.sol";
+import "solidity-string-utils/StringUtils.sol";
 
 contract BundlerHelper {
     using StringUtils for *;

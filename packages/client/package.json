@@ -1,0 +1,25 @@
+{
+  "name": "@erc4337/client",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "dist/*",
+    "README.md"
+  ],
+  "scripts": {
+    "tsc": "tsc",
+    "clear": "rm -rf dist",
+    "lint": "eslint -f unix ."
+  },
+  "dependencies": {
+    "@erc4337/common": "0.1.0",
+    "@ethersproject/networks": "^5.7.0",
+    "@ethersproject/properties": "^5.7.0",
+    "ethers": "^5.7.0",
+    "hardhat": "^2.10.2"
+  },
+  "devDependencies": {
+    "@ethersproject/abstract-signer": "^5.6.2",
+    "@ethersproject/providers": "^5.4.7"
+  }
+}

@@ -1,0 +1,107 @@
+version: 2 # use CircleCI 2.0
+jobs: # a collection of steps
+  build: # runs not using Workflows must have a `build` job as entry point
+    working_directory: ~/aa # directory where steps will run
+    docker: # run the steps with Docker
+      - image: cimg/node:16.6.2
+
+    steps: # a collection of executable commands
+      - checkout # special step to check out source code to working directory
+
+      - run:
+          name: package-json-all-deps
+          command: yarn create-all-deps
+
+      - restore_cache: # special step to restore the dependency cache
+          key: dependency-cache-{{ checksum "yarn.lock" }}-{{ checksum "all.deps" }}
+
+      - run:
+          name: yarn-install-if-no-cache
+          command:  test -d node_modules/truffle || yarn
+
+      - save_cache: # special step to save the dependency cache
+          key: dependency-cache-{{ checksum "yarn.lock" }}-{{ checksum "all.deps" }}
+          paths:
+            - ./node_modules
+            - ./packages/bundler/node_modules
+            - ./packages/client/node_modules
+            - ./packages/common/node_modules
+            - ./packages/contracts/node_modules
+
+      - run:
+          name: yarn-preprocess
+          command: yarn preprocess
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  test:
+    working_directory: ~/aa # directory where steps will run
+    docker: # run the steps with Docker
+      - image: cimg/node:16.6.2
+    steps: # a collection of executable commands
+      - attach_workspace:
+          at: .
+      - run: # run tests
+          name: test
+          command: yarn lerna-test | tee /tmp/test-dev-results.log
+      - store_test_results: # special step to upload test results for display in Test Summary
+          path: /tmp/test-dev-results.log
+  test-flow:
+    working_directory: ~/aa # directory where steps will run
+    docker: # run the steps with Docker
+      - image: cimg/node:16.6.2
+    steps: # a collection of executable commands
+      - attach_workspace:
+          at: .
+      - run: # run hardhat-node as standalone process fork
+          name: hardhat-node-process
+          command: yarn hardhat-node
+          background: true
+      - run: # run tests
+          name: test
+          command: yarn lerna-test-flows | tee /tmp/test-flows-results.log
+      - store_test_results: # special step to upload test results for display in Test Summary
+          path: /tmp/test-flow-results.log
+
+  lint:
+    working_directory: ~/aa # directory where steps will run
+    docker: # run the steps with Docker
+      - image: cimg/node:16.6.2
+    steps: # a collection of executable commands
+      - attach_workspace:
+          at: .
+      - run: # run tests
+          name: lint
+          command: yarn lerna-lint
+  depcheck:
+    working_directory: ~/aa # directory where steps will run
+    docker: # run the steps with Docker
+      - image: cimg/node:16.6.2
+    steps: # a collection of executable commands
+      - attach_workspace:
+          at: .
+      - run: # run tests
+          name: depcheck
+          command: yarn depcheck
+
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - test-flow:
+          requires:
+            - build
+      - lint:
+          requires:
+            - build
+      - depcheck:
+          requires:
+            - build

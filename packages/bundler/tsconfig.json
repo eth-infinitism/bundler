@@ -1,11 +1,9 @@
 {
   "compilerOptions": {
-    "jsx": "react",
     "target": "es2017",
     "module": "commonjs",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
     "strict": true,
     "composite": true,
     "allowJs": true,
@@ -16,6 +14,16 @@
     "declaration": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "sourceMap": true
-  }
+    "sourceMap": true,
+    "outDir": "dist",
+    "typeRoots": [
+      "./node_modules/@nomiclabs/hardhat-ethers"
+    ]
+  },
+  "include": [
+    "src",
+    "hardhat.config.ts",
+    "test/**/*.ts",
+    "src/typechain-types"
+  ]
 }
