@@ -1,5 +1,0 @@
-{
-  "include": [
-    "src/components/config/ctf-networks.json"
-  ]
-}

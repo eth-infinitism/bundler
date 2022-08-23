@@ -1,1 +1,0 @@
-ignores: ["@openzeppelin/contracts", "@types/react", "@types/react-dom"]
