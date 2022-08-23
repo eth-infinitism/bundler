@@ -1,13 +1,15 @@
-import express, { Express, Response, Request } from 'express'
-import cors from 'cors'
 import bodyParser from 'body-parser'
+import cors from 'cors'
+import express, { Express, Response, Request } from 'express'
 import { JsonRpcRequest } from 'hardhat/types'
 import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
+import { hexlify } from 'ethers/lib/utils'
 
-import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { BundlerConfig } from './BundlerConfig'
 import { erc4337RuntimeVersion } from '@erc4337/common/dist/src/Version'
+
+import { BundlerConfig } from './BundlerConfig'
+import { UserOpMethodHandler } from './UserOpMethodHandler'
 
 export class BundlerServer {
   app: Express
@@ -73,7 +75,7 @@ export class BundlerServer {
       case 'eth_chainId':
         // eslint-disable-next-line no-case-declarations
         const { chainId } = await this.provider.getNetwork()
-        result = chainId
+        result = hexlify(chainId)
         break
       case 'eth_supportedEntryPoints':
         result = await this.methodHandler.getSupportedEntryPoints()
