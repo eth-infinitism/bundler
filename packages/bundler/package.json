@@ -1,0 +1,56 @@
+{
+  "name": "@erc4337/bundler",
+  "version": "0.1.0",
+  "files": [
+    "dist/src/",
+    "dist/index.js",
+    "README.md"
+  ],
+  "scripts": {
+    "clear": "rm -rf dist artifacts src/types",
+    "hardhat-compile": "yarn clear && hardhat compile",
+    "hardhat-node-with-deploy": "npx hardhat node",
+    "hardhat-test": "hardhat test --grep '/^((?!Flow).)*$/'",
+    "hardhat-test-flows": "npx hardhat test --network localhost --grep \"Flow\"",
+    "lint": "eslint -f unix .",
+    "tsc": "tsc"
+  },
+  "dependencies": {
+    "@account-abstraction/contracts": "^0.1.0",
+    "@erc4337/common": "0.1.0",
+    "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.13",
+    "commander": "^9.4.0",
+    "cors": "^2.8.5",
+    "ethers": "^5.7.0",
+    "express": "^4.18.1",
+    "hardhat-gas-reporter": "^1.0.8",
+    "ow": "^0.28.1",
+    "solidity-string-utils": "^0.0.8-0"
+  },
+  "devDependencies": {
+    "@erc4337/client": "0.1.0",
+    "@ethersproject/abi": "^5.4.7",
+    "@ethersproject/providers": "^5.4.7",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^1.0.1",
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "@nomiclabs/hardhat-etherscan": "^3.0.0",
+    "@typechain/ethers-v5": "^10.1.0",
+    "@typechain/hardhat": "^6.1.2",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": "^9.1.0",
+    "@types/node": ">=12.0.0",
+    "@types/sinon": "^10.0.13",
+    "body-parser": "^1.20.0",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "hardhat": "^2.10.0",
+    "hardhat-deploy": "^0.11.11",
+    "sinon": "^14.0.0",
+    "solidity-coverage": "^0.7.21",
+    "ts-node": ">=8.0.0",
+    "typechain": "^8.1.0"
+  }
+}
