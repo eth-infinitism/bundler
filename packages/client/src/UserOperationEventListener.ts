@@ -1,7 +1,6 @@
 import { BigNumberish, Event } from 'ethers'
 import { TransactionReceipt } from '@ethersproject/providers'
-
-import { EntryPoint } from '@erc4337/common/dist/src/types'
+import { EntryPoint } from '@account-abstraction/contracts'
 
 const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
 

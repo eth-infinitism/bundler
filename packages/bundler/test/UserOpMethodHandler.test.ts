@@ -6,23 +6,16 @@ import { ERC4337EthersProvider } from '@erc4337/client/dist/src/ERC4337EthersPro
 import { ERC4337EthersSigner } from '@erc4337/client/dist/src/ERC4337EthersSigner'
 import { SimpleWalletAPI } from '@erc4337/client/dist/src/SimpleWalletAPI'
 import { UserOpAPI } from '@erc4337/client/dist/src/UserOpAPI'
-import { UserOperation } from '@erc4337/common/src/UserOperation'
-
-// noinspection ES6UnusedImports
-import type {} from '@erc4337/common/src/types/hardhat'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
-import {
-  SimpleWallet,
-  EntryPoint,
-  SampleRecipient,
-  SingletonFactory,
-  SimpleWallet__factory
-} from '@erc4337/common/src/types'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { BundlerHelper } from '../src/types'
+import { BundlerHelper, SampleRecipient } from '../src/types'
 import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
+import { EntryPoint, SimpleWallet, SimpleWalletDeployer, SimpleWalletDeployer__factory, UserOperationStruct } from '@account-abstraction/contracts'
+
+import { TransactionDetailsForUserOp } from '@erc4337/client/dist/src/TransactionDetailsForUserOp'
+import 'source-map-support/register'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -34,7 +27,6 @@ describe('UserOpMethodHandler', function () {
   let entryPoint: EntryPoint
   let bundleHelper: BundlerHelper
   let simpleWallet: SimpleWallet
-  let singletonFactory: SingletonFactory
   let sampleRecipient: SampleRecipient
 
   let ownerAddress: string
@@ -45,12 +37,8 @@ describe('UserOpMethodHandler', function () {
 
     ownerAddress = await signer.getAddress()
 
-    // TODO: extract to Hardhat Fixture and reuse across test file
-    const SingletonFactoryFactory = await ethers.getContractFactory('SingletonFactory')
-    singletonFactory = await SingletonFactoryFactory.deploy()
-
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
-    entryPoint = await EntryPointFactory.deploy(singletonFactory.address, 1, 1)
+    entryPoint = await EntryPointFactory.deploy(1, 1)
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
     bundleHelper = await bundleHelperFactory.deploy()
@@ -90,28 +78,32 @@ describe('UserOpMethodHandler', function () {
     let erc4337EthersProvider: ERC4337EthersProvider
     let erc4337EtherSigner: ERC4337EthersSigner
 
-    let userOperation: UserOperation
+    let userOperation: UserOperationStruct
+    let walletFactory: SimpleWalletDeployer
 
     before(async function () {
-      // TODO: SmartWalletAPI should not accept wallet - this is chicken-and-egg; rework once creation flow is final
-      const initCode = new SimpleWallet__factory().getDeployTransaction(entryPoint.address, ownerAddress).data
-      await singletonFactory.deploy(initCode!, ethers.constants.HashZero)
-      const simpleWalletAddress = await entryPoint.getSenderAddress(initCode!, 0)
-
+      walletFactory = await new SimpleWalletDeployer__factory(signer).deploy()
+      const smartWalletAPI = new SimpleWalletAPI(
+        entryPoint,
+        undefined,
+        ownerAddress,
+        walletFactory.address,
+        0
+      )
+      console.log('addr=', await smartWalletAPI.getSender())
       await signer.sendTransaction({
-        to: simpleWalletAddress,
+        to: smartWalletAPI.getSender(),
         value: 10e18.toString()
       })
 
-      simpleWallet = SimpleWallet__factory.connect(simpleWalletAddress, signer)
-
-      const smartWalletAPI = new SimpleWalletAPI(
-        simpleWallet,
-        entryPoint,
-        provider,
-        ownerAddress,
-        0
-      )
+      const info: TransactionDetailsForUserOp = {
+        target: entryPoint.address,
+        data: '0x',
+        value: '0',
+        gasLimit: '0'
+      }
+      const userOp = await smartWalletAPI.createUnsignedUserOp(info)
+      console.log('creaetUserOp=', userOp)
       const userOpAPI = new UserOpAPI()
       const network = await provider.getNetwork()
       const clientConfig: ClientConfig = {

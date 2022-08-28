@@ -1,6 +1,7 @@
 {
   "name": "@erc4337/bundler",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "license": "MIT",
   "files": [
     "dist/src/",
     "dist/index.js",
@@ -13,10 +14,11 @@
     "hardhat-test": "hardhat test --grep '/^((?!Flow).)*$/'",
     "hardhat-test-flows": "npx hardhat test --network localhost --grep \"Flow\"",
     "lint": "eslint -f unix .",
+    "watch-tsc": "tsc -w --preserveWatchOutput",
     "tsc": "tsc"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.1.0",
+    "@account-abstraction/contracts": "^0.2.0",
     "@erc4337/common": "0.1.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",

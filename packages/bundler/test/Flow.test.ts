@@ -76,16 +76,12 @@ describe('Flow', function () {
     signer = await hre.ethers.provider.getSigner()
     const beneficiary = await signer.getAddress()
 
-    // TODO: extract to Hardhat Fixture and reuse across test file
-    const SingletonFactoryFactory = await ethers.getContractFactory('SingletonFactory')
-    const singletonFactory = await SingletonFactoryFactory.deploy()
-
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     const sampleRecipient = await sampleRecipientFactory.deploy()
     sampleRecipientAddress = sampleRecipient.address
 
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
-    const entryPoint = await EntryPointFactory.deploy(singletonFactory.address, 1, 1)
+    const entryPoint = await EntryPointFactory.deploy(1, 1)
     entryPointAddress = entryPoint.address
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')

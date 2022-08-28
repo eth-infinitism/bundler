@@ -2,14 +2,14 @@ import ow from 'ow'
 import fs from 'fs'
 
 import { program } from 'commander'
-import { erc4337RuntimeVersion } from '@erc4337/common/dist/src'
+import { erc4337RuntimeVersion } from '@erc4337/common'
 import { ethers, Wallet } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
 
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { EntryPoint, EntryPoint__factory } from '@erc4337/common/dist/src/types'
+import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
 

@@ -23,7 +23,8 @@
     "lerna-test": "lerna run hardhat-test --stream --no-prefix",
     "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
     "lerna-tsc": "lerna run tsc",
-    "preprocess": "yarn lerna-clear && lerna run hardhat-compile && yarn lerna-tsc"
+    "lerna-watch-tsc": "lerna run --parallel watch-tsc",
+    "preprocess": "lerna run hardhat-compile && yarn lerna-tsc"
   },
   "dependencies": {
     "@types/testing-library__dom": "^7.5.0",
