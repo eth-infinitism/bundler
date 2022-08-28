@@ -1,10 +1,10 @@
 import { BigNumber, Wallet } from 'ethers'
 import { JsonRpcSigner, Provider } from '@ethersproject/providers'
-import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
 
 import { BundlerConfig } from './BundlerConfig'
-import { EntryPoint } from '@erc4337/common/dist/src/types'
-import { BundlerHelper } from './types'
+import { BundlerHelper, EntryPoint } from './types'
+import { UserOperationStruct } from './types/contracts/BundlerHelper'
+import { hexValue, resolveProperties } from 'ethers/lib/utils'
 
 export class UserOpMethodHandler {
   constructor (
@@ -30,12 +30,13 @@ export class UserOpMethodHandler {
     return beneficiary
   }
 
-  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
+  async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
+    const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
 
-    console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${this.config.entryPoint} Paymaster=${userOp.paymaster}`)
+    console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${hexValue(userOp.paymasterAndData)}`)
 
     const beneficiary = await this.selectBeneficiary()
     const requestId = await this.entryPoint.getRequestId(userOp)
@@ -46,7 +47,7 @@ export class UserOpMethodHandler {
     let estimated: BigNumber
     let factored: BigNumber
     try {
-      // TODO: this is not used and 0 passed insted as transaction does not pay enough
+      // TODO: this is not used and 0 passed instead as transaction does not pay enough
       ({ estimated, factored } = await this.estimateGasForHelperCall(userOp, beneficiary))
     } catch (error: any) {
       console.log('estimateGasForHelperCall failed:', error)
@@ -57,7 +58,7 @@ export class UserOpMethodHandler {
     return requestId
   }
 
-  async estimateGasForHelperCall (userOp: UserOperation, beneficiary: string): Promise<{
+  async estimateGasForHelperCall (userOp: UserOperationStruct, beneficiary: string): Promise<{
     estimated: BigNumber
     factored: BigNumber
   }> {
@@ -67,7 +68,9 @@ export class UserOpMethodHandler {
     return { estimated, factored }
   }
 
-  async printGasEstimationDebugInfo (userOp: UserOperation, beneficiary: string): Promise<void> {
+  async printGasEstimationDebugInfo (userOp1: UserOperationStruct, beneficiary: string): Promise<void> {
+    const userOp = await resolveProperties(userOp1)
+
     const [estimateGasRet, estHandleOp, staticRet] = await Promise.all([
       this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary),
       this.entryPoint.estimateGas.handleOps([userOp], beneficiary),
@@ -76,14 +79,14 @@ export class UserOpMethodHandler {
     const estimateGas = estimateGasRet.mul(64).div(63)
     const estimateGasFactored = estimateGas.mul(Math.round(parseInt(this.config.gasFactor) * 100000)).div(100000)
     console.log('estimated gas', estimateGas.toString())
-    console.log('handleop est ', estHandleOp.toString())
+    console.log('handleOp est ', estHandleOp.toString())
     console.log('ret=', staticRet)
     // eslint-disable-next-line @typescript-eslint/no-base-to-string
     console.log('preVerificationGas', parseInt(userOp.preVerificationGas.toString()))
     // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    console.log('verificationGas', parseInt(userOp.verificationGas.toString()))
+    console.log('verificationGas', parseInt(userOp.verificationGasLimit.toString()))
     // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    console.log('callGas', parseInt(userOp.callGas.toString()))
+    console.log('callGas', parseInt(userOp.callGasLimit.toString()))
     console.log('Total estimated gas for bundler compensation: ', estimateGasFactored)
   }
 }

@@ -1,8 +1,8 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { ethers } from 'ethers'
-import { hexValue } from 'ethers/lib/utils'
+import { hexValue, resolveProperties } from 'ethers/lib/utils'
 
-import { UserOperation } from '@erc4337/common/dist/src/UserOperation'
+import { UserOperationStruct } from '@account-abstraction/contracts'
 
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider
@@ -18,7 +18,7 @@ export class HttpRpcClient {
     })
   }
 
-  async sendUserOpToBundler (userOp: UserOperation): Promise<any> {
+  async sendUserOpToBundler (userOp: UserOperationStruct): Promise<any> {
     const hexifiedUserOp: any =
       Object.keys(userOp)
         .map(key => {
@@ -30,13 +30,14 @@ export class HttpRpcClient {
         })
         .reduce((set, [k, v]) => ({ ...set, [k]: v }), {})
 
-    const jsonRequestData: [UserOperation, string] = [hexifiedUserOp, this.entryPointAddress]
-    this.printUserOperation(jsonRequestData)
+    const jsonRequestData: [UserOperationStruct, string] = [hexifiedUserOp, this.entryPointAddress]
+    await this.printUserOperation(jsonRequestData)
     return await this.userOpJsonRpcProvider
       .send('eth_sendUserOperation', [hexifiedUserOp, this.entryPointAddress])
   }
 
-  private printUserOperation ([userOp, entryPointAddress]: [UserOperation, string]): void {
+  private async printUserOperation ([userOp1, entryPointAddress]: [UserOperationStruct, string]): Promise<void> {
+    const userOp = await resolveProperties(userOp1)
     console.log('sending eth_sendUserOperation', {
       ...userOp,
       initCode: (userOp.initCode ?? '').length,
