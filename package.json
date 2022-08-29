@@ -24,6 +24,7 @@
     "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
     "lerna-tsc": "lerna run tsc",
     "lerna-watch-tsc": "lerna run --parallel watch-tsc",
+    "lint-fix": "lerna run lint-fix --parallel",
     "preprocess": "lerna run hardhat-compile && yarn lerna-tsc"
   },
   "dependencies": {

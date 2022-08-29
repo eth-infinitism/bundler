@@ -70,7 +70,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   if (overrideExit) {
     (program as any)._exit = (exitCode: any, code: any, message: any) => {
-      class CommandError extends Error{
+      class CommandError extends Error {
         constructor (message: string, readonly code: any, readonly exitCode: any) {
           super(message)
         }
@@ -89,7 +89,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--helper <string>', 'address of the BundlerHelper contract')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
-    .option('--config <string>', `path to config file)`, CONFIG_FILE_NAME)
+    .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
 
   const programOpts = program.parse(argv).opts()
 
@@ -119,7 +119,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     wallet
   )
 
-  bundlerServer.asyncStart().then(async ()=>{
+  void bundlerServer.asyncStart().then(async () => {
     console.log('connected to network', await provider.getNetwork().then(net => {
       return {
         name: net.name,
