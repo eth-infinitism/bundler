@@ -75,7 +75,6 @@ describe('UserOpMethodHandler', function () {
   })
 
   describe('sendUserOperation', function () {
-    let erc4337EthersProvider: ERC4337EthersProvider
     let erc4337EtherSigner: ERC4337EthersSigner
 
     let userOperation: UserOperationStruct

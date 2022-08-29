@@ -8,19 +8,20 @@ import {
 } from '@account-abstraction/contracts'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { arrayify, hexConcat, hexValue, resolveProperties, shallowCopy } from 'ethers/lib/utils'
+import { arrayify, hexConcat, resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getRequestId, getRequestIdForSigning } from '@erc4337/common'
+import { getRequestId } from '@erc4337/common'
 import { Signer } from '@ethersproject/abstract-signer'
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
- * Subclass should inherit 4 methods to support a specific wallet contract:
+ * Subclass should inherit 5 methods to support a specific wallet contract:
  *
  * - createWalletContract: create the wallet contract object. this contract object is used by the getNonce and encodeExecute methods.
  * - getWalletInitCode - return the value to put into the "initCode" field, if the wallet is not yet deployed. should create the wallet instance using a factory contract.
  * - getNonce - return current wallet's nonce value
  * - encodeExecute - encode the call from entryPoint through our wallet to the target contract.
+ * - signRequestId - sign the requestId of a UserOp.
  */
 export abstract class BaseWalletAPI {
   private senderAddress!: string
@@ -70,7 +71,7 @@ export abstract class BaseWalletAPI {
    * return the value to put into the "initCode" field, if the wallet is not yet deployed.
    * this value holds the "factory" address, followed by this wallet's information
    */
-  abstract getWalletInitCode (): string
+  abstract getWalletInitCode (): Promise<string>
 
   /**
    * return current wallet's nonce.
@@ -84,6 +85,12 @@ export abstract class BaseWalletAPI {
    * @param data
    */
   abstract encodeExecute (target: string, value: BigNumberish, data: string): string
+
+  /**
+   * sign a userOp's hash (requestId).
+   * @param requestId
+   */
+  abstract signRequestId(requestId: string): Promise<string>
 
   /**
    * check if the wallet is already deployed.
@@ -247,12 +254,33 @@ export abstract class BaseWalletAPI {
       signature: ''
     }
   }
+
+  /**
+   * Sign the filled userOp.
+   * @param userOp the UserOperation to sign (with signature field ignored)
+   */
+  async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
+    const requestId = await this.getRequestId(userOp)
+    const signature = this.signRequestId(requestId)
+    return {
+      ...userOp,
+      signature
+    }
+  }
+
+  /**
+   * helper method: create and sign a user operation.
+   * @param info transaction details for the userOp
+   */
+  async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
+    return this.signUserOp(await this.createUnsignedUserOp(info))
+  }
 }
 
 /**
  * An implementation of the BaseWalletAPI using the SimpleWallet contract.
  * - contract deployer gets "entrypoint", "owner" addresses and "index" nonce
- * - owner signs requests using normal "Ethereum Signed Message"
+ * - owner signs requests using normal "Ethereum Signed Message" (ether's signer.signMessage())
  * - nonce method is "nonce()"
  * - execute method is "execFromEntryPoint()"
  */
@@ -262,14 +290,14 @@ export class SimpleWalletAPI extends BaseWalletAPI {
    * subclass SHOULD add parameters that define the owner (signer) of this wallet
    * @param entryPoint entrypoint to direct the requests through
    * @param walletAddress optional wallet address, if connecting to an existing contract.
-   * @param ownerAddress the signer address
+   * @param owner the signer object for the wallet owner
    * @param factoryAddress address of contract "factory" to deploy new contracts
    * @param index nonce value used when creating multiple wallets for the same owner
    */
   constructor (
     entryPoint: EntryPoint,
     walletAddress: string | undefined,
-    readonly ownerAddress: string,
+    readonly owner: Signer,
     readonly factoryAddress?: string,
     // index is "salt" used to distinguish multiple wallets of the same signer.
     readonly index = 0
@@ -289,7 +317,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
    * return the value to put into the "initCode" field, if the wallet is not yet deployed.
    * this value holds the "factory" address, followed by this wallet's infromation
    */
-  getWalletInitCode (): string {
+  async getWalletInitCode (): Promise<string> {
     if (this.factory == null) {
       if (this.factoryAddress != null) {
         this.factory = SimpleWalletDeployer__factory.connect(this.factoryAddress, this.provider)
@@ -299,7 +327,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
     }
     return hexConcat([
       this.factory.address,
-      this.factory.interface.encodeFunctionData('deployWallet', [this.entryPoint.address, this.ownerAddress, this.index])
+      this.factory.interface.encodeFunctionData('deployWallet', [this.entryPoint.address, await this.owner.getAddress(), this.index])
     ])
   }
 
@@ -326,28 +354,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
       ])
   }
 
-  /**
-   * helper method: sign the userOp.
-   * Our wallet's signature uses the standard "Ethereum Signed Message" format.
-   * @param userOp the UserOperation to sign (with signature field ignored)
-   * @param signer signer (Wallet or Signer) of the owner of this wallet
-   */
-  async signUserOp (userOp: UserOperationStruct, signer: Signer): Promise<UserOperationStruct> {
-    const requestId = await this.getRequestId(userOp)
-    const signature = signer.signMessage(arrayify(requestId))
-    return {
-      ...userOp,
-      signature
-    }
+  async signRequestId(requestId: string): Promise<string> {
+    return this.owner.signMessage(arrayify(requestId))
   }
-
-  /**
-   * helper method: create and sign a user operation.
-   * @param info transaction details for the userOp
-   * @param signer the Signer (or Wallet) for the owner of this wallet.
-   */
-  async createSignedUserOp (info: TransactionDetailsForUserOp, signer: Signer): Promise<UserOperationStruct> {
-    return this.signUserOp(await this.createUnsignedUserOp(info), signer)
-  }
-
 }
