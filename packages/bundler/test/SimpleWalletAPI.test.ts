@@ -40,7 +40,7 @@ describe('SimpleWalletAPI', () => {
     api = new SimpleWalletAPI(
       entryPoint,
       undefined,
-      ownerAddress,
+      owner,
       walletFactory.address
     )
   })
@@ -74,7 +74,7 @@ describe('SimpleWalletAPI', () => {
     const op = await api.createSignedUserOp({
       target: recipient.address,
       data: recipient.interface.encodeFunctionData('something', ['hello'])
-    }, owner)
+    })
 
     await expect(entryPoint.handleOps([op], beneficiary)).to.emit(recipient, 'Sender')
       .withArgs(anyValue, walletAddress, 'hello')
@@ -85,11 +85,11 @@ describe('SimpleWalletAPI', () => {
     if (!walletDeployed) {
       this.skip()
     }
-    const api1 = new SimpleWalletAPI(entryPoint, walletAddress, ownerAddress)
+    const api1 = new SimpleWalletAPI(entryPoint, walletAddress, owner)
     const op1 = await api1.createSignedUserOp({
       target: recipient.address,
       data: recipient.interface.encodeFunctionData('something', ['world'])
-    }, owner)
+    })
     await expect(entryPoint.handleOps([op1], beneficiary)).to.emit(recipient, 'Sender')
       .withArgs(anyValue, walletAddress, 'world')
 
