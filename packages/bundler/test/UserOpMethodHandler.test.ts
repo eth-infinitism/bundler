@@ -90,9 +90,8 @@ describe('UserOpMethodHandler', function () {
         walletFactory.address,
         0
       )
-      console.log('addr=', await smartWalletAPI.getSender())
       await signer.sendTransaction({
-        to: smartWalletAPI.getSender(),
+        to: smartWalletAPI.getWalletAddress(),
         value: 10e18.toString()
       })
 
@@ -138,7 +137,9 @@ describe('UserOpMethodHandler', function () {
 
     it('should send UserOperation transaction to BundlerHelper', async function () {
       const requestId = await methodHandler.sendUserOperation(userOperation, entryPoint.address)
-      const transactionReceipt = await erc4337EthersProvider.getTransactionReceipt(requestId)
+      const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId))
+      console.log('events=', req)
+      const transactionReceipt = await req[0].getTransactionReceipt()
 
       assert.isNotNull(transactionReceipt)
       const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])

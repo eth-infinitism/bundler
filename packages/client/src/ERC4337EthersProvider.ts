@@ -74,7 +74,7 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   async getSenderWalletAddress (): Promise<string> {
-    return await this.smartWalletAPI.getSender()
+    return await this.smartWalletAPI.getWalletAddress()
   }
 
   async createUserOp (detailsForUserOp: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
@@ -97,7 +97,7 @@ export class ERC4337EthersProvider extends BaseProvider {
       nonce: BigNumber.from(userOp.nonce).toNumber(),
       gasLimit: BigNumber.from(userOp.callGasLimit), // ??
       value: BigNumber.from(0),
-      data: hexValue(userOp.callData), // should extract the actual called method from this "execFromSingleton()" call
+      data: hexValue(userOp.callData), // should extract the actual called method from this "execFromEntryPoint()" call
       chainId: this.config.chainId,
       wait: async (confirmations?: number): Promise<TransactionReceipt> => {
         const transactionReceipt = await waitPromise
