@@ -14,8 +14,8 @@
     "hardhat-test": "hardhat test --grep '/^((?!Flow).)*$/'",
     "hardhat-test-flows": "npx hardhat test --network localhost --grep \"Flow\"",
     "lint": "eslint -f unix .",
-    "watch-tsc": "tsc -w --preserveWatchOutput",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",

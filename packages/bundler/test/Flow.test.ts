@@ -11,10 +11,8 @@ import * as SampleRecipientArtifact
 import { BundlerConfig } from '../src/BundlerConfig'
 import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { newProvider } from '@erc4337/client/dist/src'
+import { ERC4337EthersProvider, ERC4337EthersSigner, newProvider } from '@erc4337/client'
 import { Signer } from 'ethers'
-import { ERC4337EthersSigner } from '@erc4337/client/dist/src/ERC4337EthersSigner'
-import { ERC4337EthersProvider } from '@erc4337/client/dist/src/ERC4337EthersProvider'
 
 const { expect } = chai.use(chaiAsPromised)
 

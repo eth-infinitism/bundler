@@ -6,7 +6,7 @@ import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
 import { hexlify } from 'ethers/lib/utils'
 
-import { erc4337RuntimeVersion } from '@erc4337/common/dist/src/Version'
+import { erc4337RuntimeVersion } from '@erc4337/common'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'

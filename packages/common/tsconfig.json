@@ -1,6 +1,6 @@
 {
   "include": [
-    "src"
+    "./**/*.ts"
   ],
   "compilerOptions": {
     "outDir": "dist",

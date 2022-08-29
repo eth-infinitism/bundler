@@ -3,11 +3,11 @@ import { Provider, TransactionRequest, TransactionResponse } from '@ethersprojec
 import { Signer } from '@ethersproject/abstract-signer'
 
 import { Bytes } from 'ethers'
-import { ERC4337EthersProvider, getRequestIdForSigning } from './ERC4337EthersProvider'
+import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
 import { UserOperationStruct } from '@account-abstraction/contracts'
-import { resolveProperties } from 'ethers/lib/utils'
+import { BaseWalletAPI } from './SimpleWalletAPI'
 
 export class ERC4337EthersSigner extends Signer {
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
@@ -15,8 +15,8 @@ export class ERC4337EthersSigner extends Signer {
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly erc4337provider: ERC4337EthersProvider,
-    readonly httpRpcClient: HttpRpcClient
-  ) {
+    readonly httpRpcClient: HttpRpcClient,
+    readonly smartWalletAPI: BaseWalletAPI) {
     super()
     defineReadOnly(this, 'provider', erc4337provider.originalProvider)
   }
@@ -25,11 +25,11 @@ export class ERC4337EthersSigner extends Signer {
   async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     await this.verifyAllNecessaryFields(tx)
-    const userOperation = await this.erc4337provider.createUserOp({
+    const userOperation = await this.smartWalletAPI.createUnsignedUserOp({
       target: tx.to ?? '',
       data: tx.data?.toString() ?? '',
-      value: tx.value?.toString() ?? '',
-      gasLimit: tx.gasLimit?.toString() ?? ''
+      value: tx.value,
+      gasLimit: tx.gasLimit
     })
     userOperation.signature = await this.signUserOperation(userOperation)
     const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
@@ -91,9 +91,8 @@ export class ERC4337EthersSigner extends Signer {
     throw new Error('not implemented')
   }
 
-  async signUserOperation (userOperation1: UserOperationStruct): Promise<string> {
-    const userOperation = await resolveProperties(userOperation1)
-    const message = getRequestIdForSigning(userOperation, this.config.entryPointAddress, this.config.chainId)
+  async signUserOperation (userOperation: UserOperationStruct): Promise<string> {
+    const message = await this.smartWalletAPI.getRequestId(userOperation)
     return await this.originalSigner.signMessage(message)
   }
 }
