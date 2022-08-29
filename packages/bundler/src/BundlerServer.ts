@@ -10,9 +10,11 @@ import { erc4337RuntimeVersion } from '@erc4337/common'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { Server } from 'http'
 
 export class BundlerServer {
   app: Express
+  private httpServer: Server
 
   constructor (
     readonly methodHandler: UserOpMethodHandler,
@@ -30,10 +32,21 @@ export class BundlerServer {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.app.post('/rpc', this.rpc.bind(this))
 
-    this.app.listen(this.config.port)
+    this.httpServer = this.app.listen(this.config.port)
+    this.startingPromise = this._preflightCheck()
   }
 
-  async preflightCheck (): Promise<void> {
+  startingPromise: Promise<void>
+
+  async asyncStart() {
+    await this.startingPromise
+  }
+
+  async stop() {
+    this.httpServer.close()
+  }
+
+  async _preflightCheck (): Promise<void> {
     const bal = await this.provider.getBalance(this.wallet.address)
     console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
     if (bal.eq(0)) {
