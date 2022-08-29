@@ -1,8 +1,6 @@
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import childProcess, { ChildProcessWithoutNullStreams } from 'child_process'
 import hre, { ethers } from 'hardhat'
-import path from 'path'
 import sinon from 'sinon'
 
 import * as SampleRecipientArtifact
@@ -13,10 +11,12 @@ import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { ERC4337EthersProvider, ERC4337EthersSigner, newProvider } from '@erc4337/client'
 import { Signer } from 'ethers'
+import { runBundler } from '../src/runBundler'
+import { BundlerServer } from '../src/BundlerServer'
 
 const { expect } = chai.use(chaiAsPromised)
 
-export async function startBundler (options: BundlerConfig): Promise<ChildProcessWithoutNullStreams> {
+export async function startBundler (options: BundlerConfig): Promise<BundlerServer> {
   const args: any[] = []
   args.push('--beneficiary', options.beneficiary)
   args.push('--entryPoint', options.entryPoint)
@@ -26,46 +26,12 @@ export async function startBundler (options: BundlerConfig): Promise<ChildProces
   args.push('--mnemonic', options.mnemonic)
   args.push('--network', options.network)
   args.push('--port', options.port)
-  const runServerPath = path.resolve(__dirname, '../dist/src/runBundler.js')
-  const proc: ChildProcessWithoutNullStreams = childProcess.spawn('./node_modules/.bin/ts-node',
-    [runServerPath, ...args])
 
-  const bundlerlog = (msg: string): void =>
-    msg.split('\n').forEach(line => console.log(`relay-${proc.pid?.toString()}> ${line}`))
-
-  await new Promise((resolve, reject) => {
-    let lastResponse: string
-    const listener = (data: any): void => {
-      const str = data.toString().replace(/\s+$/, '')
-      lastResponse = str
-      bundlerlog(str)
-      if (str.indexOf('connected to network ') >= 0) {
-        // @ts-ignore
-        proc.alreadystarted = 1
-        resolve(proc)
-      }
-    }
-    proc.stdout.on('data', listener)
-    proc.stderr.on('data', listener)
-    const doaListener = (code: Object): void => {
-      // @ts-ignore
-      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-      if (!proc.alreadystarted) {
-        bundlerlog(`died before init code=${JSON.stringify(code)}`)
-        reject(new Error(lastResponse))
-      }
-    }
-    proc.on('exit', doaListener.bind(proc))
-  })
-  return proc
-}
-
-export function stopBundler (proc: ChildProcessWithoutNullStreams): void {
-  proc?.kill()
+  return await runBundler(["node", "cmd", ...args], true)
 }
 
 describe('Flow', function () {
-  let relayproc: ChildProcessWithoutNullStreams
+  let bundlerServer: BundlerServer
   let entryPointAddress: string
   let sampleRecipientAddress: string
   let signer: Signer
@@ -89,7 +55,7 @@ describe('Flow', function () {
       value: 10e18.toString()
     })
 
-    relayproc = await startBundler({
+    bundlerServer = await startBundler({
       beneficiary,
       entryPoint: entryPoint.address,
       helper: bundleHelper.address,
@@ -102,7 +68,7 @@ describe('Flow', function () {
   })
 
   after(async function () {
-    stopBundler(relayproc)
+    await bundlerServer?.stop()
   })
 
   let erc4337Signer: ERC4337EthersSigner
