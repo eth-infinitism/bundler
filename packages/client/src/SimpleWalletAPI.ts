@@ -10,8 +10,8 @@ import {
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { arrayify, hexConcat, resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getRequestId } from '@erc4337/common'
 import { Signer } from '@ethersproject/abstract-signer'
+import { getRequestId } from '@erc4337/common'
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
@@ -90,7 +90,7 @@ export abstract class BaseWalletAPI {
    * sign a userOp's hash (requestId).
    * @param requestId
    */
-  abstract signRequestId(requestId: string): Promise<string>
+  abstract signRequestId (requestId: string): Promise<string>
 
   /**
    * check if the wallet is already deployed.
@@ -106,7 +106,7 @@ export abstract class BaseWalletAPI {
       this.isPhantom = false
       this.walletContract = this.walletContract.attach(this.senderAddress).connect(this.provider)
     } else {
-      console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
+      // console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
     }
     return this.isPhantom
   }
@@ -127,7 +127,7 @@ export abstract class BaseWalletAPI {
    */
   async getInitCode (): Promise<string> {
     if (await this.checkWalletPhantom()) {
-      return this.getWalletInitCode()
+      return await this.getWalletInitCode()
     }
     return '0x'
   }
@@ -146,8 +146,8 @@ export abstract class BaseWalletAPI {
    */
   async getPreVerificationGas (userOp: Partial<UserOperationStruct>): Promise<number> {
     const bundleSize = 1
-    let cost = 21000
-    //TODO: calculate calldata cost
+    const cost = 21000
+    // TODO: calculate calldata cost
     return Math.floor(cost / bundleSize)
   }
 
@@ -157,7 +157,7 @@ export abstract class BaseWalletAPI {
     }
 
     function parseNumber (a: any): BigNumber | null {
-      if (a == null || a == '') return null
+      if (a == null || a === '') return null
       return BigNumber.from(a.toString())
     }
 
@@ -229,10 +229,10 @@ export abstract class BaseWalletAPI {
     if (maxFeePerGas == null || maxPriorityFeePerGas == null) {
       const feeData = await this.provider.getFeeData()
       if (maxFeePerGas == null) {
-        maxFeePerGas = feeData.maxFeePerGas!
+        maxFeePerGas = feeData.maxFeePerGas ?? undefined
       }
       if (maxPriorityFeePerGas == null) {
-        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas!
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? undefined
       }
     }
 
@@ -273,7 +273,7 @@ export abstract class BaseWalletAPI {
    * @param info transaction details for the userOp
    */
   async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
-    return this.signUserOp(await this.createUnsignedUserOp(info))
+    return await this.signUserOp(await this.createUnsignedUserOp(info))
   }
 }
 
@@ -354,7 +354,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
       ])
   }
 
-  async signRequestId(requestId: string): Promise<string> {
-    return this.owner.signMessage(arrayify(requestId))
+  async signRequestId (requestId: string): Promise<string> {
+    return await this.owner.signMessage(arrayify(requestId))
   }
 }

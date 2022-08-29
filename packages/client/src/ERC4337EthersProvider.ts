@@ -5,20 +5,15 @@ import { hexValue, resolveProperties } from 'ethers/lib/utils'
 
 import { ClientConfig } from './ClientConfig'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
-import { PaymasterAPI } from './PaymasterAPI'
-import { SimpleWalletAPI } from './SimpleWalletAPI'
-import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { UserOpAPI } from './UserOpAPI'
+import { BaseWalletAPI } from './SimpleWalletAPI'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
-import { getRequestId } from '@erc4337/common/dist/src/'
-export { getRequestIdForSigning } from '@erc4337/common'
+import { getRequestId } from '@erc4337/common'
 
 export class ERC4337EthersProvider extends BaseProvider {
   initializedBlockNumber!: number
 
-  readonly isErc4337Provider = true
   readonly signer: ERC4337EthersSigner
 
   constructor (
@@ -27,15 +22,13 @@ export class ERC4337EthersProvider extends BaseProvider {
     readonly originalProvider: BaseProvider,
     readonly httpRpcClient: HttpRpcClient,
     readonly entryPoint: EntryPoint,
-    readonly smartWalletAPI: SimpleWalletAPI,
-    readonly userOpAPI: UserOpAPI,
-    readonly paymasterAPI?: PaymasterAPI
+    readonly smartWalletAPI: BaseWalletAPI
   ) {
     super({
       name: 'ERC-4337 Custom Network',
       chainId: config.chainId
     })
-    this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient)
+    this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient, smartWalletAPI)
   }
 
   async init (): Promise<this> {
@@ -45,7 +38,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     return this
   }
 
-  getSigner (addressOrIndex?: string | number): ERC4337EthersSigner {
+  getSigner (): ERC4337EthersSigner {
     return this.signer
   }
 
@@ -75,10 +68,6 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   async getSenderWalletAddress (): Promise<string> {
     return await this.smartWalletAPI.getWalletAddress()
-  }
-
-  async createUserOp (detailsForUserOp: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
-    return await this.smartWalletAPI.createUnsignedUserOp(detailsForUserOp)
   }
 
   // fabricate a response in a format usable by ethers users...

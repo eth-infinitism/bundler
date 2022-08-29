@@ -21,9 +21,6 @@
     ]
   },
   "include": [
-    "src",
-    "hardhat.config.ts",
-    "test/**/*.ts",
-    "src/typechain-types"
+    "./**/*.ts"
   ]
 }

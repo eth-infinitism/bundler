@@ -1,42 +1,34 @@
-//TODO: should move the "client" project, since it tests just the API.
-import { ethers } from 'hardhat'
-import { SimpleWalletAPI } from '@erc4337/client/dist/src/SimpleWalletAPI'
 import {
   EntryPoint,
+  EntryPoint__factory,
   SimpleWalletDeployer__factory,
   UserOperationStruct
 } from '@account-abstraction/contracts'
 import { Wallet } from 'ethers'
-import { EntryPoint__factory, SampleRecipient, SampleRecipient__factory } from '../src/types'
 import { parseEther } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { ethers } from 'hardhat'
+import { SimpleWalletAPI } from '../src'
+import { SampleRecipient, SampleRecipient__factory } from '@erc4337/common/dist/src/types'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
 describe('SimpleWalletAPI', () => {
-
-  let chainId: number
   let owner: Wallet
   let api: SimpleWalletAPI
   let entryPoint: EntryPoint
-  let entryPointView: EntryPoint
   let beneficiary: string
   let recipient: SampleRecipient
-  let ownerAddress: string
   let walletAddress: string
   let walletDeployed = false
   before('init', async () => {
-    const net = await provider.getNetwork()
-    chainId = net.chainId
     entryPoint = await new EntryPoint__factory(signer).deploy(1, 1)
-    entryPointView = entryPoint.connect(ethers.constants.AddressZero)
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()
     const walletFactory = await new SimpleWalletDeployer__factory(signer).deploy()
     owner = Wallet.createRandom()
-    ownerAddress = owner.address
     api = new SimpleWalletAPI(
       entryPoint,
       undefined,
@@ -92,6 +84,5 @@ describe('SimpleWalletAPI', () => {
     })
     await expect(entryPoint.handleOps([op1], beneficiary)).to.emit(recipient, 'Sender')
       .withArgs(anyValue, walletAddress, 'world')
-
   })
 })
