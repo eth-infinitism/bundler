@@ -5,11 +5,10 @@ import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/I
 // UserOperation is the first parameter of simulateValidation
 const UserOpType = entryPointAbi.find(entry => entry.name === 'simulateValidation')?.inputs[0]
 
-//reverse "Deferrable" or "PromiseOrValue" fields
+// reverse "Deferrable" or "PromiseOrValue" fields
 export type NotPromise<T> = {
   [P in keyof T]: Exclude<T[P], Promise<any>>
 }
-
 
 function encode (typevalues: Array<{ type: string, val: any }>, forSignature: boolean): string {
   const types = typevalues.map(typevalue => typevalue.type === 'bytes' && forSignature ? 'bytes32' : typevalue.type)

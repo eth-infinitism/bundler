@@ -14,6 +14,7 @@
     "hardhat-test": "hardhat test --grep '/^((?!Flow).)*$/'",
     "hardhat-test-flows": "npx hardhat test --network localhost --grep \"Flow\"",
     "lint": "eslint -f unix .",
+    "lint-fix": "eslint -f unix . --fix",
     "tsc": "tsc",
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },

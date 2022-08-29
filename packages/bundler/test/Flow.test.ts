@@ -27,7 +27,7 @@ export async function startBundler (options: BundlerConfig): Promise<BundlerServ
   args.push('--network', options.network)
   args.push('--port', options.port)
 
-  return await runBundler(["node", "cmd", ...args], true)
+  return await runBundler(['node', 'cmd', ...args], true)
 }
 
 describe('Flow', function () {

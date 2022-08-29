@@ -13,6 +13,7 @@
     "hardhat-compile": "yarn clear && hardhat compile",
     "hardhat-deploy": "hardhat deploy",
     "hardhat-node": "hardhat node",
+    "lint-fix": "eslint -f unix . --fix",
     "watch-tsc": "tsc -w --preserveWatchOutput",
     "tsc": "tsc"
   },

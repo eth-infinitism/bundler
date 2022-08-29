@@ -14,7 +14,7 @@ import { Server } from 'http'
 
 export class BundlerServer {
   app: Express
-  private httpServer: Server
+  private readonly httpServer: Server
 
   constructor (
     readonly methodHandler: UserOpMethodHandler,
@@ -38,11 +38,11 @@ export class BundlerServer {
 
   startingPromise: Promise<void>
 
-  async asyncStart() {
+  async asyncStart (): Promise<void> {
     await this.startingPromise
   }
 
-  async stop() {
+  async stop (): Promise<void> {
     this.httpServer.close()
   }
 
