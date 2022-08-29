@@ -8,11 +8,19 @@ import {
 } from '@account-abstraction/contracts'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { hexConcat } from 'ethers/lib/utils'
+import { arrayify, hexConcat, hexValue, resolveProperties, shallowCopy } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
+import { getRequestId, getRequestIdForSigning } from '@erc4337/common'
+import { Signer } from '@ethersproject/abstract-signer'
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
+ * Subclass should inherit 4 methods to support a specific wallet contract:
+ *
+ * - createWalletContract: create the wallet contract object. this contract object is used by the getNonce and encodeExecute methods.
+ * - getWalletInitCode - return the value to put into the "initCode" field, if the wallet is not yet deployed. should create the wallet instance using a factory contract.
+ * - getNonce - return current wallet's nonce value
+ * - encodeExecute - encode the call from entryPoint through our wallet to the target contract.
  */
 export abstract class BaseWalletAPI {
   private senderAddress!: string
@@ -24,7 +32,7 @@ export abstract class BaseWalletAPI {
 
   /**
    * factory contract to deploy the wallet.
-   * subclass must initialize, and make sure _getWalletInitCode method can call it.
+   * subclass MUST initialize, and make sure getWalletInitCode method can call it.
    */
   factory?: Contract
 
@@ -48,7 +56,7 @@ export abstract class BaseWalletAPI {
   }
 
   async init (): Promise<this> {
-    await this.getSender()
+    await this.getWalletAddress()
     return this
   }
 
@@ -62,7 +70,7 @@ export abstract class BaseWalletAPI {
    * return the value to put into the "initCode" field, if the wallet is not yet deployed.
    * this value holds the "factory" address, followed by this wallet's information
    */
-  abstract _getWalletInitCode (): string
+  abstract getWalletInitCode (): string
 
   /**
    * return current wallet's nonce.
@@ -77,11 +85,15 @@ export abstract class BaseWalletAPI {
    */
   abstract encodeExecute (target: string, value: BigNumberish, data: string): string
 
+  /**
+   * check if the wallet is already deployed.
+   */
   async checkWalletPhantom (): Promise<boolean> {
     if (!this.isPhantom) {
+      // already deployed. no need to check anymore.
       return this.isPhantom
     }
-    const senderAddressCode = await this.provider.getCode(this.getSender())
+    const senderAddressCode = await this.provider.getCode(this.getWalletAddress())
     if (senderAddressCode.length > 2) {
       console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
@@ -96,7 +108,7 @@ export abstract class BaseWalletAPI {
    * calculate the wallet address even before it is deployed
    */
   async getCounterFactualAddress (): Promise<string> {
-    const initCode = this._getWalletInitCode()
+    const initCode = this.getWalletInitCode()
     // use entryPoint to query wallet address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
     return await this.entryPointView.callStatic.getSenderAddress(initCode)
@@ -108,64 +120,71 @@ export abstract class BaseWalletAPI {
    */
   async getInitCode (): Promise<string> {
     if (await this.checkWalletPhantom()) {
-      return this._getWalletInitCode()
+      return this.getWalletInitCode()
     }
     return '0x'
   }
 
+  /**
+   * return maximum gas used for verification.
+   * NOTE: createUnsignedUserOp will add to this value the cost of creation, if the wallet is not yet created.
+   */
   async getVerificationGasLimit (): Promise<BigNumberish> {
-    return 400000
-  }
-
-  async getMaxFeePerGas (): Promise<BigNumberish> {
-    const feeData = await this.provider.getFeeData()
-    return feeData.maxFeePerGas ?? 0
-  }
-
-  async getmaxPriorityFeePerGas (): Promise<BigNumberish> {
-    const feeData = await this.provider.getFeeData()
-    return feeData.maxPriorityFeePerGas ?? 0
+    return 100000
   }
 
   /**
    * should cover cost of putting calldata on-chain, and some overhead.
-   * actual overhead depends on the expected bundle.
+   * actual overhead depends on the expected bundle size
    */
   async getPreVerificationGas (userOp: Partial<UserOperationStruct>): Promise<number> {
-    // return 21000
-    return 0
+    const bundleSize = 1
+    let cost = 21000
+    //TODO: calculate calldata cost
+    return Math.floor(cost / bundleSize)
   }
 
-  /**
-   * wallet-specific API: call (from the wallet contract) the target address, with this given calldata.
-   * TBD: We are assuming there is only the Wallet that impacts the resulting CallData here.
-   */
   async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
     if (this.walletContract == null) {
-      this.walletContract = this.createWalletContract(await this.getSender())
+      this.walletContract = this.createWalletContract(await this.getWalletAddress())
     }
-    let value = BigNumber.from(0)
-    if (detailsForUserOp.value !== '') {
-      value = BigNumber.from(detailsForUserOp.value)
+
+    function parseNumber (a: any): BigNumber | null {
+      if (a == null || a == '') return null
+      return BigNumber.from(a.toString())
     }
+
+    const value = parseNumber(detailsForUserOp.value) ?? BigNumber.from(0)
     const callData = this.encodeExecute(detailsForUserOp.target, value, detailsForUserOp.data)
 
-    const gasLimit = detailsForUserOp.gasLimit ?? '0'
-    let callGasLimit = BigNumber.from(gasLimit === '' ? '0' : gasLimit)
-    if (callGasLimit === BigNumber.from(0)) {
-      callGasLimit = await this.provider.estimateGas({
-        from: this.entryPoint.address,
-        to: this.getSender(),
-        data: callData
-      })
-    }
+    const callGasLimit = parseNumber(detailsForUserOp.gasLimit) ?? await this.provider.estimateGas({
+      from: this.entryPoint.address,
+      to: this.getWalletAddress(),
+      data: callData
+    })
+
     return {
       callData,
       callGasLimit
     }
   }
 
-  async getSender (): Promise<string> {
+  /**
+   * return requestId for signing.
+   * This value matches entryPoint.getRequestId (calculated off-chain, to avoid a view call)
+   * @param userOp userOperation, (signature field ignored)
+   */
+  async getRequestId (userOp: UserOperationStruct): Promise<string> {
+    const op = await resolveProperties(userOp)
+    const chainId = await this.provider.getNetwork().then(net => net.chainId)
+    return getRequestId(op, this.entryPoint.address, chainId)
+  }
+
+  /**
+   * return the wallet's address.
+   * this value is valid even before deploying the wallet.
+   */
+  async getWalletAddress (): Promise<string> {
     if (this.senderAddress == null) {
       if (this.walletAddress != null) {
         this.senderAddress = this.walletAddress
@@ -188,6 +207,7 @@ export abstract class BaseWalletAPI {
       callGasLimit
     } = await this.encodeUserOpCallDataAndGasLimit(info)
     const initCode = await this.getInitCode()
+
     let verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
     if (initCode.length > 2) {
       // add creation to required verification gas
@@ -195,15 +215,29 @@ export abstract class BaseWalletAPI {
       verificationGasLimit = verificationGasLimit.add(initGas)
     }
 
+    let {
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    } = info
+    if (maxFeePerGas == null || maxPriorityFeePerGas == null) {
+      const feeData = await this.provider.getFeeData()
+      if (maxFeePerGas == null) {
+        maxFeePerGas = feeData.maxFeePerGas!
+      }
+      if (maxPriorityFeePerGas == null) {
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas!
+      }
+    }
+
     const partialUserOp: any = {
-      sender: this.getSender(),
+      sender: this.getWalletAddress(),
       nonce: this.getNonce(),
       initCode,
       callData,
       callGasLimit,
       verificationGasLimit,
-      maxFeePerGas: info.maxFeePerGas ?? this.getMaxFeePerGas(),
-      maxPriorityFeePerGas: info.maxPriorityFeePerGas ?? this.getmaxPriorityFeePerGas()
+      maxFeePerGas,
+      maxPriorityFeePerGas
     }
 
     partialUserOp.paymasterAndData = this.paymasterAPI == null ? '0x' : await this.paymasterAPI.getPaymasterAndData(partialUserOp)
@@ -216,9 +250,11 @@ export abstract class BaseWalletAPI {
 }
 
 /**
- * a wallet API for a SimpleWallet.
- * assumes owner is a normal ethereum address.
- * assumes deployer takes owner and nonce parametrs
+ * An implementation of the BaseWalletAPI using the SimpleWallet contract.
+ * - contract deployer gets "entrypoint", "owner" addresses and "index" nonce
+ * - owner signs requests using normal "Ethereum Signed Message"
+ * - nonce method is "nonce()"
+ * - execute method is "execFromEntryPoint()"
  */
 export class SimpleWalletAPI extends BaseWalletAPI {
   /**
@@ -243,7 +279,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
 
   /**
    * create the wallet contract object.
-   * should support our "executeFromSingleton" and "nonce" methods
+   * should support our "executeFromEntryPoint" and "nonce" methods
    */
   createWalletContract (address: string): Contract {
     return SimpleWallet__factory.connect(address, this.provider)
@@ -253,7 +289,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
    * return the value to put into the "initCode" field, if the wallet is not yet deployed.
    * this value holds the "factory" address, followed by this wallet's infromation
    */
-  _getWalletInitCode (): string {
+  getWalletInitCode (): string {
     if (this.factory == null) {
       if (this.factoryAddress != null) {
         this.factory = SimpleWalletDeployer__factory.connect(this.factoryAddress, this.provider)
@@ -289,4 +325,29 @@ export class SimpleWalletAPI extends BaseWalletAPI {
         data
       ])
   }
+
+  /**
+   * helper method: sign the userOp.
+   * Our wallet's signature uses the standard "Ethereum Signed Message" format.
+   * @param userOp the UserOperation to sign (with signature field ignored)
+   * @param signer signer (Wallet or Signer) of the owner of this wallet
+   */
+  async signUserOp (userOp: UserOperationStruct, signer: Signer): Promise<UserOperationStruct> {
+    const requestId = await this.getRequestId(userOp)
+    const signature = signer.signMessage(arrayify(requestId))
+    return {
+      ...userOp,
+      signature
+    }
+  }
+
+  /**
+   * helper method: create and sign a user operation.
+   * @param info transaction details for the userOp
+   * @param signer the Signer (or Wallet) for the owner of this wallet.
+   */
+  async createSignedUserOp (info: TransactionDetailsForUserOp, signer: Signer): Promise<UserOperationStruct> {
+    return this.signUserOp(await this.createUnsignedUserOp(info), signer)
+  }
+
 }
