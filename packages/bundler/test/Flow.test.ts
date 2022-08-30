@@ -7,9 +7,7 @@ import * as SampleRecipientArtifact
   from '@erc4337/common/artifacts/contracts/test/SampleRecipient.sol/SampleRecipient.json'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { ClientConfig } from '@erc4337/client/dist/src/ClientConfig'
-import { JsonRpcProvider } from '@ethersproject/providers'
-import { ERC4337EthersProvider, ERC4337EthersSigner, newProvider } from '@erc4337/client'
+import { ERC4337EthersProvider, ERC4337EthersSigner, ClientConfig, newProvider } from '@erc4337/client'
 import { Signer } from 'ethers'
 import { runBundler } from '../src/runBundler'
 import { BundlerServer } from '../src/BundlerServer'
@@ -81,7 +79,8 @@ describe('Flow', function () {
       chainId: 31337
     }
     erc4337Provider = await newProvider(
-      new JsonRpcProvider('http://localhost:8545/'),
+      ethers.provider,
+      // new JsonRpcProvider('http://localhost:8545/'),
       config
     )
     erc4337Signer = erc4337Provider.getSigner()

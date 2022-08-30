@@ -18,7 +18,8 @@ export class HttpRpcClient {
     })
   }
 
-  async sendUserOpToBundler (userOp: UserOperationStruct): Promise<any> {
+  async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<any> {
+    const userOp = await resolveProperties(userOp1)
     const hexifiedUserOp: any =
       Object.keys(userOp)
         .map(key => {

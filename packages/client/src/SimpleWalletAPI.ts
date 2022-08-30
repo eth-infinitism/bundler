@@ -319,7 +319,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
    */
   async getWalletInitCode (): Promise<string> {
     if (this.factory == null) {
-      if (this.factoryAddress != null) {
+      if (this.factoryAddress != null && this.factoryAddress !== '') {
         this.factory = SimpleWalletDeployer__factory.connect(this.factoryAddress, this.provider)
       } else {
         throw new Error('no factory to get initCode')

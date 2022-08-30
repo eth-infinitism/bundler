@@ -12,6 +12,7 @@ import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
+import hre from 'hardhat'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -96,7 +97,10 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   console.log('command-line arguments: ', program.opts())
 
   const config = resolveConfiguration(programOpts)
-  const provider: BaseProvider = ethers.getDefaultProvider(config.network)
+  const provider: BaseProvider =
+    config.network === 'hardhat'
+      ? hre.ethers.provider
+      : ethers.getDefaultProvider(config.network)
   const wallet: Wallet = Wallet.fromMnemonic(config.mnemonic).connect(provider)
 
   const {
