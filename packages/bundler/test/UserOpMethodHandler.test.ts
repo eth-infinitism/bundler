@@ -9,13 +9,13 @@ import { BundlerConfig } from '../src/BundlerConfig'
 import { BundlerHelper, SampleRecipient } from '../src/types'
 import {
   EntryPoint,
-  SimpleWalletDeployer,
   SimpleWalletDeployer__factory,
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
 import 'source-map-support/register'
 import { SimpleWalletAPI } from '@erc4337/client'
+import { DeterministicDeployer } from '@erc4337/client/src/DeterministicDeployer'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -69,16 +69,16 @@ describe('UserOpMethodHandler', function () {
 
   describe('sendUserOperation', function () {
     let userOperation: UserOperationStruct
-    let walletFactory: SimpleWalletDeployer
     let walletAddress: string
 
     before(async function () {
-      walletFactory = await new SimpleWalletDeployer__factory(signer).deploy()
+      const walletDeployerAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
+
       const smartWalletAPI = new SimpleWalletAPI(
         entryPoint,
         undefined,
         signer,
-        walletFactory.address,
+        walletDeployerAddress,
         0
       )
       walletAddress = await smartWalletAPI.getWalletAddress()

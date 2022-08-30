@@ -25,19 +25,17 @@ export class ERC4337EthersSigner extends Signer {
   async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     await this.verifyAllNecessaryFields(tx)
-    const userOperation = await this.smartWalletAPI.createUnsignedUserOp({
+    const userOperation = await this.smartWalletAPI.createSignedUserOp({
       target: tx.to ?? '',
       data: tx.data?.toString() ?? '',
       value: tx.value,
       gasLimit: tx.gasLimit
     })
-    userOperation.signature = await this.signUserOperation(userOperation)
     const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
     try {
-      const bundlerResponse = await this.httpRpcClient.sendUserOpToBundler(userOperation)
-      console.log('Bundler response:', bundlerResponse)
+      await this.httpRpcClient.sendUserOpToBundler(userOperation)
     } catch (error: any) {
-      console.error('sendUserOpToBundler failed')
+      // console.error('sendUserOpToBundler failed', error)
       throw this.unwrapError(error)
     }
     // TODO: handle errors - transaction that is "rejected" by bundler is _not likely_ to ever resolve its "wait()"

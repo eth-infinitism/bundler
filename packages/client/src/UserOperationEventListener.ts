@@ -1,6 +1,7 @@
 import { BigNumberish, Event } from 'ethers'
 import { TransactionReceipt } from '@ethersproject/providers'
 import { EntryPoint } from '@account-abstraction/contracts'
+import { defaultAbiCoder } from 'ethers/lib/utils'
 
 const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
 
@@ -10,7 +11,7 @@ const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
  */
 export class UserOperationEventListener {
   resolved: boolean = false
-  boundLisener: (this: any, ...param: any) => Promise<void>
+  boundLisener: (this: any, ...param: any) => void
 
   constructor (
     readonly resolve: (t: TransactionReceipt) => void,
@@ -21,7 +22,7 @@ export class UserOperationEventListener {
     readonly nonce?: BigNumberish,
     readonly timeout?: number
   ) {
-    console.log('requestId', this.requestId)
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.boundLisener = this.listenerCallback.bind(this)
     setTimeout(() => {
       this.stop()
@@ -31,7 +32,17 @@ export class UserOperationEventListener {
 
   start (requestId: string): void {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.entryPoint.on(this.entryPoint.filters.UserOperationEvent(requestId), this.boundLisener) // TODO: i am 90% sure i don't need to bind it again
+    const filter = this.entryPoint.filters.UserOperationEvent(requestId)
+    // listener takes time... first query directly:
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    setTimeout(async () => {
+      const res = await this.entryPoint.queryFilter(filter, 'latest')
+      if (res.length > 0) {
+        void this.listenerCallback(res[0])
+      } else {
+        this.entryPoint.once(filter, this.boundLisener)
+      }
+    }, 100)
   }
 
   stop (): void {
@@ -68,8 +79,13 @@ export class UserOperationEventListener {
     receipt.status = 0
     const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.requestId, this.sender), receipt.blockHash)
     if (revertReasonEvents[0] != null) {
-      console.log(`rejecting with reason: ${revertReasonEvents[0].args.revertReason}`)
-      this.reject(new Error(`UserOp failed with reason: ${revertReasonEvents[0].args.revertReason}`)
+      let message = revertReasonEvents[0].args.revertReason
+      if (message.startsWith('0x08c379a0')) {
+        // Error(string)
+        message = defaultAbiCoder.decode(['string'], '0x' + message.substring(10)).toString()
+      }
+      console.log(`rejecting with reason: ${message}`)
+      this.reject(new Error(`UserOp failed with reason: ${message}`)
       )
     }
   }

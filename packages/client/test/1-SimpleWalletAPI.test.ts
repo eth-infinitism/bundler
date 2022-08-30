@@ -11,6 +11,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
 import { SimpleWalletAPI } from '../src'
 import { SampleRecipient, SampleRecipient__factory } from '@erc4337/common/dist/src/types'
+import { DeterministicDeployer } from '../src/DeterministicDeployer'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
@@ -27,13 +28,13 @@ describe('SimpleWalletAPI', () => {
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()
-    const walletFactory = await new SimpleWalletDeployer__factory(signer).deploy()
     owner = Wallet.createRandom()
+    const factoryAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
     api = new SimpleWalletAPI(
       entryPoint,
       undefined,
       owner,
-      walletFactory.address
+      factoryAddress
     )
   })
 
