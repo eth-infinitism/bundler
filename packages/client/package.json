@@ -17,7 +17,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.2.0",
+    "@account-abstraction/contracts": "../../account-abstraction-contracts-v0.2.0.tgz",
     "@erc4337/common": "0.1.0",
     "@ethersproject/networks": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",

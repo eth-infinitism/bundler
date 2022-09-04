@@ -19,7 +19,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.2.0",
+    "@account-abstraction/contracts": "../../account-abstraction-contracts-v0.2.0.tgz",
     "@erc4337/common": "0.1.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
