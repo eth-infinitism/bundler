@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
-    "@erc4337/common": "0.1.0",
+    "@erc4337/common": "0.2.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
     "commander": "^9.4.0",
@@ -32,7 +32,7 @@
     "solidity-string-utils": "^0.0.8-0"
   },
   "devDependencies": {
-    "@erc4337/client": "0.1.0",
+    "@erc4337/client": "0.2.0",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",
