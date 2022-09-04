@@ -7,7 +7,7 @@ import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
 import { UserOperationStruct } from '@account-abstraction/contracts'
-import { BaseWalletAPI } from './SimpleWalletAPI'
+import { BaseWalletAPI } from './BaseWalletAPI'
 
 export class ERC4337EthersSigner extends Signer {
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference

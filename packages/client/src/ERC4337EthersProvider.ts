@@ -5,11 +5,11 @@ import { hexValue, resolveProperties } from 'ethers/lib/utils'
 
 import { ClientConfig } from './ClientConfig'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
-import { BaseWalletAPI } from './SimpleWalletAPI'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
 import { getRequestId } from '@erc4337/common'
+import { BaseWalletAPI } from './BaseWalletAPI'
 
 export class ERC4337EthersProvider extends BaseProvider {
   initializedBlockNumber!: number
