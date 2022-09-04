@@ -62,12 +62,21 @@ export class ERC4337EthersProvider extends BaseProvider {
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, sender, requestId
-      ).start(requestId)
+      ).start()
     })
   }
 
   async getSenderWalletAddress (): Promise<string> {
     return await this.smartWalletAPI.getWalletAddress()
+  }
+
+  async waitForTransaction (transactionHash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt> {
+    const sender = await this.getSenderWalletAddress()
+
+    return await new Promise<TransactionReceipt>((resolve, reject) => {
+      const listener = new UserOperationEventListener(resolve, reject, this.entryPoint, sender, transactionHash, undefined, timeout)
+      listener.start()
+    })
   }
 
   // fabricate a response in a format usable by ethers users...
@@ -77,7 +86,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, userOp.sender, requestId, userOp.nonce
-      ).start(requestId)
+      ).start()
     })
     return {
       hash: requestId,

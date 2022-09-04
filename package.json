@@ -20,7 +20,7 @@
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix",
     "lerna-clear": "lerna run clear",
     "lerna-lint": "lerna run lint --stream --parallel",
-    "lerna-test": "lerna run hardhat-test --stream --no-prefix",
+    "lerna-test": "lerna run hardhat-test --stream",
     "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
     "lerna-tsc": "lerna run tsc",
     "lerna-watch-tsc": "lerna run --parallel watch-tsc",
