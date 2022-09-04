@@ -18,7 +18,7 @@ export class ERC4337EthersSigner extends Signer {
     readonly httpRpcClient: HttpRpcClient,
     readonly smartWalletAPI: BaseWalletAPI) {
     super()
-    defineReadOnly(this, 'provider', erc4337provider.originalProvider)
+    defineReadOnly(this, 'provider', erc4337provider)
   }
 
   // This one is called by Contract. It signs the request and passes in to Provider to be sent.

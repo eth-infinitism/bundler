@@ -5,11 +5,12 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { expect } from 'chai'
 import { parseEther } from 'ethers/lib/utils'
 import { Wallet } from 'ethers'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-describe('ERC4337EthersSigner', function () {
+describe('ERC4337EthersSigner, Provider', function () {
   let recipient: SampleRecipient
   let aaProvider: ERC4337EthersProvider
   let entryPoint: EntryPoint
@@ -43,8 +44,7 @@ describe('ERC4337EthersSigner', function () {
 
   it('should fail to send before funding', async () => {
     try {
-      await
-      recipient.something('hello', { gasLimit: 1e6 })
+      await recipient.something('hello', { gasLimit: 1e6 })
       throw new Error('should revert')
     } catch (e: any) {
       expect(e.message).to.eq('FailedOp(0,0x0000000000000000000000000000000000000000,wallet didn\'t pay prefund)')
@@ -52,14 +52,14 @@ describe('ERC4337EthersSigner', function () {
   })
 
   it('should use ERC-4337 Signer and Provider to send the UserOperation to the bundler', async function () {
+    const walletAddress = await aaProvider.getSigner().getAddress()
     await signer.sendTransaction({
-      to: aaProvider.getSigner().getAddress(),
+      to: walletAddress,
       value: parseEther('0.1')
     })
     const ret = await recipient.something('hello')
-    const rcpt = await ret.wait()
-    await expect(rcpt).to.emit(recipient, 'Sender')
-    await expect(rcpt).to.emit(entryPoint, 'UserOperationEvent')
+    await expect(ret).to.emit(recipient, 'Sender')
+      .withArgs(anyValue, walletAddress, 'hello')
   })
 
   it('should revert if on-chain userOp execution reverts', async function () {

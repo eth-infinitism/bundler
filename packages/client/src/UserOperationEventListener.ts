@@ -30,9 +30,9 @@ export class UserOperationEventListener {
     }, this.timeout ?? DEFAULT_TRANSACTION_TIMEOUT)
   }
 
-  start (requestId: string): void {
+  start (): void {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const filter = this.entryPoint.filters.UserOperationEvent(requestId)
+    const filter = this.entryPoint.filters.UserOperationEvent(this.requestId)
     // listener takes time... first query directly:
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     setTimeout(async () => {
@@ -56,12 +56,14 @@ export class UserOperationEventListener {
       console.error('got event without args', event)
       return
     }
+    // TODO: can this happen? we register to event by requestId..
     if (event.args.requestId !== this.requestId) {
       console.log(`== event with wrong requestId: sender/nonce: event.${event.args.sender as string}@${event.args.nonce.toString() as string}!= userOp.${this.sender as string}@${parseInt(this.nonce?.toString())}`)
       return
     }
 
     const transactionReceipt = await event.getTransactionReceipt()
+    transactionReceipt.transactionHash = this.requestId
     console.log('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
     // before returning the receipt, update the status from the event.
