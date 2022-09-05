@@ -45,18 +45,18 @@ export class ERC4337EthersSigner extends Signer {
   unwrapError (errorIn: any): Error {
     if (errorIn.body != null) {
       const errorBody = JSON.parse(errorIn.body)
-      let paymaster: string = ''
+      let paymasterInfo: string = ''
       let failedOpMessage: string | undefined = errorBody?.error?.message
       if (failedOpMessage?.includes('FailedOp') === true) {
         // TODO: better error extraction methods will be needed
         const matched = failedOpMessage.match(/FailedOp\((.*)\)/)
         if (matched != null) {
           const split = matched[1].split(',')
-          paymaster = split[1]
+          paymasterInfo = `(paymaster address: ${split[1]})`
           failedOpMessage = split[2]
         }
       }
-      const error = new Error(`The bundler has failed to include UserOperation in a batch: ${failedOpMessage} (paymaster address: ${paymaster})`)
+      const error = new Error(`The bundler has failed to include UserOperation in a batch: ${failedOpMessage} ${paymasterInfo})`)
       error.stack = errorIn.stack
       return error
     }
