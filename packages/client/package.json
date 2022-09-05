@@ -19,8 +19,10 @@
   "dependencies": {
     "@account-abstraction/contracts": "../../account-abstraction-contracts-v0.2.0.tgz",
     "@erc4337/common": "0.2.0",
+    "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.3",
     "ethers": "^5.7.0"
   },
   "devDependencies": {

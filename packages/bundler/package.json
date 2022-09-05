@@ -29,7 +29,8 @@
     "express": "^4.18.1",
     "hardhat-gas-reporter": "^1.0.8",
     "ow": "^0.28.1",
-    "solidity-string-utils": "^0.0.8-0"
+    "solidity-string-utils": "^0.0.8-0",
+    "source-map-support": "^0.5.21"
   },
   "devDependencies": {
     "@erc4337/client": "0.2.0",
