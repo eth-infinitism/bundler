@@ -19,15 +19,18 @@
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
     "@erc4337/common": "0.2.0",
+    "@ethersproject/abstract-provider": "^5.7.0",
+    "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
     "ethers": "^5.7.0"
   },
   "devDependencies": {
-    "@ethersproject/abstract-signer": "^5.6.2",
-    "@ethersproject/providers": "^5.4.7",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.3",
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
     "@nomiclabs/hardhat-ethers": "^2.0.0",
-    "hardhat": "^2.10.2"
+    "chai": "^4.3.6",
+    "hardhat": "^2.11.0"
   }
 }

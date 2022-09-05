@@ -1,1 +1,1 @@
-ignores: ["@account-abstraction/contracts", "solidity-string-utils"]
+ignores: ["solidity-string-utils"]
