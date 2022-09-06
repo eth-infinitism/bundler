@@ -61,7 +61,6 @@ export class BundlerServer {
     } else if (bal.lt(parseEther(this.config.minBalance))) {
       console.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
     }
-
   }
 
   fatal (msg: string): never {

@@ -12,7 +12,6 @@ import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
-import hre from 'hardhat'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -98,16 +97,16 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const config = resolveConfiguration(programOpts)
   const provider: BaseProvider =
-    config.network === 'hardhat'
-      ? require('hardhat').ethers.provider
-      : ethers.getDefaultProvider(config.network)
+    // eslint-disable-next-line
+    config.network === 'hardhat' ? require('hardhat').ethers.provider :
+      ethers.getDefaultProvider(config.network)
   let mnemonic: string
   let wallet: Wallet
   try {
     mnemonic = fs.readFileSync(config.mnemonic, 'ascii')
     wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
   } catch (e: any) {
-    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message}`)
+    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
   }
 
   const {
