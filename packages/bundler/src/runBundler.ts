@@ -99,9 +99,16 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   const config = resolveConfiguration(programOpts)
   const provider: BaseProvider =
     config.network === 'hardhat'
-      ? hre.ethers.provider
+      ? require('hardhat').ethers.provider
       : ethers.getDefaultProvider(config.network)
-  const wallet: Wallet = Wallet.fromMnemonic(config.mnemonic).connect(provider)
+  let mnemonic: string
+  let wallet: Wallet
+  try {
+    mnemonic = fs.readFileSync(config.mnemonic, 'ascii')
+    wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+  } catch (e: any) {
+    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message}`)
+  }
 
   const {
     entryPoint,
@@ -130,7 +137,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
         chainId: net.chainId
       }
     }))
-    console.log(`running on http://localhost:${config.port}`)
+    console.log(`running on http://localhost:${config.port}/rpc`)
   })
 
   return bundlerServer
