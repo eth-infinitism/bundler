@@ -1,6 +1,10 @@
+import { BigNumberish } from 'ethers'
+
 export interface TransactionDetailsForUserOp {
   target: string
   data: string
-  value: string
-  gasLimit: string
+  value?: BigNumberish
+  gasLimit?: BigNumberish
+  maxFeePerGas?: BigNumberish
+  maxPriorityFeePerGas?: BigNumberish
 }

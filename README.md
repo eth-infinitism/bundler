@@ -2,6 +2,7 @@ basic eip4337 "bundler"
 
 - expose a node with a minimal RPC calls:
 - eth_sendUserOperation to send a user operation
+- eth_supportedEntryPoints to report the bundler's supported entry points
 - eth_chainId
 
 

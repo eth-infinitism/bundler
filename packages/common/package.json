@@ -1,30 +1,33 @@
 {
   "name": "@erc4337/common",
-  "version": "0.1.0",
-  "main": "dist/index.js",
-  "scripts": {
-    "clear": "rm -rf dist artifacts src/types",
-    "hardhat-compile": "yarn clear && hardhat compile",
-    "hardhat-deploy": "hardhat deploy",
-    "hardhat-node": "hardhat node",
-    "tsc": "tsc"
-  },
+  "version": "0.2.0",
+  "main": "./dist/src/index.js",
+  "license": "MIT",
   "files": [
     "dist/*",
     "contracts/*",
     "README.md"
   ],
+  "scripts": {
+    "clear": "rm -rf dist artifacts cache src/types",
+    "hardhat-compile": "yarn clear && hardhat compile",
+    "hardhat-deploy": "hardhat deploy",
+    "hardhat-node": "hardhat node",
+    "lint-fix": "eslint -f unix . --fix",
+    "watch-tsc": "tsc -w --preserveWatchOutput",
+    "tsc": "tsc"
+  },
   "dependencies": {
+    "@account-abstraction/contracts": "^0.2.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-    "@nomiclabs/hardhat-ethers": "^2.0.0",
     "@openzeppelin/contracts": "^4.7.3",
-    "ethers": "^5.7.0",
-    "hardhat-deploy": "^0.11.12"
+    "ethers": "^5.7.0"
   },
   "devDependencies": {
-    "hardhat": "^2.10.0"
+    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "hardhat": "^2.11.0"
   }
 }

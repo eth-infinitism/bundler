@@ -1,11 +1,7 @@
-import { ethers } from 'ethers'
+import { UserOperationStruct } from '@account-abstraction/contracts'
 
 export class PaymasterAPI {
-  async getPaymasterData (): Promise<string> {
+  async getPaymasterAndData (userOp: Partial<UserOperationStruct>): Promise<string> {
     return '0x'
-  }
-
-  async getPaymasterAddress (): Promise<string> {
-    return ethers.constants.AddressZero
   }
 }
