@@ -11,6 +11,7 @@ import { ERC4337EthersProvider, ERC4337EthersSigner, ClientConfig, newProvider }
 import { Signer, Wallet } from 'ethers'
 import { runBundler } from '../src/runBundler'
 import { BundlerServer } from '../src/BundlerServer'
+import fs from 'fs'
 
 const { expect } = chai.use(chaiAsPromised)
 
@@ -54,13 +55,16 @@ describe('Flow', function () {
       value: 10e18.toString()
     })
 
+    const mnemonic = 'myth like bonus scare over problem client lizard pioneer submit female collect'
+    const mnemonicFile = '/tmp/mnemonic.tmp'
+    fs.writeFileSync(mnemonicFile, mnemonic)
     bundlerServer = await startBundler({
       beneficiary,
       entryPoint: entryPoint.address,
       helper: bundleHelper.address,
       gasFactor: '0.2',
       minBalance: '0',
-      mnemonic: 'myth like bonus scare over problem client lizard pioneer submit female collect',
+      mnemonic: mnemonicFile,
       network: 'http://localhost:8545/',
       port: '5555'
     })
