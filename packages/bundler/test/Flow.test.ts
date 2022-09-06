@@ -7,7 +7,7 @@ import * as SampleRecipientArtifact
   from '@erc4337/common/artifacts/contracts/test/SampleRecipient.sol/SampleRecipient.json'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { ERC4337EthersProvider, ERC4337EthersSigner, ClientConfig, newProvider } from '@erc4337/client'
+import { ERC4337EthersProvider, ERC4337EthersSigner, ClientConfig, newProvider } from '@account-abstraction/sdk'
 import { Signer, Wallet } from 'ethers'
 import { runBundler } from '../src/runBundler'
 import { BundlerServer } from '../src/BundlerServer'

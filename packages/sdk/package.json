@@ -1,5 +1,5 @@
 {
-  "name": "@erc4337/client",
+  "name": "@account-abstraction/sdk",
   "version": "0.2.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
