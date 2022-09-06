@@ -4,10 +4,10 @@ import { Signer } from '@ethersproject/abstract-signer'
 
 import { Bytes } from 'ethers'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
-import { getRequestIdForSigning } from '@erc4337/common/dist/src/ERC4337Utils'
-import { UserOperation } from '@erc4337/common/src/UserOperation'
 import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
+import { UserOperationStruct } from '@account-abstraction/contracts'
+import { BaseWalletAPI } from './BaseWalletAPI'
 
 export class ERC4337EthersSigner extends Signer {
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
@@ -15,29 +15,27 @@ export class ERC4337EthersSigner extends Signer {
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly erc4337provider: ERC4337EthersProvider,
-    readonly httpRpcClient: HttpRpcClient
-  ) {
+    readonly httpRpcClient: HttpRpcClient,
+    readonly smartWalletAPI: BaseWalletAPI) {
     super()
-    defineReadOnly(this, 'provider', erc4337provider.originalProvider)
+    defineReadOnly(this, 'provider', erc4337provider)
   }
 
   // This one is called by Contract. It signs the request and passes in to Provider to be sent.
   async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     await this.verifyAllNecessaryFields(tx)
-    const userOperation = await this.erc4337provider.createUserOp({
+    const userOperation = await this.smartWalletAPI.createSignedUserOp({
       target: tx.to ?? '',
       data: tx.data?.toString() ?? '',
-      value: tx.value?.toString() ?? '',
-      gasLimit: tx.gasLimit?.toString() ?? ''
+      value: tx.value,
+      gasLimit: tx.gasLimit
     })
-    userOperation.signature = await this.signUserOperation(userOperation)
     const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
     try {
-      const bundlerResponse = await this.httpRpcClient.sendUserOpToBundler(userOperation)
-      console.log('Bundler response:', bundlerResponse)
+      await this.httpRpcClient.sendUserOpToBundler(userOperation)
     } catch (error: any) {
-      console.error('sendUserOpToBundler failed')
+      // console.error('sendUserOpToBundler failed', error)
       throw this.unwrapError(error)
     }
     // TODO: handle errors - transaction that is "rejected" by bundler is _not likely_ to ever resolve its "wait()"
@@ -47,18 +45,18 @@ export class ERC4337EthersSigner extends Signer {
   unwrapError (errorIn: any): Error {
     if (errorIn.body != null) {
       const errorBody = JSON.parse(errorIn.body)
-      let paymaster: string = ''
+      let paymasterInfo: string = ''
       let failedOpMessage: string | undefined = errorBody?.error?.message
       if (failedOpMessage?.includes('FailedOp') === true) {
         // TODO: better error extraction methods will be needed
         const matched = failedOpMessage.match(/FailedOp\((.*)\)/)
         if (matched != null) {
           const split = matched[1].split(',')
-          paymaster = split[1]
+          paymasterInfo = `(paymaster address: ${split[1]})`
           failedOpMessage = split[2]
         }
       }
-      const error = new Error(`The bundler has failed to include UserOperation in a batch: ${failedOpMessage} (paymaster address: ${paymaster})`)
+      const error = new Error(`The bundler has failed to include UserOperation in a batch: ${failedOpMessage} ${paymasterInfo})`)
       error.stack = errorIn.stack
       return error
     }
@@ -91,8 +89,8 @@ export class ERC4337EthersSigner extends Signer {
     throw new Error('not implemented')
   }
 
-  async signUserOperation (userOperation: UserOperation): Promise<string> {
-    const message = getRequestIdForSigning(userOperation, this.config.entryPointAddress, this.config.chainId)
+  async signUserOperation (userOperation: UserOperationStruct): Promise<string> {
+    const message = await this.smartWalletAPI.getRequestId(userOperation)
     return await this.originalSigner.signMessage(message)
   }
 }

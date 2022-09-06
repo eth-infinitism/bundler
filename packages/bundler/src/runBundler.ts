@@ -1,15 +1,15 @@
 import ow from 'ow'
 import fs from 'fs'
 
-import { program } from 'commander'
-import { erc4337RuntimeVersion } from '@erc4337/common/dist/src'
+import { Command } from 'commander'
+import { erc4337RuntimeVersion } from '@erc4337/common'
 import { ethers, Wallet } from 'ethers'
 import { BaseProvider } from '@ethersproject/providers'
 
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { EntryPoint, EntryPoint__factory } from '@erc4337/common/dist/src/types'
+import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
 
@@ -22,26 +22,11 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
-program
-  .version(erc4337RuntimeVersion)
-  .option('--beneficiary <string>', 'address to receive funds')
-  .option('--gasFactor <number>')
-  .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
-  .option('--network <string>', 'network name or url')
-  .option('--mnemonic <string>', 'signer account secret key mnemonic')
-  .option('--helper <string>', 'address of the BundlerHelper contract')
-  .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-  .option('--port <number>', 'server listening port (default to 3000)')
-  .option('--config <string>', `path to config file (default to ${CONFIG_FILE_NAME})`, CONFIG_FILE_NAME)
-  .parse()
-
-console.log('command-line arguments: ', program.opts())
-
-export function resolveConfiguration (): BundlerConfig {
+export function resolveConfiguration (programOpts: any): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
 
-  const commandLineParams = getCommandLineParams()
-  const configFileName = program.opts().config
+  const commandLineParams = getCommandLineParams(programOpts)
+  const configFileName = programOpts.config
   if (fs.existsSync(configFileName)) {
     fileConfig = JSON.parse(fs.readFileSync(configFileName, 'ascii'))
   }
@@ -51,10 +36,10 @@ export function resolveConfiguration (): BundlerConfig {
   return mergedConfig
 }
 
-function getCommandLineParams (): Partial<BundlerConfig> {
+function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
   for (const bundlerConfigShapeKey in BundlerConfigShape) {
-    const optionValue = program.opts()[bundlerConfigShapeKey]
+    const optionValue = programOpts[bundlerConfigShapeKey]
     if (optionValue != null) {
       params[bundlerConfigShapeKey] = optionValue
     }
@@ -74,12 +59,60 @@ export async function connectContracts (
   }
 }
 
-async function main (): Promise<void> {
-  const config = resolveConfiguration()
-  const provider: BaseProvider = ethers.getDefaultProvider(config.network)
-  const wallet: Wallet = Wallet.fromMnemonic(config.mnemonic).connect(provider)
+/**
+ * start the bundler server.
+ * this is an async method, but only to resolve configuration. after it returns, the server is only active after asyncInit()
+ * @param argv
+ * @param overrideExit
+ */
+export async function runBundler (argv: string[], overrideExit = true): Promise<BundlerServer> {
+  const program = new Command()
 
-  const { entryPoint, bundlerHelper } = await connectContracts(wallet, config.entryPoint, config.helper)
+  if (overrideExit) {
+    (program as any)._exit = (exitCode: any, code: any, message: any) => {
+      class CommandError extends Error {
+        constructor (message: string, readonly code: any, readonly exitCode: any) {
+          super(message)
+        }
+      }
+      throw new CommandError(message, code, exitCode)
+    }
+  }
+
+  program
+    .version(erc4337RuntimeVersion)
+    .option('--beneficiary <string>', 'address to receive funds')
+    .option('--gasFactor <number>', '', '1')
+    .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
+    .option('--network <string>', 'network name or url')
+    .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
+    .option('--helper <string>', 'address of the BundlerHelper contract')
+    .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
+    .option('--port <number>', 'server listening port', '3000')
+    .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+
+  const programOpts = program.parse(argv).opts()
+
+  console.log('command-line arguments: ', program.opts())
+
+  const config = resolveConfiguration(programOpts)
+  const provider: BaseProvider =
+    // eslint-disable-next-line
+    config.network === 'hardhat' ? require('hardhat').ethers.provider :
+      ethers.getDefaultProvider(config.network)
+  let mnemonic: string
+  let wallet: Wallet
+  try {
+    mnemonic = fs.readFileSync(config.mnemonic, 'ascii')
+    wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+  } catch (e: any) {
+    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
+  }
+
+  const {
+    entryPoint,
+    bundlerHelper
+  } = await connectContracts(wallet, config.entryPoint, config.helper)
 
   const methodHandler = new UserOpMethodHandler(
     provider,
@@ -96,16 +129,15 @@ async function main (): Promise<void> {
     wallet
   )
 
-  await bundlerServer.preflightCheck()
-
-  console.log('connected to network', await provider.getNetwork().then(net => {
-    return { name: net.name, chainId: net.chainId }
-  }))
-  console.log(`running on http://localhost:${config.port}`)
-}
-
-main()
-  .catch(e => {
-    console.log(e)
-    process.exit(1)
+  void bundlerServer.asyncStart().then(async () => {
+    console.log('connected to network', await provider.getNetwork().then(net => {
+      return {
+        name: net.name,
+        chainId: net.chainId
+      }
+    }))
+    console.log(`running on http://localhost:${config.port}/rpc`)
   })
+
+  return bundlerServer
+}

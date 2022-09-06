@@ -4,15 +4,17 @@ import express, { Express, Response, Request } from 'express'
 import { JsonRpcRequest } from 'hardhat/types'
 import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
-import { hexlify } from 'ethers/lib/utils'
+import { hexlify, parseEther } from 'ethers/lib/utils'
 
-import { erc4337RuntimeVersion } from '@erc4337/common/dist/src/Version'
+import { erc4337RuntimeVersion } from '@erc4337/common'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { Server } from 'http'
 
 export class BundlerServer {
   app: Express
+  private readonly httpServer: Server
 
   constructor (
     readonly methodHandler: UserOpMethodHandler,
@@ -30,20 +32,34 @@ export class BundlerServer {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.app.post('/rpc', this.rpc.bind(this))
 
-    this.app.listen(this.config.port)
+    this.httpServer = this.app.listen(this.config.port)
+    this.startingPromise = this._preflightCheck()
   }
 
-  async preflightCheck (): Promise<void> {
+  startingPromise: Promise<void>
+
+  async asyncStart (): Promise<void> {
+    await this.startingPromise
+  }
+
+  async stop (): Promise<void> {
+    this.httpServer.close()
+  }
+
+  async _preflightCheck (): Promise<void> {
+    if (await this.provider.getCode(this.config.entryPoint) === '0x') {
+      this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
+    }
+
+    if (await this.provider.getCode(this.config.helper) === '0x') {
+      this.fatal(`helper not deployed at ${this.config.helper}. run "hardhat deploy --network ..."`)
+    }
     const bal = await this.provider.getBalance(this.wallet.address)
     console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
     if (bal.eq(0)) {
       this.fatal('cannot run with zero balance')
-    } else if (bal.lte(this.config.minBalance)) {
-      console.log('WARNING: initial balance below --minBalance ', utils.formatEther(this.config.minBalance))
-    }
-
-    if (await this.provider.getCode(this.config.helper) === '0x') {
-      this.fatal('helper not deployed. run "hardhat deploy --network ..."')
+    } else if (bal.lt(parseEther(this.config.minBalance))) {
+      console.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
     }
   }
 
@@ -63,7 +79,8 @@ export class BundlerServer {
       console.log('sent', method, '-', result)
       res.send({ jsonrpc, id, result })
     } catch (err: any) {
-      const error = { message: err.error?.reason ?? err.error.message ?? err, code: -32000 }
+      console.log('ex err=', err)
+      const error = { message: err.error?.reason ?? err.error?.message ?? err, code: -32000 }
       console.log('failed: ', method, JSON.stringify(error))
       res.send({ jsonrpc, id, error })
     }
