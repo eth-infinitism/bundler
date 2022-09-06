@@ -31,7 +31,8 @@ describe('SimpleWalletAPI', () => {
     owner = Wallet.createRandom()
     const factoryAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
     api = new SimpleWalletAPI(
-      entryPoint,
+      provider,
+      entryPoint.address,
       undefined,
       owner,
       factoryAddress
@@ -78,7 +79,7 @@ describe('SimpleWalletAPI', () => {
     if (!walletDeployed) {
       this.skip()
     }
-    const api1 = new SimpleWalletAPI(entryPoint, walletAddress, owner)
+    const api1 = new SimpleWalletAPI(provider, entryPoint.address, walletAddress, owner)
     const op1 = await api1.createSignedUserOp({
       target: recipient.address,
       data: recipient.interface.encodeFunctionData('something', ['world'])

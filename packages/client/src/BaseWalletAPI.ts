@@ -1,7 +1,7 @@
-import { ethers, BigNumber, Contract, BigNumberish } from 'ethers'
+import { ethers, BigNumber, BigNumberish } from 'ethers'
 import { Provider } from '@ethersproject/providers'
 import {
-  EntryPoint,
+  EntryPoint, EntryPoint__factory,
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
@@ -14,7 +14,6 @@ import { getRequestId } from '@erc4337/common'
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
  * Subclass should inherit 5 methods to support a specific wallet contract:
  *
- * - createWalletContract: create the wallet contract object. this contract object is used by the getNonce and encodeExecute methods.
  * - getWalletInitCode - return the value to put into the "initCode" field, if the wallet is not yet deployed. should create the wallet instance using a factory contract.
  * - getNonce - return current wallet's nonce value
  * - encodeExecute - encode the call from entryPoint through our wallet to the target contract.
@@ -26,17 +25,9 @@ import { getRequestId } from '@erc4337/common'
  */
 export abstract class BaseWalletAPI {
   private senderAddress!: string
-  protected readonly provider: Provider
-  protected walletContract!: Contract
   private isPhantom = true
   // entryPoint connected to "zero" address. allowed to make static calls (e.g. to getSenderAddress)
   private readonly entryPointView: EntryPoint
-
-  /**
-   * factory contract to deploy the wallet.
-   * subclass MUST initialize, and make sure getWalletInitCode method can call it.
-   */
-  factory?: Contract
 
   /**
    * subclass MAY initialize to support custom paymaster
@@ -46,27 +37,23 @@ export abstract class BaseWalletAPI {
   /**
    * base constructor.
    * subclass SHOULD add parameters that define the owner (signer) of this wallet
-   * @param entryPoint
-   * @param walletAddress. may be empty for new wallet (using factory to determine address
+   * @param provider - read-only provider for view calls
+   * @param entryPointAddress - the entryPoint to send requests through (used to calculate the request-id, and for gas estimations)
+   * @param walletAddress. may be empty for new wallet (using factory to determine address)
    */
   protected constructor (
-    readonly entryPoint: EntryPoint,
+    readonly provider: Provider,
+    readonly entryPointAddress: string,
     readonly walletAddress?: string
   ) {
-    this.provider = entryPoint.provider
-    this.entryPointView = entryPoint.connect(ethers.constants.AddressZero)
+    // factory "connect" define the contract address. the contract "connect" defines the "from" address.
+    this.entryPointView = EntryPoint__factory.connect(entryPointAddress, provider).connect(ethers.constants.AddressZero)
   }
 
   async init (): Promise<this> {
     await this.getWalletAddress()
     return this
   }
-
-  /**
-   * create the wallet contract object.
-   * should support our "encodeExecute" and "nonce" methods
-   */
-  abstract createWalletContract (address: string): Contract
 
   /**
    * return the value to put into the "initCode" field, if the wallet is not yet deployed.
@@ -85,7 +72,7 @@ export abstract class BaseWalletAPI {
    * @param value
    * @param data
    */
-  abstract encodeExecute (target: string, value: BigNumberish, data: string): string
+  abstract encodeExecute (target: string, value: BigNumberish, data: string): Promise<string>
 
   /**
    * sign a userOp's hash (requestId).
@@ -105,7 +92,6 @@ export abstract class BaseWalletAPI {
     if (senderAddressCode.length > 2) {
       console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
-      this.walletContract = this.walletContract.attach(this.senderAddress).connect(this.provider)
     } else {
       // console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
     }
@@ -153,20 +139,16 @@ export abstract class BaseWalletAPI {
   }
 
   async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
-    if (this.walletContract == null) {
-      this.walletContract = this.createWalletContract(await this.getWalletAddress())
-    }
-
     function parseNumber (a: any): BigNumber | null {
       if (a == null || a === '') return null
       return BigNumber.from(a.toString())
     }
 
     const value = parseNumber(detailsForUserOp.value) ?? BigNumber.from(0)
-    const callData = this.encodeExecute(detailsForUserOp.target, value, detailsForUserOp.data)
+    const callData = await this.encodeExecute(detailsForUserOp.target, value, detailsForUserOp.data)
 
     const callGasLimit = parseNumber(detailsForUserOp.gasLimit) ?? await this.provider.estimateGas({
-      from: this.entryPoint.address,
+      from: this.entryPointAddress,
       to: this.getWalletAddress(),
       data: callData
     })
@@ -185,7 +167,7 @@ export abstract class BaseWalletAPI {
   async getRequestId (userOp: UserOperationStruct): Promise<string> {
     const op = await resolveProperties(userOp)
     const chainId = await this.provider.getNetwork().then(net => net.chainId)
-    return getRequestId(op, this.entryPoint.address, chainId)
+    return getRequestId(op, this.entryPointAddress, chainId)
   }
 
   /**

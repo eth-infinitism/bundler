@@ -75,7 +75,8 @@ describe('UserOpMethodHandler', function () {
       const walletDeployerAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
 
       const smartWalletAPI = new SimpleWalletAPI(
-        entryPoint,
+        provider,
+        entryPoint.address,
         undefined,
         signer,
         walletDeployerAddress,
