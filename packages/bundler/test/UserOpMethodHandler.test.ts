@@ -14,8 +14,8 @@ import {
 } from '@account-abstraction/contracts'
 
 import 'source-map-support/register'
-import { SimpleWalletAPI } from '@erc4337/client'
-import { DeterministicDeployer } from '@erc4337/client/src/DeterministicDeployer'
+import { SimpleWalletAPI } from '@account-abstraction/sdk'
+import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
