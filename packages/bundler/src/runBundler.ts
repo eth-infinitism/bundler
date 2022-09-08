@@ -12,6 +12,7 @@ import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
+import { boolean } from 'hardhat/internal/core/params/argumentTypes'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -22,6 +23,7 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
+export var showStackTraces :boolean|undefined = undefined
 export function resolveConfiguration (programOpts: any): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
 
@@ -90,8 +92,10 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+    .option('--show-stack-traces', 'Show stack traces.')
 
   const programOpts = program.parse(argv).opts()
+  showStackTraces = programOpts.showStackTraces
 
   console.log('command-line arguments: ', program.opts())
 

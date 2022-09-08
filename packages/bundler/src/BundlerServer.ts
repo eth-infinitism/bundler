@@ -47,13 +47,14 @@ export class BundlerServer {
   }
 
   async _preflightCheck (): Promise<void> {
+    if (await this.provider.getCode(this.config.helper) === '0x') {
+      this.fatal(`helper not deployed at ${this.config.helper}. run "hardhat deploy --network ..."`)
+    }
+
     if (await this.provider.getCode(this.config.entryPoint) === '0x') {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
 
-    if (await this.provider.getCode(this.config.helper) === '0x') {
-      this.fatal(`helper not deployed at ${this.config.helper}. run "hardhat deploy --network ..."`)
-    }
     const bal = await this.provider.getBalance(this.wallet.address)
     console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
     if (bal.eq(0)) {
@@ -64,7 +65,7 @@ export class BundlerServer {
   }
 
   fatal (msg: string): never {
-    console.error('fatal:', msg)
+    console.error('FATAL:', msg)
     process.exit(1)
   }
 
@@ -73,16 +74,32 @@ export class BundlerServer {
   }
 
   async rpc (req: Request, res: Response): Promise<void> {
-    const { method, params, jsonrpc, id }: JsonRpcRequest = req.body
+    const {
+      method,
+      params,
+      jsonrpc,
+      id
+    }: JsonRpcRequest = req.body
     try {
       const result = await this.handleMethod(method, params)
       console.log('sent', method, '-', result)
-      res.send({ jsonrpc, id, result })
+      res.send({
+        jsonrpc,
+        id,
+        result
+      })
     } catch (err: any) {
       console.log('ex err=', err)
-      const error = { message: err.error?.reason ?? err.error?.message ?? err, code: -32000 }
+      const error = {
+        message: err.error?.reason ?? err.error?.message ?? err,
+        code: -32000
+      }
       console.log('failed: ', method, JSON.stringify(error))
-      res.send({ jsonrpc, id, error })
+      res.send({
+        jsonrpc,
+        id,
+        error
+      })
     }
   }
 

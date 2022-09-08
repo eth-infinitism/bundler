@@ -1,3 +1,4 @@
+import 'source-map-support/register'
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
@@ -13,9 +14,9 @@ import {
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
-import 'source-map-support/register'
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
 import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
+import { Wallet } from 'ethers'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -23,6 +24,7 @@ describe('UserOpMethodHandler', function () {
   let methodHandler: UserOpMethodHandler
   let provider: BaseProvider
   let signer: JsonRpcSigner
+  const walletSigner = Wallet.createRandom()
 
   let entryPoint: EntryPoint
   let bundleHelper: BundlerHelper
@@ -37,7 +39,7 @@ describe('UserOpMethodHandler', function () {
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
     bundleHelper = await bundleHelperFactory.deploy()
-
+    console.log('bundler from=', await    bundleHelper.signer.getAddress())
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
 
@@ -71,14 +73,15 @@ describe('UserOpMethodHandler', function () {
     let userOperation: UserOperationStruct
     let walletAddress: string
 
+    let walletDeployerAddress: string
     before(async function () {
-      const walletDeployerAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
+      walletDeployerAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
 
       const smartWalletAPI = new SimpleWalletAPI(
         provider,
         entryPoint.address,
         undefined,
-        signer,
+        walletSigner,
         walletDeployerAddress,
         0
       )
@@ -108,10 +111,32 @@ describe('UserOpMethodHandler', function () {
 
       assert.equal(senderEvent.name, 'Sender')
       const expectedTxOrigin = await methodHandler.signer.getAddress()
-      assert.equal(senderEvent.args.txOrigin, expectedTxOrigin)
-      assert.equal(senderEvent.args.msgSender, walletAddress)
+      assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
+      assert.equal(senderEvent.args.msgSender, walletAddress, 'sample msgsender should be wallet')
 
       assert.equal(depositedEvent.name, 'Deposited')
+    })
+
+    it('should expose FailedOp errors as text messages', async () => {
+      const smartWalletAPI = new SimpleWalletAPI(
+        provider,
+        entryPoint.address,
+        undefined,
+        walletSigner,
+        walletDeployerAddress,
+        1
+      )
+      const op = await smartWalletAPI.createSignedUserOp({
+        data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
+        target: sampleRecipient.address
+      })
+
+      try {
+        await methodHandler.sendUserOperation(op, entryPoint.address)
+      throw Error('expected fail')
+      }catch (e:any) {
+        expect(e.message).to.match(/FailedOp.*wallet didn't pay prefund/)
+      }
     })
   })
 })

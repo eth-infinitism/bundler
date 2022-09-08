@@ -1,7 +1,7 @@
-import { runBundler } from './runBundler'
+import { runBundler, showStackTraces } from './runBundler'
 
 runBundler(process.argv)
-  .catch(e => {
-    console.log(e)
-    process.exit(1)
-  })
+  // .catch(e => {
+  //   console.error('Aborted:', e.message)
+  //   process.exit(1)
+  // })

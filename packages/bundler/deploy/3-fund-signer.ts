@@ -11,14 +11,16 @@ const fundsigner: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
 
   //on geth, fund the default "hardhat node" account.
 
-  let provider = hre.ethers.provider
-  let signer = provider.getSigner()
-  let bal = await provider.getBalance(signer.getAddress())
-  if (bal.gte(parseEther('10000'))) {
-    console.log('funding hardhat account')
+  const provider = hre.ethers.provider
+  const signer = provider.getSigner()
+  const signerBalance = await provider.getBalance(signer.getAddress())
+  const account = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+  const bal = await provider.getBalance(account)
+  if (bal.lt(parseEther('1')) && signerBalance.gte(parseEther('10000'))) {
+    console.log('funding hardhat account', account)
     await signer.sendTransaction({
-      to: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-      value: parseEther('1')
+      to: account,
+      value: parseEther('1').sub(bal)
     })
   }
 }
