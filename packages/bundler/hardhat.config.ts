@@ -36,7 +36,8 @@ const config: HardhatUserConfig = {
   },
   networks: {
     localhost: {
-      url: 'http://localhost:8545/'
+      url: 'http://localhost:8545/',
+      saveDeployments: false
     },
     goerli: getInfuraNetwork('goerli')
   },

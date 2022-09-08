@@ -1,5 +1,5 @@
 {
-  "name": "@erc4337/bundler",
+  "name": "@account-abstraction/bundler",
   "version": "0.2.0",
   "license": "MIT",
   "files": [
@@ -8,6 +8,7 @@
     "README.md"
   ],
   "scripts": {
+    "bundler": "ts-node ./src/exec.ts --config ./localconfig/bundler.config.json",
     "clear": "rm -rf dist artifacts src/types",
     "hardhat-compile": "yarn clear && hardhat compile",
     "hardhat-node-with-deploy": "npx hardhat node",

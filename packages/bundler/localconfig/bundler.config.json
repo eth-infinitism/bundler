@@ -1,0 +1,10 @@
+{
+  "gasFactor": "1",
+  "port": "3000",
+  "network": "http://localhost:8545",
+  "entryPoint": "0x674DF207855CE0d9eaB7B000FbBE997a2451d24f",
+  "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
+  "minBalance": "1",
+  "mnemonic": "./localconfig/mnemonic.txt",
+  "helper": "0x780EcF3a794E9eb2b8C9baA6d8C4Ff36EFba770C"
+}
