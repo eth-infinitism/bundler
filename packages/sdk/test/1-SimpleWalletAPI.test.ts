@@ -12,9 +12,11 @@ import { ethers } from 'hardhat'
 import { SimpleWalletAPI } from '../src'
 import { SampleRecipient, SampleRecipient__factory } from '@erc4337/common/dist/src/types'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
+import { rethrowError } from '@erc4337/common'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
+
 describe('SimpleWalletAPI', () => {
   let owner: Wallet
   let api: SimpleWalletAPI
@@ -23,6 +25,7 @@ describe('SimpleWalletAPI', () => {
   let recipient: SampleRecipient
   let walletAddress: string
   let walletDeployed = false
+
   before('init', async () => {
     entryPoint = await new EntryPoint__factory(signer).deploy(1, 1)
     beneficiary = await signer.getAddress()
@@ -57,6 +60,7 @@ describe('SimpleWalletAPI', () => {
     const epHash = await entryPoint.getRequestId(userOp)
     expect(hash).to.equal(epHash)
   })
+
   it('should deploy to counterfactual address', async () => {
     walletAddress = await api.getWalletAddress()
     expect(await provider.getCode(walletAddress).then(code => code.length)).to.equal(2)
@@ -75,6 +79,37 @@ describe('SimpleWalletAPI', () => {
     expect(await provider.getCode(walletAddress).then(code => code.length)).to.greaterThan(1000)
     walletDeployed = true
   })
+
+  context('#rethrowError', () => {
+    let userOp: UserOperationStruct
+    before(async () => {
+      userOp = await api.createUnsignedUserOp({
+        target: ethers.constants.AddressZero,
+        data: '0x'
+      })
+      // expect FailedOp "invalid signature length"
+      userOp.signature = '0x11'
+    })
+    it('should parse FaileOp error', async () => {
+      await expect(
+        entryPoint.handleOps([userOp], beneficiary)
+          .catch(rethrowError))
+        .to.revertedWith('FailedOp: ECDSA: invalid signature length')
+    })
+    it('should parse Error(message) error', async () => {
+      await expect(
+        entryPoint.addStake(0)
+      ).to.revertedWith('unstake delay too low')
+    })
+    it('should parse revert with no description', async () => {
+      // use wrong signature for contract..
+      const wrongContract = entryPoint.attach(recipient.address)
+      await expect(
+        wrongContract.addStake(0)
+      ).to.revertedWithoutReason()
+    })
+  })
+
   it('should use wallet API after creation without a factory', async function () {
     if (!walletDeployed) {
       this.skip()

@@ -40,9 +40,9 @@ export class HttpRpcClient {
   private async printUserOperation ([userOp1, entryPointAddress]: [UserOperationStruct, string]): Promise<void> {
     const userOp = await resolveProperties(userOp1)
     console.log('sending eth_sendUserOperation', {
-      ...userOp,
-      initCode: (userOp.initCode ?? '').length,
-      callData: (userOp.callData ?? '').length
+      ...userOp
+      // initCode: (userOp.initCode ?? '').length,
+      // callData: (userOp.callData ?? '').length
     }, entryPointAddress)
   }
 }

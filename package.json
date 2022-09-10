@@ -13,7 +13,8 @@
     ]
   },
   "scripts": {
-    "bundler": "lerna run bundler",
+    "bundler": "lerna run --no-prefix --stream bundler",
+
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
     "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix",

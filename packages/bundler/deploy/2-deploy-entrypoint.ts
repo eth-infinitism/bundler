@@ -7,27 +7,23 @@ const PAYMASTER_STAKE = ethers.utils.parseEther('1')
 
 // deploy entrypoint - but only on debug network..
 const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-
-  const { deploy } = hre.deployments
-
-  //first verify if already deployed:
+  // first verify if already deployed:
   try {
     await hre.deployments.deploy(
       'EntryPoint', {
         from: ethers.constants.AddressZero,
         args: [PAYMASTER_STAKE, UNSTAKE_DELAY_SEC],
         deterministicDeployment: true,
-        log: true,
+        log: true
       })
 
-    //already deployed. do nothing.
+    // already deployed. do nothing.
     return
   } catch (e) {
   }
 
-
   const net = await hre.ethers.provider.getNetwork()
-  if (net.chainId != 1337 && net.chainId != 31337) {
+  if (net.chainId !== 1337 && net.chainId !== 31337) {
     console.log('NOT deploying EntryPoint. use pre-deployed entrypoint')
     return
   }
@@ -42,7 +38,7 @@ const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
       args: [PAYMASTER_STAKE, UNSTAKE_DELAY_SEC],
       gasLimit: 4e6,
       deterministicDeployment: true,
-      log: true,
+      log: true
     })
 }
 

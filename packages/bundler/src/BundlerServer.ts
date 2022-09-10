@@ -89,10 +89,10 @@ export class BundlerServer {
         result
       })
     } catch (err: any) {
-      console.log('ex err=', err)
       const error = {
-        message: err.error?.reason ?? err.error?.message ?? err,
-        code: -32000
+        message: err.message,
+        data: err.data,
+        code: err.code
       }
       console.log('failed: ', method, JSON.stringify(error))
       res.send({

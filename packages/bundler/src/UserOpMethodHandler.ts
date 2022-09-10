@@ -4,7 +4,8 @@ import { JsonRpcSigner, Provider } from '@ethersproject/providers'
 import { BundlerConfig } from './BundlerConfig'
 import { BundlerHelper, EntryPoint } from './types'
 import { UserOperationStruct } from './types/contracts/BundlerHelper'
-import { arrayify, defaultAbiCoder, hexlify, hexValue, keccak256, resolveProperties } from 'ethers/lib/utils'
+import { hexValue, resolveProperties } from 'ethers/lib/utils'
+import { rethrowError } from '@erc4337/common'
 
 export class UserOpMethodHandler {
   constructor (
@@ -45,20 +46,13 @@ export class UserOpMethodHandler {
     // TODO: this is only printing debug info, remove once not necessary
     // await this.printGasEstimationDebugInfo(userOp, beneficiary)
 
-    let estimated: BigNumber
-    let factored: BigNumber
-    try {
-      // TODO: this is not used and 0 passed instead as transaction does not pay enough
-      ({
-        estimated,
-        factored
-      } = await this.estimateGasForHelperCall(userOp, beneficiary))
-    } catch (error: any) {
-      // console.log('estimateGasForHelperCall failed:', error)
-      throw error
-    }
+    // TODO: this is not used and 0 passed instead as transaction does not pay enough
+    const {
+      estimated,
+      factored
+    } = await this.estimateGasForHelperCall(userOp, beneficiary)
     // TODO: estimate gas and pass gas limit that makes sense
-    await this.bundlerHelper.handleOps(factored, this.config.entryPoint, [userOp], beneficiary, { gasLimit: estimated.mul(3) })
+    await this.bundlerHelper.handleOps(factored, this.config.entryPoint, [userOp], beneficiary, { gasLimit: estimated }).catch(rethrowError)
     return requestId
   }
 
@@ -66,40 +60,13 @@ export class UserOpMethodHandler {
     estimated: BigNumber
     factored: BigNumber
   }> {
-    try {
-      const estimateGasRet = await this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
-      const estimated = estimateGasRet.mul(64).div(63)
-      const factored = estimated.mul(Math.round(parseFloat(this.config.gasFactor) * 100000)).div(100000)
-      return {
-        estimated,
-        factored
-      }
-    } catch (e: any) {
-      const match = e.message?.toString().match(/(FailedOp\(.*?\))/)
-      if (match != null) {
-        const e1 = new Error(match[1])
-        // e1.stack = e.stack.replace(/.*/, match[1])
-        throw e1
-      } else {
-        const FailedOpErrorSig = keccak256(hexlify(Buffer.from('FailedOp(uint256,address,string)'))).slice(0, 10)// = '0x00fa072b'
-        if (e?.error?.data != null && e.error.data.toString().startsWith(FailedOpErrorSig)) {
-          const [index, paymaster, message] = defaultAbiCoder.decode(['uint256', 'address', 'string'], '0x' + e.error.data.slice(10))
-          throw Error(`FailedOp(${index}, ${paymaster}, ${message})`)
-        }
-        //try callStatic. might get nicer output:
-        const err = await this.bundlerHelper.callStatic.handleOps(0, this.config.entryPoint, [userOp], beneficiary).then(res => {
-          return Error('expected callStatic to fail...')
-        }, err => {
-          return err
-        })
-        console.log('throwing unmodified e')
-        throw e
-      }
-
-      // throw e
-      // //callstatic fails with nicer errors...
-      // await this.bundlerHelper.callStatic.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
-      // throw new Error('unexpected: if estimateGas fails, callStatic must also fail.')
+    const estimateGasRet = await this.bundlerHelper.estimateGas.handleOps(0, this.config.entryPoint, [userOp], beneficiary)
+      .catch(rethrowError)
+    const estimated = estimateGasRet.mul(64).div(63)
+    const factored = estimated.mul(Math.round(parseFloat(this.config.gasFactor) * 100000)).div(100000)
+    return {
+      estimated,
+      factored
     }
   }
 

@@ -39,7 +39,7 @@ describe('UserOpMethodHandler', function () {
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
     bundleHelper = await bundleHelperFactory.deploy()
-    console.log('bundler from=', await    bundleHelper.signer.getAddress())
+    console.log('bundler from=', await bundleHelper.signer.getAddress())
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
 
@@ -133,8 +133,8 @@ describe('UserOpMethodHandler', function () {
 
       try {
         await methodHandler.sendUserOperation(op, entryPoint.address)
-      throw Error('expected fail')
-      }catch (e:any) {
+        throw Error('expected fail')
+      } catch (e: any) {
         expect(e.message).to.match(/FailedOp.*wallet didn't pay prefund/)
       }
     })

@@ -1,15 +1,10 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { ethers } from 'hardhat'
 import { parseEther } from 'ethers/lib/utils'
-import deployEP from './2-deploy-entrypoint'
 
 // deploy entrypoint - but only on debug network..
 const fundsigner: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-
-  const { deploy } = hre.deployments
-
-  //on geth, fund the default "hardhat node" account.
+  // on geth, fund the default "hardhat node" account.
 
   const provider = hre.ethers.provider
   const signer = provider.getSigner()
