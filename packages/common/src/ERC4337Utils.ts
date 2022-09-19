@@ -63,8 +63,8 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
     { type: 'uint256', val: op.maxPriorityFeePerGas },
     { type: 'bytes', val: op.paymasterAndData }
   ]
-  console.log('hard-coded typedvalues', typevalues)
-  console.log('from ABI typedValues', typedValues)
+  // console.log('hard-coded typedvalues', typevalues)
+  // console.log('from ABI typedValues', typedValues)
   if (!forSignature) {
     // for the purpose of calculating gas cost, also hash signature
     typevalues.push({

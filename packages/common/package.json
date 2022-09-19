@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "clear": "rm -rf dist artifacts cache src/types",
-    "hardhat-compile": "yarn clear && hardhat compile",
+    "hardhat-compile": "hardhat compile",
     "hardhat-deploy": "hardhat deploy",
     "hardhat-node": "hardhat node",
     "lint-fix": "eslint -f unix . --fix",

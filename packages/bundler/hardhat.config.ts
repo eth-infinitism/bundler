@@ -10,8 +10,7 @@ import { NetworkUserConfig } from 'hardhat/src/types/config'
 const mnemonicFileName = process.env.MNEMONIC_FILE
 let mnemonic = 'test '.repeat(11) + 'junk'
 if (mnemonicFileName != null && fs.existsSync(mnemonicFileName)) {
-  console.warn('Hardhat does not seem to ')
-  mnemonic = fs.readFileSync(mnemonicFileName, 'ascii').replace(/(\r\n|\n|\r)/gm, '')
+  mnemonic = fs.readFileSync(mnemonicFileName, 'ascii').trim()
 }
 
 const infuraUrl = (name: string): string => `https://${name}.infura.io/v3/${process.env.INFURA_ID}`

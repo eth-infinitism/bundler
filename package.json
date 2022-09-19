@@ -13,8 +13,8 @@
     ]
   },
   "scripts": {
-    "bundler": "lerna run --no-prefix --stream bundler",
-
+    "bundler": "lerna run --no-prefix --stream bundler --",
+    "runop": "lerna run --no-prefix --stream runop --",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
     "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix",
@@ -26,7 +26,9 @@
     "lerna-tsc": "lerna run tsc",
     "lerna-watch-tsc": "lerna run --parallel watch-tsc",
     "lint-fix": "lerna run lint-fix --parallel",
-    "preprocess": "lerna run hardhat-compile && yarn lerna-tsc"
+    "clear": "lerna run clear",
+    "hardhat-compile": "lerna run hardhat-compile",
+    "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.33.0",
