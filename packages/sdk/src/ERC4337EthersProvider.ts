@@ -42,7 +42,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     return this.signer
   }
 
-  async estimateGas(transaction: Deferrable<TransactionRequest>): Promise<BigNumber> {
+  async estimateGas (transaction: Deferrable<TransactionRequest>): Promise<BigNumber> {
     const resolvedTransaction = await this._getTransactionRequest(transaction)
     const userOp = await resolveProperties(
       await this.smartWalletAPI.createUnsignedUserOp({
@@ -51,11 +51,13 @@ export class ERC4337EthersProvider extends BaseProvider {
         value: resolvedTransaction.value,
         gasLimit: resolvedTransaction.gasLimit,
         maxFeePerGas: resolvedTransaction.maxFeePerGas,
-        maxPriorityFeePerGas: resolvedTransaction.maxPriorityFeePerGas,
+        maxPriorityFeePerGas: resolvedTransaction.maxPriorityFeePerGas
       })
     )
 
-    return BigNumber.from(userOp.callGasLimit).add(BigNumber.from(userOp.verificationGasLimit))
+    return BigNumber.from(userOp.callGasLimit)
+      .add(BigNumber.from(userOp.verificationGasLimit))
+      . add(BigNumber.from(userOp.preVerificationGas))
   }
 
   async perform (method: string, params: any): Promise<any> {
