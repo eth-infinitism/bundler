@@ -15,7 +15,8 @@ contract SampleRecipient {
         emit Sender(tx.origin, msg.sender, message);
     }
 
-    function reverting() public pure {
+    function reverting() public {
+        (this); // make it non-pure..
         revert( "test revert");
     }
 }
