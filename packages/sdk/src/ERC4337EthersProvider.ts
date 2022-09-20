@@ -1,7 +1,7 @@
-import { BaseProvider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
+import { BaseProvider, TransactionReceipt, TransactionResponse, TransactionRequest } from '@ethersproject/providers'
 import { BigNumber, Signer } from 'ethers'
 import { Network } from '@ethersproject/networks'
-import { hexValue, resolveProperties } from 'ethers/lib/utils'
+import { Deferrable, hexValue, resolveProperties } from 'ethers/lib/utils'
 
 import { ClientConfig } from './ClientConfig'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
@@ -40,6 +40,22 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   getSigner (): ERC4337EthersSigner {
     return this.signer
+  }
+
+  async estimateGas(transaction: Deferrable<TransactionRequest>): Promise<BigNumber> {
+    const resolvedTransaction = await this._getTransactionRequest(transaction)
+    const userOp = await resolveProperties(
+      await this.smartWalletAPI.createUnsignedUserOp({
+        target: resolvedTransaction.to ?? '',
+        data: resolvedTransaction.data?.toString() ?? '',
+        value: resolvedTransaction.value,
+        gasLimit: resolvedTransaction.gasLimit,
+        maxFeePerGas: resolvedTransaction.maxFeePerGas,
+        maxPriorityFeePerGas: resolvedTransaction.maxPriorityFeePerGas,
+      })
+    )
+
+    return BigNumber.from(userOp.callGasLimit).add(BigNumber.from(userOp.verificationGasLimit))
   }
 
   async perform (method: string, params: any): Promise<any> {
