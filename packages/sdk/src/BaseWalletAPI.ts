@@ -230,10 +230,12 @@ export abstract class BaseWalletAPI {
       maxPriorityFeePerGas
     }
 
-    partialUserOp.paymasterAndData = this.paymasterAPI == null ? '0x' : await this.paymasterAPI.getPaymasterAndData(partialUserOp)
+    partialUserOp.preVerificationGas = this.getPreVerificationGas(partialUserOp)
+
+    partialUserOp.paymasterAndData =
+      this.paymasterAPI == null ? '0x' : await this.paymasterAPI.getPaymasterAndData(partialUserOp)
     return {
       ...partialUserOp,
-      preVerificationGas: this.getPreVerificationGas(partialUserOp),
       signature: ''
     }
   }
