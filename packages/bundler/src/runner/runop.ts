@@ -14,7 +14,7 @@ import { erc4337RuntimeVersion } from '@erc4337/common'
 import fs from 'fs'
 import { HttpRpcClient } from '@account-abstraction/sdk/dist/src/HttpRpcClient'
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
-import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
+// import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
 
 const ENTRY_POINT = '0x674DF207855CE0d9eaB7B000FbBE997a2451d24f'
 
@@ -46,7 +46,7 @@ class Runner {
   async init (): Promise<this> {
     const net = await this.provider.getNetwork()
     const chainId = net.chainId
-    const dep = new DeterministicDeployer(this.provider)
+    // const dep = new DeterministicDeployer(this.provider)
     // const walletDeployer = await dep.deterministicDeploy(SimpleWalletDeployer__factory.bytecode)
     const walletDeployer = await new SimpleWalletDeployer__factory(this.provider.getSigner()).deploy()
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)

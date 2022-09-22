@@ -2,7 +2,7 @@ import 'source-map-support/register'
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { keccak256, parseEther } from 'ethers/lib/utils'
+import { parseEther } from 'ethers/lib/utils'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
@@ -16,8 +16,8 @@ import {
 
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
 import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
-import { BigNumber, Wallet } from 'ethers'
-import { parseName } from 'hardhat/utils/contract-names'
+import { Wallet } from 'ethers'
+import { postExecutionDump } from '@erc4337/common/dist/src/postExecCheck'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -59,8 +59,7 @@ describe('UserOpMethodHandler', function () {
       provider,
       signer,
       config,
-      entryPoint,
-      bundleHelper
+      entryPoint
     )
   })
 
@@ -173,15 +172,7 @@ describe('UserOpMethodHandler', function () {
         //   }), entryPoint.address)
         // }
 
-        const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(id))
-        const transactionReceipt = await req[0].getTransactionReceipt()
-
-        const {
-          actualGasPrice,
-          actualGasCost
-        } = req[0].args
-        const paidGas = actualGasCost.div(actualGasPrice).toNumber()
-        const gasUsed = transactionReceipt.gasUsed.toNumber()
+        await postExecutionDump(entryPoint, id)
       })
       it('should reject if doesn\'t pay enough', async () => {
         const api = new SimpleWalletAPI({

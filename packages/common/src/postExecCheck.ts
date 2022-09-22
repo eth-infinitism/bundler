@@ -3,9 +3,9 @@ import { resolveProperties } from 'ethers/lib/utils'
 import { NotPromise } from './ERC4337Utils'
 import { EntryPoint } from '@account-abstraction/contracts'
 
-export async function postExecutionDump (entryPoint: EntryPoint, requestId: string) {
-  const {gasPaid, gasUsed, success, userOp} = await postExecutionCheck(entryPoint, requestId)
-  //// debug dump:
+export async function postExecutionDump (entryPoint: EntryPoint, requestId: string): Promise<void> {
+  const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, requestId)
+  /// / debug dump:
   console.log('==== used=', gasUsed, 'paid', gasPaid, 'over=', gasPaid - gasUsed,
     'callLen=', userOp.callData.length, 'initLen=', userOp.initCode.length, success ? 'success' : 'failed')
 }
@@ -18,10 +18,10 @@ export async function postExecutionDump (entryPoint: EntryPoint, requestId: stri
  * @param entryPoint
  * @param requestId
  */
-export async function postExecutionCheck(entryPoint: EntryPoint, requestId: string): Promise<{
-  gasUsed:number,
-  gasPaid: number,
-  success: boolean,
+export async function postExecutionCheck (entryPoint: EntryPoint, requestId: string): Promise<{
+  gasUsed: number
+  gasPaid: number
+  success: boolean
   userOp: NotPromise<UserOperationStruct>
 }> {
   const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId))
@@ -44,4 +44,3 @@ export async function postExecutionCheck(entryPoint: EntryPoint, requestId: stri
     userOp
   }
 }
-

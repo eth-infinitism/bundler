@@ -14,7 +14,7 @@ export class UserOpMethodHandler {
     readonly provider: Provider,
     readonly signer: Wallet | JsonRpcSigner,
     readonly config: BundlerConfig,
-    readonly entryPoint: EntryPoint,
+    readonly entryPoint: EntryPoint
     // readonly bundlerHelper: BundlerHelper
   ) {
   }
@@ -60,5 +60,4 @@ export class UserOpMethodHandler {
     await postExecutionDump(this.entryPoint, requestId)
     return requestId
   }
-
 }

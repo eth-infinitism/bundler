@@ -18,6 +18,8 @@ export interface GasOverheads {
    */
   perUserOpWord: number
 
+  // perCallDataWord: number
+
   /**
    * zero byte cost, for calldata gas cost calculations
    */
