@@ -40,7 +40,7 @@ services:
   bundler:
     container_name:   bundler
     ports: [ '8080:80' ] #bypass https-portal
-    image: alexforshtat/erc4337bundler:0.1.0
+    image: accountabstraction/bundler:0.2.0
     restart: on-failure
 
     volumes:
