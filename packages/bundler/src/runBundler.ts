@@ -122,7 +122,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     wallet,
     config,
     entryPoint,
-    bundlerHelper
   )
 
   const bundlerServer = new BundlerServer(

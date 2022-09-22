@@ -1,7 +1,6 @@
-import { UserOperationStruct } from '@account-abstraction/bundler/dist/src/types/contracts/BundlerHelper'
 import { resolveProperties } from 'ethers/lib/utils'
 import { NotPromise } from './ERC4337Utils'
-import { EntryPoint } from '@account-abstraction/contracts'
+import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
 
 export async function postExecutionDump (entryPoint: EntryPoint, requestId: string): Promise<void> {
   const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, requestId)
