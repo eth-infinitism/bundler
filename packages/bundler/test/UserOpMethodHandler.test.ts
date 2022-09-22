@@ -2,7 +2,7 @@ import 'source-map-support/register'
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { parseEther } from 'ethers/lib/utils'
+import { keccak256, parseEther } from 'ethers/lib/utils'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
@@ -16,7 +16,8 @@ import {
 
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
 import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
-import { Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
+import { parseName } from 'hardhat/utils/contract-names'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -77,14 +78,12 @@ describe('UserOpMethodHandler', function () {
     before(async function () {
       walletDeployerAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
 
-      const smartWalletAPI = new SimpleWalletAPI(
+      const smartWalletAPI = new SimpleWalletAPI({
         provider,
-        entryPoint.address,
-        undefined,
-        walletSigner,
-        walletDeployerAddress,
-        0
-      )
+        entryPointAddress: entryPoint.address,
+        owner: walletSigner,
+        factoryAddress: walletDeployerAddress
+      })
       walletAddress = await smartWalletAPI.getWalletAddress()
       await signer.sendTransaction({
         to: walletAddress,
@@ -118,14 +117,13 @@ describe('UserOpMethodHandler', function () {
     })
 
     it('should expose FailedOp errors as text messages', async () => {
-      const smartWalletAPI = new SimpleWalletAPI(
+      const smartWalletAPI = new SimpleWalletAPI({
         provider,
-        entryPoint.address,
-        undefined,
-        walletSigner,
-        walletDeployerAddress,
-        1
-      )
+        entryPointAddress: entryPoint.address,
+        owner: walletSigner,
+        factoryAddress: walletDeployerAddress,
+        index: 1
+      })
       const op = await smartWalletAPI.createSignedUserOp({
         data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
         target: sampleRecipient.address
@@ -137,6 +135,73 @@ describe('UserOpMethodHandler', function () {
       } catch (e: any) {
         expect(e.message).to.match(/FailedOp.*wallet didn't pay prefund/)
       }
+    })
+
+    describe('validate get paid enough', function () {
+      it('should pay just enough', async () => {
+        const api = new SimpleWalletAPI({
+          provider,
+          entryPointAddress: entryPoint.address,
+          walletAddress,
+          owner: walletSigner
+        })
+        const op = await api.createSignedUserOp({
+          data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
+          target: sampleRecipient.address,
+          gasLimit: 1e6
+        })
+        const id = await methodHandler.sendUserOperation(op, entryPoint.address)
+
+        // {
+        //   console.log('wrong method')
+        //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
+        //     data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld + helloWorld + helloWorld + helloWorld + helloWorld]).padEnd(2000, '1'),
+        //     target: walletAddress,
+        //     gasLimit: 1e6
+        //
+        //   }), entryPoint.address)
+        // }
+        //
+        // {
+        //   console.log('self nonce')
+        //   const data = keccak256(Buffer.from('nonce()')).slice(0, 10)
+        //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
+        //     data: data,
+        //     target: walletAddress,
+        //     gasLimit: 1e6
+        //
+        //   }), entryPoint.address)
+        // }
+
+        const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(id))
+        const transactionReceipt = await req[0].getTransactionReceipt()
+
+        const {
+          actualGasPrice,
+          actualGasCost
+        } = req[0].args
+        const paidGas = actualGasCost.div(actualGasPrice).toNumber()
+        const gasUsed = transactionReceipt.gasUsed.toNumber()
+      })
+      it('should reject if doesn\'t pay enough', async () => {
+        const api = new SimpleWalletAPI({
+          provider,
+          entryPointAddress: entryPoint.address,
+          walletAddress,
+          owner: walletSigner,
+          overheads: { perUserOp: 0 }
+        })
+        const op = await api.createSignedUserOp({
+          data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
+          target: sampleRecipient.address
+        })
+        try {
+          await methodHandler.sendUserOperation(op, entryPoint.address)
+          throw new Error('expected to revert')
+        } catch (e: any) {
+          expect(e.message).to.match(/preVerificationGas too low/)
+        }
+      })
     })
   })
 })

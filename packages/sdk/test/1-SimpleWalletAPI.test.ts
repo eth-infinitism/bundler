@@ -33,13 +33,12 @@ describe('SimpleWalletAPI', () => {
     recipient = await new SampleRecipient__factory(signer).deploy()
     owner = Wallet.createRandom()
     const factoryAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
-    api = new SimpleWalletAPI(
+    api = new SimpleWalletAPI({
       provider,
-      entryPoint.address,
-      undefined,
+      entryPointAddress: entryPoint.address,
       owner,
       factoryAddress
-    )
+    })
   })
 
   it('#getRequestId should match entryPoint.getRequestId', async function () {
@@ -90,7 +89,7 @@ describe('SimpleWalletAPI', () => {
       // expect FailedOp "invalid signature length"
       userOp.signature = '0x11'
     })
-    it('should parse FaileOp error', async () => {
+    it('should parse FailedOp error', async () => {
       await expect(
         entryPoint.handleOps([userOp], beneficiary)
           .catch(rethrowError))
@@ -114,7 +113,12 @@ describe('SimpleWalletAPI', () => {
     if (!walletDeployed) {
       this.skip()
     }
-    const api1 = new SimpleWalletAPI(provider, entryPoint.address, walletAddress, owner)
+    const api1 = new SimpleWalletAPI({
+      provider,
+      entryPointAddress: entryPoint.address,
+      walletAddress,
+      owner
+    })
     const op1 = await api1.createSignedUserOp({
       target: recipient.address,
       data: recipient.interface.encodeFunctionData('something', ['world'])

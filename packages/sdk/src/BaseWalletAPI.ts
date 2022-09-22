@@ -8,7 +8,16 @@ import {
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getRequestId } from '@erc4337/common'
+import { getRequestId, NotPromise, packUserOp } from '@erc4337/common'
+import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
+
+export interface BaseApiParams {
+  provider: Provider
+  entryPointAddress: string
+  walletAddress?: string
+  overheads?: Partial<GasOverheads>
+  paymasterAPI?: PaymasterAPI
+}
 
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
@@ -29,25 +38,25 @@ export abstract class BaseWalletAPI {
   // entryPoint connected to "zero" address. allowed to make static calls (e.g. to getSenderAddress)
   private readonly entryPointView: EntryPoint
 
-  /**
-   * subclass MAY initialize to support custom paymaster
-   */
+  provider: Provider
+  overheads?: Partial<GasOverheads>
+  entryPointAddress: string
+  walletAddress?: string
   paymasterAPI?: PaymasterAPI
 
   /**
    * base constructor.
    * subclass SHOULD add parameters that define the owner (signer) of this wallet
-   * @param provider - read-only provider for view calls
-   * @param entryPointAddress - the entryPoint to send requests through (used to calculate the request-id, and for gas estimations)
-   * @param walletAddress. may be empty for new wallet (using factory to determine address)
    */
-  protected constructor (
-    readonly provider: Provider,
-    readonly entryPointAddress: string,
-    readonly walletAddress?: string
-  ) {
+  protected constructor (params: BaseApiParams) {
+    this.provider = params.provider
+    this.overheads = params.overheads
+    this.entryPointAddress = params.entryPointAddress
+    this.walletAddress = params.walletAddress
+    this.paymasterAPI = params.paymasterAPI
+
     // factory "connect" define the contract address. the contract "connect" defines the "from" address.
-    this.entryPointView = EntryPoint__factory.connect(entryPointAddress, provider).connect(ethers.constants.AddressZero)
+    this.entryPointView = EntryPoint__factory.connect(params.entryPointAddress, params.provider).connect(ethers.constants.AddressZero)
   }
 
   async init (): Promise<this> {
@@ -132,10 +141,15 @@ export abstract class BaseWalletAPI {
    * actual overhead depends on the expected bundle size
    */
   async getPreVerificationGas (userOp: Partial<UserOperationStruct>): Promise<number> {
-    const bundleSize = 1
-    const cost = 21000
-    // TODO: calculate calldata cost
-    return Math.floor(cost / bundleSize)
+    const p = await resolveProperties(userOp)
+    return calcPreVerificationGas(p, this.overheads)
+  }
+
+  /**
+   * ABI-encode a user operation. used for calldata cost estimation
+   */
+  packUserOp (userOp: NotPromise<UserOperationStruct>): string {
+    return packUserOp(userOp, false)
   }
 
   async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
@@ -202,6 +216,7 @@ export abstract class BaseWalletAPI {
     if (initCode.length > 2) {
       // add creation to required verification gas
       const initGas = await this.entryPointView.estimateGas.getSenderAddress(initCode)
+
       verificationGasLimit = verificationGasLimit.add(initGas)
     }
 

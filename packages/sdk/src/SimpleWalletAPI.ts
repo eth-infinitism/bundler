@@ -7,8 +7,20 @@ import {
 
 import { arrayify, hexConcat } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
-import { BaseWalletAPI } from './BaseWalletAPI'
-import { Provider } from '@ethersproject/providers'
+import { BaseApiParams, BaseWalletAPI } from './BaseWalletAPI'
+
+/**
+ * constructor params, added no top of base params:
+ * @param owner the signer object for the wallet owner
+ * @param factoryAddress address of contract "factory" to deploy new contracts (not needed if wallet already deployed)
+ * @param index nonce value used when creating multiple wallets for the same owner
+ */
+export interface SimpleWalletApiParams extends BaseApiParams {
+  owner: Signer
+  factoryAddress?: string
+  index?: number
+
+}
 
 /**
  * An implementation of the BaseWalletAPI using the SimpleWallet contract.
@@ -18,35 +30,24 @@ import { Provider } from '@ethersproject/providers'
  * - execute method is "execFromEntryPoint()"
  */
 export class SimpleWalletAPI extends BaseWalletAPI {
-  /**
-   * base constructor.
-   * subclass SHOULD add parameters that define the owner (signer) of this wallet
-   * @param provider - read-only provider for view calls
-   * @param entryPointAddress - the entryPoint to send requests through (used to calculate the request-id, and for gas estimations)
-   * @param walletAddress optional wallet address, if connecting to an existing contract.
-   * @param owner the signer object for the wallet owner
-   * @param factoryAddress address of contract "factory" to deploy new contracts
-   * @param index nonce value used when creating multiple wallets for the same owner
-   */
-  constructor (
-    provider: Provider,
-    entryPointAddress: string,
-    walletAddress: string | undefined,
-    readonly owner: Signer,
-    readonly factoryAddress?: string,
-    // index is "salt" used to distinguish multiple wallets of the same signer.
-    readonly index = 0
-  ) {
-    super(provider, entryPointAddress, walletAddress)
-  }
+  factoryAddress?: string
+  owner: Signer
+  index: number
 
   /**
    * our wallet contract.
-   * should support the "execFromSingleton" and "nonce" methods
+   * should support the "execFromEntryPoint" and "nonce" methods
    */
   walletContract?: SimpleWallet
 
   factory?: SimpleWalletDeployer
+
+  constructor (params: SimpleWalletApiParams) {
+    super(params)
+    this.factoryAddress = params.factoryAddress
+    this.owner = params.owner
+    this.index = params.index ?? 0
+  }
 
   async _getWalletContract (): Promise<SimpleWallet> {
     if (this.walletContract == null) {
