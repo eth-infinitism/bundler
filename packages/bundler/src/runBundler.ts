@@ -92,6 +92,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
     .option('--show-stack-traces', 'Show stack traces.')
+    .option('--createMnemonic', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
@@ -99,6 +100,17 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   console.log('command-line arguments: ', program.opts())
 
   const config = resolveConfiguration(programOpts)
+  if (programOpts.createMnemonic != null) {
+    const mnemonicFile = config.mnemonic
+    console.log('Creating mnemonic in file', mnemonicFile)
+    if (fs.existsSync(mnemonicFile)) {
+      throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
+    }
+    const newMnemonic = Wallet.createRandom().mnemonic.phrase
+    fs.writeFileSync(mnemonicFile, newMnemonic)
+    console.log('creaed mnemonic file', mnemonicFile)
+    process.exit(1)
+  }
   const provider: BaseProvider =
     // eslint-disable-next-line
     config.network === 'hardhat' ? require('hardhat').ethers.provider :
@@ -113,15 +125,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   }
 
   const {
-    entryPoint,
-    bundlerHelper
+    entryPoint
+    // bundlerHelper
   } = await connectContracts(wallet, config.entryPoint, config.helper)
 
   const methodHandler = new UserOpMethodHandler(
     provider,
     wallet,
     config,
-    entryPoint,
+    entryPoint
   )
 
   const bundlerServer = new BundlerServer(

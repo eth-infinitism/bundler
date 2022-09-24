@@ -11,7 +11,7 @@ IMAGE=accountabstraction/bundler
 
 #build docker image of bundler
 #rebuild if there is a newer src file:
-find ./dbuild.sh ../../packages/*/src/ -type f -newer dist/bundler.js 2>&1 | grep -M2 . && {
+find ./dbuild.sh ../../packages/*/src/ -type f -newer dist/bundler.js 2>&1 | head -2 | grep  . && {
 	echo webpacking..
 	npx webpack
 }
