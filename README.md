@@ -11,11 +11,18 @@ A basic eip4337 "bundler"
 
 
 usage: 
-1. start hardhat-node or geth
-2. run `yarn run bundler --network localhost --mnemonic file` in another window.
+1. start hardhat-node with `yarn hardhat-node` or geth
+In another Window:
+2. deploy contracts with `yarn hardhat deploy --network localhost`
+3. run `yarn run bundler --network localhost --mnemonic file` 
   so it will listen on port 3000
-3. to run a simple test, do `yarn run runop --network localhost`
-  AA_URL=http://localhost:3000/rpc yarn runop --network goerli
-  ```
+4. to run a simple test, do `yarn run runop --deployDeployer --network localhost`
+   The runop script:
+   - deploys a wallet deployer (if not already there)
+   - creates a random signer (owner for wallet)
+   - determines the wallet address, and funds it
+   - sends a transaction (which also creates the wallet)
+   - sends another transaction, on this existing wallet
+   - (uses account[0] or mnemonic file for funding, and creating deployer if needed)
+```
 
-it should be able to mine the transaction

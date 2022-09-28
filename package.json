@@ -15,10 +15,11 @@
   "scripts": {
     "bundler": "lerna run --no-prefix --stream bundler --",
     "runop": "lerna run --no-prefix --stream runop --",
+    "runop-goerli": "yarn runop --network goerli --entryPoint \"0x1b98F08dB8F12392EAE339674e568fe29929bC47\"",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
-    "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix",
-    "hardhat-node": "lerna run hardhat-node --stream --no-prefix",
+    "hardhat-node": "lerna run hardhat-node --stream --no-prefix --",
+    "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix --",
     "lerna-clear": "lerna run clear",
     "lerna-lint": "lerna run lint --stream --parallel",
     "lerna-test": "lerna run hardhat-test --stream",

@@ -7,18 +7,31 @@ import { UserOperationStruct } from '@account-abstraction/contracts'
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider
 
+  initializing: Promise<void>
+
   constructor (
     readonly bundlerUrl: string,
     readonly entryPointAddress: string,
     readonly chainId: number
   ) {
     this.userOpJsonRpcProvider = new ethers.providers.JsonRpcProvider(this.bundlerUrl, {
-      name: 'Not actually connected to network, only talking to the Bundler!',
+      name: 'Connected bundler network',
       chainId
     })
+    this.initializing = this.validateChainId()
+  }
+
+  async validateChainId (): Promise<void> {
+    // validate chainId is in sync with expected chainid
+    const chain = await this.userOpJsonRpcProvider.send('eth_chainId', [])
+    const bundlerChain = parseInt(chain)
+    if (bundlerChain !== this.chainId) {
+      throw new Error(`bundler ${this.bundlerUrl} is on chainId ${bundlerChain}, but provider is on chainId ${this.chainId}`)
+    }
   }
 
   async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<any> {
+    await this.initializing
     const userOp = await resolveProperties(userOp1)
     const hexifiedUserOp: any =
       Object.keys(userOp)

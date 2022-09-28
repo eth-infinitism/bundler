@@ -99,7 +99,7 @@ export abstract class BaseWalletAPI {
     }
     const senderAddressCode = await this.provider.getCode(this.getWalletAddress())
     if (senderAddressCode.length > 2) {
-      console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
+      // console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
     } else {
       // console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)

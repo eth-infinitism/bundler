@@ -14,7 +14,7 @@ import { erc4337RuntimeVersion } from '@erc4337/common'
 import fs from 'fs'
 import { HttpRpcClient } from '@account-abstraction/sdk/dist/src/HttpRpcClient'
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
-// import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
+import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
 
 const ENTRY_POINT = '0x674DF207855CE0d9eaB7B000FbBE997a2451d24f'
 
@@ -43,17 +43,25 @@ class Runner {
     return await this.walletApi.getWalletAddress()
   }
 
-  async init (): Promise<this> {
+  async init (deploymentSigner?: Signer): Promise<this> {
     const net = await this.provider.getNetwork()
     const chainId = net.chainId
-    // const dep = new DeterministicDeployer(this.provider)
-    // const walletDeployer = await dep.deterministicDeploy(SimpleWalletDeployer__factory.bytecode)
-    const walletDeployer = await new SimpleWalletDeployer__factory(this.provider.getSigner()).deploy()
+    const dep = new DeterministicDeployer(this.provider)
+    const walletDeployer = await dep.getDeterministicDeployAddress(SimpleWalletDeployer__factory.bytecode)
+    // const walletDeployer = await new SimpleWalletDeployer__factory(this.provider.getSigner()).deploy().then(d=>d.address)
+    if (!await dep.isContractDeployed(walletDeployer)) {
+      if (deploymentSigner == null) {
+        console.log(`WalletDeployer not deployed at ${walletDeployer}. run with --deployDeployer`)
+        process.exit(1)
+      }
+      const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
+      await dep1.deterministicDeploy(SimpleWalletDeployer__factory.bytecode)
+    }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
     this.walletApi = new SimpleWalletAPI({
       provider: this.provider,
       entryPointAddress: this.entryPointAddress,
-      factoryAddress: walletDeployer.address,
+      factoryAddress: walletDeployer,
       owner: this.walletOwner,
       index: this.index,
       overheads: {
@@ -82,7 +90,7 @@ class Runner {
     try {
       await this.bundlerProvider.sendUserOpToBundler(userOp)
     } catch (e: any) {
-      console.log(this.parseExpectedGas(e))
+      throw this.parseExpectedGas(e)
     }
   }
 }
@@ -94,14 +102,27 @@ async function main (): Promise<void> {
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account (to fund wallet)')
     .option('--bundlerUrl <url>', 'bundler URL', 'http://localhost:3000/rpc')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract', ENTRY_POINT)
+    .option('--deployDeployer', 'Deploy the "wallet deployer" on this network (default for testnet)')
     .option('--show-stack-traces', 'Show stack traces.')
 
   const opts = program.parse().opts()
-  const provider = getDefaultProvider('http://localhost:8545') as JsonRpcProvider
-  const signer = opts.mnemonic == null ? provider.getSigner() : Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim())
+  const provider = getDefaultProvider(opts.network) as JsonRpcProvider
+  let signer: Signer
+  const deployDeployer: boolean = opts.deployDeployer
+  if (opts.mnemonic != null) {
+    signer = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim())
+  } else {
+    try {
+      // for hardhat/node, use account[0]
+      signer = provider.getSigner()
+      // deployDeployer = true
+    } catch (e) {
+      throw new Error('must specify --mnemonic')
+    }
+  }
   const walletOwner = new Wallet('0x'.padEnd(66, '1'))
 
-  const client = await new Runner(provider, opts.bundlerUrl, walletOwner).init()
+  const client = await new Runner(provider, opts.bundlerUrl, walletOwner).init(deployDeployer ? signer : undefined)
 
   const addr = await client.getAddress()
 

@@ -39,7 +39,7 @@ services:
 
   bundler:
     container_name:   bundler
-    ports: [ '8080:80' ] #bypass https-portal
+    ports: [ '3000:3000' ]
     image: accountabstraction/bundler:0.2.0
     restart: on-failure
 
@@ -48,12 +48,12 @@ services:
 
     environment:
       url: https://${HOST}/
-      port: 80
       LETSENCRYPT_HOST: $HOST
+      LETSENCRYPT_PORT: 3000
       VIRTUAL_HOST: $HOST
       VIRTUAL_PATH: /
       VIRTUAL_DEST: /
-    mem_limit: 100M
+    mem_limit: 300M
     logging:
       driver: "json-file"
       options:
