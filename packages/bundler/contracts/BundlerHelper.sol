@@ -11,11 +11,14 @@ contract BundlerHelper {
      * run handleop. require to get refund for the used gas.
      */
     function handleOps(uint expectedPaymentGas, EntryPoint ep, UserOperation[] calldata ops, address payable beneficiary)
-    public returns (uint paid, uint gasPrice){
+    public returns (uint paid, uint gasPrice, bytes memory errorReason){
         gasPrice = tx.gasprice;
         uint expectedPayment = expectedPaymentGas * gasPrice;
         uint preBalance = beneficiary.balance;
-        ep.handleOps(ops, beneficiary);
+        try ep.handleOps(ops, beneficiary) {
+        } catch (bytes memory err) {
+            errorReason = err;
+        }
         paid = beneficiary.balance - preBalance;
         if (paid < expectedPayment) {
             revert(string.concat(

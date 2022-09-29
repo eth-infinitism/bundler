@@ -1,5 +1,5 @@
 {
-  "name": "@erc4337/bundler",
+  "name": "@account-abstraction/bundler",
   "version": "0.2.0",
   "license": "MIT",
   "files": [
@@ -8,9 +8,13 @@
     "README.md"
   ],
   "scripts": {
-    "clear": "rm -rf dist artifacts src/types",
-    "hardhat-compile": "yarn clear && hardhat compile",
+    "runop": "ts-node ./src/runner/runop.ts",
+    "bundler": "ts-node ./src/exec.ts --config ./localconfig/bundler.config.json",
+    "clear": "rm -rf dist artifacts cache src/types",
+    "hardhat-compile": "hardhat compile",
+    "hardhat-node": "npx hardhat node --no-deploy",
     "hardhat-node-with-deploy": "npx hardhat node",
+    "hardhat-deploy": "hardhat deploy",
     "hardhat-test": "hardhat test --grep '/^((?!Flow).)*$/'",
     "hardhat-test-flows": "npx hardhat test --network localhost --grep \"Flow\"",
     "lint": "eslint -f unix .",

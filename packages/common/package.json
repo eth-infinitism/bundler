@@ -10,9 +10,7 @@
   ],
   "scripts": {
     "clear": "rm -rf dist artifacts cache src/types",
-    "hardhat-compile": "yarn clear && hardhat compile",
-    "hardhat-deploy": "hardhat deploy",
-    "hardhat-node": "hardhat node",
+    "hardhat-compile": "hardhat compile",
     "lint-fix": "eslint -f unix . --fix",
     "watch-tsc": "tsc -w --preserveWatchOutput",
     "tsc": "tsc"
