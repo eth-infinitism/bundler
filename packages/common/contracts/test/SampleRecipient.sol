@@ -16,6 +16,7 @@ contract SampleRecipient {
     }
 
     function reverting() public {
+        (this); // make it non-pure..
         revert( "test revert");
     }
 }

@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 // only to import the file in hardhat compilation
 import "@erc4337/common/contracts/test/SampleRecipient.sol";
 import "@erc4337/common/contracts/test/SingletonFactory.sol";
+import "@account-abstraction/contracts/samples/SimpleWalletDeployer.sol";
 
 contract Import {
     SampleRecipient sampleRecipient;

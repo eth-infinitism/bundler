@@ -22,6 +22,7 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
+export let showStackTraces = false
 export function resolveConfiguration (programOpts: any): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
 
@@ -90,12 +91,26 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+    .option('--show-stack-traces', 'Show stack traces.')
+    .option('--createMnemonic', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
+  showStackTraces = programOpts.showStackTraces
 
   console.log('command-line arguments: ', program.opts())
 
   const config = resolveConfiguration(programOpts)
+  if (programOpts.createMnemonic != null) {
+    const mnemonicFile = config.mnemonic
+    console.log('Creating mnemonic in file', mnemonicFile)
+    if (fs.existsSync(mnemonicFile)) {
+      throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
+    }
+    const newMnemonic = Wallet.createRandom().mnemonic.phrase
+    fs.writeFileSync(mnemonicFile, newMnemonic)
+    console.log('creaed mnemonic file', mnemonicFile)
+    process.exit(1)
+  }
   const provider: BaseProvider =
     // eslint-disable-next-line
     config.network === 'hardhat' ? require('hardhat').ethers.provider :
@@ -103,23 +118,22 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   let mnemonic: string
   let wallet: Wallet
   try {
-    mnemonic = fs.readFileSync(config.mnemonic, 'ascii')
+    mnemonic = fs.readFileSync(config.mnemonic, 'ascii').trim()
     wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
   } catch (e: any) {
     throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
   }
 
   const {
-    entryPoint,
-    bundlerHelper
+    entryPoint
+    // bundlerHelper
   } = await connectContracts(wallet, config.entryPoint, config.helper)
 
   const methodHandler = new UserOpMethodHandler(
     provider,
     wallet,
     config,
-    entryPoint,
-    bundlerHelper
+    entryPoint
   )
 
   const bundlerServer = new BundlerServer(
