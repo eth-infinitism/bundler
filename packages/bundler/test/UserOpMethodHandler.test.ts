@@ -17,7 +17,7 @@ import {
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
 import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
 import { Wallet } from 'ethers'
-import { postExecutionDump } from '@erc4337/common/dist/src/postExecCheck'
+import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'

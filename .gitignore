@@ -11,7 +11,7 @@ artifacts
 /.idea/modules.xml
 /packages/bundler/tsconfig.tsbuildinfo
 tsconfig.tsbuildinfo
-/packages/common/src/types/
+/packages/utils/src/types/
 /.idea/codeStyles/Project.xml
 /.idea/codeStyles/codeStyleConfig.xml
 /.idea/inspectionProfiles/Project_Default.xml

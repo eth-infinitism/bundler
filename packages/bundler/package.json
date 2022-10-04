@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
-    "@erc4337/common": "0.2.0",
+    "@account-abstraction/utils": "0.2.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@types/cors": "^2.8.12",

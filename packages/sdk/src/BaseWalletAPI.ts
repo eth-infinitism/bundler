@@ -8,7 +8,7 @@ import {
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getRequestId, NotPromise, packUserOp } from '@erc4337/common'
+import { getRequestId, NotPromise, packUserOp } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface BaseApiParams {
