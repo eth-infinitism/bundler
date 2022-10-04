@@ -17,6 +17,12 @@ function encode (typevalues: Array<{ type: string, val: any }>, forSignature: bo
   return defaultAbiCoder.encode(types, values)
 }
 
+/**
+ * pack the userOperation
+ * @param op
+ * @param forSignature "true" if the hash is needed to calculate the getRequestId()
+ *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
+ */
 export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = true): string {
   if (forSignature) {
     // lighter signature scheme (must match UserOperation#pack): do encode a zero-length signature, but strip afterwards the appended zero-length value
@@ -138,16 +144,21 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
   return encode(typevalues, forSignature)
 }
 
+/**
+ * calculate the requestId of a given userOperation.
+ * The requestId is a hash of all UserOperation fields, except the "signature" field.
+ * The entryPoint uses this value in the emitted UserOperationEvent.
+ * A wallet may use this value as the hash to sign (the SampleWallet uses this method)
+ * @param op
+ * @param entryPoint
+ * @param chainId
+ */
 export function getRequestId (op: NotPromise<UserOperationStruct>, entryPoint: string, chainId: number): string {
   const userOpHash = keccak256(packUserOp(op, true))
   const enc = defaultAbiCoder.encode(
     ['bytes32', 'address', 'uint256'],
     [userOpHash, entryPoint, chainId])
   return keccak256(enc)
-}
-
-export function getRequestIdForSigning (op: NotPromise<UserOperationStruct>, entryPoint: string, chainId: number): Uint8Array {
-  return arrayify(getRequestId(op, entryPoint, chainId))
 }
 
 const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
@@ -171,7 +182,7 @@ export function decodeErrorReason (error: string): DecodedError | undefined {
   console.log('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
-    return dump({ message })
+    return { message }
   } else if (error.startsWith(FailedOpSig)) {
     let [opIndex, paymaster, message] = defaultAbiCoder.decode(['uint256', 'address', 'string'], '0x' + error.substring(10))
     message = `FailedOp: ${message as string}`
@@ -180,11 +191,11 @@ export function decodeErrorReason (error: string): DecodedError | undefined {
     } else {
       paymaster = undefined
     }
-    return dump({
+    return {
       message,
       opIndex,
       paymaster
-    })
+    }
   }
 }
 
