@@ -1,5 +1,5 @@
 {
-  "name": "@erc4337/common",
+  "name": "@account-abstraction/utils",
   "version": "0.2.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
@@ -18,7 +18,6 @@
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
     "ethers": "^5.7.0"

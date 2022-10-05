@@ -9,7 +9,6 @@ A basic eip4337 "bundler"
   - eth_supportedEntryPoints to report the bundler's supported entry points
   - eth_chainId
 
-
 usage: 
 1. start hardhat-node with `yarn hardhat-node` or geth
 In another Window:
@@ -24,5 +23,12 @@ In another Window:
    - sends a transaction (which also creates the wallet)
    - sends another transaction, on this existing wallet
    - (uses account[0] or mnemonic file for funding, and creating deployer if needed)
-```
 
+## sdk
+
+SDK to create and send UserOperations
+see [SDK Readme](./packages/sdk/README.md)
+
+## utils
+
+internal utility methods/test contracts, used by other packages.

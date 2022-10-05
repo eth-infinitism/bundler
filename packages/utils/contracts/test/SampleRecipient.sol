@@ -15,8 +15,8 @@ contract SampleRecipient {
         emit Sender(tx.origin, msg.sender, message);
     }
 
+    // solhint-disable-next-line
     function reverting() public {
-        (this); // make it non-pure..
         revert( "test revert");
     }
 }

@@ -2,6 +2,9 @@ import { BigNumberish, Event } from 'ethers'
 import { TransactionReceipt } from '@ethersproject/providers'
 import { EntryPoint } from '@account-abstraction/contracts'
 import { defaultAbiCoder } from 'ethers/lib/utils'
+import Debug from 'debug'
+
+const debug = Debug('aa.listener')
 
 const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
 
@@ -64,7 +67,7 @@ export class UserOperationEventListener {
 
     const transactionReceipt = await event.getTransactionReceipt()
     transactionReceipt.transactionHash = this.requestId
-    console.log('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
+    debug('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
     // before returning the receipt, update the status from the event.
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions

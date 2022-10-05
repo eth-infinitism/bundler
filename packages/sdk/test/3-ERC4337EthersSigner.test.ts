@@ -1,6 +1,6 @@
-import { SampleRecipient, SampleRecipient__factory } from '@erc4337/common/dist/src/types'
+import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
 import { ethers } from 'hardhat'
-import { ClientConfig, ERC4337EthersProvider, newProvider } from '../src'
+import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { expect } from 'chai'
 import { parseEther } from 'ethers/lib/utils'
@@ -23,7 +23,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       bundlerUrl: ''
     }
     const aasigner = Wallet.createRandom()
-    aaProvider = await newProvider(provider, config, aasigner)
+    aaProvider = await wrapProvider(provider, config, aasigner)
 
     const beneficiary = provider.getSigner().getAddress()
     // for testing: bypass sending through a bundler, and send directly to our entrypoint..

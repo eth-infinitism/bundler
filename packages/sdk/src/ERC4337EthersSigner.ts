@@ -21,6 +21,8 @@ export class ERC4337EthersSigner extends Signer {
     defineReadOnly(this, 'provider', erc4337provider)
   }
 
+  address?: string
+
   // This one is called by Contract. It signs the request and passes in to Provider to be sent.
   async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
     const tx: TransactionRequest = await this.populateTransaction(transaction)
@@ -78,7 +80,10 @@ export class ERC4337EthersSigner extends Signer {
   }
 
   async getAddress (): Promise<string> {
-    return await this.erc4337provider.getSenderWalletAddress()
+    if (this.address == null) {
+      this.address = await this.erc4337provider.getSenderWalletAddress()
+    }
+    return this.address
   }
 
   async signMessage (message: Bytes | string): Promise<string> {

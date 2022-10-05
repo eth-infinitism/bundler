@@ -1,8 +1,10 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { ethers } from 'ethers'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
-
 import { UserOperationStruct } from '@account-abstraction/contracts'
+import Debug from 'debug'
+
+const debug = Debug('aa.rpc')
 
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider
@@ -42,7 +44,10 @@ export class HttpRpcClient {
           }
           return [key, val]
         })
-        .reduce((set, [k, v]) => ({ ...set, [k]: v }), {})
+        .reduce((set, [k, v]) => ({
+          ...set,
+          [k]: v
+        }), {})
 
     const jsonRequestData: [UserOperationStruct, string] = [hexifiedUserOp, this.entryPointAddress]
     await this.printUserOperation(jsonRequestData)
@@ -52,7 +57,7 @@ export class HttpRpcClient {
 
   private async printUserOperation ([userOp1, entryPointAddress]: [UserOperationStruct, string]): Promise<void> {
     const userOp = await resolveProperties(userOp1)
-    console.log('sending eth_sendUserOperation', {
+    debug('sending eth_sendUserOperation', {
       ...userOp
       // initCode: (userOp.initCode ?? '').length,
       // callData: (userOp.callData ?? '').length

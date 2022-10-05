@@ -10,9 +10,9 @@ import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
 import { SimpleWalletAPI } from '../src'
-import { SampleRecipient, SampleRecipient__factory } from '@erc4337/common/dist/src/types'
+import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
-import { rethrowError } from '@erc4337/common'
+import { rethrowError } from '@account-abstraction/utils'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
