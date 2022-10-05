@@ -1,4 +1,4 @@
-import { arrayify, defaultAbiCoder, hexConcat, keccak256 } from 'ethers/lib/utils'
+import { defaultAbiCoder, hexConcat, keccak256 } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
@@ -168,11 +168,6 @@ interface DecodedError {
   message: string
   opIndex?: number
   paymaster?: string
-}
-
-function dump<T> (x: T): T {
-  console.log('dump=', x)
-  return x
 }
 
 /**

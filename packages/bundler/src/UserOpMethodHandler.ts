@@ -40,7 +40,7 @@ export class UserOpMethodHandler {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
 
-    console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${hexValue(userOp.paymasterAndData)}`)
+    console.log(`UserOperation: Sender=${userOp.sender as string} EntryPoint=${entryPointInput} Paymaster=${hexValue(userOp.paymasterAndData)}`)
 
     const beneficiary = await this.selectBeneficiary()
     const requestId = await this.entryPoint.getRequestId(userOp)
