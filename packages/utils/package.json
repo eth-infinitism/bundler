@@ -18,7 +18,6 @@
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
     "ethers": "^5.7.0"
