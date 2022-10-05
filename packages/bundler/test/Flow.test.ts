@@ -4,10 +4,10 @@ import hre, { ethers } from 'hardhat'
 import sinon from 'sinon'
 
 import * as SampleRecipientArtifact
-  from '@erc4337/common/artifacts/contracts/test/SampleRecipient.sol/SampleRecipient.json'
+  from '@account-abstraction/utils/artifacts/contracts/test/SampleRecipient.sol/SampleRecipient.json'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { ERC4337EthersProvider, ERC4337EthersSigner, ClientConfig, newProvider } from '@account-abstraction/sdk'
+import { ERC4337EthersProvider, ERC4337EthersSigner, ClientConfig, wrapProvider } from '@account-abstraction/sdk'
 import { Signer, Wallet } from 'ethers'
 import { runBundler } from '../src/runBundler'
 import { BundlerServer } from '../src/BundlerServer'
@@ -86,7 +86,7 @@ describe('Flow', function () {
 
     // use this as signer (instead of node's first account)
     const ownerAccount = Wallet.createRandom()
-    erc4337Provider = await newProvider(
+    erc4337Provider = await wrapProvider(
       ethers.provider,
       // new JsonRpcProvider('http://localhost:8545/'),
       config,

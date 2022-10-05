@@ -8,8 +8,10 @@ import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
-import { getRequestId } from '@erc4337/common'
+import { getRequestId } from '@account-abstraction/utils'
 import { BaseWalletAPI } from './BaseWalletAPI'
+import Debug from 'debug'
+const debug = Debug('aa.provider')
 
 export class ERC4337EthersProvider extends BaseProvider {
   initializedBlockNumber!: number
@@ -43,6 +45,7 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   async perform (method: string, params: any): Promise<any> {
+    debug('perform', method, params)
     if (method === 'sendTransaction' || method === 'getTransactionReceipt') {
       // TODO: do we need 'perform' method to be available at all?
       // there is nobody out there to use it for ERC-4337 methods yet, we have nothing to override in fact.

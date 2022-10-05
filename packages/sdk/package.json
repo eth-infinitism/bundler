@@ -4,7 +4,7 @@
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
-    "dist/*",
+    "dist/src",
     "README.md"
   ],
   "scripts": {
@@ -18,12 +18,14 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
-    "@erc4337/common": "0.2.0",
+    "@account-abstraction/utils": "0.2.0",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
+    "@types/debug": "^4.1.7",
+    "debug": "^4.3.4",
     "ethers": "^5.7.0"
   },
   "devDependencies": {
