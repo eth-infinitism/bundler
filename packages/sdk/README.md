@@ -24,7 +24,7 @@ const walletAPI = new SimpleWalletAPI({
     owner,
     factoryAddress
 })
-const op = walletAPi.createSignedUserOp({
+const op = await walletAPi.createSignedUserOp({
   target: recipient.address,
   data: recipient.interface.encodeFunctionData('something', ['hello'])
 })

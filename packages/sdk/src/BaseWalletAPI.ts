@@ -60,6 +60,10 @@ export abstract class BaseWalletAPI {
   }
 
   async init (): Promise<this> {
+    if (await this.provider.getCode(this.entryPointAddress) === '0x') {
+      throw new Error(`entryPoint not deployed at ${this.entryPointAddress}`)
+    }
+
     await this.getWalletAddress()
     return this
   }
