@@ -31,7 +31,8 @@ export async function wrapProvider (
     provider: originalProvider,
     entryPointAddress: entryPoint.address,
     owner: originalSigner,
-    factoryAddress: simpleWalletDeployer
+    factoryAddress: simpleWalletDeployer,
+    paymasterAPI: config.paymasterAPI
   })
   const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, 31337)
   debug('config=', config)

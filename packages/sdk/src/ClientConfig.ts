@@ -1,6 +1,8 @@
 /**
  * configuration params for wrapProvider
  */
+import { PaymasterAPI } from './PaymasterAPI'
+
 export interface ClientConfig {
   /**
    * the entry point to use
@@ -21,7 +23,7 @@ export interface ClientConfig {
    */
   walletAddres?: string
   /**
-   * if set, use this paymaster
+   * if set, call just before signing.
    */
-  paymasterAddress?: string
+  paymasterAPI?: PaymasterAPI
 }
