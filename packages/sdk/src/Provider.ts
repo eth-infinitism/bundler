@@ -25,7 +25,8 @@ export async function wrapProvider (
 ): Promise<ERC4337EthersProvider> {
   const entryPoint = new EntryPoint__factory().attach(config.entryPointAddress).connect(originalProvider)
   // Initial SimpleWallet instance is not deployed and exists just for the interface
-  const simpleWalletDeployer = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
+  const detDeployer = new DeterministicDeployer(originalProvider)
+  const simpleWalletDeployer = await detDeployer.deterministicDeploy(SimpleWalletDeployer__factory.bytecode)
   const smartWalletAPI = new SimpleWalletAPI({
     provider: originalProvider,
     entryPointAddress: entryPoint.address,
