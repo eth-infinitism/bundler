@@ -19,6 +19,7 @@ export class ERC4337EthersProvider extends BaseProvider {
   readonly signer: ERC4337EthersSigner
 
   constructor (
+    readonly chainId: number,
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly originalProvider: BaseProvider,
@@ -28,12 +29,17 @@ export class ERC4337EthersProvider extends BaseProvider {
   ) {
     super({
       name: 'ERC-4337 Custom Network',
-      chainId: config.chainId
+      chainId
     })
     this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient, smartWalletAPI)
   }
 
+  /**
+   * finish intializing the provider.
+   * MUST be called after construction, before using the provider.
+   */
   async init (): Promise<this> {
+    await this.httpRpcClient.validateChainId()
     this.initializedBlockNumber = await this.originalProvider.getBlockNumber()
     await this.smartWalletAPI.init()
     // await this.signer.init()
@@ -85,7 +91,7 @@ export class ERC4337EthersProvider extends BaseProvider {
   // fabricate a response in a format usable by ethers users...
   async constructUserOpTransactionResponse (userOp1: UserOperationStruct): Promise<TransactionResponse> {
     const userOp = await resolveProperties(userOp1)
-    const requestId = getRequestId(userOp, this.config.entryPointAddress, this.config.chainId)
+    const requestId = getRequestId(userOp, this.config.entryPointAddress, this.chainId)
     const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, userOp.sender, requestId, userOp.nonce
@@ -99,7 +105,7 @@ export class ERC4337EthersProvider extends BaseProvider {
       gasLimit: BigNumber.from(userOp.callGasLimit), // ??
       value: BigNumber.from(0),
       data: hexValue(userOp.callData), // should extract the actual called method from this "execFromEntryPoint()" call
-      chainId: this.config.chainId,
+      chainId: this.chainId,
       wait: async (confirmations?: number): Promise<TransactionReceipt> => {
         const transactionReceipt = await waitPromise
         if (userOp.initCode.length !== 0) {

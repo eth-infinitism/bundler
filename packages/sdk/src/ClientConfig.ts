@@ -1,8 +1,8 @@
+import { PaymasterAPI } from './PaymasterAPI'
+
 /**
  * configuration params for wrapProvider
  */
-import { PaymasterAPI } from './PaymasterAPI'
-
 export interface ClientConfig {
   /**
    * the entry point to use
@@ -12,10 +12,6 @@ export interface ClientConfig {
    * url to the bundler
    */
   bundlerUrl: string
-  /**
-   * chainId of current network. used to validate against the bundler's chainId
-   */
-  chainId: number
   /**
    * if set, use this pre-deployed wallet.
    * (if not set, use getSigner().getAddress() to query the "counterfactual" address of wallet.
