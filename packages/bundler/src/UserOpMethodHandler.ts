@@ -7,7 +7,7 @@ import { UserOperationStruct } from './types/contracts/BundlerHelper'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
 import { rethrowError } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk/dist/src/calcPreVerificationGas'
-import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
+// import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 
 export class UserOpMethodHandler {
   constructor (
@@ -55,9 +55,10 @@ export class UserOpMethodHandler {
     }
 
     const gasLimit = undefined
+    console.log('using gasLimit=', gasLimit)
     await this.entryPoint.handleOps([userOp], beneficiary, { gasLimit }).catch(rethrowError)
 
-    await postExecutionDump(this.entryPoint, requestId)
+    // await postExecutionDump(this.entryPoint, requestId)
     return requestId
   }
 }
