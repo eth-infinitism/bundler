@@ -37,6 +37,7 @@ describe('ERC4337EthersSigner, Provider', function () {
           throw new Error(message)
         })
       }
+      return ''
     }
     recipient = deployRecipient.connect(aaProvider.getSigner())
   })
