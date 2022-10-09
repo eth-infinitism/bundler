@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/sdk",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.2.0",
-    "@account-abstraction/utils": "^0.2.1",
+    "@account-abstraction/utils": "^0.2.3",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",
