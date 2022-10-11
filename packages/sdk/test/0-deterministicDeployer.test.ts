@@ -4,7 +4,7 @@ import { ethers } from 'hardhat'
 import { hexValue } from 'ethers/lib/utils'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
 
-const deployer = DeterministicDeployer.instance
+const deployer = new DeterministicDeployer(ethers.provider)
 
 describe('#deterministicDeployer', () => {
   it('deploy deployer', async () => {
@@ -17,6 +17,7 @@ describe('#deterministicDeployer', () => {
   })
   it('should deploy at given address', async () => {
     const ctr = hexValue(new SampleRecipient__factory(ethers.provider.getSigner()).getDeployTransaction().data!)
+    DeterministicDeployer.init(ethers.provider)
     const addr = await DeterministicDeployer.getAddress(ctr)
     expect(await deployer.isContractDeployed(addr)).to.equal(false)
     await DeterministicDeployer.deploy(ctr)

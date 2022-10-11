@@ -40,7 +40,7 @@ class Runner {
   }
 
   async getAddress (): Promise<string> {
-    return await this.walletApi.getWalletAddress()
+    return await this.walletApi.getCreate2Address()
   }
 
   async init (deploymentSigner?: Signer): Promise<this> {
@@ -88,7 +88,9 @@ class Runner {
       data
     })
     try {
-      await this.bundlerProvider.sendUserOpToBundler(userOp)
+      const requestId = await this.bundlerProvider.sendUserOpToBundler(userOp)
+      const txid = await this.walletApi.getUserOpReceipt(requestId)
+      console.log('reqId', requestId, 'txid=', txid)
     } catch (e: any) {
       throw this.parseExpectedGas(e)
     }
@@ -110,9 +112,14 @@ async function main (): Promise<void> {
   let signer: Signer
   const deployDeployer: boolean = opts.deployDeployer
   if (opts.mnemonic != null) {
-    signer = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim())
+    signer = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim()).connect(provider)
   } else {
     try {
+      const accounts = await provider.listAccounts()
+      if (accounts.length === 0) {
+        console.log('fatal: no account. use --mnemonic (needed to fund wallet)')
+        process.exit(1)
+      }
       // for hardhat/node, use account[0]
       signer = provider.getSigner()
       // deployDeployer = true
@@ -120,7 +127,7 @@ async function main (): Promise<void> {
       throw new Error('must specify --mnemonic')
     }
   }
-  const walletOwner = new Wallet('0x'.padEnd(66, '1'))
+  const walletOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const client = await new Runner(provider, opts.bundlerUrl, walletOwner).init(deployDeployer ? signer : undefined)
 
@@ -138,12 +145,14 @@ async function main (): Promise<void> {
   console.log('wallet address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   // TODO: actual required val
   const requiredBalance = parseEther('0.1')
-  if (bal.lt(requiredBalance)) {
+  if (bal.lt(requiredBalance.div(2))) {
     console.log('funding wallet to', requiredBalance)
     await signer.sendTransaction({
       to: addr,
       value: requiredBalance.sub(bal)
     })
+  } else {
+    console.log('not funding wallet. balance is enough')
   }
 
   const dest = addr

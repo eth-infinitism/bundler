@@ -32,7 +32,12 @@ export class HttpRpcClient {
     }
   }
 
-  async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<any> {
+  /**
+   * send a UserOperation to the bundler
+   * @param userOp1
+   * @return requestId the id of this operation, for getUserOperationTransaction
+   */
+  async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<string> {
     await this.initializing
     const userOp = await resolveProperties(userOp1)
     const hexifiedUserOp: any =

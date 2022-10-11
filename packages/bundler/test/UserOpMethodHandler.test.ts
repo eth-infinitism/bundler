@@ -75,6 +75,7 @@ describe('UserOpMethodHandler', function () {
 
     let walletDeployerAddress: string
     before(async function () {
+      DeterministicDeployer.init(ethers.provider)
       walletDeployerAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
 
       const smartWalletAPI = new SimpleWalletAPI({

@@ -1,7 +1,6 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
-import { JsonRpcRequest } from 'hardhat/types'
 import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
@@ -75,7 +74,7 @@ export class BundlerServer {
       params,
       jsonrpc,
       id
-    }: JsonRpcRequest = req.body
+    } = req.body
     try {
       const result = await this.handleMethod(method, params)
       console.log('sent', method, '-', result)

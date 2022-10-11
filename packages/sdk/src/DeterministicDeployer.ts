@@ -1,7 +1,7 @@
-import { ethers } from 'hardhat'
 import { BigNumber, BigNumberish } from 'ethers'
 import { hexConcat, hexlify, hexZeroPad, keccak256 } from 'ethers/lib/utils'
 import { TransactionRequest } from '@ethersproject/abstract-provider'
+import { JsonRpcProvider } from '@ethersproject/providers'
 
 /**
  * wrapper class for Arachnid's deterministic deployer
@@ -34,7 +34,7 @@ export class DeterministicDeployer {
   deploymentGasPrice = 100e9
   deploymentGasLimit = 100000
 
-  constructor (readonly provider = ethers.provider) {
+  constructor (readonly provider: JsonRpcProvider) {
   }
 
   async isContractDeployed (address: string): Promise<boolean> {
@@ -98,5 +98,16 @@ export class DeterministicDeployer {
     return addr
   }
 
-  static instance = new DeterministicDeployer()
+  private static _instance?: DeterministicDeployer
+
+  static init (provider: JsonRpcProvider): void {
+    this._instance = new DeterministicDeployer(provider)
+  }
+
+  static get instance (): DeterministicDeployer {
+    if (this._instance == null) {
+      throw new Error('must call "DeterministicDeployer.init(ethers.provider)" first')
+    }
+    return this._instance
+  }
 }
