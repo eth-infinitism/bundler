@@ -34,10 +34,8 @@ describe('Flow', function () {
   let entryPointAddress: string
   let sampleRecipientAddress: string
   let signer: Signer
-  let chainId: number
   before(async function () {
     signer = await hre.ethers.provider.getSigner()
-    chainId = await hre.ethers.provider.getNetwork().then(net => net.chainId)
     const beneficiary = await signer.getAddress()
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
@@ -80,8 +78,7 @@ describe('Flow', function () {
   it('should send transaction and make profit', async function () {
     const config: ClientConfig = {
       entryPointAddress,
-      bundlerUrl: 'http://localhost:5555/rpc',
-      chainId
+      bundlerUrl: 'http://localhost:5555/rpc'
     }
 
     // use this as signer (instead of node's first account)

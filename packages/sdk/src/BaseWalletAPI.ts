@@ -19,6 +19,11 @@ export interface BaseApiParams {
   paymasterAPI?: PaymasterAPI
 }
 
+export interface UserOpResult {
+  transactionHash: string
+  success: boolean
+}
+
 /**
  * Base class for all Smart Wallet ERC-4337 Clients to implement.
  * Subclass should inherit 5 methods to support a specific wallet contract:
@@ -249,7 +254,16 @@ export abstract class BaseWalletAPI {
       maxPriorityFeePerGas
     }
 
-    partialUserOp.paymasterAndData = this.paymasterAPI == null ? '0x' : await this.paymasterAPI.getPaymasterAndData(partialUserOp)
+    let paymasterAndData: string | undefined
+    if (this.paymasterAPI != null) {
+      // fill (partial) preVerificationGas (all except the cost of the generated paymasterAndData)
+      const userOpForPm = {
+        ...partialUserOp,
+        preVerificationGas: this.getPreVerificationGas(partialUserOp)
+      }
+      paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm)
+    }
+    partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
     return {
       ...partialUserOp,
       preVerificationGas: this.getPreVerificationGas(partialUserOp),
@@ -276,5 +290,24 @@ export abstract class BaseWalletAPI {
    */
   async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
     return await this.signUserOp(await this.createUnsignedUserOp(info))
+  }
+
+  /**
+   * get the transaction that has this requestId mined, or null if not found
+   * @param requestId returned by sendUserOpToBundler (or by getRequestId..)
+   * @param timeout stop waiting after this timeout
+   * @param interval time to wait between polls.
+   * @return the transactionHash this userOp was mined, or null if not found.
+   */
+  async getUserOpReceipt (requestId: string, timeout = 30000, interval = 5000): Promise<string | null> {
+    const endtime = Date.now() + timeout
+    while (Date.now() < endtime) {
+      const events = await this.entryPointView.queryFilter(this.entryPointView.filters.UserOperationEvent(requestId))
+      if (events.length > 0) {
+        return events[0].transactionHash
+      }
+      await new Promise(resolve => setTimeout(resolve, interval))
+    }
+    return null
   }
 }

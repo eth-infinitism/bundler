@@ -23,18 +23,22 @@ export async function wrapProvider (
   config: ClientConfig,
   originalSigner: Signer = originalProvider.getSigner()
 ): Promise<ERC4337EthersProvider> {
-  const entryPoint = new EntryPoint__factory().attach(config.entryPointAddress).connect(originalProvider)
+  const entryPoint = EntryPoint__factory.connect(config.entryPointAddress, originalProvider)
   // Initial SimpleWallet instance is not deployed and exists just for the interface
-  const simpleWalletDeployer = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
+  const detDeployer = new DeterministicDeployer(originalProvider)
+  const simpleWalletDeployer = await detDeployer.deterministicDeploy(SimpleWalletDeployer__factory.bytecode)
   const smartWalletAPI = new SimpleWalletAPI({
     provider: originalProvider,
     entryPointAddress: entryPoint.address,
     owner: originalSigner,
-    factoryAddress: simpleWalletDeployer
+    factoryAddress: simpleWalletDeployer,
+    paymasterAPI: config.paymasterAPI
   })
-  const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, 31337)
   debug('config=', config)
+  const chainId = await originalProvider.getNetwork().then(net => net.chainId)
+  const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, chainId)
   return await new ERC4337EthersProvider(
+    chainId,
     config,
     originalSigner,
     originalProvider,

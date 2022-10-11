@@ -24,6 +24,11 @@ export async function postExecutionCheck (entryPoint: EntryPoint, requestId: str
   userOp: NotPromise<UserOperationStruct>
 }> {
   const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId))
+  if (req.length === 0) {
+    console.log('postExecutionCheck: failed to read event (not mined)')
+    // @ts-ignore
+    return { gasUsed: 0, gasPaid: 0, success: false, userOp: {} }
+  }
   const transactionReceipt = await req[0].getTransactionReceipt()
 
   const tx = await req[0].getTransaction()
