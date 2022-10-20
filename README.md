@@ -12,7 +12,7 @@ A basic eip4337 "bundler"
 usage: 
 1. start hardhat-node with `yarn hardhat-node` or geth
 In another Window:
-2. deploy contracts with `yarn hardhat deploy --network localhost`
+2. deploy contracts with `yarn hardhat-deploy --network localhost`
 3. run `yarn run bundler --network localhost --mnemonic file` 
   so it will listen on port 3000
 4. to run a simple test, do `yarn run runop --deployDeployer --network localhost`
