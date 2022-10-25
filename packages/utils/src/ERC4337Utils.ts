@@ -2,6 +2,9 @@ import { defaultAbiCoder, hexConcat, keccak256 } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
+import Debug from 'debug'
+
+const debug = Debug('aa.utils')
 
 // UserOperation is the first parameter of simulateValidation
 const UserOpType = entryPointAbi.find(entry => entry.name === 'simulateValidation')?.inputs[0]
@@ -174,7 +177,7 @@ interface DecodedError {
  * decode bytes thrown by revert as Error(message) or FailedOp(opIndex,paymaster,message)
  */
 export function decodeErrorReason (error: string): DecodedError | undefined {
-  console.log('decoding', error)
+  debug('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }

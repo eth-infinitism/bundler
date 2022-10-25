@@ -61,7 +61,7 @@ export class UserOperationEventListener {
     }
     // TODO: can this happen? we register to event by requestId..
     if (event.args.requestId !== this.requestId) {
-      console.log(`== event with wrong requestId: sender/nonce: event.${event.args.sender as string}@${event.args.nonce.toString() as string}!= userOp.${this.sender as string}@${parseInt(this.nonce?.toString())}`)
+      debug(`== event with wrong requestId: sender/nonce: event.${event.args.sender as string}@${event.args.nonce.toString() as string}!= userOp.${this.sender as string}@${parseInt(this.nonce?.toString())}`)
       return
     }
 
@@ -80,7 +80,7 @@ export class UserOperationEventListener {
   }
 
   async extractFailureReason (receipt: TransactionReceipt): Promise<void> {
-    console.log('mark tx as failed')
+    debug('mark tx as failed')
     receipt.status = 0
     const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.requestId, this.sender), receipt.blockHash)
     if (revertReasonEvents[0] != null) {
@@ -89,7 +89,7 @@ export class UserOperationEventListener {
         // Error(string)
         message = defaultAbiCoder.decode(['string'], '0x' + message.substring(10)).toString()
       }
-      console.log(`rejecting with reason: ${message}`)
+      debug(`rejecting with reason: ${message}`)
       this.reject(new Error(`UserOp failed with reason: ${message}`)
       )
     }
