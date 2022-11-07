@@ -79,8 +79,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
       if (this.lastOp == 'GAS' && !opcode.includes('CALL')) {
-        this.logs.push('lastop GAS cur=', opcode)
-        this.countSlot(this.opcodes, 'GAS1')
+        this.countSlot(this.opcodes, 'GAS')
       }
       this.lastOp = opcode
       if (opcode != 'GAS') {

@@ -11,6 +11,8 @@ const signer = provider.getSigner()
 describe('tracer', () => {
   let tester: TracerTest
   before(async () => {
+    const ver = await (provider as any).send('web3_clientVersion')
+    expect(ver).to.contain('Geth', 'test required debug_traceCall which is not supported on hardhat')
     tester = await new TracerTest__factory(signer).deploy()
     await tester.deployTransaction.wait()
   })
@@ -68,7 +70,7 @@ describe('tracer', () => {
     }, {
       tracer: bundlerCollectorTracer
     })
-    expect(ret.opcodes['GAS']).to.eq(undefined)
+    expect(ret1.opcodes['GAS']).to.eq(undefined)
   })
 
   it('should collect reverted call info', async () => {
@@ -82,7 +84,7 @@ describe('tracer', () => {
       tracer
     }) as BundlerCollectorReturn
 
-    expect(ret.logs).to.contains('failure')
+    expect(ret.logs[0]).to.eq(['fault'])
     // todo: tests for failures. (e.g. detect oog)
   })
 })
