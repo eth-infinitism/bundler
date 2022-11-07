@@ -15,6 +15,8 @@ import fs from 'fs'
 import { HttpRpcClient } from '@account-abstraction/sdk/dist/src/HttpRpcClient'
 import { SimpleWalletAPI } from '@account-abstraction/sdk'
 import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
+import { runBundler } from '../runBundler'
+import { BundlerServer } from '../BundlerServer'
 
 const ENTRY_POINT = '0x674DF207855CE0d9eaB7B000FbBE997a2451d24f'
 
@@ -106,11 +108,17 @@ async function main (): Promise<void> {
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract', ENTRY_POINT)
     .option('--deployDeployer', 'Deploy the "wallet deployer" on this network (default for testnet)')
     .option('--show-stack-traces', 'Show stack traces.')
+    .option('--selfBundler', 'run bundler in-process (for debugging the bundler)')
 
   const opts = program.parse().opts()
   const provider = getDefaultProvider(opts.network) as JsonRpcProvider
   let signer: Signer
   const deployDeployer: boolean = opts.deployDeployer
+  let bundler: BundlerServer | undefined
+  if (opts.selfBundler != null) {
+    bundler = await runBundler(['node', 'exec', '--config', './localconfig/bundler.config.json'])
+    await bundler.asyncStart()
+  }
   if (opts.mnemonic != null) {
     signer = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim()).connect(provider)
   } else {
@@ -129,7 +137,8 @@ async function main (): Promise<void> {
   }
   const walletOwner = new Wallet('0x'.padEnd(66, '7'))
 
-  const client = await new Runner(provider, opts.bundlerUrl, walletOwner).init(deployDeployer ? signer : undefined)
+  const index = Date.now()
+  const client = await new Runner(provider, opts.bundlerUrl, walletOwner, undefined, index).init(deployDeployer ? signer : undefined)
 
   const addr = await client.getAddress()
 
@@ -163,6 +172,7 @@ async function main (): Promise<void> {
   // client.walletApi.overheads!.perUserOp = 30000
   await client.runUserOp(dest, data)
   console.log('after run2')
+  await bundler?.stop()
 }
 
 void main()

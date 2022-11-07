@@ -1,108 +1,88 @@
 import { TracerTest, TracerTest__factory } from '../src/types'
 import { ethers } from 'hardhat'
-import { execAndTrace, LogContext, LogDb, LogStep, LogTracer, traceCall } from '../src/eth_tracer'
-import { arrayify, hexConcat, hexlify, hexZeroPad, keccak256 } from 'ethers/lib/utils'
-import fs from 'fs'
+import { debug_traceCall } from '../src/GethTracer'
+import { hexlify, keccak256 } from 'ethers/lib/utils'
 import { expect } from 'chai'
+import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
-describe('tracer', () => {
 
+describe('tracer', () => {
   let tester: TracerTest
   before(async () => {
     tester = await new TracerTest__factory(signer).deploy()
+    await tester.deployTransaction.wait()
   })
-
-  class MyTracer implements LogTracer {
-    logs: Array<string> = []
-    afterKeccak = false
-
-    fault (log: LogStep, db: LogDb): void {
-    }
-
-    result (ctx: LogContext, db: LogDb): any {
-      console.log('ret=', this.logs)
-      return this.logs
-    }
-
-    step (log: LogStep, db: LogDb): any {
-      if (this.afterKeccak) {
-        let tophex = hexlify(BigInt(log.stack.peek(0).String()))
-        console.log('top=', tophex)
-        this.logs.push(tophex)
-        this.afterKeccak = false
-      }
-      if (log.op.toString() == 'SHA3') {
-        const ofs = parseInt(log.stack.peek(0).String())
-        const len = parseInt(log.stack.peek(1).String())
-        let mem = '0x' + log.memory.slice(ofs, ofs + len)
-        this.afterKeccak = true
-        console.log('mem=', mem)
-        console.log('keccak=', ethers.utils.keccak256(mem))
-      }
-    }
-  }
-
-  function loadTracer(): string {
-    return fs.readFileSync(__dirname+'/tracertest.js', 'ascii')
-      .replace(/\/\/.*/g, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '').trim()
-      .replace(/^module.exports\s*=\s*/,'')
-      .replace(/\n\s*\n/g, "\n").trim()
-  }
 
   it('should collect call params', async () => {
-    let testKeccalCallData = tester.interface.encodeFunctionData('callWithValue')
+    const testKeccalCallData = tester.interface.encodeFunctionData('callWithValue')
 
-    const tracer = loadTracer()
-    //copied from https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
+    const tracer = bundlerCollectorTracer
+    // copied from https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
     // tracer = '{data: [], fault: function(log) {}, step: function(log) { if(log.op.toString() == "CALL") this.data.push(log.stack.peek(0)); }, result: function() { return this.data; }}'
 
-    const ret = await traceCall(provider, {
+    const account = await provider.listAccounts().then(list => list[0])
+    const tx = {
+      from: account,
       to: tester.address,
-      data: testKeccalCallData,
-    }, {
-      tracer,
-    })
+      gasPrice: hexlify(1e9),
+      data: testKeccalCallData
+    }
+    console.log('tx call ret=', await provider.call(tx))
+    // const ret = await execAndTrace(provider, tx, { tracer, })
+    const ret = await debug_traceCall(provider, tx, { tracer }) as BundlerCollectorReturn
+    // console.log('ret=',  util.inspect({...ret, opcodes: {} } , false, 10,true))
 
     expect(ret.keccak.length).to.equal(1)
-    const [k1, k2] = ret.keccak[0]
-    const hash = keccak256(hexConcat([hexZeroPad('0x'+k1,32), hexZeroPad('0x'+k2,32)])).replace('0x','')
-    expect(ret.slots[hash]).to.equal(1)
-    //one read (of normal member)
-    expect(ret.reads[tester.address.toLowerCase()]).to.equal(1)
-    //2 writes(one to mapping, one to normal member)
-    expect(ret.writes[tester.address.toLowerCase()]).to.equal(2)
+    const kdata = ret.keccak[0]
+    const hash = keccak256(kdata).replace(/^0x/, '')
+    console.log('hash=', hash)
+    const addr = tester.address.toLowerCase()
+    // our sample reads normal slot, writes to a mapping and then write to a normal slot
+    expect(ret.access[addr].reads['1']).to.equal(1)
+    expect(ret.access[addr].writes[hash]).to.equal(1)
+    expect(ret.access[addr].writes['0']).to.equal(1)
 
-    //2 keccak calls (hardhat call it "SHA3")
-    expect(ret.opcodes['KECCAK256']).to.equal(2)
-    expect(ret.opcodes['RETURN']).to.equal(1)
+    // 2 keccak calls (hardhat call it "SHA3")
+    expect(ret.opcodes.KECCAK256).to.equal(2)
+    // 2 returns (one is inner call)
+    expect(ret.opcodes.RETURN).to.equal(2)
   })
 
-  it.skip('should collect reverted call info', async () => {
-    let revertingCallData = tester.interface.encodeFunctionData('callRevertingFunction')
+  it('should report GAS opcode (but not before CALL)', async () =>{
 
-    const tracer = loadTracer()
-
-    const ret = await execAndTrace(provider, {
+    const testCallGas = tester.interface.encodeFunctionData('testCallGas')
+    const ret: BundlerCollectorReturn = await debug_traceCall(provider, {
       to: tester.address,
-      data: revertingCallData,
+      data: testCallGas
     }, {
-      tracer,
-    },true)
+      tracer: bundlerCollectorTracer
+    })
+    expect(ret.opcodes['GAS']).to.eq(1)
 
-    expect(ret.keccak.length).to.equal(1)
-    const [k1, k2] = ret.keccak[0]
-    const hash = keccak256(hexConcat([hexZeroPad('0x'+k1,32), hexZeroPad('0x'+k2,32)])).replace('0x','')
-    expect(ret.slots[hash]).to.equal(1)
-    //one read (of normal member)
-    expect(ret.reads[tester.address.toLowerCase()]).to.equal(1)
-    //2 writes(one to mapping, one to normal member)
-    expect(ret.writes[tester.address.toLowerCase()]).to.equal(2)
+    //this call use GAS, but it is ignored, just before '*CALL'
+    const ret1: BundlerCollectorReturn = await debug_traceCall(provider, {
+      to: tester.address,
+      data: tester.interface.encodeFunctionData('callWithValue')
+    }, {
+      tracer: bundlerCollectorTracer
+    })
+    expect(ret.opcodes['GAS']).to.eq(undefined)
+  })
 
-    //2 keccak calls (hardhat call it "SHA3")
-    expect(ret.opcodes['KECCAK256']).to.equal(2)
-    expect(ret.opcodes['RETURN']).to.equal(1)
+  it('should collect reverted call info', async () => {
+    const revertingCallData = tester.interface.encodeFunctionData('callRevertingFunction', [false])
+
+    const tracer = bundlerCollectorTracer
+    const ret = await debug_traceCall(provider, {
+      to: tester.address,
+      data: revertingCallData
+    }, {
+      tracer
+    }) as BundlerCollectorReturn
+
+    expect(ret.logs).to.contains('failure')
+    // todo: tests for failures. (e.g. detect oog)
   })
 })

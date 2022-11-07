@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
-import "@account-abstraction/contracts/core/EntryPoint.sol";
-import "solidity-string-utils/StringUtils.sol";
+// import "@account-abstraction/contracts/core/EntryPoint.sol";
+// import "solidity-string-utils/StringUtils.sol";
 
 contract TracerTest {
 
@@ -17,18 +17,29 @@ contract TracerTest {
 
     event Keccak(bytes32 data);
 
-    function revertWithMessage() external {
+    function revertWithMessage(bool oog) external {
+        while (oog) {
+            emit Keccak(bytes32(0));
+        }
         revert ("revert message");
     }
 
-    function callWithValue() external payable {
-        a = 21;
-        this.testKeccak{value : msg.value}("empty");
-        addr2int[msg.sender] = b;
+    function testCallGas() public returns (uint) {
+        return gasleft();
     }
 
-    function callRevertingFunction() external payable {
-        this.revertWithMessage();
+    function callWithValue() external payable returns (uint){
+        //write slot a
+        a = 21;
+        // manual run a keccak
+        this.testKeccak{value : msg.value}("empty");
+        // read slot b, write to  mapping
+        addr2int[msg.sender] = b;
+        return b;
+    }
+
+    function callRevertingFunction(bool oog) external payable {
+        this.revertWithMessage(oog);
     }
 }
 

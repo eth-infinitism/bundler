@@ -1,13 +1,17 @@
 import { BigNumber, Wallet } from 'ethers'
-import { JsonRpcSigner, Provider } from '@ethersproject/providers'
-
+import { AddressZero } from '@ethersproject/constants'
+import { JsonRpcProvider, JsonRpcSigner, Provider } from '@ethersproject/providers'
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
 import { UserOperationStruct } from './types/contracts/BundlerHelper'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
 import { rethrowError } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk/dist/src/calcPreVerificationGas'
-// import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
+import { debug_traceCall } from './GethTracer'
+import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollectorTracer'
+import Debug from 'debug'
+
+const debug = Debug('aa.handler.userop')
 
 export class UserOpMethodHandler {
   constructor (
@@ -17,6 +21,16 @@ export class UserOpMethodHandler {
     readonly entryPoint: EntryPoint
     // readonly bundlerHelper: BundlerHelper
   ) {
+  }
+
+  clientVersion?: string
+
+  async isGeth (): Promise<boolean> {
+    if (this.clientVersion == null) {
+      this.clientVersion = await (this.provider as JsonRpcProvider).send('web3_clientVersion', [])
+    }
+    debug('client version', this.clientVersion)
+    return this.clientVersion?.match('Geth') != null
   }
 
   async getSupportedEntryPoints (): Promise<string[]> {
@@ -34,6 +48,50 @@ export class UserOpMethodHandler {
     return beneficiary
   }
 
+  /**
+   * simulate UserOperation.
+   * Note that simulation requires debug API:
+   * - debug_traceCall, to trace the call.
+   * @param userOp1
+   * @param entryPointInput
+   */
+  async simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string) {
+    const userOp = await resolveProperties(userOp1)
+    if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
+      throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
+    }
+    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp1, false])
+
+    const provider = this.provider as JsonRpcProvider
+    if (await this.isGeth()) {
+      console.log('=== sending simulate')
+      const result: BundlerCollectorReturn = await debug_traceCall(provider, {
+        from: AddressZero,
+        to: this.entryPoint.address,
+        data: simulateCall,
+        gasLimit: 10e6
+      }, { tracer: bundlerCollectorTracer })
+
+      function require (cond: boolean, msg: string) {
+        if (!cond) throw new Error(msg)
+      }
+
+      //todo: validate keccak, access
+      //todo: block access to no-code addresses (might need update to tracer)
+
+      const bannedOpCodes = new Set(['GAS', 'BASEFEE', 'GASPRICE', 'NUMBER', 'COINBASE', 'TIME', 'CREATE'])
+
+      Object.keys(result.opcodes).forEach(opcode =>
+        require(!bannedOpCodes.has(opcode), `banned opcode: '${opcode}`)
+      )
+      if (userOp.initCode.length > 2) {
+        require(result.opcodes['CREATE2'] <= 1, 'initCode with too many CREATE2')
+      } else {
+        require(result.opcodes['CREATE2'] < 1, 'banned opcode: CREATE2')
+      }
+    }
+  }
+
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
     const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
@@ -42,6 +100,7 @@ export class UserOpMethodHandler {
 
     console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${hexValue(userOp.paymasterAndData)}`)
 
+    await this.simulateUserOp(userOp1, entryPointInput)
     const beneficiary = await this.selectBeneficiary()
     const requestId = await this.entryPoint.getRequestId(userOp)
 
