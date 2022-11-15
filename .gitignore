@@ -20,3 +20,4 @@ tsconfig.tsbuildinfo
 **/dist/
 /packages/bundler/src/types/
 yarn-error.log
+/dockers/workdir/mnemonic.txt
