@@ -1,7 +1,7 @@
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { BigNumber, Transaction } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
-import { hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
+import { hexConcat, hexlify, keccak256, resolveProperties } from 'ethers/lib/utils'
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 //
@@ -14,7 +14,8 @@ import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 type LogTracerFunc = () => LogTracer
 
 export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
-  const ret = await provider.send('debug_traceCall', [tx, 'latest', tracer2string(options)])
+  const tx1 = await resolveProperties(tx)
+  const ret = await provider.send('debug_traceCall', [tx1, 'latest', tracer2string(options)])
   // return applyTracer(ret, options)
   return ret
 }

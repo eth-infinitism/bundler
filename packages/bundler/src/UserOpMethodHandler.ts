@@ -1,4 +1,4 @@
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber, ethers, Wallet } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner, Provider } from '@ethersproject/providers'
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
@@ -68,7 +68,7 @@ export class UserOpMethodHandler {
       const simulationGas = BigNumber.from(50000).add(userOp.verificationGasLimit)
 
       const result: BundlerCollectorReturn = await debug_traceCall(provider, {
-        from: this.signer.getAddress(),
+        from: ethers.constants.AddressZero,
         to: this.entryPoint.address,
         data: simulateCall,
         gasLimit: simulationGas
@@ -85,6 +85,7 @@ export class UserOpMethodHandler {
 
       const validateOpcodes = result.numberLevels['0'].opcodes
       const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
+      // console.log('debug=', result.debug.join('\n- '))
       Object.keys(validateOpcodes).forEach(opcode =>
         require(!bannedOpCodes.has(opcode), `wallet uses banned opcode: '${opcode}`)
       )
@@ -92,11 +93,11 @@ export class UserOpMethodHandler {
         require(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: '${opcode}`)
       )
       if (userOp.initCode.length > 2) {
-        require(validateOpcodes['CREATE2'] <= 1, 'initCode with too many CREATE2')
+        require((validateOpcodes['CREATE2'] ?? 0) <= 1, 'initCode with too many CREATE2')
       } else {
-        require(validateOpcodes['CREATE2'] < 1, 'banned opcode: CREATE2')
+        require((validateOpcodes['CREATE2'] ?? 0) < 1, 'banned opcode: CREATE2')
       }
-      require(validatePaymasterOpcodes['CREATE2'] < 1, 'paymaster uses banned opcode: CREATE2')
+      require((validatePaymasterOpcodes['CREATE2'] ?? 0) < 1, 'paymaster uses banned opcode: CREATE2')
     }
   }
 
