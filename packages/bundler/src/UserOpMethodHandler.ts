@@ -1,5 +1,4 @@
 import { BigNumber, Wallet } from 'ethers'
-import { AddressZero } from '@ethersproject/constants'
 import { JsonRpcProvider, JsonRpcSigner, Provider } from '@ethersproject/providers'
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
@@ -56,6 +55,7 @@ export class UserOpMethodHandler {
    * @param entryPointInput
    */
   async simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string) {
+
     const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
@@ -65,11 +65,13 @@ export class UserOpMethodHandler {
     const provider = this.provider as JsonRpcProvider
     if (await this.isGeth()) {
       console.log('=== sending simulate')
+      const simulationGas = BigNumber.from(50000).add(userOp.verificationGasLimit)
+
       const result: BundlerCollectorReturn = await debug_traceCall(provider, {
-        from: AddressZero,
+        from: this.signer.getAddress(),
         to: this.entryPoint.address,
         data: simulateCall,
-        gasLimit: 10e6
+        gasLimit: simulationGas
       }, { tracer: bundlerCollectorTracer })
 
       function require (cond: boolean, msg: string) {
@@ -79,16 +81,22 @@ export class UserOpMethodHandler {
       //todo: validate keccak, access
       //todo: block access to no-code addresses (might need update to tracer)
 
-      const bannedOpCodes = new Set(['GAS', 'BASEFEE', 'GASPRICE', 'NUMBER', 'COINBASE', 'TIME', 'CREATE'])
+      const bannedOpCodes = new Set([`GASPRICE`, `GASLIMIT`, `DIFFICULTY`, `TIMESTAMP`, `BASEFEE`, `BLOCKHASH`, `NUMBER`, `SELFBALANCE`, `BALANCE`, `ORIGIN`, `GAS`, `CREATE`, `COINBASE`])
 
-      Object.keys(result.opcodes).forEach(opcode =>
-        require(!bannedOpCodes.has(opcode), `banned opcode: '${opcode}`)
+      const validateOpcodes = result.numberLevels['0'].opcodes
+      const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
+      Object.keys(validateOpcodes).forEach(opcode =>
+        require(!bannedOpCodes.has(opcode), `wallet uses banned opcode: '${opcode}`)
+      )
+      Object.keys(validatePaymasterOpcodes).forEach(opcode =>
+        require(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: '${opcode}`)
       )
       if (userOp.initCode.length > 2) {
-        require(result.opcodes['CREATE2'] <= 1, 'initCode with too many CREATE2')
+        require(validateOpcodes['CREATE2'] <= 1, 'initCode with too many CREATE2')
       } else {
-        require(result.opcodes['CREATE2'] < 1, 'banned opcode: CREATE2')
+        require(validateOpcodes['CREATE2'] < 1, 'banned opcode: CREATE2')
       }
+      require(validatePaymasterOpcodes['CREATE2'] < 1, 'paymaster uses banned opcode: CREATE2')
     }
   }
 
