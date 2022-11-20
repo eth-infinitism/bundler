@@ -4,77 +4,88 @@ import { debug_traceCall } from '../src/GethTracer'
 import { hexlify, keccak256 } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
+import { spawn, spawnSync } from 'child_process'
+import { BytesLike } from 'ethers'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-describe('tracer', () => {
+describe('#bundlerCollectorTracer', () => {
   let tester: TracerTest
   before(async () => {
     const ver = await (provider as any).send('web3_clientVersion')
-    expect(ver).to.contain('Geth', 'test required debug_traceCall which is not supported on hardhat')
+    expect(ver).to.contain('Geth', 'test requires debug_traceCall which is not supported on hardhat')
     tester = await new TracerTest__factory(signer).deploy()
     await tester.deployTransaction.wait()
   })
 
-  it('should collect call params', async () => {
-    const testKeccalCallData = tester.interface.encodeFunctionData('callWithValue')
-
-    const tracer = bundlerCollectorTracer
-    // copied from https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
-    // tracer = '{data: [], fault: function(log) {}, step: function(log) { if(log.op.toString() == "CALL") this.data.push(log.stack.peek(0)); }, result: function() { return this.data; }}'
-
-    const account = await provider.listAccounts().then(list => list[0])
-    const tx = {
-      from: account,
-      to: tester.address,
-      gasPrice: hexlify(1e9),
-      data: testKeccalCallData
-    }
-    console.log('tx call ret=', await provider.call(tx))
-    // const ret = await execAndTrace(provider, tx, { tracer, })
-    const ret = await debug_traceCall(provider, tx, { tracer }) as BundlerCollectorReturn
-    // console.log('ret=',  util.inspect({...ret, opcodes: {} } , false, 10,true))
-
-    expect(ret.keccak.length).to.equal(1)
-    const kdata = ret.keccak[0]
-    const hash = keccak256(kdata).replace(/^0x/, '')
-    console.log('hash=', hash)
-    const addr = tester.address.toLowerCase()
-    // our sample reads normal slot, writes to a mapping and then write to a normal slot
-    expect(ret.access[addr].reads['1']).to.equal(1)
-    expect(ret.access[addr].writes[hash]).to.equal(1)
-    expect(ret.access[addr].writes['0']).to.equal(1)
-
-    // 2 keccak calls (hardhat call it "SHA3")
-    expect(ret.opcodes.KECCAK256).to.equal(2)
-    // 2 returns (one is inner call)
-    expect(ret.opcodes.RETURN).to.equal(2)
+  it('should count opcodes on depth>1', async () => {
+    const ret = await traceExecSelf(tester.interface.encodeFunctionData('callTimeStamp'), false)
+    const execEvent = tester.interface.decodeEventLog('ExecSelfResult', ret.logs[0].data, ret.logs[0].topics)
+    expect(execEvent.success).to.equal(true)
+    expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.equal(1)
+  })
+  it('should not count opcodes on depth==1', async () => {
+    const ret = await traceCall(tester.interface.encodeFunctionData('callTimeStamp'))
+    console.log(ret.numberLevels)
+    expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.be.undefined
+    //verify no error..
+    expect(ret.debug).to.eql([])
   })
 
-  it('should report GAS opcode (but not before CALL)', async () =>{
-
-    const testCallGas = tester.interface.encodeFunctionData('testCallGas')
+  async function traceCall (functionData: BytesLike): Promise<BundlerCollectorReturn> {
     const ret: BundlerCollectorReturn = await debug_traceCall(provider, {
       to: tester.address,
-      data: testCallGas
+      data: functionData
     }, {
       tracer: bundlerCollectorTracer
     })
-    expect(ret.opcodes['GAS']).to.eq(1)
+    return ret
+  }
 
-    //this call use GAS, but it is ignored, just before '*CALL'
-    const ret1: BundlerCollectorReturn = await debug_traceCall(provider, {
-      to: tester.address,
-      data: tester.interface.encodeFunctionData('callWithValue')
-    }, {
-      tracer: bundlerCollectorTracer
+  //wrap call in a call to self (depth+1)
+  async function traceExecSelf (functionData: BytesLike, useNumber = true): Promise<BundlerCollectorReturn> {
+    const execTestCallGas = tester.interface.encodeFunctionData('execSelf', [functionData, useNumber])
+    const ret = await traceCall(execTestCallGas)
+    return ret
+  }
+
+  describe('#traceExecSelf', () => {
+    it('should revert', async () => {
+      const ret = await traceExecSelf('0xdead')
+      expect(ret.debug.toString()).to.match(/execution reverted/)
+      expect(ret.logs.length).to.equal(1)
+      const log = tester.interface.decodeEventLog('ExecSelfResult', ret.logs[0].data, ret.logs[0].topics)
+      expect(log.success).to.equal(false)
     })
-    expect(ret1.opcodes['GAS']).to.eq(undefined)
+    it('should call itself', async () => {
+      const innerCall = tester.interface.encodeFunctionData('doNothing')
+      const execInner = tester.interface.encodeFunctionData('execSelf', [innerCall, false])
+      const ret = await traceExecSelf(execInner)
+      expect(ret.logs.length).to.equal(2)
+      console.log(ret.logs.forEach(log => {
+        const logParams = tester.interface.decodeEventLog('ExecSelfResult', log.data, log.topics)
+        expect(logParams.success).to.equal(true)
+      }))
+    })
+  })
+  4
+  it('should report direct use of GAS opcode', async () => {
+
+    const ret = await traceExecSelf(tester.interface.encodeFunctionData('testCallGas'), false)
+    expect(ret.numberLevels['0'].opcodes['GAS']).to.eq(1)
   })
 
-  it('should collect reverted call info', async () => {
-    const revertingCallData = tester.interface.encodeFunctionData('callRevertingFunction', [false])
+  it('should ignore gas used as part of "call"', async () => {
+    //call the "testKeccak" function as a sample inner function
+    let doNothing = tester.interface.encodeFunctionData('doNothing')
+    let callDoNothing = tester.interface.encodeFunctionData('execSelf', [doNothing, false])
+    const ret = await traceExecSelf(callDoNothing, false)
+    expect(ret.numberLevels['0'].opcodes['GAS']).to.be.undefined
+  })
+
+  it.skip('should collect reverted call info', async () => {
+    const revertingCallData = tester.interface.encodeFunctionData('callRevertingFunction', [true])
 
     const tracer = bundlerCollectorTracer
     const ret = await debug_traceCall(provider, {
@@ -84,7 +95,8 @@ describe('tracer', () => {
       tracer
     }) as BundlerCollectorReturn
 
-    expect(ret.logs[0]).to.eq(['fault'])
+    console.log('logs=', ret.debug)
+    expect(ret.debug[0]).to.include(['fault'])
     // todo: tests for failures. (e.g. detect oog)
   })
 })
