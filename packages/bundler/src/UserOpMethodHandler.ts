@@ -14,7 +14,8 @@ import { deepHexlify, requireCond } from './utils'
 
 const debug = Debug('aa.handler.userop')
 
-const HEX_REGEX = /^0x[a-fA-F\d]/i
+//TODO: need to check field lengths (address fixed 20 bytes, numeric>1, dynamics
+const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class UserOpMethodHandler {
   constructor (
