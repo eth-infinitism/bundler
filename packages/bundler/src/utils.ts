@@ -5,6 +5,9 @@ import { hexlify } from 'ethers/lib/utils'
  * @param obj
  */
 export function deepHexlify (obj: any): any {
+  if (typeof obj == 'function') {
+    return undefined
+  }
   if (obj == null || typeof obj == 'string' || typeof obj == 'boolean') {
     return obj
   } else if (obj._isBigNumber || typeof obj != 'object') {
