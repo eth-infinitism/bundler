@@ -4,16 +4,27 @@
 // see LogTrace for valid types (but alas, this one must be javascript, not typescript..
 
 import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from './GethTracer'
-import { hexlify } from 'ethers/lib/utils'
 
 // toHex is available in a context of geth tracer
-function toHex (a: any): string {
-  return hexlify(a)
-}
+declare function toHex (a: any): string
 
-export interface AccessInfo {
-  reads: { [slot: string]: number }
-  writes: { [slot: string]: number }
+/**
+ * return type of our BundlerCollectorTracer.
+ * collect access and opcodes, split into "levels" based on NUMBER opcode
+ * keccak, calls and logs are collected globally, since the levels are unimportant for them.
+ */
+export interface BundlerCollectorReturn {
+  /**
+   * storage and opcode info, collected between "NUMBER" opcode calls (which is used as our "level marker")
+   */
+  numberLevels: { [numberOpcodeLevel: string]: NumberLevelInfo }
+  /**
+   * values passed into KECCAK opcode
+   */
+  keccak: string[]
+  calls: Array<{ type: string, from: string, to: string, value: any }>
+  logs: LogInfo[]
+  debug: any[]
 }
 
 export interface NumberLevelInfo {
@@ -21,19 +32,20 @@ export interface NumberLevelInfo {
   access: { [address: string]: AccessInfo | undefined }
 }
 
+export interface AccessInfo {
+  reads: { [slot: string]: number }
+  writes: { [slot: string]: number }
+}
+
 export interface LogInfo {
   topics: string[]
   data: string
 }
 
-export interface BundlerCollectorReturn {
-  numberLevels: { [key: string]: NumberLevelInfo }
-  keccak: any[]
-  calls: Array<{ type: string, from: string, to: string, value: any }>
-  logs: LogInfo[]
-  debug: any[]
-}
-
+/**
+ * type-safe local storage of our collector. contains all return-value properties.
+ * (also defines all "trace-local" variables and functions)
+ */
 interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
   lastOp: string
   currentLevel: NumberLevelInfo
@@ -43,13 +55,12 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
 
 /**
  * tracer to collect data for opcode banning.
- * exported object for internal use: remove the "module.exports=" when sending as a string to geth.
+ * this method is passed as the "tracer" for eth_traceCall (note, the function itself)
+ *
  * returned data:
- *  opcodes: mapping from opcode name to count
- *  keccak: whenever a keccak over a 64-byte memory is done, collect the 64 bytes (as 2 32-byte uint values)
+ *  numberLevels: opcodes and memory access, split on execution of "number" opcode.
+ *  keccak: input data of keccak opcode.
  *  calls: for each call, an array of [type, from, to, value]
- *  writes: count writes in contract addresses (not slots)
- *  reads: count reads on contract addresses
  *  slots: accessed slots (on any address)
  */
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
@@ -78,7 +89,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      this.debug.push(['enter ' + frame.getType() + ' ' + toHex(frame.getTo())+ ' ' + toHex(frame.getInput())])
+      this.debug.push(['enter ' + frame.getType() + ' ' + toHex(frame.getTo()) + ' ' + toHex(frame.getInput())])
       this.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
@@ -89,6 +100,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     exit (frame: LogFrameResult): void {
       this.debug.push(`exit err=${frame.getError()}, gas=${frame.getGasUsed()}`)
     },
+
+    //increment the "key" in the list. if the key is not defined yet, then set it to "1"
     countSlot (list: { [key: string]: number | undefined }, key: any) {
       list[key] = (list[key] || 0) + 1
     },
@@ -102,16 +115,19 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           opcodes: {}
         }
       }
-      if (log.getDepth() > 1) {
-        if (this.lastOp == 'GAS' && !opcode.includes('CALL')) {
-          // this.debug.push('lastop GAS cur=', opcode)
-          this.countSlot(this.currentLevel.opcodes, 'GAS')
-        }
-        if (opcode != 'GAS') {
-          //ignore "unimportant" opcodes:
-          if (!opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/)) {
-            this.countSlot(this.currentLevel.opcodes, opcode)
-          }
+
+      if (log.getDepth() == 1) {
+        return
+      }
+
+      if (this.lastOp == 'GAS' && !opcode.includes('CALL')) {
+        // count "GAS" opcode only if not followed by "CALL"
+        this.countSlot(this.currentLevel.opcodes, 'GAS')
+      }
+      if (opcode != 'GAS') {
+        //ignore "unimportant" opcodes:
+        if (!opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/)) {
+          this.countSlot(this.currentLevel.opcodes, opcode)
         }
       }
       this.lastOp = opcode
@@ -137,7 +153,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         // collect keccak on 64-byte blocks
         const ofs = log.stack.peek(0)
         const len = log.stack.peek(1)
-        //TODO: currently, solidity uses only 2-word (6-byte) for a key. this might change..
+        // currently, solidity uses only 2-word (6-byte) for a key. this might change..
+        // still, no need to return too much
         if (len < 512) {
           // if (len == 64) {
           this.keccak.push(toHex(log.memory.slice(ofs, ofs + len)))

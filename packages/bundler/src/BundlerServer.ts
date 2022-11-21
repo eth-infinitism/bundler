@@ -10,6 +10,7 @@ import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
+import { RpcError } from './utils'
 
 export class BundlerServer {
   app: Express
@@ -89,7 +90,8 @@ export class BundlerServer {
         data: err.data,
         code: err.code
       }
-      console.log('failed: ', method, JSON.stringify(error))
+      console.log('ex=', err)
+      console.log('failed: ', method, 'error:', JSON.stringify(error))
       res.send({
         jsonrpc,
         id,
@@ -112,8 +114,17 @@ export class BundlerServer {
       case 'eth_sendUserOperation':
         result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
+      case 'eth_simulateUserOperation':
+        result = await this.methodHandler.simulateUserOp(params[0], params[1])
+        break
+      case 'eth_getUserOperationReceipt':
+        result = await this.methodHandler.getUserOperationReceipt(params[0])
+        break
+      case 'eth_getUserOperationTransactionByHash':
+        result = await this.methodHandler.getUserOperationTransactionByHash(params[0])
+        break
       default:
-        throw new Error(`Method ${method} is not supported`)
+        throw new RpcError(`Method ${method} is not supported`, -32601)
     }
     return result
   }

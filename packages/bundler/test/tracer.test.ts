@@ -25,12 +25,12 @@ describe('#bundlerCollectorTracer', () => {
     expect(execEvent.success).to.equal(true)
     expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.equal(1)
   })
+
   it('should not count opcodes on depth==1', async () => {
     const ret = await traceCall(tester.interface.encodeFunctionData('callTimeStamp'))
-    console.log(ret.numberLevels)
     expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.be.undefined
     //verify no error..
-    expect(ret.debug).to.eql([])
+    expect(ret.debug.toString()).to.not.match(/REVERT/)
   })
 
   async function traceCall (functionData: BytesLike): Promise<BundlerCollectorReturn> {
@@ -59,6 +59,7 @@ describe('#bundlerCollectorTracer', () => {
       expect(log.success).to.equal(false)
     })
     it('should call itself', async () => {
+      //sanity check: execSelf works and call itself (even recursively)
       const innerCall = tester.interface.encodeFunctionData('doNothing')
       const execInner = tester.interface.encodeFunctionData('execSelf', [innerCall, false])
       const ret = await traceExecSelf(execInner)
@@ -95,7 +96,6 @@ describe('#bundlerCollectorTracer', () => {
       tracer
     }) as BundlerCollectorReturn
 
-    console.log('logs=', ret.debug)
     expect(ret.debug[0]).to.include(['fault'])
     // todo: tests for failures. (e.g. detect oog)
   })
