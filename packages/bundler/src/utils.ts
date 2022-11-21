@@ -16,10 +16,10 @@ export function deepHexlify (obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map(member => deepHexlify(member))
   }
-  return Object.keys(obj).map(key => [key, deepHexlify(obj[key])])
-    .reduce((set, [key, val]) => ({
+  return Object.keys(obj)
+    .reduce((set, key) => ({
       ...set,
-      [key]: val
+      [key]: deepHexlify(obj[key])
     }), {})
 }
 
