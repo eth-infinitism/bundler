@@ -36,7 +36,7 @@ describe('UserOpMethodHandler', function () {
     signer = ethers.provider.getSigner()
 
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
-    entryPoint = await EntryPointFactory.deploy(1, 1)
+    entryPoint = await EntryPointFactory.deploy()
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
     bundleHelper = await bundleHelperFactory.deploy()

@@ -16,7 +16,7 @@ describe('ERC4337EthersSigner, Provider', function () {
   let entryPoint: EntryPoint
   before('init', async () => {
     const deployRecipient = await new SampleRecipient__factory(signer).deploy()
-    entryPoint = await new EntryPoint__factory(signer).deploy(1, 1)
+    entryPoint = await new EntryPoint__factory(signer).deploy()
     const config: ClientConfig = {
       entryPointAddress: entryPoint.address,
       bundlerUrl: ''

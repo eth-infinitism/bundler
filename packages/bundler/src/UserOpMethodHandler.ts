@@ -86,7 +86,7 @@ export class UserOpMethodHandler {
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
-    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp1, false])
+    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp1])
 
     const provider = this.provider as JsonRpcProvider
     if (await this.isGeth()) {

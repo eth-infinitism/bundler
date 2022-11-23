@@ -27,7 +27,7 @@ describe('SimpleWalletAPI', () => {
   let walletDeployed = false
 
   before('init', async () => {
-    entryPoint = await new EntryPoint__factory(signer).deploy(1, 1)
+    entryPoint = await new EntryPoint__factory(signer).deploy()
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()
