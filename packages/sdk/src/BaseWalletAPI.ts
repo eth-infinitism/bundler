@@ -31,7 +31,7 @@ export interface UserOpResult {
  * - getWalletInitCode - return the value to put into the "initCode" field, if the wallet is not yet deployed. should create the wallet instance using a factory contract.
  * - getNonce - return current wallet's nonce value
  * - encodeExecute - encode the call from entryPoint through our wallet to the target contract.
- * - signuserOpHash - sign the userOpHash of a UserOp.
+ * - signUserOpHash - sign the hash of a UserOp.
  *
  * The user can use the following APIs:
  * - createUnsignedUserOp - given "target" and "calldata", fill userOp to perform that operation from the wallet.
@@ -96,7 +96,7 @@ export abstract class BaseWalletAPI {
    * sign a userOp's hash (userOpHash).
    * @param userOpHash
    */
-  abstract signuserOpHash (userOpHash: string): Promise<string>
+  abstract signUserOpHash (userOpHash: string): Promise<string>
 
   /**
    * check if the wallet is already deployed.
@@ -285,7 +285,7 @@ export abstract class BaseWalletAPI {
    */
   async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
     const userOpHash = await this.getUserOpHash(userOp)
-    const signature = this.signuserOpHash(userOpHash)
+    const signature = this.signUserOpHash(userOpHash)
     return {
       ...userOp,
       signature

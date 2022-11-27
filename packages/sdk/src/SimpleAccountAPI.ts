@@ -99,7 +99,7 @@ export class SimpleAccountAPI extends BaseWalletAPI {
       ])
   }
 
-  async signuserOpHash (userOpHash: string): Promise<string> {
+  async signUserOpHash (userOpHash: string): Promise<string> {
     return await this.owner.signMessage(arrayify(userOpHash))
   }
 }
