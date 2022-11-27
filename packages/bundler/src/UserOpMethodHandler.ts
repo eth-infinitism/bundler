@@ -155,7 +155,7 @@ export class UserOpMethodHandler {
     }
 
     const gasLimit = undefined
-    console.log('using gasLimit=', gasLimit)
+    debug('using gasLimit=', gasLimit)
     await this.entryPoint.handleOps([userOp], beneficiary, { gasLimit }).catch(rethrowError)
 
     // await postExecutionDump(this.entryPoint, userOpHash)

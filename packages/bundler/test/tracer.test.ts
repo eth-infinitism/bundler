@@ -4,7 +4,6 @@ import { debug_traceCall } from '../src/GethTracer'
 import { expect } from 'chai'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
 import { BytesLike } from 'ethers'
-import chalk from 'chalk'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
@@ -14,7 +13,7 @@ describe('#bundlerCollectorTracer', () => {
   before(async function () {
     const ver = await (provider as any).send('web3_clientVersion')
     if (ver.match('Geth') == null) {
-      console.warn(chalk.yellow('Warning: test requires debug_traceCall on Geth (go-ethereum) node'))
+      console.warn('\t==WARNING: test requires debug_traceCall on Geth (go-ethereum) node')
       this.skip()
       return
     }
