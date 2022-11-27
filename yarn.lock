@@ -4,8 +4,8 @@
 
 "@account-abstraction/contracts@^0.3.0":
   version "0.3.0"
-  resolved "http://localhost:4873/@account-abstraction%2fcontracts/-/contracts-0.3.0.tgz#93c0921d57bdbdf4c739cce63950e3c1a9fba1ed"
-  integrity sha512-Bu64wfLKnnOLa8YWnPQmltOGCEclNzD76lmCSTdrMAtc2uaBkqbQbIdx5zuACneIuazz0uNi3AW8qYgYTxWf1w==
+  resolved "https://registry.yarnpkg.com/@account-abstraction/contracts/-/contracts-0.3.0.tgz#a8496f69c212dcc2fdc63f5e904a89ce5a2ad5f5"
+  integrity sha512-vCwFBHTggoz+UkJ5O8IHdcyDPcaN1QMy7tSqE2mCs3bdocZeyyN8oPY6g/YrO6c8ewyOWhQ1+lrui2XIEiwdVw==
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.18.6":
   version "7.18.6"

@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/bundler",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "license": "MIT",
   "private": true,
   "files": [
@@ -24,8 +24,8 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.3.0",
-    "@account-abstraction/utils": "^0.2.3",
+    "@account-abstraction/contracts": "0.3.0",
+    "@account-abstraction/utils": "0.3.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@types/cors": "^2.8.12",
@@ -39,7 +39,7 @@
     "source-map-support": "^0.5.21"
   },
   "devDependencies": {
-    "@account-abstraction/sdk": "^0.2.3",
+    "@account-abstraction/sdk": "0.3.0",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.3",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
