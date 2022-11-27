@@ -5,7 +5,7 @@ import {
   SimpleAccountDeployer__factory
 } from '@account-abstraction/contracts'
 
-import { arrayify, hexConcat, keccak256 } from 'ethers/lib/utils'
+import { arrayify, hexConcat } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
 import { BaseApiParams, BaseWalletAPI } from './BaseWalletAPI'
 

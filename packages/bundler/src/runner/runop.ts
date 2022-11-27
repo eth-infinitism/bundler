@@ -116,10 +116,8 @@ async function main (): Promise<void> {
   const deployDeployer: boolean = opts.deployDeployer
   let bundler: BundlerServer | undefined
 
-
   if (opts.selfBundler != null) {
-
-    //todo: if node is geth, we need to fund our bundler's account:
+    // todo: if node is geth, we need to fund our bundler's account:
     const signer = provider.getSigner()
 
     const signerBalance = await provider.getBalance(signer.getAddress())

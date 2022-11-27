@@ -42,6 +42,5 @@ describe('#deepHexlify', function () {
         }, '0x02', '0x03']
       }
     })
-
   })
 })

@@ -16,7 +16,7 @@ const debug = Debug('aa.handler.userop')
 
 const AddressZero = ethers.constants.AddressZero
 
-//TODO: need to check field lengths (address fixed 20 bytes, numeric>1, dynamics
+// TODO: need to check field lengths (address fixed 20 bytes, numeric>1, dynamics
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class UserOpMethodHandler {
@@ -54,20 +54,19 @@ export class UserOpMethodHandler {
     return beneficiary
   }
 
-  async validateUserOperation (userOp1: UserOperationStruct, requireSignature = true) {
-
-    //minimal sanity check: userOp exists, and all members are hex
+  async validateUserOperation (userOp1: UserOperationStruct, requireSignature = true): Promise<void> {
+    // minimal sanity check: userOp exists, and all members are hex
     requireCond(userOp1 != null, 'No UserOperation param')
     const userOp = await resolveProperties(userOp1) as any
 
     const fieldNames = 'sender,nonce,initCode,callData,callGasLimit,verificationGasLimit,preVerificationGas,maxFeePerGas,maxPriorityFeePerGas,paymasterAndData'
-    let fields = fieldNames.split(',')
+    const fields = fieldNames.split(',')
     if (requireSignature) {
       fields.push('signature')
     }
     fields.forEach(key => {
       requireCond(userOp[key] != null, 'Missing userOp field: ' + key + JSON.stringify(userOp), -32602)
-      let value = userOp[key].toString()
+      const value: string = userOp[key].toString()
       requireCond(value.match(HEX_REGEX) != null, `Invalid hex value for property ${key}:${value} in UserOp`, -32602)
     })
   }
@@ -79,7 +78,7 @@ export class UserOpMethodHandler {
    * @param userOp1
    * @param entryPointInput
    */
-  async simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string) {
+  async simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string): Promise<void> {
     const userOp = deepHexlify(await resolveProperties(userOp1))
 
     await this.validateUserOperation(userOp, false)
@@ -91,10 +90,10 @@ export class UserOpMethodHandler {
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
     const revert = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
-    //simulation always reverts...
-    if (revert.errorName == 'FailedOp') {
+    // simulation always reverts...
+    if (revert.errorName === 'FailedOp') {
       let data: any
-      if (revert.errorArgs.paymaster != AddressZero) {
+      if (revert.errorArgs.paymaster !== AddressZero) {
         data = { paymaster: revert.errorArgs.paymaster }
       }
       throw new RpcError(revert.errorArgs.reason, -32500, data)
@@ -112,8 +111,8 @@ export class UserOpMethodHandler {
       }, { tracer: bundlerCollectorTracer })
 
       debug('=== simulation result:', result)
-      //todo: validate keccak, access
-      //todo: block access to no-code addresses (might need update to tracer)
+      // todo: validate keccak, access
+      // todo: block access to no-code addresses (might need update to tracer)
 
       const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE'])
 
@@ -128,11 +127,11 @@ export class UserOpMethodHandler {
         requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, 32501, { paymaster })
       )
       if (userOp.initCode.length > 2) {
-        requireCond((validateOpcodes['CREATE2'] ?? 0) <= 1, 'initCode with too many CREATE2', 32501)
+        requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', 32501)
       } else {
-        requireCond((validateOpcodes['CREATE2'] ?? 0) < 1, 'banned opcode: CREATE2', 32501)
+        requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'banned opcode: CREATE2', 32501)
       }
-      requireCond((validatePaymasterOpcodes['CREATE2'] ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', 32501, { paymaster })
+      requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', 32501, { paymaster })
     }
   }
 
@@ -170,7 +169,7 @@ export class UserOpMethodHandler {
     return event[0]
   }
 
-  async getUserOperationReceipt (userOpHash: string) {
+  async getUserOperationReceipt (userOpHash: string): Promise<any> {
     requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
     const event = await this._getUserOperationEvent(userOpHash)
     if (event == null) {
@@ -182,7 +181,7 @@ export class UserOpMethodHandler {
     return deepHexlify(receipt)
   }
 
-  async getUserOperationTransactionByHash (userOpHash: string) {
+  async getUserOperationTransactionByHash (userOpHash: string): Promise<any> {
     requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
     const event = await this._getUserOperationEvent(userOpHash)
     if (event == null) {

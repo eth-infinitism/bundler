@@ -128,7 +128,7 @@ export abstract class BaseWalletAPI {
     } catch (e: any) {
       return e.errorArgs.sender
     }
-    throw new Error( 'must handle revert')
+    throw new Error('must handle revert')
   }
 
   /**
@@ -213,12 +213,13 @@ export abstract class BaseWalletAPI {
     return this.senderAddress
   }
 
-  async estimateCreationGas(initCode?: string): Promise<BigNumberish> {
-    if ( initCode==null || initCode == '0x') return 0
-    const deployerAddress = initCode.substring(0,42)
-    const deployerCallData = '0x'+initCode.substring(42)
-    return await this.provider.estimateGas({to: deployerAddress, data: deployerCallData})
+  async estimateCreationGas (initCode?: string): Promise<BigNumberish> {
+    if (initCode == null || initCode === '0x') return 0
+    const deployerAddress = initCode.substring(0, 42)
+    const deployerCallData = '0x' + initCode.substring(42)
+    return await this.provider.estimateGas({ to: deployerAddress, data: deployerCallData })
   }
+
   /**
    * create a UserOperation, filling all details (except signature)
    * - if wallet is not yet created, add initCode to deploy it.

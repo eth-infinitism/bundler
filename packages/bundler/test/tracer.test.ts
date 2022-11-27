@@ -1,10 +1,8 @@
 import { TracerTest, TracerTest__factory } from '../src/types'
 import { ethers } from 'hardhat'
 import { debug_traceCall } from '../src/GethTracer'
-import { hexlify, keccak256 } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
-import { spawn, spawnSync } from 'child_process'
 import { BytesLike } from 'ethers'
 
 const provider = ethers.provider
@@ -29,7 +27,7 @@ describe('#bundlerCollectorTracer', () => {
   it('should not count opcodes on depth==1', async () => {
     const ret = await traceCall(tester.interface.encodeFunctionData('callTimeStamp'))
     expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.be.undefined
-    //verify no error..
+    // verify no error..
     expect(ret.debug.toString()).to.not.match(/REVERT/)
   })
 
@@ -43,7 +41,7 @@ describe('#bundlerCollectorTracer', () => {
     return ret
   }
 
-  //wrap call in a call to self (depth+1)
+  // wrap call in a call to self (depth+1)
   async function traceExecSelf (functionData: BytesLike, useNumber = true): Promise<BundlerCollectorReturn> {
     const execTestCallGas = tester.interface.encodeFunctionData('execSelf', [functionData, useNumber])
     const ret = await traceCall(execTestCallGas)
@@ -59,7 +57,7 @@ describe('#bundlerCollectorTracer', () => {
       expect(log.success).to.equal(false)
     })
     it('should call itself', async () => {
-      //sanity check: execSelf works and call itself (even recursively)
+      // sanity check: execSelf works and call itself (even recursively)
       const innerCall = tester.interface.encodeFunctionData('doNothing')
       const execInner = tester.interface.encodeFunctionData('execSelf', [innerCall, false])
       const ret = await traceExecSelf(execInner)
@@ -72,17 +70,16 @@ describe('#bundlerCollectorTracer', () => {
   })
   4
   it('should report direct use of GAS opcode', async () => {
-
     const ret = await traceExecSelf(tester.interface.encodeFunctionData('testCallGas'), false)
-    expect(ret.numberLevels['0'].opcodes['GAS']).to.eq(1)
+    expect(ret.numberLevels['0'].opcodes.GAS).to.eq(1)
   })
 
   it('should ignore gas used as part of "call"', async () => {
-    //call the "testKeccak" function as a sample inner function
-    let doNothing = tester.interface.encodeFunctionData('doNothing')
-    let callDoNothing = tester.interface.encodeFunctionData('execSelf', [doNothing, false])
+    // call the "testKeccak" function as a sample inner function
+    const doNothing = tester.interface.encodeFunctionData('doNothing')
+    const callDoNothing = tester.interface.encodeFunctionData('execSelf', [doNothing, false])
     const ret = await traceExecSelf(callDoNothing, false)
-    expect(ret.numberLevels['0'].opcodes['GAS']).to.be.undefined
+    expect(ret.numberLevels['0'].opcodes.GAS).to.be.undefined
   })
 
   it.skip('should collect reverted call info', async () => {
