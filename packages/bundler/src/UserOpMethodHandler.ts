@@ -4,9 +4,18 @@ import { JsonRpcProvider, JsonRpcSigner, Provider } from '@ethersproject/provide
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
-import { rethrowError } from '@account-abstraction/utils'
+import { AddressZero, rethrowError } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk/dist/src/calcPreVerificationGas'
-// import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
+import { debug_traceCall } from './GethTracer'
+import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollectorTracer'
+import { UserOperationStruct } from '@account-abstraction/contracts'
+import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { deepHexlify, requireCond, RpcError } from './utils'
+import Debug from 'debug'
+
+const debug = Debug('aa.handler.userop')
+
+const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class UserOpMethodHandler {
   constructor (
@@ -27,6 +36,7 @@ export class UserOpMethodHandler {
     debug('client version', this.clientVersion)
     return this.clientVersion?.match('Geth') != null
   }
+
   async getSupportedEntryPoints (): Promise<string[]> {
     return [this.config.entryPoint]
   }
@@ -122,6 +132,7 @@ export class UserOpMethodHandler {
       requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', 32501, { paymaster })
     }
   }
+
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
     const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {

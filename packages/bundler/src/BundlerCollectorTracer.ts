@@ -98,7 +98,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       })
     },
     exit (frame: LogFrameResult): void {
-      this.debug.push(`exit err=${frame.getError().toString()}, gas=${frame.getGasUsed()}`)
+      this.debug.push(`exit err=${frame.getError() as string}, gas=${frame.getGasUsed()}`)
     },
 
     // increment the "key" in the list. if the key is not defined yet, then set it to "1"

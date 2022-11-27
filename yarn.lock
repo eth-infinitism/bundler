@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@account-abstraction/contracts@^0.3.0":
+"@account-abstraction/contracts@0.3.0":
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/@account-abstraction/contracts/-/contracts-0.3.0.tgz#a8496f69c212dcc2fdc63f5e904a89ce5a2ad5f5"
   integrity sha512-vCwFBHTggoz+UkJ5O8IHdcyDPcaN1QMy7tSqE2mCs3bdocZeyyN8oPY6g/YrO6c8ewyOWhQ1+lrui2XIEiwdVw==
@@ -3544,6 +3544,11 @@ chalk@^4.0.0, chalk@^4.0.2, chalk@^4.1.0, chalk@^4.1.1, chalk@^4.1.2:
   dependencies:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
+
+chalk@^5.1.2:
+  version "5.1.2"
+  resolved "https://registry.yarnpkg.com/chalk/-/chalk-5.1.2.tgz#d957f370038b75ac572471e83be4c5ca9f8e8c45"
+  integrity sha512-E5CkT4jWURs1Vy5qGJye+XwCkNj7Od3Af7CP6SujMetSMkLs8Do2RWJK5yx1wamHV/op8Rz+9rltjaTQWDnEFQ==
 
 chardet@^0.7.0:
   version "0.7.0"

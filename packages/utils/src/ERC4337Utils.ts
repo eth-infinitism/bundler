@@ -3,6 +3,8 @@ import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
 
+export const AddressZero = ethers.constants.AddressZero
+
 // UserOperation is the first parameter of simulateValidation
 const UserOpType = entryPointAbi.find(entry => entry.name === 'simulateValidation')?.inputs[0]
 

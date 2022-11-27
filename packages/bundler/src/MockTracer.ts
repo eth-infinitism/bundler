@@ -5,7 +5,7 @@
 //   (which is annoying, since it IS a javascript evm...)
 // INCOMPLETE: can't easily emulate "contract" methods (e.g. getAddress) without full emulating full CALL/RETURN/REVERT state
 import { BigNumber, Transaction } from 'ethers'
-import { hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
+import { hexConcat, keccak256 } from 'ethers/lib/utils'
 import { LogCallFrame, LogStep, LogTracer, TraceOptions, TraceResult, TraceResultEntry } from './GethTracer'
 
 /* eslint-disable */
