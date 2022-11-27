@@ -7,13 +7,13 @@ import {
 
 import { arrayify, hexConcat } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
-import { BaseApiParams, BaseWalletAPI } from './BaseWalletAPI'
+import { BaseAccountAPI, BaseApiParams } from './BaseAccountAPI'
 
 /**
  * constructor params, added no top of base params:
  * @param owner the signer object for the wallet owner
- * @param factoryAddress address of contract "factory" to deploy new contracts (not needed if wallet already deployed)
- * @param index nonce value used when creating multiple wallets for the same owner
+ * @param factoryAddress address of contract "factory" to deploy new contracts (not needed if account already deployed)
+ * @param index nonce value used when creating multiple accounts for the same owner
  */
 export interface SimpleAccountApiParams extends BaseApiParams {
   owner: Signer
@@ -23,13 +23,13 @@ export interface SimpleAccountApiParams extends BaseApiParams {
 }
 
 /**
- * An implementation of the BaseWalletAPI using the SimpleAccount contract.
+ * An implementation of the BaseAccountAPI using the SimpleAccount contract.
  * - contract deployer gets "entrypoint", "owner" addresses and "index" nonce
  * - owner signs requests using normal "Ethereum Signed Message" (ether's signer.signMessage())
  * - nonce method is "nonce()"
  * - execute method is "execFromEntryPoint()"
  */
-export class SimpleAccountAPI extends BaseWalletAPI {
+export class SimpleAccountAPI extends BaseAccountAPI {
   factoryAddress?: string
   owner: Signer
   index: number
@@ -38,7 +38,7 @@ export class SimpleAccountAPI extends BaseWalletAPI {
    * our wallet contract.
    * should support the "execFromEntryPoint" and "nonce" methods
    */
-  walletContract?: SimpleAccount
+  accountContract?: SimpleAccount
 
   factory?: SimpleAccountDeployer
 
@@ -49,18 +49,18 @@ export class SimpleAccountAPI extends BaseWalletAPI {
     this.index = params.index ?? 0
   }
 
-  async _getWalletContract (): Promise<SimpleAccount> {
-    if (this.walletContract == null) {
-      this.walletContract = SimpleAccount__factory.connect(await this.getWalletAddress(), this.provider)
+  async _getAccountContract (): Promise<SimpleAccount> {
+    if (this.accountContract == null) {
+      this.accountContract = SimpleAccount__factory.connect(await this.getAccountAddress(), this.provider)
     }
-    return this.walletContract
+    return this.accountContract
   }
 
   /**
-   * return the value to put into the "initCode" field, if the wallet is not yet deployed.
-   * this value holds the "factory" address, followed by this wallet's information
+   * return the value to put into the "initCode" field, if the account is not yet deployed.
+   * this value holds the "factory" address, followed by this account's information
    */
-  async getWalletInitCode (): Promise<string> {
+  async getAccountInitCode (): Promise<string> {
     if (this.factory == null) {
       if (this.factoryAddress != null && this.factoryAddress !== '') {
         this.factory = SimpleAccountDeployer__factory.connect(this.factoryAddress, this.provider)
@@ -75,11 +75,11 @@ export class SimpleAccountAPI extends BaseWalletAPI {
   }
 
   async getNonce (): Promise<BigNumber> {
-    if (await this.checkWalletPhantom()) {
+    if (await this.checkAccountPhantom()) {
       return BigNumber.from(0)
     }
-    const walletContract = await this._getWalletContract()
-    return await walletContract.nonce()
+    const accountContract = await this._getAccountContract()
+    return await accountContract.nonce()
   }
 
   /**
@@ -89,8 +89,8 @@ export class SimpleAccountAPI extends BaseWalletAPI {
    * @param data
    */
   async encodeExecute (target: string, value: BigNumberish, data: string): Promise<string> {
-    const walletContract = await this._getWalletContract()
-    return walletContract.interface.encodeFunctionData(
+    const accountContract = await this._getAccountContract()
+    return accountContract.interface.encodeFunctionData(
       'execFromEntryPoint',
       [
         target,

@@ -119,7 +119,7 @@ export class UserOpMethodHandler {
       const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
       // console.log('debug=', result.debug.join('\n- '))
       Object.keys(validateOpcodes).forEach(opcode =>
-        requireCond(!bannedOpCodes.has(opcode), `wallet uses banned opcode: ${opcode}`, 32501)
+        requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, 32501)
       )
       Object.keys(validatePaymasterOpcodes).forEach(opcode =>
         requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, 32501, { paymaster })

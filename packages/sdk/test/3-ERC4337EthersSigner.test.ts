@@ -52,14 +52,14 @@ describe('ERC4337EthersSigner, Provider', function () {
   })
 
   it('should use ERC-4337 Signer and Provider to send the UserOperation to the bundler', async function () {
-    const walletAddress = await aaProvider.getSigner().getAddress()
+    const accountAddress = await aaProvider.getSigner().getAddress()
     await signer.sendTransaction({
-      to: walletAddress,
+      to: accountAddress,
       value: parseEther('0.1')
     })
     const ret = await recipient.something('hello')
     await expect(ret).to.emit(recipient, 'Sender')
-      .withArgs(anyValue, walletAddress, 'hello')
+      .withArgs(anyValue, accountAddress, 'hello')
   })
 
   it('should revert if on-chain userOp execution reverts', async function () {
