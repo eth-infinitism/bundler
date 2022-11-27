@@ -1,23 +1,12 @@
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner, Provider } from '@ethersproject/providers'
+
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
 import { rethrowError } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk/dist/src/calcPreVerificationGas'
-import { debug_traceCall } from './GethTracer'
-import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollectorTracer'
-import Debug from 'debug'
-import { UserOperationStruct } from '@account-abstraction/contracts'
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
-import { deepHexlify, requireCond, RpcError } from './utils'
-
-const debug = Debug('aa.handler.userop')
-
-const AddressZero = ethers.constants.AddressZero
-
-// TODO: need to check field lengths (address fixed 20 bytes, numeric>1, dynamics
-const HEX_REGEX = /^0x[a-fA-F\d]*$/i
+// import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 
 export class UserOpMethodHandler {
   constructor (
@@ -38,7 +27,6 @@ export class UserOpMethodHandler {
     debug('client version', this.clientVersion)
     return this.clientVersion?.match('Geth') != null
   }
-
   async getSupportedEntryPoints (): Promise<string[]> {
     return [this.config.entryPoint]
   }
@@ -134,7 +122,6 @@ export class UserOpMethodHandler {
       requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', 32501, { paymaster })
     }
   }
-
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
     const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {

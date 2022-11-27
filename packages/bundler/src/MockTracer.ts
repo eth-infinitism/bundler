@@ -1,4 +1,3 @@
-
 // attempt to run manually a tracer on a TraceResult data chunk.
 // this is an inefficient version, since it requires full trace dump (can easily be 10Mb) to be returned
 // from node, and processed locally.
@@ -6,7 +5,7 @@
 //   (which is annoying, since it IS a javascript evm...)
 // INCOMPLETE: can't easily emulate "contract" methods (e.g. getAddress) without full emulating full CALL/RETURN/REVERT state
 import { BigNumber, Transaction } from 'ethers'
-import { hexConcat, keccak256 } from 'ethers/lib/utils'
+import { hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
 import { LogCallFrame, LogStep, LogTracer, TraceOptions, TraceResult, TraceResultEntry } from './GethTracer'
 
 /* eslint-disable */

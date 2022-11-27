@@ -34,6 +34,11 @@ export interface GasOverheads {
    * expected bundle size, to split per-bundle overhead between all ops.
    */
   bundleSize: number
+
+  /**
+   * expected length of the userOp signature.
+   */
+  sigSize: number
 }
 
 export const DefaultGasOverheads: GasOverheads = {
@@ -42,7 +47,8 @@ export const DefaultGasOverheads: GasOverheads = {
   perUserOpWord: 4,
   zeroByte: 4,
   nonZeroByte: 16,
-  bundleSize: 1
+  bundleSize: 1,
+  sigSize: 65
 }
 
 /**
@@ -57,11 +63,11 @@ export function calcPreVerificationGas (userOp: Partial<NotPromise<UserOperation
   const p: NotPromise<UserOperationStruct> = {
     // dummy values, in case the UserOp is incomplete.
     preVerificationGas: 21000, // dummy value, just for calldata cost
-    signature: hexlify(Buffer.alloc(65, 1)), // dummy signature
+    signature: hexlify(Buffer.alloc(ov.sigSize, 1)), // dummy signature
     ...userOp
   } as any
 
-  const packed = arrayify(packUserOp(p))
+  const packed = arrayify(packUserOp(p, false))
   const callDataCost = packed.map(x => x === 0 ? ov.zeroByte : ov.nonZeroByte).reduce((sum, x) => sum + x)
   const ret = Math.round(
     callDataCost +
