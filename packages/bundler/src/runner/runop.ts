@@ -18,7 +18,7 @@ import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/Determi
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0x96b59F8a12d891E7fD8b7fcBa6596a813A0E0Ac4'
+const ENTRY_POINT = '0x2DF1592238420ecFe7f2431360e224707e77fA0E'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
@@ -42,7 +42,7 @@ class Runner {
   }
 
   async getAddress (): Promise<string> {
-    return await this.walletApi.getCreate2Address()
+    return await this.walletApi.getCounterFactualAddress()
   }
 
   async init (deploymentSigner?: Signer): Promise<this> {

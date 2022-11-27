@@ -19,7 +19,7 @@
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix --",
-    "hardhat-deploy": "yarn --cwd packages/account-abstraction deploy",
+    "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix --",
     "lerna-clear": "lerna run clear",
     "lerna-lint": "lerna run lint --stream --parallel",
     "lerna-test": "lerna run hardhat-test --stream",

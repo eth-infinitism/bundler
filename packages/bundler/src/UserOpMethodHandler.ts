@@ -101,7 +101,7 @@ export class UserOpMethodHandler {
     }
     const provider = this.provider as JsonRpcProvider
     if (await this.isGeth()) {
-      console.log('=== sending simulate')
+      debug('=== sending simulate')
       const simulationGas = BigNumber.from(50000).add(userOp.verificationGasLimit)
 
       const result: BundlerCollectorReturn = await debug_traceCall(provider, {
@@ -111,7 +111,7 @@ export class UserOpMethodHandler {
         gasLimit: simulationGas
       }, { tracer: bundlerCollectorTracer })
 
-      console.log('=== simulation result:', result)
+      debug('=== simulation result:', result)
       //todo: validate keccak, access
       //todo: block access to no-code addresses (might need update to tracer)
 

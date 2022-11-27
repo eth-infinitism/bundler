@@ -102,25 +102,4 @@ export class SimpleAccountAPI extends BaseWalletAPI {
   async signuserOpHash (userOpHash: string): Promise<string> {
     return await this.owner.signMessage(arrayify(userOpHash))
   }
-
-  /**
-   * calculate the wallet address even before it is deployed.
-   * We know our factory: it just calls CREATE2 to construct the wallet.
-   * NOTE: getWalletAddress works with any contract/factory (but only before creation)
-   * This method is tied to SimpleAccount implementation
-   */
-  async getCreate2Address (): Promise<string> {
-    if (this.factoryAddress == null) {
-      throw new Error('can\'t calculate address: no factory')
-    }
-
-    const ctrWithParams = new SimpleAccount__factory(undefined).getDeployTransaction(this.entryPointAddress, await this.owner.getAddress()).data as any
-    const salt = '0x' + this.index.toString(16).padStart(64, '0')
-    const hash = keccak256(hexConcat([
-      '0xff', this.factoryAddress, salt, keccak256(ctrWithParams)
-    ]))
-    // hash is 32bytes, or 66 chars.
-    // address is last 40 chars, with '0x' prefix
-    return '0x' + hash.substring(66 - 40)
-  }
 }
