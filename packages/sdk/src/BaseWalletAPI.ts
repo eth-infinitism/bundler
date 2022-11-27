@@ -108,10 +108,10 @@ export abstract class BaseWalletAPI {
     }
     const senderAddressCode = await this.provider.getCode(this.getWalletAddress())
     if (senderAddressCode.length > 2) {
-      // console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
+      // console.log(`SimpleAccount Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
     } else {
-      // console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
+      // console.log(`SimpleAccount Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
     }
     return this.isPhantom
   }
@@ -124,10 +124,8 @@ export abstract class BaseWalletAPI {
     // use entryPoint to query wallet address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
     try {
-      console.log('=== getSenderAddress')
       await this.entryPointView.callStatic.getSenderAddress(initCode)
     } catch (e: any) {
-      console.log('== getSenderAddress revert=', e.errorName, e.errorArgs)
       return e.errorArgs.sender
     }
     throw new Error( 'must handle revert')
@@ -215,6 +213,12 @@ export abstract class BaseWalletAPI {
     return this.senderAddress
   }
 
+  async estimateCreationGas(initCode?: string): Promise<BigNumberish> {
+    if ( initCode==null || initCode == '0x') return 0
+    const deployerAddress = initCode.substring(0,42)
+    const deployerCallData = '0x'+initCode.substring(42)
+    return await this.provider.estimateGas({to: deployerAddress, data: deployerCallData})
+  }
   /**
    * create a UserOperation, filling all details (except signature)
    * - if wallet is not yet created, add initCode to deploy it.
@@ -228,21 +232,9 @@ export abstract class BaseWalletAPI {
     } = await this.encodeUserOpCallDataAndGasLimit(info)
     const initCode = await this.getInitCode()
 
-    let verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
-    if (initCode.length > 2) {
-      // add creation to required verification gas
-      console.log('==estimateGas of creation')
-      let initGas: BigNumberish
-      try {
-        //TODO: getSenderAddress() always reverts, and thus we can't estimate it
-        initGas = await this.entryPointView.estimateGas.getSenderAddress(initCode)
-      } catch (e) {
-        console.log('=== can\'t estimateGas for getSenderAddress. return fixed value')
-        initGas = 1e5
-      }
-
-      verificationGasLimit = verificationGasLimit.add(initGas)
-    }
+    const initGas = await this.estimateCreationGas(initCode)
+    const verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
+      .add(initGas)
 
     let {
       maxFeePerGas,

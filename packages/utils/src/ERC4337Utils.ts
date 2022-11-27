@@ -174,7 +174,7 @@ interface DecodedError {
  * decode bytes thrown by revert as Error(message) or FailedOp(opIndex,paymaster,message)
  */
 export function decodeErrorReason (error: string): DecodedError | undefined {
-  console.log('decoding', error)
+  // console.log('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }

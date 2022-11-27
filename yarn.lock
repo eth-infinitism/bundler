@@ -4,8 +4,8 @@
 
 "@account-abstraction/contracts@^0.3.0":
   version "0.3.0"
-  resolved "http://localhost:4873/@account-abstraction%2fcontracts/-/contracts-0.3.0.tgz#16a9692935f0303a6418e9ad54aeb371df42791b"
-  integrity sha512-Y2azNTU7CKzvFvNGv9KZ6Plbe8Ld0A7IC3qHN/C0o+0QlXEm4RrbC2GnEWRIEr6Mz6//ZclakU4t17DeNzl8MA==
+  resolved "http://localhost:4873/@account-abstraction%2fcontracts/-/contracts-0.3.0.tgz#93c0921d57bdbdf4c739cce63950e3c1a9fba1ed"
+  integrity sha512-Bu64wfLKnnOLa8YWnPQmltOGCEclNzD76lmCSTdrMAtc2uaBkqbQbIdx5zuACneIuazz0uNi3AW8qYgYTxWf1w==
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.18.6":
   version "7.18.6"

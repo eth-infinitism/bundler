@@ -7,13 +7,13 @@
 
 import { BigNumber, getDefaultProvider, Signer, Wallet } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { SimpleWalletDeployer__factory } from '@account-abstraction/contracts'
+import { SimpleAccountDeployer__factory } from '@account-abstraction/contracts'
 import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'
 import { HttpRpcClient } from '@account-abstraction/sdk/dist/src/HttpRpcClient'
-import { SimpleWalletAPI } from '@account-abstraction/sdk'
+import { SimpleAccountAPI } from '@account-abstraction/sdk'
 import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
@@ -22,7 +22,7 @@ const ENTRY_POINT = '0x96b59F8a12d891E7fD8b7fcBa6596a813A0E0Ac4'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
-  walletApi!: SimpleWalletAPI
+  walletApi!: SimpleAccountAPI
 
   /**
    *
@@ -49,18 +49,18 @@ class Runner {
     const net = await this.provider.getNetwork()
     const chainId = net.chainId
     const dep = new DeterministicDeployer(this.provider)
-    const walletDeployer = await dep.getDeterministicDeployAddress(SimpleWalletDeployer__factory.bytecode)
-    // const walletDeployer = await new SimpleWalletDeployer__factory(this.provider.getSigner()).deploy().then(d=>d.address)
+    const walletDeployer = await dep.getDeterministicDeployAddress(SimpleAccountDeployer__factory.bytecode)
+    // const walletDeployer = await new SimpleAccountDeployer__factory(this.provider.getSigner()).deploy().then(d=>d.address)
     if (!await dep.isContractDeployed(walletDeployer)) {
       if (deploymentSigner == null) {
         console.log(`WalletDeployer not deployed at ${walletDeployer}. run with --deployDeployer`)
         process.exit(1)
       }
       const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
-      await dep1.deterministicDeploy(SimpleWalletDeployer__factory.bytecode)
+      await dep1.deterministicDeploy(SimpleAccountDeployer__factory.bytecode)
     }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
-    this.walletApi = new SimpleWalletAPI({
+    this.walletApi = new SimpleAccountAPI({
       provider: this.provider,
       entryPointAddress: this.entryPointAddress,
       factoryAddress: walletDeployer,

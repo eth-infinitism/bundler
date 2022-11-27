@@ -66,9 +66,9 @@ export class UserOpMethodHandler {
       fields.push('signature')
     }
     fields.forEach(key => {
-      requireCond(userOp[key] != null, 'Missing userOp field: ' + key, -32602)
+      requireCond(userOp[key] != null, 'Missing userOp field: ' + key + JSON.stringify(userOp), -32602)
       let value = userOp[key].toString()
-      requireCond(value.match(HEX_REGEX) != null, `Invalid ${key}:${value} in UserOp`, -32602)
+      requireCond(value.match(HEX_REGEX) != null, `Invalid hex value for property ${key}:${value} in UserOp`, -32602)
     })
   }
 
@@ -80,22 +80,22 @@ export class UserOpMethodHandler {
    * @param entryPointInput
    */
   async simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string) {
+    const userOp = deepHexlify(await resolveProperties(userOp1))
 
-    await this.validateUserOperation(userOp1, false)
+    await this.validateUserOperation(userOp, false)
     requireCond(entryPointInput != null, 'No entryPoint param')
 
-    const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
-    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp1])
+    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
-    const revert = await this.entryPoint.callStatic.simulateValidation(userOp1, {gasLimit: 10e6}).catch(e=>e)
+    const revert = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
     //simulation always reverts...
-    if ( revert.errorName == 'FailedOp') {
+    if (revert.errorName == 'FailedOp') {
       let data: any
-      if ( revert.errorArgs.paymaster != AddressZero ) {
-        data = { paymaster: revert.errorArgs.paymaster}
+      if (revert.errorArgs.paymaster != AddressZero) {
+        data = { paymaster: revert.errorArgs.paymaster }
       }
       throw new RpcError(revert.errorArgs.reason, -32500, data)
     }

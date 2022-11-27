@@ -80,7 +80,7 @@ export class UserOperationEventListener {
   }
 
   async extractFailureReason (receipt: TransactionReceipt): Promise<void> {
-    console.log('mark tx as failed')
+    debug('mark tx as failed')
     receipt.status = 0
     const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.userOpHash, this.sender), receipt.blockHash)
     if (revertReasonEvents[0] != null) {
@@ -89,7 +89,7 @@ export class UserOperationEventListener {
         // Error(string)
         message = defaultAbiCoder.decode(['string'], '0x' + message.substring(10)).toString()
       }
-      console.log(`rejecting with reason: ${message}`)
+      debug(`rejecting with reason: ${message}`)
       this.reject(new Error(`UserOp failed with reason: ${message}`)
       )
     }
