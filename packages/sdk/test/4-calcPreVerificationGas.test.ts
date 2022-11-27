@@ -16,8 +16,8 @@ describe('#calcPreVerificationGas', () => {
   }
 
   it('returns a gas value proportional to sigSize', async () => {
-    const pvg1 = calcPreVerificationGas(userOp, undefined, 0)
-    const pvg2 = calcPreVerificationGas(userOp, undefined, 65)
+    const pvg1 = calcPreVerificationGas(userOp, { sigSize: 0 })
+    const pvg2 = calcPreVerificationGas(userOp, { sigSize: 65 })
 
     expect(pvg2).to.be.greaterThan(pvg1)
   })
@@ -28,7 +28,7 @@ describe('#calcPreVerificationGas', () => {
       signature: hexlify(Buffer.alloc(65, 1))
     }
 
-    const pvg1 = calcPreVerificationGas(userOpWithSig, undefined, 0)
+    const pvg1 = calcPreVerificationGas(userOpWithSig, { sigSize: 0 })
     const pvg2 = calcPreVerificationGas(userOpWithSig)
     expect(pvg2).to.equal(pvg1)
   })

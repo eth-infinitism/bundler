@@ -34,6 +34,11 @@ export interface GasOverheads {
    * expected bundle size, to split per-bundle overhead between all ops.
    */
   bundleSize: number
+
+  /**
+   * expected length of the userOp signature.
+   */
+   sigSize: number
 }
 
 export const DefaultGasOverheads: GasOverheads = {
@@ -42,7 +47,8 @@ export const DefaultGasOverheads: GasOverheads = {
   perUserOpWord: 4,
   zeroByte: 4,
   nonZeroByte: 16,
-  bundleSize: 1
+  bundleSize: 1,
+  sigSize: 65
 }
 
 /**
@@ -51,14 +57,13 @@ export const DefaultGasOverheads: GasOverheads = {
  * it is based on parameters that are defined by the Ethereum protocol for external transactions.
  * @param userOp filled userOp to calculate. The only possible missing fields can be the signature and preVerificationGas itself
  * @param overheads gas overheads to use, to override the default values
- * @param sigSize the expected length of the userOp signature, used to generate a dummy value.
  */
-export function calcPreVerificationGas (userOp: Partial<NotPromise<UserOperationStruct>>, overheads?: Partial<GasOverheads>, sigSize?: number): number {
+export function calcPreVerificationGas (userOp: Partial<NotPromise<UserOperationStruct>>, overheads?: Partial<GasOverheads>): number {
   const ov = { ...DefaultGasOverheads, ...(overheads ?? {}) }
   const p: NotPromise<UserOperationStruct> = {
     // dummy values, in case the UserOp is incomplete.
     preVerificationGas: 21000, // dummy value, just for calldata cost
-    signature: hexlify(Buffer.alloc(sigSize ?? 65, 1)), // dummy signature
+    signature: hexlify(Buffer.alloc(ov.sigSize, 1)), // dummy signature
     ...userOp
   } as any
 
