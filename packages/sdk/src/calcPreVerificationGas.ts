@@ -38,7 +38,7 @@ export interface GasOverheads {
   /**
    * expected length of the userOp signature.
    */
-   sigSize: number
+  sigSize: number
 }
 
 export const DefaultGasOverheads: GasOverheads = {

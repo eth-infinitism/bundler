@@ -22,7 +22,7 @@ describe('#calcPreVerificationGas', () => {
     expect(pvg2).to.be.greaterThan(pvg1)
   })
 
-  it("returns a gas value that ignores sigSize if userOp already signed", async () => {
+  it('returns a gas value that ignores sigSize if userOp already signed', async () => {
     const userOpWithSig = {
       ...userOp,
       signature: hexlify(Buffer.alloc(65, 1))
