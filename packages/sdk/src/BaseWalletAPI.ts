@@ -8,7 +8,7 @@ import {
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getRequestId, NotPromise, packUserOp } from '@account-abstraction/utils'
+import { getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface BaseApiParams {
@@ -31,11 +31,11 @@ export interface UserOpResult {
  * - getWalletInitCode - return the value to put into the "initCode" field, if the wallet is not yet deployed. should create the wallet instance using a factory contract.
  * - getNonce - return current wallet's nonce value
  * - encodeExecute - encode the call from entryPoint through our wallet to the target contract.
- * - signRequestId - sign the requestId of a UserOp.
+ * - signuserOpHash - sign the userOpHash of a UserOp.
  *
  * The user can use the following APIs:
  * - createUnsignedUserOp - given "target" and "calldata", fill userOp to perform that operation from the wallet.
- * - createSignedUserOp - helper to call the above createUnsignedUserOp, and then extract the requestId and sign it
+ * - createSignedUserOp - helper to call the above createUnsignedUserOp, and then extract the userOpHash and sign it
  */
 export abstract class BaseWalletAPI {
   private senderAddress!: string
@@ -93,10 +93,10 @@ export abstract class BaseWalletAPI {
   abstract encodeExecute (target: string, value: BigNumberish, data: string): Promise<string>
 
   /**
-   * sign a userOp's hash (requestId).
-   * @param requestId
+   * sign a userOp's hash (userOpHash).
+   * @param userOpHash
    */
-  abstract signRequestId (requestId: string): Promise<string>
+  abstract signuserOpHash (userOpHash: string): Promise<string>
 
   /**
    * check if the wallet is already deployed.
@@ -123,7 +123,14 @@ export abstract class BaseWalletAPI {
     const initCode = this.getWalletInitCode()
     // use entryPoint to query wallet address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
-    return await this.entryPointView.callStatic.getSenderAddress(initCode)
+    try {
+      console.log('=== getSenderAddress')
+      await this.entryPointView.callStatic.getSenderAddress(initCode)
+    } catch (e: any) {
+      console.log('== getSenderAddress revert=', e.errorName, e.errorArgs)
+      return e.errorArgs.sender
+    }
+    throw new Error( 'must handle revert')
   }
 
   /**
@@ -183,14 +190,14 @@ export abstract class BaseWalletAPI {
   }
 
   /**
-   * return requestId for signing.
-   * This value matches entryPoint.getRequestId (calculated off-chain, to avoid a view call)
+   * return userOpHash for signing.
+   * This value matches entryPoint.getUserOpHash (calculated off-chain, to avoid a view call)
    * @param userOp userOperation, (signature field ignored)
    */
-  async getRequestId (userOp: UserOperationStruct): Promise<string> {
+  async getUserOpHash (userOp: UserOperationStruct): Promise<string> {
     const op = await resolveProperties(userOp)
     const chainId = await this.provider.getNetwork().then(net => net.chainId)
-    return getRequestId(op, this.entryPointAddress, chainId)
+    return getUserOpHash(op, this.entryPointAddress, chainId)
   }
 
   /**
@@ -224,7 +231,15 @@ export abstract class BaseWalletAPI {
     let verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
     if (initCode.length > 2) {
       // add creation to required verification gas
-      const initGas = await this.entryPointView.estimateGas.getSenderAddress(initCode)
+      console.log('==estimateGas of creation')
+      let initGas: BigNumberish
+      try {
+        //TODO: getSenderAddress() always reverts, and thus we can't estimate it
+        initGas = await this.entryPointView.estimateGas.getSenderAddress(initCode)
+      } catch (e) {
+        console.log('=== can\'t estimateGas for getSenderAddress. return fixed value')
+        initGas = 1e5
+      }
 
       verificationGasLimit = verificationGasLimit.add(initGas)
     }
@@ -276,8 +291,8 @@ export abstract class BaseWalletAPI {
    * @param userOp the UserOperation to sign (with signature field ignored)
    */
   async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
-    const requestId = await this.getRequestId(userOp)
-    const signature = this.signRequestId(requestId)
+    const userOpHash = await this.getUserOpHash(userOp)
+    const signature = this.signuserOpHash(userOpHash)
     return {
       ...userOp,
       signature
@@ -293,16 +308,16 @@ export abstract class BaseWalletAPI {
   }
 
   /**
-   * get the transaction that has this requestId mined, or null if not found
-   * @param requestId returned by sendUserOpToBundler (or by getRequestId..)
+   * get the transaction that has this userOpHash mined, or null if not found
+   * @param userOpHash returned by sendUserOpToBundler (or by getUserOpHash..)
    * @param timeout stop waiting after this timeout
    * @param interval time to wait between polls.
    * @return the transactionHash this userOp was mined, or null if not found.
    */
-  async getUserOpReceipt (requestId: string, timeout = 30000, interval = 5000): Promise<string | null> {
+  async getUserOpReceipt (userOpHash: string, timeout = 30000, interval = 5000): Promise<string | null> {
     const endtime = Date.now() + timeout
     while (Date.now() < endtime) {
-      const events = await this.entryPointView.queryFilter(this.entryPointView.filters.UserOperationEvent(requestId))
+      const events = await this.entryPointView.queryFilter(this.entryPointView.filters.UserOperationEvent(userOpHash))
       if (events.length > 0) {
         return events[0].transactionHash
       }

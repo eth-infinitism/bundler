@@ -8,7 +8,7 @@ import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
-import { getRequestId } from '@account-abstraction/utils'
+import { getUserOpHash } from '@account-abstraction/utils'
 import { BaseWalletAPI } from './BaseWalletAPI'
 import Debug from 'debug'
 const debug = Debug('aa.provider')
@@ -66,11 +66,11 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
-    const requestId = await transactionHash
+    const userOpHash = await transactionHash
     const sender = await this.getSenderWalletAddress()
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
-        resolve, reject, this.entryPoint, sender, requestId
+        resolve, reject, this.entryPoint, sender, userOpHash
       ).start()
     })
   }
@@ -91,14 +91,14 @@ export class ERC4337EthersProvider extends BaseProvider {
   // fabricate a response in a format usable by ethers users...
   async constructUserOpTransactionResponse (userOp1: UserOperationStruct): Promise<TransactionResponse> {
     const userOp = await resolveProperties(userOp1)
-    const requestId = getRequestId(userOp, this.config.entryPointAddress, this.chainId)
+    const userOpHash = getUserOpHash(userOp, this.config.entryPointAddress, this.chainId)
     const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
-        resolve, reject, this.entryPoint, userOp.sender, requestId, userOp.nonce
+        resolve, reject, this.entryPoint, userOp.sender, userOpHash, userOp.nonce
       ).start()
     })
     return {
-      hash: requestId,
+      hash: userOpHash,
       confirmations: 0,
       from: userOp.sender,
       nonce: BigNumber.from(userOp.nonce).toNumber(),

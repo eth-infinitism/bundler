@@ -10,9 +10,11 @@ import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollect
 import Debug from 'debug'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
-import { deepHexlify, requireCond } from './utils'
+import { deepHexlify, requireCond, RpcError } from './utils'
 
 const debug = Debug('aa.handler.userop')
+
+const AddressZero = ethers.constants.AddressZero
 
 //TODO: need to check field lengths (address fixed 20 bytes, numeric>1, dynamics
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -88,6 +90,15 @@ export class UserOpMethodHandler {
     }
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp1])
 
+    const revert = await this.entryPoint.callStatic.simulateValidation(userOp1, {gasLimit: 10e6}).catch(e=>e)
+    //simulation always reverts...
+    if ( revert.errorName == 'FailedOp') {
+      let data: any
+      if ( revert.errorArgs.paymaster != AddressZero ) {
+        data = { paymaster: revert.errorArgs.paymaster}
+      }
+      throw new RpcError(revert.errorArgs.reason, -32500, data)
+    }
     const provider = this.provider as JsonRpcProvider
     if (await this.isGeth()) {
       console.log('=== sending simulate')
@@ -100,6 +111,7 @@ export class UserOpMethodHandler {
         gasLimit: simulationGas
       }, { tracer: bundlerCollectorTracer })
 
+      console.log('=== simulation result:', result)
       //todo: validate keccak, access
       //todo: block access to no-code addresses (might need update to tracer)
 
@@ -134,7 +146,7 @@ export class UserOpMethodHandler {
 
     await this.simulateUserOp(userOp1, entryPointInput)
     const beneficiary = await this.selectBeneficiary()
-    const requestId = await this.entryPoint.getRequestId(userOp)
+    const userOpHash = await this.entryPoint.getUserOpHash(userOp)
 
     // TODO: this is only printing debug info, remove once not necessary
     // await this.printGasEstimationDebugInfo(userOp, beneficiary)
@@ -149,12 +161,12 @@ export class UserOpMethodHandler {
     console.log('using gasLimit=', gasLimit)
     await this.entryPoint.handleOps([userOp], beneficiary, { gasLimit }).catch(rethrowError)
 
-    // await postExecutionDump(this.entryPoint, requestId)
-    return requestId
+    // await postExecutionDump(this.entryPoint, userOpHash)
+    return userOpHash
   }
 
-  async _getUserOperationEvent (requestId: string): Promise<UserOperationEventEvent> {
-    const event = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationEvent(requestId))
+  async _getUserOperationEvent (userOpHash: string): Promise<UserOperationEventEvent> {
+    const event = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationEvent(userOpHash))
     return event[0]
   }
 

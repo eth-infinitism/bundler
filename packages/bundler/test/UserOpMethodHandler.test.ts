@@ -97,8 +97,8 @@ describe('UserOpMethodHandler', function () {
     })
 
     it('should send UserOperation transaction to BundlerHelper', async function () {
-      const requestId = await methodHandler.sendUserOperation(userOperation, entryPoint.address)
-      const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId))
+      const userOpHash = await methodHandler.sendUserOperation(userOperation, entryPoint.address)
+      const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
       const transactionReceipt = await req[0].getTransactionReceipt()
 
       assert.isNotNull(transactionReceipt)

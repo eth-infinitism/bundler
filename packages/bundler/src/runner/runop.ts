@@ -18,7 +18,7 @@ import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/Determi
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0x674DF207855CE0d9eaB7B000FbBE997a2451d24f'
+const ENTRY_POINT = '0x96b59F8a12d891E7fD8b7fcBa6596a813A0E0Ac4'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
@@ -90,9 +90,9 @@ class Runner {
       data
     })
     try {
-      const requestId = await this.bundlerProvider.sendUserOpToBundler(userOp)
-      const txid = await this.walletApi.getUserOpReceipt(requestId)
-      console.log('reqId', requestId, 'txid=', txid)
+      const userOpHash = await this.bundlerProvider.sendUserOpToBundler(userOp)
+      const txid = await this.walletApi.getUserOpReceipt(userOpHash)
+      console.log('reqId', userOpHash, 'txid=', txid)
     } catch (e: any) {
       throw this.parseExpectedGas(e)
     }
@@ -115,8 +115,29 @@ async function main (): Promise<void> {
   let signer: Signer
   const deployDeployer: boolean = opts.deployDeployer
   let bundler: BundlerServer | undefined
+
+
   if (opts.selfBundler != null) {
-    bundler = await runBundler(['node', 'exec', '--config', './localconfig/bundler.config.json'])
+
+    //todo: if node is geth, we need to fund our bundler's account:
+    const signer = provider.getSigner()
+
+    const signerBalance = await provider.getBalance(signer.getAddress())
+    const account = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+    const bal = await provider.getBalance(account)
+    if (bal.lt(parseEther('1')) && signerBalance.gte(parseEther('10000'))) {
+      console.log('funding hardhat account', account)
+      await signer.sendTransaction({
+        to: account,
+        value: parseEther('1').sub(bal)
+      })
+    }
+
+    const argv = ['node', 'exec', '--config', './localconfig/bundler.config.json']
+    if (opts.entryPoint != null) {
+      argv.push('--entryPoint', opts.entryPoint)
+    }
+    bundler = await runBundler(argv)
     await bundler.asyncStart()
   }
   if (opts.mnemonic != null) {
@@ -138,7 +159,7 @@ async function main (): Promise<void> {
   const walletOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const index = Date.now()
-  const client = await new Runner(provider, opts.bundlerUrl, walletOwner, undefined, index).init(deployDeployer ? signer : undefined)
+  const client = await new Runner(provider, opts.bundlerUrl, walletOwner, opts.entryPoint, index).init(deployDeployer ? signer : undefined)
 
   const addr = await client.getAddress()
 
@@ -153,7 +174,7 @@ async function main (): Promise<void> {
   const bal = await getBalance(addr)
   console.log('wallet address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   // TODO: actual required val
-  const requiredBalance = parseEther('0.1')
+  const requiredBalance = parseEther('0.5')
   if (bal.lt(requiredBalance.div(2))) {
     console.log('funding wallet to', requiredBalance)
     await signer.sendTransaction({

@@ -41,7 +41,7 @@ describe('SimpleWalletAPI', () => {
     })
   })
 
-  it('#getRequestId should match entryPoint.getRequestId', async function () {
+  it('#getUserOpHash should match entryPoint.getUserOpHash', async function () {
     const userOp: UserOperationStruct = {
       sender: '0x'.padEnd(42, '1'),
       nonce: 2,
@@ -55,8 +55,8 @@ describe('SimpleWalletAPI', () => {
       paymasterAndData: '0xaaaaaa',
       signature: '0xbbbb'
     }
-    const hash = await api.getRequestId(userOp)
-    const epHash = await entryPoint.getRequestId(userOp)
+    const hash = await api.getUserOpHash(userOp)
+    const epHash = await entryPoint.getUserOpHash(userOp)
     expect(hash).to.equal(epHash)
   })
 

@@ -90,7 +90,6 @@ export class BundlerServer {
         data: err.data,
         code: err.code
       }
-      console.log('ex=', err)
       console.log('failed: ', method, 'error:', JSON.stringify(error))
       res.send({
         jsonrpc,
