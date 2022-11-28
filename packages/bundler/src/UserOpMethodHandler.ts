@@ -120,17 +120,18 @@ export class UserOpMethodHandler {
    */
   async callUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<CallUserOperationResult> {
 
+    const userOp = await resolveProperties(userOp1)
     //TODO: currently performs separately the validation and execution.
     // should attempt to execute entire UserOp, so it can detect execution code dependency on validatiokn step.
-    const ret = this.estimateUserOperationGas(userOp1, entryPointInput)
+    const ret = await this.estimateUserOperationGas(userOp1, entryPointInput)
     let success: boolean
     let reason: string | undefined
     try {
       await this.provider.call({
         from: entryPointInput,
-        to: userOp1.sender,
-        data: userOp1.callData,
-        gasLimit: userOp1.callGasLimit
+        to: userOp.sender,
+        data: userOp.callData,
+        gasLimit: userOp.callGasLimit
       })
       success = true
     } catch (e: any) {
@@ -291,7 +292,7 @@ export class UserOpMethodHandler {
 
     console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${hexValue(userOp.paymasterAndData)}`)
 
-    await this._simulateUserOp(userOp1, entryPointInput)
+    await this._simulateUserOp(userOp, entryPointInput)
     const beneficiary = await this.selectBeneficiary()
     const userOpHash = await this.entryPoint.getUserOpHash(userOp)
 

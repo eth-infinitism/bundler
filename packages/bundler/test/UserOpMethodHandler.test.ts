@@ -1,8 +1,7 @@
-import 'source-map-support/register'
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { parseEther } from 'ethers/lib/utils'
+import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
@@ -17,9 +16,17 @@ import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import { BundlerHelper, SampleRecipient } from '../src/types'
+import { deepHexlify } from '@account-abstraction/utils'
 
+//resolve all property and hexlify.
+// (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
+async function resolveHexlify(a:any): Promise<any> {
+  return deepHexlify(await resolveProperties(a))
+}
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
+
+  let accountDeployerAddress: string
 
   let methodHandler: UserOpMethodHandler
   let provider: BaseProvider
@@ -33,6 +40,9 @@ describe('UserOpMethodHandler', function () {
   before(async function () {
     provider = ethers.provider
     signer = ethers.provider.getSigner()
+
+    DeterministicDeployer.init(ethers.provider)
+    accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
 
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
     entryPoint = await EntryPointFactory.deploy()
@@ -68,6 +78,46 @@ describe('UserOpMethodHandler', function () {
     })
   })
 
+  describe('query rpc calls: eth_estimateUserOperationGas, eth_callUserOperation', function () {
+    let owner: Wallet
+    let smartAccountAPI: SimpleAccountAPI
+    let target:string
+    before('init', async () => {
+      owner = Wallet.createRandom()
+      target = await Wallet.createRandom().getAddress()
+      smartAccountAPI = new SimpleAccountAPI({
+        provider,
+        entryPointAddress: entryPoint.address,
+        owner,
+        factoryAddress: accountDeployerAddress
+      })
+    })
+    it('estimateUserOperationGas should estimate even without eth', async () => {
+      const op = await smartAccountAPI.createSignedUserOp({
+        target,
+        data: '0xdeadface'
+      })
+      const ret =await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address)
+      // verification gas should be high - it creates this wallet
+      expect(ret.verificationGas).to.be.closeTo(1e6, 300000)
+      // execution should be quite low.
+      // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
+      // and estimation doesn't perform full deploy-validate-execute cycle)
+      expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
+    })
+    it('callUserOperation should work without eth', async () => {
+      const op = await resolveProperties(await smartAccountAPI.createSignedUserOp({
+        target,
+        data: '0xdeadface'
+      }))
+      const ret =await methodHandler.callUserOperation(await resolveHexlify(op), entryPoint.address)
+      // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
+      // and view-call doesn't perform full deploy-validate-execute cycle)
+      console.log('ret=', ret)
+      expect(ret.success).to.equal(true)
+    })
+  })
+
   describe('sendUserOperation', function () {
     let userOperation: UserOperationStruct
     let accountAddress: string
@@ -89,14 +139,14 @@ describe('UserOpMethodHandler', function () {
         value: parseEther('1')
       })
 
-      userOperation = await smartAccountAPI.createSignedUserOp({
+      userOperation = await resolveProperties(await smartAccountAPI.createSignedUserOp({
         data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
         target: sampleRecipient.address
-      })
+      }))
     })
 
     it('should send UserOperation transaction to BundlerHelper', async function () {
-      const userOpHash = await methodHandler.sendUserOperation(userOperation, entryPoint.address)
+      const userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
       const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
       const transactionReceipt = await req[0].getTransactionReceipt()
 
@@ -129,7 +179,7 @@ describe('UserOpMethodHandler', function () {
       })
 
       try {
-        await methodHandler.sendUserOperation(op, entryPoint.address)
+        await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
         throw Error('expected fail')
       } catch (e: any) {
         expect(e.message).to.match(/account didn't pay prefund/)
@@ -149,7 +199,7 @@ describe('UserOpMethodHandler', function () {
           target: sampleRecipient.address,
           gasLimit: 1e6
         })
-        const id = await methodHandler.sendUserOperation(op, entryPoint.address)
+        const id = await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
 
         // {
         //   console.log('wrong method')
@@ -187,7 +237,7 @@ describe('UserOpMethodHandler', function () {
           target: sampleRecipient.address
         })
         try {
-          await methodHandler.sendUserOperation(op, entryPoint.address)
+          await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
           throw new Error('expected to revert')
         } catch (e: any) {
           expect(e.message).to.match(/preVerificationGas too low/)

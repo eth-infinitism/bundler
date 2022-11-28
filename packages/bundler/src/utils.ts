@@ -8,7 +8,9 @@ export class RpcError extends Error {
 }
 
 export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
-  if (!cond) throw new RpcError(msg, code, data)
+  if (!cond) {
+    throw new RpcError(msg, code, data)
+  }
 }
 
 let gSigs: any = null
