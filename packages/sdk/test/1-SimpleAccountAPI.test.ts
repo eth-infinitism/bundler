@@ -1,7 +1,7 @@
 import {
   EntryPoint,
   EntryPoint__factory,
-  SimpleWalletDeployer__factory,
+  SimpleAccountDeployer__factory,
   UserOperationStruct
 } from '@account-abstraction/contracts'
 import { Wallet } from 'ethers'
@@ -9,7 +9,7 @@ import { parseEther } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
-import { SimpleWalletAPI } from '../src'
+import { SimpleAccountAPI } from '../src'
 import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
 import { rethrowError } from '@account-abstraction/utils'
@@ -17,9 +17,9 @@ import { rethrowError } from '@account-abstraction/utils'
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-describe('SimpleWalletAPI', () => {
+describe('SimpleAccountAPI', () => {
   let owner: Wallet
-  let api: SimpleWalletAPI
+  let api: SimpleAccountAPI
   let entryPoint: EntryPoint
   let beneficiary: string
   let recipient: SampleRecipient
@@ -27,13 +27,13 @@ describe('SimpleWalletAPI', () => {
   let walletDeployed = false
 
   before('init', async () => {
-    entryPoint = await new EntryPoint__factory(signer).deploy(1, 1)
+    entryPoint = await new EntryPoint__factory(signer).deploy()
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()
     owner = Wallet.createRandom()
-    const factoryAddress = await DeterministicDeployer.deploy(SimpleWalletDeployer__factory.bytecode)
-    api = new SimpleWalletAPI({
+    const factoryAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+    api = new SimpleAccountAPI({
       provider,
       entryPointAddress: entryPoint.address,
       owner,
@@ -41,7 +41,7 @@ describe('SimpleWalletAPI', () => {
     })
   })
 
-  it('#getRequestId should match entryPoint.getRequestId', async function () {
+  it('#getUserOpHash should match entryPoint.getUserOpHash', async function () {
     const userOp: UserOperationStruct = {
       sender: '0x'.padEnd(42, '1'),
       nonce: 2,
@@ -55,8 +55,8 @@ describe('SimpleWalletAPI', () => {
       paymasterAndData: '0xaaaaaa',
       signature: '0xbbbb'
     }
-    const hash = await api.getRequestId(userOp)
-    const epHash = await entryPoint.getRequestId(userOp)
+    const hash = await api.getUserOpHash(userOp)
+    const epHash = await entryPoint.getUserOpHash(userOp)
     expect(hash).to.equal(epHash)
   })
 
@@ -98,7 +98,7 @@ describe('SimpleWalletAPI', () => {
     it('should parse Error(message) error', async () => {
       await expect(
         entryPoint.addStake(0)
-      ).to.revertedWith('unstake delay too low')
+      ).to.revertedWith('must specify unstake delay')
     })
     it('should parse revert with no description', async () => {
       // use wrong signature for contract..
@@ -113,7 +113,7 @@ describe('SimpleWalletAPI', () => {
     if (!walletDeployed) {
       this.skip()
     }
-    const api1 = new SimpleWalletAPI({
+    const api1 = new SimpleAccountAPI({
       provider,
       entryPointAddress: entryPoint.address,
       walletAddress,

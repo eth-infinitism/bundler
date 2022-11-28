@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 
 // TODO: get hardhat types from '@account-abstraction' package directly
 // only to import the file in hardhat compilation
-import "@account-abstraction/contracts/samples/SimpleWallet.sol";
+import "@account-abstraction/contracts/samples/SimpleAccount.sol";
 
 contract SampleRecipient {
 
-    SimpleWallet wallet;
+    SimpleAccount wallet;
 
     event Sender(address txOrigin, address msgSender, string message);
 

@@ -8,7 +8,7 @@ import {
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getRequestId, NotPromise, packUserOp } from '@account-abstraction/utils'
+import { getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface BaseApiParams {
@@ -31,11 +31,11 @@ export interface UserOpResult {
  * - getWalletInitCode - return the value to put into the "initCode" field, if the wallet is not yet deployed. should create the wallet instance using a factory contract.
  * - getNonce - return current wallet's nonce value
  * - encodeExecute - encode the call from entryPoint through our wallet to the target contract.
- * - signRequestId - sign the requestId of a UserOp.
+ * - signUserOpHash - sign the hash of a UserOp.
  *
  * The user can use the following APIs:
  * - createUnsignedUserOp - given "target" and "calldata", fill userOp to perform that operation from the wallet.
- * - createSignedUserOp - helper to call the above createUnsignedUserOp, and then extract the requestId and sign it
+ * - createSignedUserOp - helper to call the above createUnsignedUserOp, and then extract the userOpHash and sign it
  */
 export abstract class BaseWalletAPI {
   private senderAddress!: string
@@ -93,10 +93,10 @@ export abstract class BaseWalletAPI {
   abstract encodeExecute (target: string, value: BigNumberish, data: string): Promise<string>
 
   /**
-   * sign a userOp's hash (requestId).
-   * @param requestId
+   * sign a userOp's hash (userOpHash).
+   * @param userOpHash
    */
-  abstract signRequestId (requestId: string): Promise<string>
+  abstract signUserOpHash (userOpHash: string): Promise<string>
 
   /**
    * check if the wallet is already deployed.
@@ -108,10 +108,10 @@ export abstract class BaseWalletAPI {
     }
     const senderAddressCode = await this.provider.getCode(this.getWalletAddress())
     if (senderAddressCode.length > 2) {
-      // console.log(`SimpleWallet Contract already deployed at ${this.senderAddress}`)
+      // console.log(`SimpleAccount Contract already deployed at ${this.senderAddress}`)
       this.isPhantom = false
     } else {
-      // console.log(`SimpleWallet Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
+      // console.log(`SimpleAccount Contract is NOT YET deployed at ${this.senderAddress} - working in "phantom wallet" mode.`)
     }
     return this.isPhantom
   }
@@ -123,7 +123,12 @@ export abstract class BaseWalletAPI {
     const initCode = this.getWalletInitCode()
     // use entryPoint to query wallet address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
-    return await this.entryPointView.callStatic.getSenderAddress(initCode)
+    try {
+      await this.entryPointView.callStatic.getSenderAddress(initCode)
+    } catch (e: any) {
+      return e.errorArgs.sender
+    }
+    throw new Error('must handle revert')
   }
 
   /**
@@ -183,14 +188,14 @@ export abstract class BaseWalletAPI {
   }
 
   /**
-   * return requestId for signing.
-   * This value matches entryPoint.getRequestId (calculated off-chain, to avoid a view call)
+   * return userOpHash for signing.
+   * This value matches entryPoint.getUserOpHash (calculated off-chain, to avoid a view call)
    * @param userOp userOperation, (signature field ignored)
    */
-  async getRequestId (userOp: UserOperationStruct): Promise<string> {
+  async getUserOpHash (userOp: UserOperationStruct): Promise<string> {
     const op = await resolveProperties(userOp)
     const chainId = await this.provider.getNetwork().then(net => net.chainId)
-    return getRequestId(op, this.entryPointAddress, chainId)
+    return getUserOpHash(op, this.entryPointAddress, chainId)
   }
 
   /**
@@ -208,6 +213,13 @@ export abstract class BaseWalletAPI {
     return this.senderAddress
   }
 
+  async estimateCreationGas (initCode?: string): Promise<BigNumberish> {
+    if (initCode == null || initCode === '0x') return 0
+    const deployerAddress = initCode.substring(0, 42)
+    const deployerCallData = '0x' + initCode.substring(42)
+    return await this.provider.estimateGas({ to: deployerAddress, data: deployerCallData })
+  }
+
   /**
    * create a UserOperation, filling all details (except signature)
    * - if wallet is not yet created, add initCode to deploy it.
@@ -221,13 +233,9 @@ export abstract class BaseWalletAPI {
     } = await this.encodeUserOpCallDataAndGasLimit(info)
     const initCode = await this.getInitCode()
 
-    let verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
-    if (initCode.length > 2) {
-      // add creation to required verification gas
-      const initGas = await this.entryPointView.estimateGas.getSenderAddress(initCode)
-
-      verificationGasLimit = verificationGasLimit.add(initGas)
-    }
+    const initGas = await this.estimateCreationGas(initCode)
+    const verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
+      .add(initGas)
 
     let {
       maxFeePerGas,
@@ -276,8 +284,8 @@ export abstract class BaseWalletAPI {
    * @param userOp the UserOperation to sign (with signature field ignored)
    */
   async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
-    const requestId = await this.getRequestId(userOp)
-    const signature = this.signRequestId(requestId)
+    const userOpHash = await this.getUserOpHash(userOp)
+    const signature = this.signUserOpHash(userOpHash)
     return {
       ...userOp,
       signature
@@ -293,16 +301,16 @@ export abstract class BaseWalletAPI {
   }
 
   /**
-   * get the transaction that has this requestId mined, or null if not found
-   * @param requestId returned by sendUserOpToBundler (or by getRequestId..)
+   * get the transaction that has this userOpHash mined, or null if not found
+   * @param userOpHash returned by sendUserOpToBundler (or by getUserOpHash..)
    * @param timeout stop waiting after this timeout
    * @param interval time to wait between polls.
    * @return the transactionHash this userOp was mined, or null if not found.
    */
-  async getUserOpReceipt (requestId: string, timeout = 30000, interval = 5000): Promise<string | null> {
+  async getUserOpReceipt (userOpHash: string, timeout = 30000, interval = 5000): Promise<string | null> {
     const endtime = Date.now() + timeout
     while (Date.now() < endtime) {
-      const events = await this.entryPointView.queryFilter(this.entryPointView.filters.UserOperationEvent(requestId))
+      const events = await this.entryPointView.queryFilter(this.entryPointView.filters.UserOperationEvent(userOpHash))
       if (events.length > 0) {
         return events[0].transactionHash
       }

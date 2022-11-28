@@ -13,9 +13,9 @@
     ]
   },
   "scripts": {
-    "bundler": "lerna run --no-prefix --stream bundler --",
-    "runop": "lerna run --no-prefix --stream runop --",
-    "runop-goerli": "yarn runop --network goerli --entryPoint \"0x1b98F08dB8F12392EAE339674e568fe29929bC47\"",
+    "bundler": "yarn --cwd packages/bundler bundler",
+    "runop": "yarn --cwd packages/bundler runop",
+    "runop-goerli": "yarn runop --network goerli --entryPoint 0x1b98F08dB8F12392EAE339674e568fe29929bC47",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix --",
@@ -24,12 +24,13 @@
     "lerna-lint": "lerna run lint --stream --parallel",
     "lerna-test": "lerna run hardhat-test --stream",
     "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
-    "lerna-tsc": "lerna run tsc",
+    "lerna-tsc": "lerna run tsc --scope @account-abstraction/*",
     "lerna-watch-tsc": "lerna run --parallel watch-tsc",
     "lint-fix": "lerna run lint-fix --parallel",
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
-    "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc"
+    "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
+    "runop-self": "yarn runop --deployDeployer --selfBundler"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.33.0",

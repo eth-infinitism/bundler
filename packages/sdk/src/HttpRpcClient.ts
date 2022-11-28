@@ -35,7 +35,7 @@ export class HttpRpcClient {
   /**
    * send a UserOperation to the bundler
    * @param userOp1
-   * @return requestId the id of this operation, for getUserOperationTransaction
+   * @return userOpHash the id of this operation, for getUserOperationTransaction
    */
   async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<string> {
     await this.initializing

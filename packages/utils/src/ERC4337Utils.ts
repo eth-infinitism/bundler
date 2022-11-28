@@ -3,6 +3,8 @@ import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
 
+export const AddressZero = ethers.constants.AddressZero
+
 // UserOperation is the first parameter of simulateValidation
 const UserOpType = entryPointAbi.find(entry => entry.name === 'simulateValidation')?.inputs[0]
 
@@ -20,7 +22,7 @@ function encode (typevalues: Array<{ type: string, val: any }>, forSignature: bo
 /**
  * pack the userOperation
  * @param op
- * @param forSignature "true" if the hash is needed to calculate the getRequestId()
+ * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */
 export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = true): string {
@@ -145,15 +147,15 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
 }
 
 /**
- * calculate the requestId of a given userOperation.
- * The requestId is a hash of all UserOperation fields, except the "signature" field.
+ * calculate the userOpHash of a given userOperation.
+ * The userOpHash is a hash of all UserOperation fields, except the "signature" field.
  * The entryPoint uses this value in the emitted UserOperationEvent.
  * A wallet may use this value as the hash to sign (the SampleWallet uses this method)
  * @param op
  * @param entryPoint
  * @param chainId
  */
-export function getRequestId (op: NotPromise<UserOperationStruct>, entryPoint: string, chainId: number): string {
+export function getUserOpHash (op: NotPromise<UserOperationStruct>, entryPoint: string, chainId: number): string {
   const userOpHash = keccak256(packUserOp(op, true))
   const enc = defaultAbiCoder.encode(
     ['bytes32', 'address', 'uint256'],
@@ -174,7 +176,7 @@ interface DecodedError {
  * decode bytes thrown by revert as Error(message) or FailedOp(opIndex,paymaster,message)
  */
 export function decodeErrorReason (error: string): DecodedError | undefined {
-  console.log('decoding', error)
+  // console.log('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }

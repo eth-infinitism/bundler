@@ -89,7 +89,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      this.debug.push(['enter ' + frame.getType() + ' ' + toHex(frame.getTo()) + ' ' + toHex(frame.getInput())])
+      this.debug.push(['enter ' + frame.getType() + ' ' + toHex(frame.getTo()) + ' ' + toHex(frame.getInput()).slice(0, 100)])
       this.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
@@ -98,17 +98,17 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       })
     },
     exit (frame: LogFrameResult): void {
-      this.debug.push(`exit err=${frame.getError()}, gas=${frame.getGasUsed()}`)
+      this.debug.push(`exit err=${frame.getError() as string}, gas=${frame.getGasUsed()}`)
     },
 
-    //increment the "key" in the list. if the key is not defined yet, then set it to "1"
+    // increment the "key" in the list. if the key is not defined yet, then set it to "1"
     countSlot (list: { [key: string]: number | undefined }, key: any) {
-      list[key] = (list[key] || 0) + 1
+      list[key] = (list[key] ?? 0) + 1
     },
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth())
-      if (opcode == 'NUMBER') this.numberCounter++
+      if (opcode === 'NUMBER') this.numberCounter++
       if (this.numberLevels[this.numberCounter] == null) {
         this.currentLevel = this.numberLevels[this.numberCounter] = {
           access: {},
@@ -116,23 +116,23 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         }
       }
 
-      if (log.getDepth() == 1) {
+      if (log.getDepth() === 1) {
         return
       }
 
-      if (this.lastOp == 'GAS' && !opcode.includes('CALL')) {
+      if (this.lastOp === 'GAS' && !opcode.includes('CALL')) {
         // count "GAS" opcode only if not followed by "CALL"
         this.countSlot(this.currentLevel.opcodes, 'GAS')
       }
-      if (opcode != 'GAS') {
-        //ignore "unimportant" opcodes:
-        if (!opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/)) {
+      if (opcode !== 'GAS') {
+        // ignore "unimportant" opcodes:
+        if (opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/) == null) {
           this.countSlot(this.currentLevel.opcodes, opcode)
         }
       }
       this.lastOp = opcode
 
-      if (opcode == 'SLOAD' || opcode == 'SSTORE') {
+      if (opcode === 'SLOAD' || opcode === 'SSTORE') {
         const slot = log.stack.peek(0).toString(16)
         const addr = toHex(log.contract.getAddress())
         let access
@@ -142,17 +142,17 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             writes: {}
           }
         }
-        this.countSlot(opcode == 'SLOAD' ? access.reads : access.writes, slot)
+        this.countSlot(opcode === 'SLOAD' ? access.reads : access.writes, slot)
       }
 
-      if (opcode == 'REVERT' || opcode == 'RETURN') {
-        const ofs = log.stack.peek(0)
-        const len = log.stack.peek(1)
-        this.debug.push(opcode + ' ' + toHex(log.memory.slice(ofs, ofs + len)))
-      } else if (opcode == 'KECCAK256') {
+      if (opcode === 'REVERT' || opcode === 'RETURN') {
+        const ofs = parseInt(log.stack.peek(0).toString())
+        const len = parseInt(log.stack.peek(1).toString())
+        this.debug.push(opcode + ' ' + toHex(log.memory.slice(ofs, ofs + len)).slice(0, 100))
+      } else if (opcode === 'KECCAK256') {
         // collect keccak on 64-byte blocks
-        const ofs = log.stack.peek(0)
-        const len = log.stack.peek(1)
+        const ofs = parseInt(log.stack.peek(0).toString())
+        const len = parseInt(log.stack.peek(1).toString())
         // currently, solidity uses only 2-word (6-byte) for a key. this might change..
         // still, no need to return too much
         if (len < 512) {
@@ -161,10 +161,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         }
       } else if (opcode.startsWith('LOG')) {
         const count = parseInt(opcode.substring(3))
-        const ofs = log.stack.peek(0)
-        const len = log.stack.peek(1)
+        const ofs = parseInt(log.stack.peek(0).toString())
+        const len = parseInt(log.stack.peek(1).toString())
         const topics = []
         for (let i = 0; i < count; i++) {
+          // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
           topics.push('0x' + log.stack.peek(2 + i).toString(16))
         }
         const data = toHex(log.memory.slice(ofs, ofs + len))

@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/utils",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -16,7 +16,7 @@
     "tsc": "tsc"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.2.0",
+    "@account-abstraction/contracts": "0.3.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
