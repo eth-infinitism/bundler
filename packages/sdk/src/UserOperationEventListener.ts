@@ -21,7 +21,7 @@ export class UserOperationEventListener {
     readonly reject: (reason?: any) => void,
     readonly entryPoint: EntryPoint,
     readonly sender: string,
-    readonly requestId: string,
+    readonly userOpHash: string,
     readonly nonce?: BigNumberish,
     readonly timeout?: number
   ) {
@@ -35,7 +35,7 @@ export class UserOperationEventListener {
 
   start (): void {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const filter = this.entryPoint.filters.UserOperationEvent(this.requestId)
+    const filter = this.entryPoint.filters.UserOperationEvent(this.userOpHash)
     // listener takes time... first query directly:
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     setTimeout(async () => {
@@ -59,14 +59,14 @@ export class UserOperationEventListener {
       console.error('got event without args', event)
       return
     }
-    // TODO: can this happen? we register to event by requestId..
-    if (event.args.requestId !== this.requestId) {
-      console.log(`== event with wrong requestId: sender/nonce: event.${event.args.sender as string}@${event.args.nonce.toString() as string}!= userOp.${this.sender as string}@${parseInt(this.nonce?.toString())}`)
+    // TODO: can this happen? we register to event by userOpHash..
+    if (event.args.userOpHash !== this.userOpHash) {
+      console.log(`== event with wrong userOpHash: sender/nonce: event.${event.args.sender as string}@${event.args.nonce.toString() as string}!= userOp.${this.sender as string}@${parseInt(this.nonce?.toString())}`)
       return
     }
 
     const transactionReceipt = await event.getTransactionReceipt()
-    transactionReceipt.transactionHash = this.requestId
+    transactionReceipt.transactionHash = this.userOpHash
     debug('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
     // before returning the receipt, update the status from the event.
@@ -80,16 +80,16 @@ export class UserOperationEventListener {
   }
 
   async extractFailureReason (receipt: TransactionReceipt): Promise<void> {
-    console.log('mark tx as failed')
+    debug('mark tx as failed')
     receipt.status = 0
-    const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.requestId, this.sender), receipt.blockHash)
+    const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.userOpHash, this.sender), receipt.blockHash)
     if (revertReasonEvents[0] != null) {
       let message = revertReasonEvents[0].args.revertReason
       if (message.startsWith('0x08c379a0')) {
         // Error(string)
         message = defaultAbiCoder.decode(['string'], '0x' + message.substring(10)).toString()
       }
-      console.log(`rejecting with reason: ${message}`)
+      debug(`rejecting with reason: ${message}`)
       this.reject(new Error(`UserOp failed with reason: ${message}`)
       )
     }

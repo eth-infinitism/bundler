@@ -1,11 +1,11 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import {
-  SimpleWallet,
-  SimpleWallet__factory, SimpleWalletDeployer,
-  SimpleWalletDeployer__factory
+  SimpleAccount,
+  SimpleAccount__factory, SimpleAccountDeployer,
+  SimpleAccountDeployer__factory
 } from '@account-abstraction/contracts'
 
-import { arrayify, hexConcat, keccak256 } from 'ethers/lib/utils'
+import { arrayify, hexConcat } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
 import { BaseApiParams, BaseWalletAPI } from './BaseWalletAPI'
 
@@ -15,7 +15,7 @@ import { BaseApiParams, BaseWalletAPI } from './BaseWalletAPI'
  * @param factoryAddress address of contract "factory" to deploy new contracts (not needed if wallet already deployed)
  * @param index nonce value used when creating multiple wallets for the same owner
  */
-export interface SimpleWalletApiParams extends BaseApiParams {
+export interface SimpleAccountApiParams extends BaseApiParams {
   owner: Signer
   factoryAddress?: string
   index?: number
@@ -23,13 +23,13 @@ export interface SimpleWalletApiParams extends BaseApiParams {
 }
 
 /**
- * An implementation of the BaseWalletAPI using the SimpleWallet contract.
+ * An implementation of the BaseWalletAPI using the SimpleAccount contract.
  * - contract deployer gets "entrypoint", "owner" addresses and "index" nonce
  * - owner signs requests using normal "Ethereum Signed Message" (ether's signer.signMessage())
  * - nonce method is "nonce()"
  * - execute method is "execFromEntryPoint()"
  */
-export class SimpleWalletAPI extends BaseWalletAPI {
+export class SimpleAccountAPI extends BaseWalletAPI {
   factoryAddress?: string
   owner: Signer
   index: number
@@ -38,20 +38,20 @@ export class SimpleWalletAPI extends BaseWalletAPI {
    * our wallet contract.
    * should support the "execFromEntryPoint" and "nonce" methods
    */
-  walletContract?: SimpleWallet
+  walletContract?: SimpleAccount
 
-  factory?: SimpleWalletDeployer
+  factory?: SimpleAccountDeployer
 
-  constructor (params: SimpleWalletApiParams) {
+  constructor (params: SimpleAccountApiParams) {
     super(params)
     this.factoryAddress = params.factoryAddress
     this.owner = params.owner
     this.index = params.index ?? 0
   }
 
-  async _getWalletContract (): Promise<SimpleWallet> {
+  async _getWalletContract (): Promise<SimpleAccount> {
     if (this.walletContract == null) {
-      this.walletContract = SimpleWallet__factory.connect(await this.getWalletAddress(), this.provider)
+      this.walletContract = SimpleAccount__factory.connect(await this.getWalletAddress(), this.provider)
     }
     return this.walletContract
   }
@@ -63,14 +63,14 @@ export class SimpleWalletAPI extends BaseWalletAPI {
   async getWalletInitCode (): Promise<string> {
     if (this.factory == null) {
       if (this.factoryAddress != null && this.factoryAddress !== '') {
-        this.factory = SimpleWalletDeployer__factory.connect(this.factoryAddress, this.provider)
+        this.factory = SimpleAccountDeployer__factory.connect(this.factoryAddress, this.provider)
       } else {
         throw new Error('no factory to get initCode')
       }
     }
     return hexConcat([
       this.factory.address,
-      this.factory.interface.encodeFunctionData('deployWallet', [this.entryPointAddress, await this.owner.getAddress(), this.index])
+      this.factory.interface.encodeFunctionData('deployAccount', [this.entryPointAddress, await this.owner.getAddress(), this.index])
     ])
   }
 
@@ -99,28 +99,7 @@ export class SimpleWalletAPI extends BaseWalletAPI {
       ])
   }
 
-  async signRequestId (requestId: string): Promise<string> {
-    return await this.owner.signMessage(arrayify(requestId))
-  }
-
-  /**
-   * calculate the wallet address even before it is deployed.
-   * We know our factory: it just calls CREATE2 to construct the wallet.
-   * NOTE: getWalletAddress works with any contract/factory (but only before creation)
-   * This method is tied to SimpleWallet implementation
-   */
-  async getCreate2Address (): Promise<string> {
-    if (this.factoryAddress == null) {
-      throw new Error('can\'t calculate address: no factory')
-    }
-
-    const ctrWithParams = new SimpleWallet__factory(undefined).getDeployTransaction(this.entryPointAddress, await this.owner.getAddress()).data as any
-    const salt = '0x' + this.index.toString(16).padStart(64, '0')
-    const hash = keccak256(hexConcat([
-      '0xff', this.factoryAddress, salt, keccak256(ctrWithParams)
-    ]))
-    // hash is 32bytes, or 66 chars.
-    // address is last 40 chars, with '0x' prefix
-    return '0x' + hash.substring(66 - 40)
+  async signUserOpHash (userOpHash: string): Promise<string> {
+    return await this.owner.signMessage(arrayify(userOpHash))
   }
 }

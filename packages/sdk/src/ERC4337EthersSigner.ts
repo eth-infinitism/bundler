@@ -95,7 +95,7 @@ export class ERC4337EthersSigner extends Signer {
   }
 
   async signUserOperation (userOperation: UserOperationStruct): Promise<string> {
-    const message = await this.smartWalletAPI.getRequestId(userOperation)
+    const message = await this.smartWalletAPI.getUserOpHash(userOperation)
     return await this.originalSigner.signMessage(message)
   }
 }

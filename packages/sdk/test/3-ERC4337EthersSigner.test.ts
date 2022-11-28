@@ -16,7 +16,7 @@ describe('ERC4337EthersSigner, Provider', function () {
   let entryPoint: EntryPoint
   before('init', async () => {
     const deployRecipient = await new SampleRecipient__factory(signer).deploy()
-    entryPoint = await new EntryPoint__factory(signer).deploy(1, 1)
+    entryPoint = await new EntryPoint__factory(signer).deploy()
     const config: ClientConfig = {
       entryPointAddress: entryPoint.address,
       bundlerUrl: ''
@@ -47,7 +47,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       await recipient.something('hello', { gasLimit: 1e6 })
       throw new Error('should revert')
     } catch (e: any) {
-      expect(e.message).to.eq('FailedOp(0,0x0000000000000000000000000000000000000000,wallet didn\'t pay prefund)')
+      expect(e.message).to.eq('FailedOp(0,0x0000000000000000000000000000000000000000,account didn\'t pay prefund)')
     }
   })
 

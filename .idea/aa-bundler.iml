@@ -10,6 +10,7 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/utils/artifacts" />
       <excludeFolder url="file://$MODULE_DIR$/packages/utils/cache" />
       <excludeFolder url="file://$MODULE_DIR$/packages/utils/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/bundler/src/types" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

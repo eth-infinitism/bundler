@@ -5,12 +5,12 @@ import { hexlify } from 'ethers/lib/utils'
  * @param obj
  */
 export function deepHexlify (obj: any): any {
-  if (typeof obj == 'function') {
+  if (typeof obj === 'function') {
     return undefined
   }
-  if (obj == null || typeof obj == 'string' || typeof obj == 'boolean') {
+  if (obj == null || typeof obj === 'string' || typeof obj === 'boolean') {
     return obj
-  } else if (obj._isBigNumber || typeof obj != 'object') {
+  } else if (obj._isBigNumber != null || typeof obj !== 'object') {
     return hexlify(obj)
   }
   if (Array.isArray(obj)) {
@@ -29,6 +29,6 @@ export class RpcError extends Error {
   }
 }
 
-export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined) {
+export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
   if (!cond) throw new RpcError(msg, code, data)
 }

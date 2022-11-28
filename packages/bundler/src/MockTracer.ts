@@ -5,14 +5,13 @@
 //   (which is annoying, since it IS a javascript evm...)
 // INCOMPLETE: can't easily emulate "contract" methods (e.g. getAddress) without full emulating full CALL/RETURN/REVERT state
 import { BigNumber, Transaction } from 'ethers'
-import { hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
+import { hexConcat, keccak256 } from 'ethers/lib/utils'
 import { LogCallFrame, LogStep, LogTracer, TraceOptions, TraceResult, TraceResultEntry } from './GethTracer'
 
+/* eslint-disable */
 
 // must have this method, so that "eval" below will find it.
-function toHex (s: any): any {
-  return hexlify(s)
-}
+declare function toHex (a: any): string
 
 class Stack<T> {
   values: T[] = []
@@ -123,7 +122,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
         return currentLogEntry.memory?.[offset]!
       },
       length (): number {
-        return currentLogEntry.memory!.length
+        return currentLogEntry.memory?.length!
       }
     },
     contract: {
@@ -189,6 +188,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
           'todo: extract input from memory',
           BigNumber.from(log.gas)
         ))
+        break
       }
       case 'CALL': {
         const [gas, addr, value] = currentLogEntry.stack.slice(-3)
@@ -221,13 +221,14 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
           'todo: extract input from memory',
           BigNumber.from(gas)
         ))
+        break
       }
       case 'RETURN':
       case 'REVERT': {
         callstack.pop()
       }
     }
-    if (callstack.depth() != depth && tracer.enter != null) {
+    if (callstack.depth() !== depth && tracer.enter != null) {
       tracer.enter(callstack.top())
     }
     if (tracer.step != null) {

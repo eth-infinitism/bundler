@@ -14,6 +14,7 @@ import { resolveProperties } from 'ethers/lib/utils'
  */
 type LogTracerFunc = () => LogTracer
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
   const tx1 = await resolveProperties(tx)
   const ret = await provider.send('debug_traceCall', [tx1, 'latest', tracer2string(options)])
@@ -27,6 +28,7 @@ export async function execAndTrace (provider: JsonRpcProvider, tx: Deferrable<Tr
   return await debug_traceTransaction(provider, hash, options)
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceTransaction (provider: JsonRpcProvider, hash: string, options: TraceOptions): Promise<TraceResult | any> {
   const ret = await provider.send('debug_traceTransaction', [hash, tracer2string(options)])
   // const tx = await provider.getTransaction(hash)
@@ -171,7 +173,7 @@ export class LogCallFrame {
 export interface LogFrameResult {
   getGasUsed: () => number // - returns amount of gas used throughout the frame as a Number
   getOutput: () => Buffer // - returns the output as a buffer
-  getError: () => Buffer // - returns an error if one occured during execution and undefined` otherwise
+  getError: () => any // - returns an error if one occured during execution and undefined` otherwise
 }
 
 export interface LogOpCode {

@@ -35,7 +35,7 @@ const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     'EntryPoint', {
       // from: ethers.constants.AddressZero,
       from: deployer,
-      args: [PAYMASTER_STAKE, UNSTAKE_DELAY_SEC],
+      // args: [PAYMASTER_STAKE, UNSTAKE_DELAY_SEC],
       gasLimit: 4e6,
       deterministicDeployment: true,
       log: true

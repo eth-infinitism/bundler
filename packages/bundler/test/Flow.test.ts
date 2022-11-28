@@ -43,7 +43,7 @@ describe('Flow', function () {
     sampleRecipientAddress = sampleRecipient.address
 
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
-    const entryPoint = await EntryPointFactory.deploy(1, 1)
+    const entryPoint = await EntryPointFactory.deploy()
     entryPointAddress = entryPoint.address
 
     const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
