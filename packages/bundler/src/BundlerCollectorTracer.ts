@@ -89,7 +89,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      this.debug.push(['enter ' + frame.getType() + ' ' + toHex(frame.getTo()) + ' ' + toHex(frame.getInput()).slice(0, 100)])
+      this.debug.push('enter ' + frame.getGas() +' '+ frame.getType() + ' ' + toHex(frame.getTo()) + ' ' + toHex(frame.getInput()).slice(0, 300))
       this.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
@@ -148,7 +148,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (opcode === 'REVERT' || opcode === 'RETURN') {
         const ofs = parseInt(log.stack.peek(0).toString())
         const len = parseInt(log.stack.peek(1).toString())
-        this.debug.push(opcode + ' ' + toHex(log.memory.slice(ofs, ofs + len)).slice(0, 100))
+        this.debug.push(opcode + ' ' + toHex(log.memory.slice(ofs, ofs + len)).slice(0, 300))
       } else if (opcode === 'KECCAK256') {
         // collect keccak on 64-byte blocks
         const ofs = parseInt(log.stack.peek(0).toString())

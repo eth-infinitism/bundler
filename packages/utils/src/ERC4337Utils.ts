@@ -1,4 +1,4 @@
-import { defaultAbiCoder, hexConcat, keccak256 } from 'ethers/lib/utils'
+import { defaultAbiCoder, hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
@@ -225,3 +225,28 @@ export function rethrowError (e: any): any {
   }
   throw e
 }
+
+
+/**
+ * hexlify all members of object, recursively
+ * @param obj
+ */
+export function deepHexlify (obj: any): any {
+  if (typeof obj === 'function') {
+    return undefined
+  }
+  if (obj == null || typeof obj === 'string' || typeof obj === 'boolean') {
+    return obj
+  } else if (obj._isBigNumber != null || typeof obj !== 'object') {
+    return hexlify(obj)
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(member => deepHexlify(member))
+  }
+  return Object.keys(obj)
+    .reduce((set, key) => ({
+      ...set,
+      [key]: deepHexlify(obj[key])
+    }), {})
+}
+
