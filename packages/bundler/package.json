@@ -25,8 +25,8 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "0.3.0",
-    "@account-abstraction/sdk": "0.3.0",
-    "@account-abstraction/utils": "0.3.0",
+    "@account-abstraction/sdk": "^0.3.0",
+    "@account-abstraction/utils": "^0.3.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
