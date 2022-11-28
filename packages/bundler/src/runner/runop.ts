@@ -12,9 +12,7 @@ import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'
-import { HttpRpcClient } from '@account-abstraction/sdk/dist/src/HttpRpcClient'
-import { SimpleAccountAPI } from '@account-abstraction/sdk'
-import { DeterministicDeployer } from '@account-abstraction/sdk/dist/src/DeterministicDeployer'
+import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
@@ -115,7 +113,6 @@ async function main (): Promise<void> {
   let signer: Signer
   const deployDeployer: boolean = opts.deployDeployer
   let bundler: BundlerServer | undefined
-
   if (opts.selfBundler != null) {
     // todo: if node is geth, we need to fund our bundler's account:
     const signer = provider.getSigner()

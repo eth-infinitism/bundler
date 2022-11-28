@@ -1,4 +1,3 @@
-
 import 'source-map-support/register'
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
@@ -14,9 +13,8 @@ import {
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
-import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
 import { Wallet } from 'ethers'
-import { SimpleAccountAPI } from '@account-abstraction/sdk'
+import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import { BundlerHelper, SampleRecipient } from '../src/types'
 

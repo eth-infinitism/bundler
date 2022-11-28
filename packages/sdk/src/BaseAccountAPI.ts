@@ -219,7 +219,6 @@ export abstract class BaseAccountAPI {
     const deployerCallData = '0x' + initCode.substring(42)
     return await this.provider.estimateGas({ to: deployerAddress, data: deployerCallData })
   }
-
   /**
    * create a UserOperation, filling all details (except signature)
    * - if account is not yet created, add initCode to deploy it.

@@ -7,11 +7,11 @@ import {
 
 import { arrayify, hexConcat } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
-import { BaseAccountAPI, BaseApiParams } from './BaseAccountAPI'
+import { BaseApiParams, BaseAccountAPI } from './BaseAccountAPI'
 
 /**
  * constructor params, added no top of base params:
- * @param owner the signer object for the wallet owner
+ * @param owner the signer object for the account owner
  * @param factoryAddress address of contract "factory" to deploy new contracts (not needed if account already deployed)
  * @param index nonce value used when creating multiple accounts for the same owner
  */
@@ -35,7 +35,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   index: number
 
   /**
-   * our wallet contract.
+   * our account contract.
    * should support the "execFromEntryPoint" and "nonce" methods
    */
   accountContract?: SimpleAccount
