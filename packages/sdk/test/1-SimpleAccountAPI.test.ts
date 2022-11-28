@@ -23,8 +23,8 @@ describe('SimpleAccountAPI', () => {
   let entryPoint: EntryPoint
   let beneficiary: string
   let recipient: SampleRecipient
-  let walletAddress: string
-  let walletDeployed = false
+  let accountAddress: string
+  let accountDeployed = false
 
   before('init', async () => {
     entryPoint = await new EntryPoint__factory(signer).deploy()
@@ -61,11 +61,11 @@ describe('SimpleAccountAPI', () => {
   })
 
   it('should deploy to counterfactual address', async () => {
-    walletAddress = await api.getWalletAddress()
-    expect(await provider.getCode(walletAddress).then(code => code.length)).to.equal(2)
+    accountAddress = await api.getAccountAddress()
+    expect(await provider.getCode(accountAddress).then(code => code.length)).to.equal(2)
 
     await signer.sendTransaction({
-      to: walletAddress,
+      to: accountAddress,
       value: parseEther('0.1')
     })
     const op = await api.createSignedUserOp({
@@ -74,9 +74,9 @@ describe('SimpleAccountAPI', () => {
     })
 
     await expect(entryPoint.handleOps([op], beneficiary)).to.emit(recipient, 'Sender')
-      .withArgs(anyValue, walletAddress, 'hello')
-    expect(await provider.getCode(walletAddress).then(code => code.length)).to.greaterThan(1000)
-    walletDeployed = true
+      .withArgs(anyValue, accountAddress, 'hello')
+    expect(await provider.getCode(accountAddress).then(code => code.length)).to.greaterThan(1000)
+    accountDeployed = true
   })
 
   context('#rethrowError', () => {
@@ -109,14 +109,14 @@ describe('SimpleAccountAPI', () => {
     })
   })
 
-  it('should use wallet API after creation without a factory', async function () {
-    if (!walletDeployed) {
+  it('should use account API after creation without a factory', async function () {
+    if (!accountDeployed) {
       this.skip()
     }
     const api1 = new SimpleAccountAPI({
       provider,
       entryPointAddress: entryPoint.address,
-      walletAddress,
+      accountAddress,
       owner
     })
     const op1 = await api1.createSignedUserOp({
@@ -124,6 +124,6 @@ describe('SimpleAccountAPI', () => {
       data: recipient.interface.encodeFunctionData('something', ['world'])
     })
     await expect(entryPoint.handleOps([op1], beneficiary)).to.emit(recipient, 'Sender')
-      .withArgs(anyValue, walletAddress, 'world')
+      .withArgs(anyValue, accountAddress, 'world')
   })
 })

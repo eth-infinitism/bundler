@@ -26,12 +26,12 @@ export async function wrapProvider (
   const entryPoint = EntryPoint__factory.connect(config.entryPointAddress, originalProvider)
   // Initial SimpleAccount instance is not deployed and exists just for the interface
   const detDeployer = new DeterministicDeployer(originalProvider)
-  const simpleWalletDeployer = await detDeployer.deterministicDeploy(SimpleAccountDeployer__factory.bytecode)
-  const smartWalletAPI = new SimpleAccountAPI({
+  const simpleAccountDeployer = await detDeployer.deterministicDeploy(SimpleAccountDeployer__factory.bytecode)
+  const smartAccountAPI = new SimpleAccountAPI({
     provider: originalProvider,
     entryPointAddress: entryPoint.address,
     owner: originalSigner,
-    factoryAddress: simpleWalletDeployer,
+    factoryAddress: simpleAccountDeployer,
     paymasterAPI: config.paymasterAPI
   })
   debug('config=', config)
@@ -44,6 +44,6 @@ export async function wrapProvider (
     originalProvider,
     httpRpcClient,
     entryPoint,
-    smartWalletAPI
+    smartAccountAPI
   ).init()
 }

@@ -1,4 +1,3 @@
-
 import 'source-map-support/register'
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
@@ -14,9 +13,8 @@ import {
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
-import { DeterministicDeployer } from '@account-abstraction/sdk/src/DeterministicDeployer'
 import { Wallet } from 'ethers'
-import { SimpleAccountAPI } from '@account-abstraction/sdk'
+import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import { BundlerHelper, SampleRecipient } from '../src/types'
 
@@ -26,7 +24,7 @@ describe('UserOpMethodHandler', function () {
   let methodHandler: UserOpMethodHandler
   let provider: BaseProvider
   let signer: JsonRpcSigner
-  const walletSigner = Wallet.createRandom()
+  const accountSigner = Wallet.createRandom()
 
   let entryPoint: EntryPoint
   let bundleHelper: BundlerHelper
@@ -72,26 +70,26 @@ describe('UserOpMethodHandler', function () {
 
   describe('sendUserOperation', function () {
     let userOperation: UserOperationStruct
-    let walletAddress: string
+    let accountAddress: string
 
-    let walletDeployerAddress: string
+    let accountDeployerAddress: string
     before(async function () {
       DeterministicDeployer.init(ethers.provider)
-      walletDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+      accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
 
-      const smartWalletAPI = new SimpleAccountAPI({
+      const smartAccountAPI = new SimpleAccountAPI({
         provider,
         entryPointAddress: entryPoint.address,
-        owner: walletSigner,
-        factoryAddress: walletDeployerAddress
+        owner: accountSigner,
+        factoryAddress: accountDeployerAddress
       })
-      walletAddress = await smartWalletAPI.getWalletAddress()
+      accountAddress = await smartAccountAPI.getAccountAddress()
       await signer.sendTransaction({
-        to: walletAddress,
+        to: accountAddress,
         value: parseEther('1')
       })
 
-      userOperation = await smartWalletAPI.createSignedUserOp({
+      userOperation = await smartAccountAPI.createSignedUserOp({
         data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
         target: sampleRecipient.address
       })
@@ -112,20 +110,20 @@ describe('UserOpMethodHandler', function () {
       assert.equal(senderEvent.name, 'Sender')
       const expectedTxOrigin = await methodHandler.signer.getAddress()
       assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
-      assert.equal(senderEvent.args.msgSender, walletAddress, 'sample msgsender should be wallet')
+      assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')
 
       assert.equal(depositedEvent.name, 'Deposited')
     })
 
     it('should expose FailedOp errors as text messages', async () => {
-      const smartWalletAPI = new SimpleAccountAPI({
+      const smartAccountAPI = new SimpleAccountAPI({
         provider,
         entryPointAddress: entryPoint.address,
-        owner: walletSigner,
-        factoryAddress: walletDeployerAddress,
+        owner: accountSigner,
+        factoryAddress: accountDeployerAddress,
         index: 1
       })
-      const op = await smartWalletAPI.createSignedUserOp({
+      const op = await smartAccountAPI.createSignedUserOp({
         data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
         target: sampleRecipient.address
       })
@@ -143,8 +141,8 @@ describe('UserOpMethodHandler', function () {
         const api = new SimpleAccountAPI({
           provider,
           entryPointAddress: entryPoint.address,
-          walletAddress,
-          owner: walletSigner
+          accountAddress,
+          owner: accountSigner
         })
         const op = await api.createSignedUserOp({
           data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
@@ -157,7 +155,7 @@ describe('UserOpMethodHandler', function () {
         //   console.log('wrong method')
         //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
         //     data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld + helloWorld + helloWorld + helloWorld + helloWorld]).padEnd(2000, '1'),
-        //     target: walletAddress,
+        //     target: accountAddress,
         //     gasLimit: 1e6
         //
         //   }), entryPoint.address)
@@ -168,7 +166,7 @@ describe('UserOpMethodHandler', function () {
         //   const data = keccak256(Buffer.from('nonce()')).slice(0, 10)
         //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
         //     data: data,
-        //     target: walletAddress,
+        //     target: accountAddress,
         //     gasLimit: 1e6
         //
         //   }), entryPoint.address)
@@ -180,8 +178,8 @@ describe('UserOpMethodHandler', function () {
         const api = new SimpleAccountAPI({
           provider,
           entryPointAddress: entryPoint.address,
-          walletAddress,
-          owner: walletSigner,
+          accountAddress,
+          owner: accountSigner,
           overheads: { perUserOp: 0 }
         })
         const op = await api.createSignedUserOp({

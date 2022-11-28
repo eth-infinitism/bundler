@@ -90,10 +90,10 @@ describe('Flow', function () {
       ownerAccount
     )
     erc4337Signer = erc4337Provider.getSigner()
-    const simpleWalletPhantomAddress = await erc4337Signer.getAddress()
+    const simpleAccountPhantomAddress = await erc4337Signer.getAddress()
 
     await signer.sendTransaction({
-      to: simpleWalletPhantomAddress,
+      to: simpleAccountPhantomAddress,
       value: 10e18.toString()
     })
 
