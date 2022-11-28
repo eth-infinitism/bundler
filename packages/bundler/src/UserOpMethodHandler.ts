@@ -5,11 +5,11 @@ import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
 import { AddressZero, rethrowError } from '@account-abstraction/utils'
-import { calcPreVerificationGas } from '@account-abstraction/sdk/dist/src/calcPreVerificationGas'
 import { debug_traceCall } from './GethTracer'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { deepHexlify, requireCond, RpcError } from './utils'
 import Debug from 'debug'
 
@@ -119,7 +119,7 @@ export class UserOpMethodHandler {
       const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
       // console.log('debug=', result.debug.join('\n- '))
       Object.keys(validateOpcodes).forEach(opcode =>
-        requireCond(!bannedOpCodes.has(opcode), `wallet uses banned opcode: ${opcode}`, 32501)
+        requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, 32501)
       )
       Object.keys(validatePaymasterOpcodes).forEach(opcode =>
         requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, 32501, { paymaster })
