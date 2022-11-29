@@ -75,7 +75,7 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
   if (userOp.initCode.length > 2) {
     requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', -32501)
   } else {
-    requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'banned opcode: CREATE2', -32501)
+    requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'account uses banned opcode: CREATE2', -32501)
   }
   requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', -32501, { paymaster })
 
