@@ -61,7 +61,7 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
         throw new Error(err != null ? err.message : data)
       }
     }
-    throw new Error('unexpected traceCall result: no tracer or no NUMBER opcodes')
+    throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
   }
   const validateOpcodes = result.numberLevels['0'].opcodes
   const validatePaymasterOpcodes = result.numberLevels['1'].opcodes

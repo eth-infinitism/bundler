@@ -5,7 +5,6 @@ import "@account-abstraction/contracts/interfaces/IAccount.sol";
 
 contract Dummy {
     uint public value = 1;
-
 }
 
 contract TestCoin {
@@ -54,6 +53,8 @@ contract TestRulesAccount is IAccount {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
+    event TestMessage(address eventSender);
+
     function runRule(string memory rule) public returns (uint) {
         if (eq(rule, "")) return 0;
         else if (eq(rule, "number")) return block.number;
@@ -67,6 +68,9 @@ contract TestRulesAccount is IAccount {
 
         else if (eq(rule, "inner-revert")) return coin.reverting();
         else if (eq(rule, "oog")) return coin.wasteGas();
+        else if (eq(rule, "emit-msg")) {
+            emit TestMessage(address(this));
+            return 0;}
 
         revert(string.concat("unknown rule: ", rule));
     }

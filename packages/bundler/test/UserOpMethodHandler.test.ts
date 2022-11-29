@@ -3,7 +3,7 @@ import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
 import { arrayify, hexConcat, hexlify, hexZeroPad, parseEther, resolveProperties } from 'ethers/lib/utils'
 
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { UserOperationReceipt, UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
 import { BundlerConfig } from '../src/BundlerConfig'
 import { EntryPoint, SimpleAccountDeployer__factory, UserOperationStruct } from '@account-abstraction/contracts'
@@ -12,10 +12,10 @@ import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  BundlerHelper, SampleRecipient, TestCoin,
-  TestCoin__factory, TestRulesAccountDeployer, TestRulesAccountDeployer__factory
+  BundlerHelper, SampleRecipient, TestRulesAccount__factory, TestRulesAccount
 } from '../src/types'
-import { deepHexlify } from '@account-abstraction/utils'
+import { deepHexlify, packUserOp } from '@account-abstraction/utils'
+import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 
 //resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
@@ -242,6 +242,91 @@ describe('UserOpMethodHandler', function () {
           expect(e.message).to.match(/preVerificationGas too low/)
         }
       })
+    })
+  })
+
+  describe('#_filterLogs', function () {
+    //test events, good enough for _filterLogs
+    function userOpEv (hash: any) {
+      return {
+        topics: ['userOpTopic', hash]
+      } as any
+    }
+
+    function ev (topic: any): UserOperationEventEvent {
+      return {
+        topics: [topic]
+      } as any
+    }
+
+    const ev1 = ev(1)
+    const ev2 = ev(2)
+    const ev3 = ev(3)
+    const u1 = userOpEv(10)
+    const u2 = userOpEv(20)
+    const u3 = userOpEv(30)
+    it('should fail if no UserOperationEvent', async () => {
+      expect(() => methodHandler._filterLogs(u1, [ev1])).to.throw('no UserOperationEvent in logs')
+    })
+    it('should return empty array for single-op bundle with no events', async () => {
+      expect(methodHandler._filterLogs(u1, [u1])).to.eql([])
+    })
+    it('should return events for single-op bundle', async () => {
+      expect(methodHandler._filterLogs(u1, [ev1, ev2, u1])).to.eql([ev1, ev2])
+    })
+    it('should return events for middle userOp in a bundle', async () => {
+      expect(methodHandler._filterLogs(u1, [ev2, u2, ev1, u1, ev3, u3])).to.eql([ev1])
+    })
+  })
+
+  describe('#getUserOperationReceipt', function () {
+    let userOpHash: string
+    let receipt: UserOperationReceipt
+    let acc: TestRulesAccount
+    before(async () => {
+      acc = await new TestRulesAccount__factory(signer).deploy()
+      const op: UserOperationStruct = {
+        sender: acc.address,
+        initCode: '0x',
+        nonce: 0,
+        callData: '0x',
+        callGasLimit: 1e6,
+        verificationGasLimit: 1e6,
+        preVerificationGas: 50000,
+        maxFeePerGas: 1e6,
+        maxPriorityFeePerGas: 1e6,
+        paymasterAndData: '0x',
+        signature: Buffer.from('emit-msg')
+      }
+      await entryPoint.depositTo(acc.address, {value: parseEther('1')})
+      // await signer.sendTransaction({to:acc.address, value: parseEther('1')})
+      console.log(2)
+      userOpHash = await entryPoint.getUserOpHash(op)
+      const beneficiary = signer.getAddress()
+      await entryPoint.handleOps([op], beneficiary).then(ret => ret.wait())
+      const rcpt = await methodHandler.getUserOperationReceipt(userOpHash)
+      if (rcpt == null) {
+        throw new Error('getUserOperationReceipt returns null')
+      }
+      receipt = rcpt
+    })
+
+    it('should return null for nonexistent hash', async () => {
+      expect(await methodHandler.getUserOperationReceipt(ethers.constants.HashZero)).to.equal(null)
+    })
+
+    it('receipt should contain only userOp-specific events..', async () => {
+      expect(receipt.logs.length).to.equal(1)
+      const evParams = acc.interface.decodeEventLog('TestMessage', receipt.logs[0].data, receipt.logs[0].topics)
+      expect(evParams.eventSender).to.equal(acc.address)
+    })
+    it('general receipt fields', ()=>{
+      expect(receipt.success).to.equal(true)
+      expect(receipt.sender).to.equal(acc.address)
+    })
+    it('receipt should carry transaction receipt', ()=> {
+      //one UserOperationEvent, and one op-specific event.
+      expect(receipt.receipt.logs.length).to.equal(2)
     })
   })
 })
