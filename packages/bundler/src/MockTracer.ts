@@ -76,7 +76,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
     tx.to!,
     tx.value,
     tx.data,
-    tx.gasPrice!
+    tx.gasPrice!.toNumber()
   ))
 
   const step: LogStep = {
@@ -186,7 +186,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
           addr,
           BigNumber.from(value),
           'todo: extract input from memory',
-          BigNumber.from(log.gas)
+          log.gas
         ))
         break
       }
@@ -197,7 +197,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
           addr,
           BigNumber.from(value),
           'todo: extract input from memory',
-          BigNumber.from(gas)
+          parseInt(gas)
         ))
         break
       }
@@ -208,7 +208,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
           addr,
           BigNumber.from(0),
           'todo: extract input from memory',
-          BigNumber.from(gas)
+          parseInt(gas)
         ))
         break
       }
@@ -219,7 +219,7 @@ export function MockTracer (tx: Transaction, res: TraceResult, options: TraceOpt
           callstack.top().address,
           BigNumber.from(0),
           'todo: extract input from memory',
-          BigNumber.from(gas)
+          parseInt(gas)
         ))
         break
       }
