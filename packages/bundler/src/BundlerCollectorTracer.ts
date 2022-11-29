@@ -129,15 +129,15 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth())
-      if (opcode === 'NUMBER') this.numberCounter++
-      if (this.numberLevels[this.numberCounter] == null) {
-        this.currentLevel = this.numberLevels[this.numberCounter] = {
-          access: {},
-          opcodes: {}
-        }
-      }
-
       if (log.getDepth() === 1) {
+        //NUMBER opcode at top level split levels
+        if (opcode === 'NUMBER') this.numberCounter++
+        if (this.numberLevels[this.numberCounter] == null) {
+          this.currentLevel = this.numberLevels[this.numberCounter] = {
+            access: {},
+            opcodes: {}
+          }
+        }
         return
       }
 
