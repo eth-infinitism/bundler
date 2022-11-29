@@ -113,8 +113,7 @@ describe('UserOpMethodHandler', function () {
       const ret = await methodHandler.callUserOperation(await resolveHexlify(op), entryPoint.address)
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and view-call doesn't perform full deploy-validate-execute cycle)
-      console.log('ret=', ret)
-      expect(ret.success).to.equal(true)
+      expect(ret.success).to.equal(true, ret as any)
     })
   })
 

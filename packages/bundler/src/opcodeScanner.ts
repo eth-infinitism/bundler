@@ -84,11 +84,11 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
   result.keccak.forEach(k => {
     let value = keccak256(k).slice(2)
     if (k.startsWith(senderPadded)) {
-      console.log('added mapping (balance) slot', value)
+      // console.log('added mapping (balance) slot', value)
       accountSlots.add(value)
     }
     if (k.length == 130 && accountSlots.has(k.slice(-64))) {
-      console.log('added double-mapping (allowance) slot', value)
+      // console.log('added double-mapping (allowance) slot', value)
       accountSlots.add(value)
     }
   })
