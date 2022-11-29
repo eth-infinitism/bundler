@@ -1,7 +1,7 @@
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { arrayify, hexConcat, hexlify, hexZeroPad, parseEther, resolveProperties } from 'ethers/lib/utils'
+import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { UserOperationReceipt, UserOpMethodHandler } from '../src/UserOpMethodHandler'
 

@@ -22,13 +22,12 @@ export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   return p._clientVersion?.match('Geth') != null
 }
 
-
 /**
  * perform opcode scanning rules on the given UserOperation.
  * throw a detailed exception on failure.
  * Uses eth_traceCall of geth
  */
-export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: EntryPoint) {
+export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: EntryPoint) {
 
   const provider = entryPoint.provider as JsonRpcProvider
   const userOp = await resolveProperties(userOp1)
@@ -43,7 +42,30 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
     gasLimit: simulationGas
   }, { tracer: bundlerCollectorTracer })
 
-  debug('=== simulation result:', inspect(result,true,10,true))
+  if (result.calls.length >= 1) {
+    const last = result.calls[result.calls.length - 1]
+    if (last.type === 'REVERT') {
+      let data = (last as ExitInfo).data
+      const sighash = data.slice(0, 10)
+      const errorSig = Object.keys(entryPoint.interface.errors).find(err => keccak256(Buffer.from(err)).startsWith(sighash))
+      if (errorSig != null) {
+        const errorFragment = entryPoint.interface.errors[errorSig]
+        const errParams = entryPoint.interface.decodeErrorResult(errorFragment, data)
+        let errName = errorFragment.name+'('+errParams+')'
+        if (!errorSig.includes('Result')) {
+          //a real error, not a result.
+          throw new Error(errName)
+        }
+      } else {
+        //not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
+        let err = decodeErrorReason(data)
+        console.log('=== revert reason=', err)
+        throw new Error(err != null ? err.message : data)
+      }
+    }
+  }
+
+  debug('=== simulation result:', inspect(result, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE'])
@@ -52,15 +74,6 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
   if (Object.values(result.numberLevels).length < 2) {
     // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
     // console.log('debug=', result.debug)
-    if (result.calls.length >= 1) {
-      const last = result.calls[result.calls.length - 1]
-      if (last.type === 'REVERT') {
-
-        let data = (last as ExitInfo).data
-        let err = decodeErrorReason(data)
-        throw new Error(err != null ? err.message : data)
-      }
-    }
     throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
   }
   const validateOpcodes = result.numberLevels['0'].opcodes

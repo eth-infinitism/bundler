@@ -22,7 +22,7 @@ export interface BundlerCollectorReturn {
    * values passed into KECCAK opcode
    */
   keccak: string[]
-  calls: Array< ExitInfo | MethodInfo>
+  calls: Array<ExitInfo | MethodInfo>
   logs: LogInfo[]
   debug: any[]
 }
@@ -104,7 +104,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      this.debug.push(`enter gas=${frame.getGas()} type=${frame.getType()} to=${toHex(frame.getTo())} in=${toHex(frame.getInput()).slice(0, 300)}`)
+      this.debug.push(`enter gas=${frame.getGas()} type=${frame.getType()} to=${toHex(frame.getTo())} in=${toHex(frame.getInput()).slice(0, 500)}`)
       this.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
@@ -118,7 +118,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       this.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
-        data: toHex(frame.getOutput()).slice(0, 300)
+        data: toHex(frame.getOutput()).slice(0, 500)
       })
     },
 
@@ -129,6 +129,19 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth())
+
+      if (opcode === 'REVERT' || opcode === 'RETURN') {
+        const ofs = parseInt(log.stack.peek(0).toString())
+        const len = parseInt(log.stack.peek(1).toString())
+        let data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 500)
+        this.debug.push(opcode + ' ' + data)
+        this.calls.push({
+          type: opcode,
+          gasUsed: 0,
+          data
+        })
+      }
+
       if (log.getDepth() === 1) {
         //NUMBER opcode at top level split levels
         if (opcode === 'NUMBER') this.numberCounter++
@@ -166,11 +179,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         this.countSlot(opcode === 'SLOAD' ? access.reads : access.writes, slot)
       }
 
-      if (opcode === 'REVERT' || opcode === 'RETURN') {
-        const ofs = parseInt(log.stack.peek(0).toString())
-        const len = parseInt(log.stack.peek(1).toString())
-        this.debug.push(opcode + ' ' + toHex(log.memory.slice(ofs, ofs + len)).slice(0, 300))
-      } else if (opcode === 'KECCAK256') {
+      if (opcode === 'KECCAK256') {
         // collect keccak on 64-byte blocks
         const ofs = parseInt(log.stack.peek(0).toString())
         const len = parseInt(log.stack.peek(1).toString())

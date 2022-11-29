@@ -1,6 +1,6 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { ethers } from 'ethers'
-import { hexValue, resolveProperties } from 'ethers/lib/utils'
+import { resolveProperties } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import Debug from 'debug'
 import { deepHexlify } from '@account-abstraction/utils'

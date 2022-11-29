@@ -2,6 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
+import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
+import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 contract Dummy {
     uint public value = 1;
@@ -32,7 +34,7 @@ contract TestCoin {
     }
 }
 
-contract TestRulesAccount is IAccount {
+contract TestRulesAccount is IAccount, IPaymaster {
 
     uint state;
     TestCoin public coin;
@@ -75,8 +77,12 @@ contract TestRulesAccount is IAccount {
         revert(string.concat("unknown rule: ", rule));
     }
 
+    function addStake(IEntryPoint entryPoint) public payable {
+        entryPoint.addStake{value : msg.value}(1);
+    }
+
     function validateUserOp(UserOperation calldata userOp, bytes32, address, uint256 missingAccountFunds)
-    external override returns (uint256 deadline) {
+    external override returns (uint256 ) {
         if (missingAccountFunds > 0) {
             /* solhint-disable-next-line avoid-low-level-calls */
             (bool success,) = msg.sender.call{value : missingAccountFunds}("");
@@ -89,6 +95,16 @@ contract TestRulesAccount is IAccount {
         runRule(string(userOp.signature));
         return 0;
     }
+
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    external returns (bytes memory context, uint256 deadline) {
+        string memory rule = string(userOp.paymasterAndData[20 :]);
+        runRule(rule);
+        return ("", 0);
+    }
+
+    function postOp(PostOpMode, bytes calldata, uint256) external {}
+
 }
 
 contract TestRulesAccountDeployer {
