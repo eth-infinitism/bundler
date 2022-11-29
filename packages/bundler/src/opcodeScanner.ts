@@ -67,17 +67,17 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
   const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
   // console.log('debug=', result.debug.join('\n- '))
   Object.keys(validateOpcodes).forEach(opcode =>
-    requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, 32501)
+    requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, -32501)
   )
   Object.keys(validatePaymasterOpcodes).forEach(opcode =>
-    requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, 32501, { paymaster })
+    requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, -32501, { paymaster })
   )
   if (userOp.initCode.length > 2) {
-    requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', 32501)
+    requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', -32501)
   } else {
-    requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'banned opcode: CREATE2', 32501)
+    requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'banned opcode: CREATE2', -32501)
   }
-  requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', 32501, { paymaster })
+  requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', -32501, { paymaster })
 
   const accountSlots = new Set<string>()
   const senderPadded = hexZeroPad(userOp.sender, 32).toLowerCase()
