@@ -8,6 +8,7 @@ import { decodeErrorReason } from '@account-abstraction/utils'
 import { requireCond } from './utils'
 
 import Debug from 'debug'
+import { inspect } from 'util'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -42,8 +43,7 @@ export async function opcodeScanner(userOp1: UserOperationStruct, entryPoint: En
     gasLimit: simulationGas
   }, { tracer: bundlerCollectorTracer })
 
-  debug('=== simulation result:', result)
-  // todo: validate keccak, access
+  debug('=== simulation result:', inspect(result,true,10,true))
   // todo: block access to no-code addresses (might need update to tracer)
 
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE'])
