@@ -12,7 +12,7 @@ import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/typ
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { replaceMethodSig, requireCond, RpcError } from './utils'
 import Debug from 'debug'
-import { boolean } from 'hardhat/internal/core/params/argumentTypes'
+import { isGeth, opcodeScanner } from './opcodeScanner'
 
 const debug = Debug('aa.handler.userop')
 
@@ -61,16 +61,6 @@ export class UserOpMethodHandler {
     readonly entryPoint: EntryPoint
     // readonly bundlerHelper: BundlerHelper
   ) {
-  }
-
-  clientVersion?: string
-
-  async isGeth (): Promise<boolean> {
-    if (this.clientVersion == null) {
-      this.clientVersion = await (this.provider as JsonRpcProvider).send('web3_clientVersion', [])
-    }
-    debug('client version', this.clientVersion)
-    return this.clientVersion?.match('Geth') != null
   }
 
   async getSupportedEntryPoints (): Promise<string[]> {
@@ -202,7 +192,7 @@ export class UserOpMethodHandler {
     const provider = this.provider as JsonRpcProvider
 
     const handleOpsCallData = this.entryPoint.interface.encodeFunctionData('handleOps', [[deepHexlify(userOp)], await this.selectBeneficiary()])
-    requireCond(await this.isGeth(), 'Implemented only for GETH', -32000)
+    requireCond(await isGeth(this.provider as JsonRpcProvider), 'Implemented only for GETH', -32000)
     const result: BundlerCollectorReturn = await debug_traceCall(provider, {
       from: ethers.constants.AddressZero,
       to: this.entryPoint.address,
@@ -231,7 +221,6 @@ export class UserOpMethodHandler {
     const userOp = deepHexlify(await resolveProperties(userOp1))
 
     await this._validateParameters(userOp, entryPointInput, true)
-    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
     const revert = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
     // simulation always reverts. SimulateResult is a valid response with no error
@@ -242,43 +231,8 @@ export class UserOpMethodHandler {
       }
       throw new RpcError(revert.errorArgs.reason, -32500, data)
     }
-    const provider = this.provider as JsonRpcProvider
-    if (await this.isGeth()) {
-      debug('=== sending simulate')
-      const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
-
-      const result: BundlerCollectorReturn = await debug_traceCall(provider, {
-        from: ethers.constants.AddressZero,
-        to: this.entryPoint.address,
-        data: simulateCall,
-        gasLimit: simulationGas
-      }, { tracer: bundlerCollectorTracer })
-
-      debug('=== simulation result:', result)
-      // todo: validate keccak, access
-      // todo: block access to no-code addresses (might need update to tracer)
-
-      const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE'])
-
-      const paymaster = (userOp.paymasterAndData?.length ?? 0) >= 42 ? userOp.paymasterAndData.toString().slice(0, 42) : undefined
-      if (Object.values(result.numberLevels).length < 2) {
-        throw new Error('unexpected traceCall result: no tracer or no NUMBER opcodes')
-      }
-      const validateOpcodes = result.numberLevels['0'].opcodes
-      const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
-      // console.log('debug=', result.debug.join('\n- '))
-      Object.keys(validateOpcodes).forEach(opcode =>
-        requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, 32501)
-      )
-      Object.keys(validatePaymasterOpcodes).forEach(opcode =>
-        requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, 32501, { paymaster })
-      )
-      if (userOp.initCode.length > 2) {
-        requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', 32501)
-      } else {
-        requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'banned opcode: CREATE2', 32501)
-      }
-      requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', 32501, { paymaster })
+    if (await isGeth(this.provider as JsonRpcProvider)) {
+      await opcodeScanner(userOp1, this.entryPoint)
     }
   }
 

@@ -1,0 +1,4 @@
+describe('opcode banning', ()=>{
+
+
+})

@@ -141,7 +141,7 @@ export class LogCallFrame {
     readonly address: string,
     readonly value: BigNumber,
     readonly input: string,
-    readonly gas: BigNumber
+    readonly gas: number
   ) {
   }
 
@@ -161,7 +161,7 @@ export class LogCallFrame {
     return this.input
   } // - returns the input as a buffer
 
-  getGas (): BigNumber {
+  getGas (): number {
     return this.gas
   } // - returns a Number which has the amount of gas provided for the frame
 

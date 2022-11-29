@@ -1,28 +1,28 @@
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { parseEther, resolveProperties } from 'ethers/lib/utils'
+import { arrayify, hexConcat, hexlify, hexZeroPad, parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import {
-  EntryPoint,
-  SimpleAccountDeployer__factory,
-  UserOperationStruct
-} from '@account-abstraction/contracts'
+import { EntryPoint, SimpleAccountDeployer__factory, UserOperationStruct } from '@account-abstraction/contracts'
 
 import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
-import { BundlerHelper, SampleRecipient } from '../src/types'
+import {
+  BundlerHelper, SampleRecipient, TestCoin,
+  TestCoin__factory, TestRulesAccountDeployer, TestRulesAccountDeployer__factory
+} from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 
 //resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
-async function resolveHexlify(a:any): Promise<any> {
+async function resolveHexlify (a: any): Promise<any> {
   return deepHexlify(await resolveProperties(a))
 }
+
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
@@ -81,7 +81,7 @@ describe('UserOpMethodHandler', function () {
   describe('query rpc calls: eth_estimateUserOperationGas, eth_callUserOperation', function () {
     let owner: Wallet
     let smartAccountAPI: SimpleAccountAPI
-    let target:string
+    let target: string
     before('init', async () => {
       owner = Wallet.createRandom()
       target = await Wallet.createRandom().getAddress()
@@ -97,7 +97,7 @@ describe('UserOpMethodHandler', function () {
         target,
         data: '0xdeadface'
       })
-      const ret =await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address)
+      const ret = await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address)
       // verification gas should be high - it creates this wallet
       expect(ret.verificationGas).to.be.closeTo(1e6, 300000)
       // execution should be quite low.
@@ -110,7 +110,7 @@ describe('UserOpMethodHandler', function () {
         target,
         data: '0xdeadface'
       }))
-      const ret =await methodHandler.callUserOperation(await resolveHexlify(op), entryPoint.address)
+      const ret = await methodHandler.callUserOperation(await resolveHexlify(op), entryPoint.address)
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and view-call doesn't perform full deploy-validate-execute cycle)
       console.log('ret=', ret)
