@@ -1,20 +1,46 @@
 #!/bin/bash 
 
-function portFree {
+function fatal {
+  echo "$@" 1>&2
+  exit 1
+}
+
+function isPortFree {
   port=$1
   curl http://localhost:$port 2>&1 | grep -q Connection.refused
 }
 
-function launcher {
+function checkPortFree {
+  port=$1
+  if ! isPortFree $port; then 
+    fatal "== FATAL: port $port already in use"
+  fi
+}
+
+function startProcess {
+  retpid=$1
+  shift
+  cmd="$@"
+  $cmd & eval $retpid=$!
+}
+
+checkPortFree 8545
+checkPortFree 3000
+
+startProcess gethpid /usr/local/bin/geth --dev --verbosity 1
+echo pid=$gethpid
+
+exit
+
+function bgLauncher {
   port=$1
   name=$2
   shift; shift
   cmd="$*"
+  test -z "$cmd" && fatal "usage: bgLauncher {port} {name} {cmd...}"
 
-  if portFree $port; then true
-  else
-    echo == FATAL: cannot start $name: port $port in use.
-    exit 1
+  if ! isPortFree $port; then 
+    fatal "== FATAL: cannot start $name: port $port in use."
   fi
 
   echo == starting $name
@@ -23,9 +49,9 @@ function launcher {
 
   trap "echo == killing $name; kill -9 $ID" EXIT
 
-  echo waiting for port $port
-  while portFree $port; do sleep 1; done
-  echo started $name
+  echo == waiting for $name on port $port
+  while isPortFree $port; do sleep 1; done
+  echo == started $name
 }
 
 
@@ -50,7 +76,5 @@ GETH="/usr/local/bin/geth  --dev \
       --verbosity 1 \
       --ignore-legacy-receipts"
 
-launcher 8545 geth $GETH
-launcher 3000 node "$@"
-echo == started
+bgLauncher 8545 geth $GETH
 sleep 1
