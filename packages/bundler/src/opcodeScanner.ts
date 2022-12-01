@@ -114,8 +114,8 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
       //allowed to access itself
       return
     }
-    Object.keys(writes).forEach(slot => requireCond(accountSlots.has(slot), `forbidden write to addr ${addr}  slot ${slot}`))
-    Object.keys(reads).forEach(slot => requireCond(accountSlots.has(slot), `forbidden read from addr ${addr}  slot ${slot}`))
+    Object.keys(writes).forEach(slot => requireCond(accountSlots.has(slot), `forbidden write to addr ${addr}  slot ${slot}`, -32501))
+    Object.keys(reads).forEach(slot => requireCond(accountSlots.has(slot), `forbidden read from addr ${addr}  slot ${slot}`, -32501))
   })
   return result
 }
