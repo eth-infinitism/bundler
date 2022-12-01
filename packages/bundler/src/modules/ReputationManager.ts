@@ -1,10 +1,27 @@
 /**
  * throttled entities are allowed minimal number of entries per bundle. banned entities are allowed none
  */
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
-import { EntryPoint, IEntryPoint__factory } from '@account-abstraction/contracts'
 
-enum ReputationStatus { OK, THROTTLED, BANNED }
+export enum ReputationStatus { OK, THROTTLED, BANNED }
+
+export interface ReputationParams {
+  minInclusionDenominator: number,
+  throttlingSlack: number,
+  banSlack: number
+}
+
+export const BundlerReputationParams: ReputationParams = {
+  minInclusionDenominator: 10,
+  throttlingSlack: 10,
+  banSlack: 10
+}
+
+export const NonBundlerReputationParams: ReputationParams = {
+  minInclusionDenominator: 100,
+  throttlingSlack: 10,
+  banSlack: 10
+}
+
 interface ReputationEntry {
   opsSeen: number
   opsIncluded: number
@@ -12,41 +29,64 @@ interface ReputationEntry {
 }
 
 interface ReputationDump {
-
+  reputation: { [addr: string]: ReputationEntry }
 }
 
 export class ReputationManager {
-  readonly entries = new Map<string, ReputationEntry>()
+  constructor (readonly params: ReputationParams) {
+  }
+
+  readonly entries: { [addr: string]: ReputationEntry } = {}
   //black-listed entities
   readonly blackList = new Set<string>()
 
-  dump(): ReputationDump {
-    return {} as ReputationDump
+  dump (): ReputationDump {
+    return {
+      reputation: Object.keys(this.entries)
+        .reduce((set, addr) => ({
+          ...set,
+          [addr]: {
+            ...this.entries[addr],
+            status: this.getStatus(addr)
+          }
+        }), {})
+    }
   }
 
   /**
    * exponential backoff of opsSeen and opsIncluded values
    */
-  hourlyCron() {
-    for (let key in this.entries.keys()) {
-      const entry = this.entries.get(key)!
-      entry.opsSeen = Math.floor(entry.opsSeen * 23/24)
-      entry.opsIncluded = Math.floor(entry.opsSeen * 23/24)
-      if ( entry.opsIncluded==0 && entry.opsSeen ==0 ) {
-        this.entries.delete(key)
+  hourlyCron () {
+    Object.keys(this.entries).forEach(addr => {
+      const entry = this.entries[addr]
+      entry.opsSeen = Math.floor(entry.opsSeen * 23 / 24)
+      entry.opsIncluded = Math.floor(entry.opsSeen * 23 / 24)
+      if (entry.opsIncluded == 0 && entry.opsSeen == 0) {
+        delete this.entries[addr]
       }
-    }
+    })
   }
 
-  _getOrCreate(addr:string): ReputationEntry {
-    let entry = this.entries.get(addr)
-    if ( entry==null ) {
-      entry = { opsSeen: 0, opsIncluded: 0, }
-      this.entries.set(addr,entry)
+  _getOrCreate (addr: string): ReputationEntry {
+    let entry = this.entries[addr]
+    if (entry == null) {
+      entry = {
+        opsSeen: 0,
+        opsIncluded: 0,
+      }
+      this.entries[addr] = entry
     }
     return entry
   }
-  updateSeenStatus(addr:string) {
+
+  /**
+   * address seen in the mempool triggered by the
+   * @param addr
+   */
+  updateSeenStatus (addr?: string) {
+    if (addr == null) {
+      return
+    }
     const entry = this._getOrCreate(addr)
     entry.opsSeen++
   }
@@ -56,17 +96,27 @@ export class ReputationManager {
    * triggered by the EventsManager.
    * @param addr
    */
-  updateIncludedStatus(addr:string) {
+  updateIncludedStatus (addr: string) {
     const entry = this._getOrCreate(addr)
     entry.opsIncluded++
   }
 
-  getStatus(addr: string ) :ReputationStatus {
-    const entry = this.entries.get(addr)
-    if ( entry==null ) {
+  // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
+  getStatus (addr?: string): ReputationStatus {
+    if (addr == undefined) {
       return ReputationStatus.OK
     }
-    //TODO: calculate ratio
-    return ReputationStatus.BANNED
+    const entry = this.entries[addr]
+    if (entry == null) {
+      return ReputationStatus.OK
+    }
+    const min_expected_included = Math.min(entry.opsSeen / this.params.minInclusionDenominator)
+    if (min_expected_included >= entry.opsIncluded + this.params.throttlingSlack) {
+      return ReputationStatus.OK
+    } else if (min_expected_included <= entry.opsIncluded + this.params.banSlack) {
+      return ReputationStatus.THROTTLED
+    } else {
+      return ReputationStatus.BANNED
+    }
   }
 }

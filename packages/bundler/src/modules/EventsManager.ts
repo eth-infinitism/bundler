@@ -1,6 +1,6 @@
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { ReputationManager } from './ReputationManager'
-import { EntryPoint, IEntryPoint__factory } from '@account-abstraction/contracts'
+import { EntryPoint } from '@account-abstraction/contracts'
 import { UserOperation } from './moduleUtils'
 
 /**
@@ -8,22 +8,33 @@ import { UserOperation } from './moduleUtils'
  */
 class EventsManager {
 
-  readonly epInterface = IEntryPoint__factory.createInterface()
-  readonly handleOpsFunc = Object.values(this.epInterface.functions).find(frag => frag.name == 'handleOps')!
-
   lastTx = ''
+  lastBlock = 0
 
-  constructor (readonly reputationManager: ReputationManager) {
+  constructor (
+    readonly entryPoint: EntryPoint,
+    readonly reputationManager: ReputationManager) {
   }
 
   /**
-   * listen to all events
-   * @param ep
+   * automatically listen to all UserOperationEvent events
+   * @param entryPoint
    */
-  listen (ep: EntryPoint) {
-    ep.on(ep.filters.UserOperationEvent(), (ev) => {
+  initEventListener () {
+    this.entryPoint.on(this.entryPoint.filters.UserOperationEvent(), (ev) => {
       //todo: check event typing. typechain thinks its a string
       this.handleEvent(ev as any)
+    })
+  }
+
+  /**
+   * manually handle all new events since last run
+   * @param entryPoint
+   */
+  async handlePastEvents () {
+    const events = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationEvent(), this.lastBlock)
+    events.forEach(ev => {
+      this.handleEvent(ev)
     })
   }
 
@@ -34,17 +45,19 @@ class EventsManager {
       return
     }
     this.lastTx = ev.transactionHash
+    this.lastBlock = ev.blockNumber
     const tx = await ev.getTransaction()
-    const ret = this.epInterface.decodeFunctionData(this.handleOpsFunc, tx.data)
+    const handleOpsFuncFragment = this.entryPoint.interface.getFunction('handleOps')
+    const ret = this.entryPoint.interface.decodeFunctionData(handleOpsFuncFragment, tx.data)
     const userOps: UserOperation[] = ret[0]
     userOps.forEach(userOp => {
-      this._seenAddress(userOp.initCode as any)
-      this._seenAddress(userOp.paymasterAndData as any)
+      this._includedAddress(userOp.initCode as any)
+      this._includedAddress(userOp.paymasterAndData as any)
       //TODO: do we handle aggerator?
     })
   }
 
-  _seenAddress (data: string) {
+  _includedAddress (data: string) {
     if (data.length > 42) {
       const addr = data.slice(0, 42)
       this.reputationManager.updateIncludedStatus(addr)

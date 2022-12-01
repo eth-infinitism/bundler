@@ -1,39 +1,55 @@
-import { BigNumber } from 'ethers'
-import { NotPromise } from '@account-abstraction/utils'
-import { UserOperation } from './moduleUtils'
-import { RpcError } from '../utils'
+import { BigNumber, BigNumberish } from 'ethers'
+import { getAddr, UserOperation } from './moduleUtils'
+import { requireCond } from '../utils'
+import { ValidationErrors } from './ValidationManager'
+import { ReputationManager } from './ReputationManager'
 
 export interface MempoolEntry {
   userOp: UserOperation
+  prefund: BigNumberish
   //aggregator, if one was found during simulation
   aggregator?: string
 }
 
 export class MempoolManager {
-  mempool: MempoolEntry[] = []
+  private mempool: MempoolEntry[] = []
 
-  dump () {
+  constructor (
+    readonly reputationManager: ReputationManager) {
+  }
 
+  dump (): MempoolEntry[] {
+    return this.mempool
+  }
+
+  count (): number {
+    return this.mempool.length
   }
 
   //add userOp into the mempool, after initial validation.
   //replace existing, if any (and if new gas is higher)
-  addUserOp (userOp: UserOperation, aggregator?: string) {
-    let entry = {
+  addUserOp (userOp: UserOperation, prefund: BigNumberish, aggregator?: string) {
+    let entry: MempoolEntry = {
       userOp,
+      prefund,
       aggregator
     }
     const index = this._find(userOp)
     if (index != -1) {
-      const oldGas = BigNumber.from(this.mempool[index].userOp.maxPriorityFeePerGas).toNumber()
+      let oldEntry = this.mempool[index]
+      const oldGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
       const newGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
-      if (newGas < oldGas * 1.1) {
-        throw new RpcError('Replacement transaction must have higher gas')
-      }
+      //the error is "invalid fields", even though it is detected only after validation
+      requireCond(newGas < oldGas * 1.1,
+        'Replacement UserOperation must have higher gas', ValidationErrors.InvalidFields)
       this.mempool[index] = entry
     } else {
       this.mempool.push(entry)
     }
+
+    this.reputationManager.updateSeenStatus(aggregator)
+    this.reputationManager.updateSeenStatus(getAddr(userOp.paymasterAndData))
+    this.reputationManager.updateSeenStatus(getAddr(userOp.initCode))
   }
 
   getSortedForInclusion (): MempoolEntry[] {
@@ -58,6 +74,10 @@ export class MempoolManager {
     return -1
   }
 
+  /**
+   * remove UserOp from mempool. either it is invalid, or was included in a block
+   * @param userOp
+   */
   removeUserOp (userOp: UserOperation) {
     const index = this._find(userOp)
     if (index != -1) {

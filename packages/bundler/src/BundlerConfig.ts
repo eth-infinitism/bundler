@@ -10,6 +10,10 @@ export interface BundlerConfig {
   mnemonic: string
   network: string
   port: string
+
+  maxBundleGas: number
+  minStake: string
+  minUnstakeDelay: number
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -21,7 +25,11 @@ export const BundlerConfigShape = {
   minBalance: ow.string,
   mnemonic: ow.string,
   network: ow.string,
-  port: ow.string
+  port: ow.string,
+
+  maxBundleGas: ow.number,
+  minStake: ow.string,
+  minUnstakeDelay: ow.number
 }
 
 // TODO: consider if we want any default fields at all

@@ -5,12 +5,13 @@ import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 
-import { erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { AddressZero, erc4337RuntimeVersion } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
 import { RpcError } from './utils'
+import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
 
 export class BundlerServer {
   app: Express
@@ -49,6 +50,27 @@ export class BundlerServer {
   async _preflightCheck (): Promise<void> {
     if (await this.provider.getCode(this.config.entryPoint) === '0x') {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
+    }
+
+    //minimal UserOp to revert with "FailedOp"
+    const emptyUserOp: UserOperationStruct = {
+      sender: AddressZero,
+      callData: '0x',
+      initCode: AddressZero,
+      paymasterAndData: '0x',
+      nonce: 0,
+      preVerificationGas: 0,
+      verificationGasLimit: 0,
+      callGasLimit: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
+      signature: '0x'
+    }
+    // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
+    const err = await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.simulateValidation(emptyUserOp)
+      .catch(e=>e)
+    if ( err?.errorName != 'FailedOp') {
+      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
     }
 
     const bal = await this.provider.getBalance(this.wallet.address)
