@@ -9,6 +9,8 @@ import { requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
+import { UserOperation } from './modules/moduleUtils'
+import { ValidationErrors } from './modules/ValidationManager'
 const debug = Debug('aa.handler.opcodes')
 
 export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
@@ -63,6 +65,12 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
     }
   }
 
+  parseScannerResult(userOp, result)
+  return result
+}
+
+export function parseScannerResult (userOp: UserOperation, result: BundlerCollectorReturn) {
+
   debug('=== simulation result:', inspect(result, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -79,17 +87,17 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
   const validatePaymasterOpcodes = result.numberLevels['1'].opcodes
   // console.log('debug=', result.debug.join('\n- '))
   Object.keys(validateOpcodes).forEach(opcode =>
-    requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, -32501)
+    requireCond(!bannedOpCodes.has(opcode), `account uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
   )
   Object.keys(validatePaymasterOpcodes).forEach(opcode =>
-    requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, -32501, { paymaster })
+    requireCond(!bannedOpCodes.has(opcode), `paymaster uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation, { paymaster })
   )
   if (userOp.initCode.length > 2) {
-    requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', -32501)
+    requireCond((validateOpcodes.CREATE2 ?? 0) <= 1, 'initCode with too many CREATE2', ValidationErrors.OpcodeValidation)
   } else {
-    requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'account uses banned opcode: CREATE2', -32501)
+    requireCond((validateOpcodes.CREATE2 ?? 0) < 1, 'account uses banned opcode: CREATE2', ValidationErrors.OpcodeValidation)
   }
-  requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', -32501, { paymaster })
+  requireCond((validatePaymasterOpcodes.CREATE2 ?? 0) < 1, 'paymaster uses banned opcode: CREATE2', ValidationErrors.OpcodeValidation, { paymaster })
 
   const accountSlots = new Set<string>()
   const senderPadded = hexZeroPad(userOp.sender, 32).toLowerCase()
@@ -113,8 +121,8 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
       // allowed to access itself
       return
     }
-    Object.keys(writes).forEach(slot => requireCond(accountSlots.has(slot), `forbidden write to addr ${addr}  slot ${slot}`))
-    Object.keys(reads).forEach(slot => requireCond(accountSlots.has(slot), `forbidden read from addr ${addr}  slot ${slot}`))
+    Object.keys(writes).forEach(slot => requireCond(accountSlots.has(slot), `forbidden write to addr ${addr}  slot ${slot}`), ValidationErrors.OpcodeValidation)
+    Object.keys(reads).forEach(slot => requireCond(accountSlots.has(slot), `forbidden read from addr ${addr}  slot ${slot}`), ValidationErrors.OpcodeValidation)
   })
   return result
 }

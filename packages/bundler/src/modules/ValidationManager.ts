@@ -1,10 +1,15 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { getAddr, UserOperation } from './moduleUtils'
-import { AddressZero } from '@account-abstraction/utils'
+import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { isGeth, parseScannerResult } from '../opcodeScanner'
+import { JsonRpcProvider } from '@ethersproject/providers'
+import { keccak256 } from 'ethers/lib/utils'
+import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
+import { debug_traceCall } from '../GethTracer'
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -23,6 +28,7 @@ export enum ValidationErrors {
 export interface ValidationResult {
   preOpGas: BigNumberish
   prefund: BigNumberish
+  deadline: number
   // paymasterInfo exists only if there was a paymaster in the request
   paymasterInfo?: PaymasterInfo
   // aggregatorInfo is filled only if the wallet has an aggregator.
@@ -51,6 +57,88 @@ export class ValidationManager {
     readonly minUnstakeDelay: number) {
   }
 
+  //standard eth_call to simulateValidation
+  async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
+
+    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
+    return this._parseErrorResult(userOp, errorResult)
+  }
+
+  _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
+    if (!(errorResult.errorName as string).startsWith('SimulationResult')) {
+      // if its FailedOp, then we have the paymaster... otherwise its an Error(string)
+      let paymaster = errorResult.errorArgs.paymaster
+      if (paymaster === AddressZero) {
+        paymaster = undefined
+      }
+      const msg = errorResult.errorArgs.reason ?? errorResult.toString()
+      if ( paymaster==null ) {
+        throw new RpcError('account validation failed: '+msg, ValidationErrors.SimulateValidation)
+      } else {
+        throw new RpcError('paymaster validation failed: '+msg, ValidationErrors.SimulatePaymasterValidation)
+      }
+    }
+
+    let {
+      preOpGas,
+      prefund,
+      deadline,
+      aggregatorInfo,
+      paymasterInfo
+    } = errorResult.errorArgs
+    const paymaster = getAddr(userOp.paymasterAndData)
+
+    if (paymaster != null) {
+      paymasterInfo.paymaster = paymaster
+    } else {
+      paymasterInfo = undefined
+    }
+
+    return {
+      preOpGas,
+      prefund,
+      deadline,
+      paymasterInfo,
+      aggregatorInfo
+    }
+  }
+
+  async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
+
+    const provider = this.entryPoint.provider as JsonRpcProvider
+    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
+
+    const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
+
+    const tracerResult: BundlerCollectorReturn = await debug_traceCall(provider, {
+      from: ethers.constants.AddressZero,
+      to: this.entryPoint.address,
+      data: simulateCall,
+      gasLimit: simulationGas
+    }, { tracer: bundlerCollectorTracer })
+
+    const lastResult = tracerResult.calls.slice(-1)[0]
+    if (lastResult.type !== 'REVERT') {
+      throw new Error('Invalid response. simulateCall must revert')
+    }
+    const data = (lastResult as ExitInfo).data
+    const sighash = data.slice(0, 10)
+    const errorSig = Object.keys(this.entryPoint.interface.errors).find(err => keccak256(Buffer.from(err)).startsWith(sighash))
+    if (errorSig != null) {
+      const errorFragment = this.entryPoint.interface.errors[errorSig]
+      const errorArgs = this.entryPoint.interface.decodeErrorResult(errorFragment, data)
+      const errorResult = this._parseErrorResult(userOp, {
+        errorName: errorFragment.name,
+        errorArgs
+      })
+      return [errorResult, tracerResult]
+    } else {
+      // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
+      const err = decodeErrorReason(data)
+      throw new Error(err != null ? err.message : data)
+    }
+  }
+
   /**
    * validate UserOperation.
    * should also handle unmodified memory (e.g. by referencing cached storage in the mempool
@@ -65,70 +153,48 @@ export class ValidationManager {
     await this._checkStake('deployer', deployer)
 
     // TODO: use traceCall
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
-    if (!(errorResult.errorName as string).startsWith('SimulationResult')) {
-      // if its FailedOp, then we have the paymaster..
-      let paymaster = errorResult.errorArgs.paymaster
-      if (paymaster === AddressZero) {
-        paymaster = undefined
-      }
-      const msg = errorResult.errorArgs.reason ?? errorResult.toString()
-      const code = paymaster == null
-        ? ValidationErrors.SimulateValidation
-        : ValidationErrors.SimulatePaymasterValidation
-      throw new RpcError(msg, code, { paymaster })
-    }
-
-    let {
-      preOpGas,
-      prefund,
-      deadline,
-      aggregatorInfo,
-      paymasterInfo
-    } = errorResult.errorArgs
-
-    if (paymaster != null) {
-      paymasterInfo.paymaster = paymaster
+    let res: ValidationResult
+    if (await isGeth(this.entryPoint.provider as any)) {
+      let tracerResult: BundlerCollectorReturn
+      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
+      parseScannerResult(userOp, tracerResult)
     } else {
-      paymasterInfo = undefined
+      res = await this._callSimulateValidation(userOp)
     }
 
-    requireCond(parseInt(deadline) + 30 < Date.now() / 1000,
+    requireCond(res.deadline + 30 < Date.now() / 1000,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
-    await this._checkStake('aggregator', aggregatorInfo?.actualAggregator)
+    await this._checkStake('aggregator', res.aggregatorInfo?.actualAggregator)
 
-    requireCond(aggregatorInfo == null,
+    requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
 
-    // all validation logic (using trace, reputationManager)
-    // extra data to keep in mempool (e.g. extcodehash)
-    return {
-      preOpGas,
-      prefund,
-      paymasterInfo,
-      aggregatorInfo
-    }
+    return res
   }
 
   /**
    * check the given address (paymaster/deployer/aggregator) is staked
+   * @param title the address title (field name to put into the "data" element)
    * @param addr
    */
-  async _checkStake (title: 'paymaster' | 'aggregator' | 'deployer', addr?: string): Promise<void> {
+  async _checkStake (title: 'paymaster' | 'aggregator' | 'deployer', addr ?: string): Promise<void> {
     if (addr == null || this.reputationManager.isWhitelisted(addr)) {
       return
     }
     requireCond(this.reputationManager.getStatus(addr) !== ReputationStatus.BANNED,
-      `${title} ${addr} is banned`, ValidationErrors.Reputation, { [title]: addr })
+      `${title} ${addr} is banned`,
+      ValidationErrors.Reputation, { [title]: addr })
 
     const info = await this.entryPoint.getDepositInfo(addr)
     requireCond(info.stake.gte(this.minStake),
-      `${title} ${addr} stake ${info.stake.toString()} is too low (min=${this.minStake.toString()})`, ValidationErrors.InsufficientStake)
+      `${title} ${addr} stake ${info.stake.toString()} is too low (min=${this.minStake.toString()})`,
+      ValidationErrors.InsufficientStake)
     requireCond(info.unstakeDelaySec >= this.minUnstakeDelay,
-      `${title} ${addr} unstake delay ${info.unstakeDelaySec} is too low (min=${this.minUnstakeDelay})`, ValidationErrors.InsufficientStake)
+      `${title} ${addr} unstake delay ${info.unstakeDelaySec} is too low (min=${this.minUnstakeDelay})`,
+      ValidationErrors.InsufficientStake)
   }
 
   /**
@@ -156,20 +222,26 @@ export class ValidationManager {
     }
     fields.forEach(key => {
       const value: string = (userOp as any)[key]?.toString()
-      requireCond(value != null, 'Missing userOp field: ' + key + ' ' + JSON.stringify(userOp), ValidationErrors.InvalidFields)
-      requireCond(value.match(HEX_REGEX) != null, `Invalid hex value for property ${key}:${value} in UserOp`, ValidationErrors.InvalidFields)
+      requireCond(value != null,
+        'Missing userOp field: ' + key + ' ' + JSON.stringify(userOp),
+        ValidationErrors.InvalidFields)
+      requireCond(value.match(HEX_REGEX) != null,
+        `Invalid hex value for property ${key}:${value} in UserOp`,
+        ValidationErrors.InvalidFields)
     })
 
     requireCond(userOp.paymasterAndData.length === 2 || userOp.paymasterAndData.length >= 42,
-      'paymasterAndData: must contain at least an address', ValidationErrors.InvalidFields)
+      'paymasterAndData: must contain at least an address',
+      ValidationErrors.InvalidFields)
 
     // syntactically, initCode can be only the deployer address. but in reality, it must have calldata to uniquely identify the account
     requireCond(userOp.initCode.length === 2 || userOp.initCode.length >= 42,
-      'initCode: must contain at least an address', ValidationErrors.InvalidFields)
+      'initCode: must contain at least an address',
+      ValidationErrors.InvalidFields)
 
     const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
     requireCond(userOp.preVerificationGas >= calcPreVerificationGas1,
-      `preverificationGas too low: exected at least ${calcPreVerificationGas1}`,
+      `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
       ValidationErrors.InvalidFields)
   }
 }
