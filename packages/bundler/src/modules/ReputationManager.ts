@@ -5,8 +5,8 @@
 export enum ReputationStatus { OK, THROTTLED, BANNED }
 
 export interface ReputationParams {
-  minInclusionDenominator: number,
-  throttlingSlack: number,
+  minInclusionDenominator: number
+  throttlingSlack: number
   banSlack: number
 }
 
@@ -37,7 +37,7 @@ export class ReputationManager {
   }
 
   readonly entries: { [addr: string]: ReputationEntry } = {}
-  //black-listed entities
+  // black-listed entities
   readonly blackList = new Set<string>()
 
   dump (): ReputationDump {
@@ -56,12 +56,13 @@ export class ReputationManager {
   /**
    * exponential backoff of opsSeen and opsIncluded values
    */
-  hourlyCron () {
+  hourlyCron (): void {
     Object.keys(this.entries).forEach(addr => {
       const entry = this.entries[addr]
       entry.opsSeen = Math.floor(entry.opsSeen * 23 / 24)
       entry.opsIncluded = Math.floor(entry.opsSeen * 23 / 24)
-      if (entry.opsIncluded == 0 && entry.opsSeen == 0) {
+      if (entry.opsIncluded === 0 && entry.opsSeen === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete this.entries[addr]
       }
     })
@@ -72,7 +73,7 @@ export class ReputationManager {
     if (entry == null) {
       entry = {
         opsSeen: 0,
-        opsIncluded: 0,
+        opsIncluded: 0
       }
       this.entries[addr] = entry
     }
@@ -83,7 +84,7 @@ export class ReputationManager {
    * address seen in the mempool triggered by the
    * @param addr
    */
-  updateSeenStatus (addr?: string) {
+  updateSeenStatus (addr?: string): void {
     if (addr == null) {
       return
     }
@@ -96,24 +97,24 @@ export class ReputationManager {
    * triggered by the EventsManager.
    * @param addr
    */
-  updateIncludedStatus (addr: string) {
+  updateIncludedStatus (addr: string): void {
     const entry = this._getOrCreate(addr)
     entry.opsIncluded++
   }
 
   // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
   getStatus (addr?: string): ReputationStatus {
-    if (addr == undefined) {
+    if (addr == null) {
       return ReputationStatus.OK
     }
     const entry = this.entries[addr]
     if (entry == null) {
       return ReputationStatus.OK
     }
-    const min_expected_included = Math.min(entry.opsSeen / this.params.minInclusionDenominator)
-    if (min_expected_included >= entry.opsIncluded + this.params.throttlingSlack) {
+    const minExpectedIncluded = Math.min(entry.opsSeen / this.params.minInclusionDenominator)
+    if (minExpectedIncluded >= entry.opsIncluded + this.params.throttlingSlack) {
       return ReputationStatus.OK
-    } else if (min_expected_included <= entry.opsIncluded + this.params.banSlack) {
+    } else if (minExpectedIncluded <= entry.opsIncluded + this.params.banSlack) {
       return ReputationStatus.THROTTLED
     } else {
       return ReputationStatus.BANNED

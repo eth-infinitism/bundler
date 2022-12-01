@@ -4,6 +4,7 @@ import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { TestCoin, TestCoin__factory, TestRulesAccount, TestRulesAccountDeployer, TestRulesAccountDeployer__factory, TestRulesAccount__factory } from '../src/types'
 import { isGeth, opcodeScanner } from '../src/opcodeScanner'
+import { BundlerCollectorReturn } from '../src/BundlerCollectorTracer'
 
 describe('opcode banning', () => {
   let deployer: TestRulesAccountDeployer
@@ -11,12 +12,12 @@ describe('opcode banning', () => {
   let entryPoint: EntryPoint
   let token: TestCoin
 
-  async function testUserOp (validateRule: string = '', initFunc?: string, pmRule?: string) {
+  async function testUserOp (validateRule: string = '', initFunc?: string, pmRule?: string): Promise<BundlerCollectorReturn> {
     return await opcodeScanner(await createTestUserOp(validateRule, initFunc, pmRule), entryPoint)
   }
 
   async function createTestUserOp (validateRule: string = '', initFunc?: string, pmRule?: string): Promise<UserOperationStruct> {
-    if (initFunc == undefined) {
+    if (initFunc === undefined) {
       initFunc = deployer.interface.encodeFunctionData('create', ['', token.address])
     }
 
@@ -48,7 +49,7 @@ describe('opcode banning', () => {
   }
 
   before(async function () {
-    let ethersSigner = ethers.provider.getSigner()
+    const ethersSigner = ethers.provider.getSigner()
     entryPoint = await new EntryPoint__factory(ethersSigner).deploy()
     paymaster = await new TestRulesAccount__factory(ethersSigner).deploy()
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
@@ -89,7 +90,6 @@ describe('opcode banning', () => {
     await testUserOp('balance-self')
   })
   it('should fail if referencing other token balance', async () => {
-
     expect(await testUserOp('balance-1').catch(e => e)).to.match(/forbidden read/)
   })
 })

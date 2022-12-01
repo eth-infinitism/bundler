@@ -28,17 +28,17 @@ export interface BundlerCollectorReturn {
 }
 
 export interface MethodInfo {
-  type: string,
-  from: string,
-  to: string,
-  method: string,
-  value: any,
+  type: string
+  from: string
+  to: string
+  method: string
+  value: any
   gas: number
 }
 
 export interface ExitInfo {
-  type: 'REVERT' | 'RETURN',
-  gasUsed: number,
+  type: 'REVERT' | 'RETURN'
+  gasUsed: number
   data: string
 }
 
@@ -90,7 +90,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     numberCounter: 0,
 
     fault (log: LogStep, db: LogDb): void {
-      this.debug.push(`fault depth=${log.getDepth()} gas=${log.getGas()} cost=${log.getCost()} err=${log.getError() ?? ''}`)
+      this.debug.push(`fault depth=${log.getDepth()} gas=${log.getGas()} cost=${log.getCost()} err=${log.getError()}`)
     },
 
     result (ctx: LogContext, db: LogDb): any {
@@ -133,7 +133,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (opcode === 'REVERT' || opcode === 'RETURN') {
         const ofs = parseInt(log.stack.peek(0).toString())
         const len = parseInt(log.stack.peek(1).toString())
-        let data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 500)
+        const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 500)
         this.debug.push(opcode + ' ' + data)
         this.calls.push({
           type: opcode,
@@ -143,7 +143,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (log.getDepth() === 1) {
-        //NUMBER opcode at top level split levels
+        // NUMBER opcode at top level split levels
         if (opcode === 'NUMBER') this.numberCounter++
         if (this.numberLevels[this.numberCounter] == null) {
           this.currentLevel = this.numberLevels[this.numberCounter] = {

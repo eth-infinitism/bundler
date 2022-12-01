@@ -5,7 +5,6 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr, UserOperation } from './moduleUtils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
-import { packUserOp } from '@account-abstraction/utils'
 
 const debug = Debug('aa.cron')
 
@@ -18,7 +17,7 @@ export class BundleManager {
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly beneficiary: string,
-    readonly minSignerBalance: BigNumberish ,
+    readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number
   ) {
     this.provider = entryPoint.provider as JsonRpcProvider
@@ -32,7 +31,7 @@ export class BundleManager {
    * collect UserOps from mempool into a bundle
    * send this bundle.
    */
-  async sendNextBundle () {
+  async sendNextBundle (): Promise<void> {
     try {
       if (this.sendBundleActive) {
         debug('sendNextBundle: not reentered')
@@ -54,30 +53,28 @@ export class BundleManager {
    * submit a bundle.
    * after submitting the bundle, remove all UserOps from the mempool
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string) {
+  async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<void> {
     await this.entryPoint.handleOps(userOps, beneficiary)
     this.mempoolManager.removeAllUserOps(userOps)
   }
 
   async createBundle (): Promise<UserOperation[]> {
     const entries = this.mempoolManager.getSortedForInclusion()
-    let bundle: UserOperation[] = []
+    const bundle: UserOperation[] = []
 
     const paymasterBalance: { [paymaster: string]: BigNumber } = {}
-    //count how many ops per paymaster in the bundle
-    const paymasterCount: { [paymaster: string]: number } = {}
     let totalGas = BigNumber.from(0)
     for (const entry of entries) {
       let validationResult: ValidationResult
       try {
         validationResult = await this.validationManager.validateUserOp(entry.userOp)
       } catch (e) {
-        //failed validation. don't try any more
+        // failed validation. don't try anymore
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
       // todo: we take UserOp's callGasLimit, even though it will probably require less (but we don't
-      // attempt to esdtimate it to check)
+      // attempt to estimate it to check)
       // which means we could "cram" more UserOps into a bundle.
       const userOpGasCost = BigNumber.from(validationResult.preOpGas).add(entry.userOp.callGasLimit)
       const newTotalGas = totalGas.add(userOpGasCost)
@@ -94,7 +91,7 @@ export class BundleManager {
           // (but it passed validation, so it can sponsor them separately
           continue
         }
-        paymasterBalance[paymaster]  = paymasterBalance[paymaster].sub(validationResult.prefund)
+        paymasterBalance[paymaster] = paymasterBalance[paymaster].sub(validationResult.prefund)
       }
       bundle.push(entry.userOp)
       totalGas = newTotalGas

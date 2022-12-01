@@ -1,4 +1,4 @@
-//misc utilities for the various modules.
+// misc utilities for the various modules.
 
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { NotPromise } from '@account-abstraction/utils'
@@ -7,7 +7,7 @@ import { hexlify } from 'ethers/lib/utils'
 
 export type UserOperation = NotPromise<UserOperationStruct>
 
-//extract address from initCode or paymasterAndData
+// extract address from initCode or paymasterAndData
 export function getAddr (data: BytesLike): string | undefined {
   const str = hexlify(data)
   if (str.length >= 42) {
@@ -15,4 +15,3 @@ export function getAddr (data: BytesLike): string | undefined {
   }
   return undefined
 }
-

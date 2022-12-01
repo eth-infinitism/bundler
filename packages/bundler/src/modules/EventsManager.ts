@@ -6,8 +6,7 @@ import { UserOperation } from './moduleUtils'
 /**
  * listen to events. trigger ReputationManager's Included
  */
-class EventsManager {
-
+export class EventsManager {
   lastTx = ''
   lastBlock = 0
 
@@ -18,30 +17,28 @@ class EventsManager {
 
   /**
    * automatically listen to all UserOperationEvent events
-   * @param entryPoint
    */
-  initEventListener () {
+  initEventListener (): void {
     this.entryPoint.on(this.entryPoint.filters.UserOperationEvent(), (ev) => {
-      //todo: check event typing. typechain thinks its a string
-      this.handleEvent(ev as any)
+      // todo: check event typing. typechain thinks its a string
+      void this.handleEvent(ev as any)
     })
   }
 
   /**
    * manually handle all new events since last run
-   * @param entryPoint
    */
-  async handlePastEvents () {
+  async handlePastEvents (): Promise<void> {
     const events = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationEvent(), this.lastBlock)
-    events.forEach(ev => {
-      this.handleEvent(ev)
-    })
+    for (const ev of events) {
+      await this.handleEvent(ev)
+    }
   }
 
-  async handleEvent (ev: UserOperationEventEvent) {
-    //process a single handleEvent for a bundle (transaction), since we read entire bundle data on that first event.
-    //TODO: this will break if someone bundles MULTIPLE handleOp calls into a single transaction (but it also breaks our decoding of transaction)
-    if (ev.transactionHash == this.lastTx) {
+  async handleEvent (ev: UserOperationEventEvent): Promise<void> {
+    // process a single handleEvent for a bundle (transaction), since we read entire bundle data on that first event.
+    // TODO: this will break if someone bundles MULTIPLE handleOp calls into a single transaction (but it also breaks our decoding of transaction)
+    if (ev.transactionHash === this.lastTx) {
       return
     }
     this.lastTx = ev.transactionHash
@@ -53,11 +50,11 @@ class EventsManager {
     userOps.forEach(userOp => {
       this._includedAddress(userOp.initCode as any)
       this._includedAddress(userOp.paymasterAndData as any)
-      //TODO: do we handle aggerator?
+      // TODO: do we handle aggerator?
     })
   }
 
-  _includedAddress (data: string) {
+  _includedAddress (data: string): void {
     if (data.length > 42) {
       const addr = data.slice(0, 42)
       this.reputationManager.updateIncludedStatus(addr)

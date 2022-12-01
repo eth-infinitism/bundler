@@ -52,7 +52,7 @@ export class BundlerServer {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
 
-    //minimal UserOp to revert with "FailedOp"
+    // minimal UserOp to revert with "FailedOp"
     const emptyUserOp: UserOperationStruct = {
       sender: AddressZero,
       callData: '0x',
@@ -67,9 +67,9 @@ export class BundlerServer {
       signature: '0x'
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
-    const err = await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.simulateValidation(emptyUserOp)
-      .catch(e=>e)
-    if ( err?.errorName != 'FailedOp') {
+    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.simulateValidation(emptyUserOp)
+      .catch(e => e)
+    if (err?.errorName !== 'FailedOp') {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
     }
 

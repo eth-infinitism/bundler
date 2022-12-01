@@ -7,7 +7,7 @@ import { ReputationManager } from './ReputationManager'
 export interface MempoolEntry {
   userOp: UserOperation
   prefund: BigNumberish
-  //aggregator, if one was found during simulation
+  // aggregator, if one was found during simulation
   aggregator?: string
 }
 
@@ -26,20 +26,20 @@ export class MempoolManager {
     return this.mempool.length
   }
 
-  //add userOp into the mempool, after initial validation.
-  //replace existing, if any (and if new gas is higher)
-  addUserOp (userOp: UserOperation, prefund: BigNumberish, aggregator?: string) {
-    let entry: MempoolEntry = {
+  // add userOp into the mempool, after initial validation.
+  // replace existing, if any (and if new gas is higher)
+  addUserOp (userOp: UserOperation, prefund: BigNumberish, aggregator?: string): void {
+    const entry: MempoolEntry = {
       userOp,
       prefund,
       aggregator
     }
     const index = this._find(userOp)
-    if (index != -1) {
-      let oldEntry = this.mempool[index]
+    if (index !== -1) {
+      const oldEntry = this.mempool[index]
       const oldGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
       const newGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
-      //the error is "invalid fields", even though it is detected only after validation
+      // the error is "invalid fields", even though it is detected only after validation
       requireCond(newGas < oldGas * 1.1,
         'Replacement UserOperation must have higher gas', ValidationErrors.InvalidFields)
       this.mempool[index] = entry
@@ -56,7 +56,7 @@ export class MempoolManager {
     const copy = Array.from(this.mempool)
 
     function cost (op: UserOperation): number {
-      //TODO: need to consult basefee and maxFeePerGas
+      // TODO: need to consult basefee and maxFeePerGas
       return BigNumber.from(op.maxPriorityFeePerGas).toNumber()
     }
 
@@ -67,7 +67,7 @@ export class MempoolManager {
   _find (userOp: UserOperation): number {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
-      if (curOp.sender == userOp.sender && curOp.nonce == userOp.nonce) {
+      if (curOp.sender === userOp.sender && curOp.nonce === userOp.nonce) {
         return i
       }
     }
@@ -78,17 +78,17 @@ export class MempoolManager {
    * remove UserOp from mempool. either it is invalid, or was included in a block
    * @param userOp
    */
-  removeUserOp (userOp: UserOperation) {
+  removeUserOp (userOp: UserOperation): void {
     const index = this._find(userOp)
-    if (index != -1) {
+    if (index !== -1) {
       this.mempool.splice(index, 1)
     }
   }
 
-  removeAllUserOps (userOps: UserOperation[]) {
-    //todo: removing (almost) all userOps from mempool. might use better way than finding and slicing
+  removeAllUserOps (userOps: UserOperation[]): void {
+    // todo: removing (almost) all userOps from mempool. might use better way than finding and slicing
     // each one separately...
-    for (let userOp of userOps) {
+    for (const userOp of userOps) {
       this.removeUserOp(userOp)
     }
   }

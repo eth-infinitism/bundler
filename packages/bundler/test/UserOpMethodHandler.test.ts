@@ -14,10 +14,10 @@ import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecC
 import {
   BundlerHelper, SampleRecipient, TestRulesAccount__factory, TestRulesAccount
 } from '../src/types'
-import { deepHexlify, packUserOp } from '@account-abstraction/utils'
+import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 
-//resolve all property and hexlify.
+// resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
 async function resolveHexlify (a: any): Promise<any> {
   return deepHexlify(await resolveProperties(a))
@@ -246,8 +246,8 @@ describe('UserOpMethodHandler', function () {
   })
 
   describe('#_filterLogs', function () {
-    //test events, good enough for _filterLogs
-    function userOpEv (hash: any) {
+    // test events, good enough for _filterLogs
+    function userOpEv (hash: any): any {
       return {
         topics: ['userOpTopic', hash]
       } as any
@@ -298,12 +298,12 @@ describe('UserOpMethodHandler', function () {
         paymasterAndData: '0x',
         signature: Buffer.from('emit-msg')
       }
-      await entryPoint.depositTo(acc.address, {value: parseEther('1')})
+      await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})
       console.log(2)
       userOpHash = await entryPoint.getUserOpHash(op)
       const beneficiary = signer.getAddress()
-      await entryPoint.handleOps([op], beneficiary).then(ret => ret.wait())
+      await entryPoint.handleOps([op], beneficiary).then(async ret => await ret.wait())
       const rcpt = await methodHandler.getUserOperationReceipt(userOpHash)
       if (rcpt == null) {
         throw new Error('getUserOperationReceipt returns null')
@@ -320,12 +320,12 @@ describe('UserOpMethodHandler', function () {
       const evParams = acc.interface.decodeEventLog('TestMessage', receipt.logs[0].data, receipt.logs[0].topics)
       expect(evParams.eventSender).to.equal(acc.address)
     })
-    it('general receipt fields', ()=>{
+    it('general receipt fields', () => {
       expect(receipt.success).to.equal(true)
       expect(receipt.sender).to.equal(acc.address)
     })
-    it('receipt should carry transaction receipt', ()=> {
-      //one UserOperationEvent, and one op-specific event.
+    it('receipt should carry transaction receipt', () => {
+      // one UserOperationEvent, and one op-specific event.
       expect(receipt.receipt.logs.length).to.equal(2)
     })
   })
