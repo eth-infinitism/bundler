@@ -97,9 +97,9 @@ export class ValidationManager {
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
-    await this._checkStake('aggregator', aggregatorInfo.actualAggregator)
+    await this._checkStake('aggregator', aggregatorInfo?.actualAggregator)
 
-    requireCond(aggregatorInfo != null,
+    requireCond(aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
 
@@ -118,7 +118,7 @@ export class ValidationManager {
    * @param addr
    */
   async _checkStake (title: 'paymaster' | 'aggregator' | 'deployer', addr?: string): Promise<void> {
-    if (addr == null) {
+    if (addr == null || this.reputationManager.isWhitelisted(addr)) {
       return
     }
     requireCond(this.reputationManager.getStatus(addr) !== ReputationStatus.BANNED,
@@ -127,7 +127,7 @@ export class ValidationManager {
     const info = await this.entryPoint.getDepositInfo(addr)
     requireCond(info.stake.gte(this.minStake),
       `${title} ${addr} stake ${info.stake.toString()} is too low (min=${this.minStake.toString()})`, ValidationErrors.InsufficientStake)
-    requireCond(info.unstakeDelaySec > this.minUnstakeDelay,
+    requireCond(info.unstakeDelaySec >= this.minUnstakeDelay,
       `${title} ${addr} unstake delay ${info.unstakeDelaySec} is too low (min=${this.minUnstakeDelay})`, ValidationErrors.InsufficientStake)
   }
 

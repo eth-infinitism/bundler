@@ -28,6 +28,8 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const eventsMgr = new EventsManager(entryPoint, repMgr)
   const execMgr = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
 
+  repMgr.addWhitelist(...config.whitelist ?? [])
+  repMgr.addBlacklist(...config.blacklist ?? [])
   execMgr.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
 
   return [execMgr, eventsMgr]

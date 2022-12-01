@@ -30,6 +30,7 @@ export class ExecutionManager {
    * @param userOp the UserOp to send.
    */
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
+    debug('sendUserOperation')
     this.validationManager.validateInputParameters(userOp, entryPointInput)
     const validationResult = await this.validationManager.validateUserOp(userOp)
     this.mempoolManager.addUserOp(userOp, validationResult.prefund, validationResult.aggregatorInfo?.actualAggregator)

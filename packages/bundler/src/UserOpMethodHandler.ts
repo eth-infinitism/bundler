@@ -14,7 +14,7 @@ import { isGeth, opcodeScanner } from './opcodeScanner'
 import { CallUserOperationResult, EstimateUserOpGasResult, UserOperationReceipt } from './RpcTypes'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { initServer } from './modules/initServer'
-import { UserOperation } from './modules/moduleUtils'
+import { getAddr, UserOperation } from './modules/moduleUtils'
 
 const debug = Debug('aa.handler.userop')
 
@@ -183,7 +183,7 @@ export class UserOpMethodHandler {
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
     const userOp = await resolveProperties(userOp1)
 
-    console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${hexValue(userOp.paymasterAndData)}`)
+    console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${getAddr(userOp.paymasterAndData)}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput)
     return await this.entryPoint.getUserOpHash(userOp)
   }

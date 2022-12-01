@@ -2,7 +2,9 @@
  * throttled entities are allowed minimal number of entries per bundle. banned entities are allowed none
  */
 
-export enum ReputationStatus { OK, THROTTLED, BANNED }
+export enum ReputationStatus {
+  OK, THROTTLED, BANNED
+}
 
 export interface ReputationParams {
   minInclusionDenominator: number
@@ -37,8 +39,11 @@ export class ReputationManager {
   }
 
   readonly entries: { [addr: string]: ReputationEntry } = {}
-  // black-listed entities
+  // black-listed entities - always banned
   readonly blackList = new Set<string>()
+
+  // white-listed entities - always OK.
+  readonly whitelist = new Set<string>()
 
   dump (): ReputationDump {
     return {
@@ -66,6 +71,14 @@ export class ReputationManager {
         delete this.entries[addr]
       }
     })
+  }
+
+  addWhitelist(...params: string[]) {
+    params.forEach(item=>this.whitelist.add(item))
+  }
+
+  addBlacklist(...params: string[]) {
+    params.forEach(item=>this.blackList.add(item))
   }
 
   _getOrCreate (addr: string): ReputationEntry {
@@ -102,10 +115,17 @@ export class ReputationManager {
     entry.opsIncluded++
   }
 
+  isWhitelisted(addr:string): boolean {
+    return this.whitelist.has(addr)
+  }
+
   // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
   getStatus (addr?: string): ReputationStatus {
-    if (addr == null) {
+    if (addr == null || this.whitelist.has(addr)) {
       return ReputationStatus.OK
+    }
+    if (this.blackList.has(addr)) {
+      return ReputationStatus.BANNED
     }
     const entry = this.entries[addr]
     if (entry == null) {

@@ -11,6 +11,8 @@ export interface BundlerConfig {
   network: string
   port: string
 
+  whitelist?: string[]
+  blacklist?: string[]
   maxBundleGas: number
   minStake: string
   minUnstakeDelay: number
@@ -29,6 +31,8 @@ export const BundlerConfigShape = {
   network: ow.string,
   port: ow.string,
 
+  whitelist: ow.optional.array.ofType(ow.string),
+  blacklist: ow.optional.array.ofType(ow.string),
   maxBundleGas: ow.number,
   minStake: ow.string,
   minUnstakeDelay: ow.number,
