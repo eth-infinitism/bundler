@@ -3,7 +3,7 @@ import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
 import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
-import { UserOperationReceipt, UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
 import { BundlerConfig } from '../src/BundlerConfig'
 import { EntryPoint, SimpleAccountDeployer__factory, UserOperationStruct } from '@account-abstraction/contracts'
@@ -16,6 +16,7 @@ import {
 } from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { UserOperationReceipt } from '../src/RpcTypes'
 
 // resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)

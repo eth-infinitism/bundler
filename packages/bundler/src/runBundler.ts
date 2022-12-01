@@ -12,6 +12,7 @@ import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
+import { initServer } from './modules/initServer'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -23,6 +24,7 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
 export let showStackTraces = false
+
 export function resolveConfiguration (programOpts: any): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
 
@@ -76,6 +78,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
           super(message)
         }
       }
+
       throw new CommandError(message, code, exitCode)
     }
   }
@@ -129,7 +132,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     // bundlerHelper
   } = await connectContracts(wallet, config.entryPoint, config.helper)
 
+  //bundleSize=1 replicate current immediate bundling mode
+  let execManagerConfig = {
+    ...config,
+    autoBundleMempoolSize: 1
+  }
+
+  const [execManager] = initServer(execManagerConfig, entryPoint.signer)
   const methodHandler = new UserOpMethodHandler(
+    execManager,
     provider,
     wallet,
     config,

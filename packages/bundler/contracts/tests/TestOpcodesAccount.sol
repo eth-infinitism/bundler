@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
 import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import "./TestRuleAccount.sol";
 
 contract Dummy {
     uint public value = 1;
@@ -34,32 +35,22 @@ contract TestCoin {
     }
 }
 
-contract TestRulesAccount is IAccount, IPaymaster {
+/**
+ * an account with "rules" to trigger different opcode validation rules
+ */
+contract TestOpcodesAccount is TestRuleAccount {
 
-    uint state;
-    TestCoin public coin;
-
-    event State(uint oldState, uint newState);
-
-    function setState(uint _state) external {
-        emit State(state, _state);
-        state = _state;
-    }
+    TestCoin coin;
 
     function setCoin(TestCoin _coin) public returns (uint){
         coin = _coin;
         return 0;
     }
 
-    function eq(string memory a, string memory b) internal returns (bool) {
-        return keccak256(bytes(a)) == keccak256(bytes(b));
-    }
-
     event TestMessage(address eventSender);
 
-    function runRule(string memory rule) public returns (uint) {
-        if (eq(rule, "")) return 0;
-        else if (eq(rule, "number")) return block.number;
+    function runRule(string memory rule) public virtual override returns (uint) {
+        if (eq(rule, "number")) return block.number;
         else if (eq(rule, "coinbase")) return uint160(address(block.coinbase));
         else if (eq(rule, "blockhash")) return uint(blockhash(0));
         else if (eq(rule, "create2")) return new Dummy{salt : bytes32(uint(0x1))}().value();
@@ -74,42 +65,13 @@ contract TestRulesAccount is IAccount, IPaymaster {
             emit TestMessage(address(this));
             return 0;}
 
-        revert(string.concat("unknown rule: ", rule));
+        return super.runRule(rule);
     }
-
-    function addStake(IEntryPoint entryPoint) public payable {
-        entryPoint.addStake{value : msg.value}(1);
-    }
-
-    function validateUserOp(UserOperation calldata userOp, bytes32, address, uint256 missingAccountFunds)
-    external override returns (uint256 ) {
-        if (missingAccountFunds > 0) {
-            /* solhint-disable-next-line avoid-low-level-calls */
-            (bool success,) = msg.sender.call{value : missingAccountFunds}("");
-            success;
-        }
-        if (userOp.signature.length == 4) {
-            uint32 deadline = uint32(bytes4(userOp.signature));
-            return deadline;
-        }
-        runRule(string(userOp.signature));
-        return 0;
-    }
-
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
-    external returns (bytes memory context, uint256 deadline) {
-        string memory rule = string(userOp.paymasterAndData[20 :]);
-        runRule(rule);
-        return ("", 0);
-    }
-
-    function postOp(PostOpMode, bytes calldata, uint256) external {}
-
 }
 
-contract TestRulesAccountDeployer {
-    function create(string memory rule, TestCoin coin) public returns (TestRulesAccount) {
-        TestRulesAccount a = new TestRulesAccount{salt : bytes32(uint(0))}();
+contract TestOpcodesAccountDeployer {
+    function create(string memory rule, TestCoin coin) public returns (TestOpcodesAccount) {
+        TestOpcodesAccount a = new TestOpcodesAccount{salt : bytes32(uint(0))}();
         a.setCoin(coin);
         a.runRule(rule);
         return a;

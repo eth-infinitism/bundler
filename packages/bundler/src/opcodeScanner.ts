@@ -6,10 +6,9 @@ import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from './Bund
 import { debug_traceCall } from './GethTracer'
 import { decodeErrorReason } from '@account-abstraction/utils'
 import { requireCond } from './utils'
-
-import Debug from 'debug'
 import { inspect } from 'util'
 
+import Debug from 'debug'
 const debug = Debug('aa.handler.opcodes')
 
 export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {

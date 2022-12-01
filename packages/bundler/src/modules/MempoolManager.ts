@@ -40,7 +40,7 @@ export class MempoolManager {
       const oldGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
       const newGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
       // the error is "invalid fields", even though it is detected only after validation
-      requireCond(newGas < oldGas * 1.1,
+      requireCond(newGas > oldGas * 1.1,
         'Replacement UserOperation must have higher gas', ValidationErrors.InvalidFields)
       this.mempool[index] = entry
     } else {

@@ -45,6 +45,7 @@ export class EventsManager {
     this.lastBlock = ev.blockNumber
     const tx = await ev.getTransaction()
     const handleOpsFuncFragment = this.entryPoint.interface.getFunction('handleOps')
+    //TODO: parse also handleOpsWithAggregators
     const ret = this.entryPoint.interface.decodeFunctionData(handleOpsFuncFragment, tx.data)
     const userOps: UserOperation[] = ret[0]
     userOps.forEach(userOp => {
