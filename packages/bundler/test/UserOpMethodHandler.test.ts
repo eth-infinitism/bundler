@@ -12,11 +12,16 @@ import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  BundlerHelper, SampleRecipient, TestRulesAccount__factory, TestRulesAccount
+  BundlerHelper, SampleRecipient, TestRuleAccount__factory, TestRuleAccount
 } from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
+import { ExecutionManager } from '../src/modules/ExecutionManager'
+import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
+import { MempoolManager } from '../src/modules/MempoolManager'
+import { ValidationManager } from '../src/modules/ValidationManager'
+import { BundleManager } from '../src/modules/BundleManager'
 
 // resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
@@ -37,6 +42,7 @@ describe('UserOpMethodHandler', function () {
   let entryPoint: EntryPoint
   let bundleHelper: BundlerHelper
   let sampleRecipient: SampleRecipient
+  let execManager: ExecutionManager
 
   before(async function () {
     provider = ethers.provider
@@ -62,14 +68,26 @@ describe('UserOpMethodHandler', function () {
       minBalance: '0',
       mnemonic: '',
       network: '',
-      port: '3000'
+      port: '3000',
+      autoBundleInterval: 0,
+      autoBundleMempoolSize: 1,
+      maxBundleGas: 5e6,
+      minStake: '1',
+      minUnstakeDelay: 1
     }
 
+    const repMgr = new ReputationManager(BundlerReputationParams)
+      const mempoolMgr = new MempoolManager(repMgr)
+      const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
+      const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
+
     methodHandler = new UserOpMethodHandler(
+      execManager,
       provider,
       signer,
       config,
-      entryPoint
+      entryPoint,
     )
   })
 
@@ -283,9 +301,9 @@ describe('UserOpMethodHandler', function () {
   describe('#getUserOperationReceipt', function () {
     let userOpHash: string
     let receipt: UserOperationReceipt
-    let acc: TestRulesAccount
+    let acc: TestRuleAccount
     before(async () => {
-      acc = await new TestRulesAccount__factory(signer).deploy()
+      acc = await new TestRuleAccount__factory(signer).deploy()
       const op: UserOperationStruct = {
         sender: acc.address,
         initCode: '0x',

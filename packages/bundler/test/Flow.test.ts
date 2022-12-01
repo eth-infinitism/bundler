@@ -64,7 +64,12 @@ describe('Flow', function () {
       minBalance: '0',
       mnemonic: mnemonicFile,
       network: 'http://localhost:8545/',
-      port: '5555'
+      port: '5555',
+      autoBundleInterval: 0,
+      autoBundleMempoolSize: 1,
+      maxBundleGas: 5e6,
+      minStake: '1',
+      minUnstakeDelay: 1
     })
   })
 

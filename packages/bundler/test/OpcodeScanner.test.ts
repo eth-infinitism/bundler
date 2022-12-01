@@ -2,13 +2,13 @@ import { EntryPoint, EntryPoint__factory, UserOperationStruct } from '@account-a
 import { hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
-import { TestCoin, TestCoin__factory, TestRulesAccount, TestRulesAccountDeployer, TestRulesAccountDeployer__factory, TestRulesAccount__factory } from '../src/types'
+import { TestCoin, TestCoin__factory, TestRuleAccount, TestAccountDeployer, TestAccountDeployer__factory, TestRuleAccount__factory } from '../src/types'
 import { isGeth, opcodeScanner } from '../src/opcodeScanner'
 import { BundlerCollectorReturn } from '../src/BundlerCollectorTracer'
 
 describe('opcode banning', () => {
-  let deployer: TestRulesAccountDeployer
-  let paymaster: TestRulesAccount
+  let deployer: TestAccountDeployer
+  let paymaster: TestRuleAccount
   let entryPoint: EntryPoint
   let token: TestCoin
 
@@ -18,7 +18,7 @@ describe('opcode banning', () => {
 
   async function createTestUserOp (validateRule: string = '', initFunc?: string, pmRule?: string): Promise<UserOperationStruct> {
     if (initFunc === undefined) {
-      initFunc = deployer.interface.encodeFunctionData('create', ['', token.address])
+      initFunc = deployer.interface.encodeFunctionData('create', [''])
     }
 
     const initCode = hexConcat([
@@ -32,7 +32,7 @@ describe('opcode banning', () => {
     } else {
       signature = hexlify(Buffer.from(validateRule))
     }
-    const sender = await deployer.callStatic.create('', token.address)
+    const sender = await deployer.callStatic.create('')
     return {
       sender,
       initCode,
@@ -51,10 +51,10 @@ describe('opcode banning', () => {
   before(async function () {
     const ethersSigner = ethers.provider.getSigner()
     entryPoint = await new EntryPoint__factory(ethersSigner).deploy()
-    paymaster = await new TestRulesAccount__factory(ethersSigner).deploy()
+    paymaster = await new TestRuleAccount__factory(ethersSigner).deploy()
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
-    deployer = await new TestRulesAccountDeployer__factory(ethersSigner).deploy()
+    deployer = await new TestAccountDeployer__factory(ethersSigner).deploy()
     token = await new TestCoin__factory(ethersSigner).deploy()
 
     if (!await isGeth(ethers.provider)) {
@@ -71,7 +71,7 @@ describe('opcode banning', () => {
   })
   it('should fail with bad opcode in ctr', async () => {
     expect(await testUserOp('',
-      deployer.interface.encodeFunctionData('create', ['coinbase', token.address]))
+      deployer.interface.encodeFunctionData('create', ['coinbase']))
       .catch(e => e.message)).to.match(/account uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in paymaster', async () => {
