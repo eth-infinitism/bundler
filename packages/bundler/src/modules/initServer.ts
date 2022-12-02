@@ -19,18 +19,18 @@ const debug = Debug('aa.init')
  * @param config
  * @param signer
  */
-export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager] {
+export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
   const entryPoint = EntryPoint__factory.connect(config.entryPoint, signer)
-  const repMgr = new ReputationManager(BundlerReputationParams)
-  const mempoolMgr = new MempoolManager(repMgr)
-  const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
-  const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
-  const eventsMgr = new EventsManager(entryPoint, repMgr)
-  const execMgr = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
+  const reputationManager = new ReputationManager(BundlerReputationParams)
+  const mempoolManager = new MempoolManager(reputationManager)
+  const validationManager = new ValidationManager(entryPoint, reputationManager, parseEther(config.minStake), config.minUnstakeDelay)
+  const bundleManager = new BundleManager(entryPoint, mempoolManager, validationManager, reputationManager, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+  const eventsManager = new EventsManager(entryPoint, reputationManager)
+  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager)
 
-  repMgr.addWhitelist(...config.whitelist ?? [])
-  repMgr.addBlacklist(...config.blacklist ?? [])
-  execMgr.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
+  reputationManager.addWhitelist(...config.whitelist ?? [])
+  reputationManager.addBlacklist(...config.blacklist ?? [])
+  executionManager.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
 
-  return [execMgr, eventsMgr]
+  return [executionManager, eventsManager, reputationManager, mempoolManager]
 }

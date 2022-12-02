@@ -13,6 +13,7 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { BundlerHelper, BundlerHelper__factory } from './types'
 import { initServer } from './modules/initServer'
+import { DebugMethodHandler } from './DebugMethodHandler'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -52,13 +53,10 @@ function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
 
 export async function connectContracts (
   wallet: Wallet,
-  entryPointAddress: string,
-  bundlerHelperAddress: string): Promise<{ entryPoint: EntryPoint, bundlerHelper: BundlerHelper }> {
+  entryPointAddress: string): Promise<{ entryPoint: EntryPoint}> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
-  const bundlerHelper = BundlerHelper__factory.connect(bundlerHelperAddress, wallet)
   return {
     entryPoint,
-    bundlerHelper
   }
 }
 
@@ -129,8 +127,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const {
     entryPoint
-    // bundlerHelper
-  } = await connectContracts(wallet, config.entryPoint, config.helper)
+  } = await connectContracts(wallet, config.entryPoint)
 
   //bundleSize=1 replicate current immediate bundling mode
   let execManagerConfig = {
@@ -138,7 +135,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     autoBundleMempoolSize: 1
   }
 
-  const [execManager, eventsManager] = initServer(execManagerConfig, entryPoint.signer)
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
   const methodHandler = new UserOpMethodHandler(
     execManager,
     provider,
@@ -147,9 +144,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   )
   eventsManager.initEventListener()
+  const debugHandler = new DebugMethodHandler(execManager, reputationManager, mempoolManager)
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    debugHandler,
     config,
     provider,
     wallet

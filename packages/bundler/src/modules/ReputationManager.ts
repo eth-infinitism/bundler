@@ -1,4 +1,6 @@
 import Debug from 'debug'
+import { mapOf } from '../utils'
+
 const debug = Debug('aa.rep')
 
 /**
@@ -33,31 +35,32 @@ interface ReputationEntry {
   status?: ReputationStatus
 }
 
-interface ReputationDump {
-  reputation: { [addr: string]: ReputationEntry }
+type ReputationMap = { [addr: string]: ReputationEntry }
+
+export interface ReputationDump {
+  reputation: ReputationMap
 }
 
 export class ReputationManager {
   constructor (readonly params: ReputationParams) {
   }
 
-  readonly entries: { [addr: string]: ReputationEntry } = {}
+  private entries: ReputationMap = {}
   // black-listed entities - always banned
   readonly blackList = new Set<string>()
 
   // white-listed entities - always OK.
   readonly whitelist = new Set<string>()
 
+  /**
+   * debug: dump reputation map (with updated "status" for each entry)
+   */
   dump (): ReputationDump {
     return {
-      reputation: Object.keys(this.entries)
-        .reduce((set, addr) => ({
-          ...set,
-          [addr]: {
-            ...this.entries[addr],
-            status: this.getStatus(addr)
-          }
-        }), {})
+      reputation: mapOf(Object.keys(this.entries), addr => ({
+        ...this.entries[addr],
+        status: this.getStatus(addr)
+      }))
     }
   }
 
@@ -87,11 +90,10 @@ export class ReputationManager {
   _getOrCreate (addr: string): ReputationEntry {
     let entry = this.entries[addr]
     if (entry == null) {
-      entry = {
+      this.entries[addr] = entry = {
         opsSeen: 0,
         opsIncluded: 0
       }
-      this.entries[addr] = entry
     }
     return entry
   }
@@ -106,6 +108,7 @@ export class ReputationManager {
     }
     const entry = this._getOrCreate(addr)
     entry.opsSeen++
+    debug('after seen++', addr, entry)
   }
 
   /**
@@ -125,10 +128,11 @@ export class ReputationManager {
 
   getStatus (addr?: string): ReputationStatus {
     const ret = this.getStatus1(addr)
-    debug( `getStatus`, addr, ReputationStatus[ret], this.entries[addr!])
+    debug(`getStatus`, addr, ReputationStatus[ret], this.entries[addr!])
     return ret
   }
-    // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
+
+  // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
   getStatus1 (addr?: string): ReputationStatus {
     if (addr == null || this.whitelist.has(addr)) {
       return ReputationStatus.OK
@@ -150,7 +154,6 @@ export class ReputationManager {
     }
   }
 
-
   /**
    * an entity that caused handleOps to revert, which requires re-building the bundle from scratch.
    * should be banned immediately, by increasing its opSeen counter
@@ -166,5 +169,22 @@ export class ReputationManager {
     entry.opsSeen = 100
     entry.opsIncluded = 0
     debug('crashedHandleOps', addr, entry)
+  }
+
+  /**
+   * for debugging: clear in-memory state
+   */
+  clearState () {
+    this.entries = {}
+  }
+
+  /**
+   * for debugging: put in the given reputation entries
+   * @param entries
+   */
+  setReputation(reputationMap: ReputationMap) {
+    Object.keys(reputationMap).forEach(addr => {
+      this.entries[addr] = reputationMap[addr]
+    })
   }
 }

@@ -238,15 +238,4 @@ export class UserOpMethodHandler {
       receipt
     }
   }
-
-  async getUserOperationTransactionByHash (userOpHash: string): Promise<any> {
-    requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
-    const event = await this._getUserOperationEvent(userOpHash)
-    if (event == null) {
-      return null
-    }
-    const tx = await event.getTransaction() as any
-    tx.userOpHash = userOpHash
-    return deepHexlify(tx)
-  }
 }

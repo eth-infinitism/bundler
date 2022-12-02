@@ -7,12 +7,14 @@ import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
+import {Mutex} from 'async-mutex'
 
 const debug = Debug('aa.cron')
 
 export class BundleManager {
   provider: JsonRpcProvider
   signer: JsonRpcSigner
+  mutex = new Mutex()
 
   constructor (
     readonly entryPoint: EntryPoint,
@@ -27,29 +29,20 @@ export class BundleManager {
     this.signer = this.provider.getSigner()
   }
 
-  sendBundleActive = false
-
   /**
    * attempt to send a bundle:
    * collect UserOps from mempool into a bundle
    * send this bundle.
    */
   async sendNextBundle (): Promise<void> {
-    try {
-      if (this.sendBundleActive) {
-        debug('sendNextBundle: not reentered')
-        return
-      }
-      this.sendBundleActive = true
+    await this.mutex.runExclusive(async () => {
       debug('sendNextBundle')
 
       const bundle = await this.createBundle()
       const beneficiary = await this._selectBeneficiary()
       await this.sendBundle(bundle, beneficiary)
       debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
-    } finally {
-      this.sendBundleActive = false
-    }
+    })
   }
 
   /**

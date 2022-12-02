@@ -14,15 +14,15 @@ export interface MempoolEntry {
   aggregator?: string
 }
 
+export interface MempoolDump {
+  mempool: MempoolEntry[]
+}
+
 export class MempoolManager {
   private mempool: MempoolEntry[] = []
 
   constructor (
     readonly reputationManager: ReputationManager) {
-  }
-
-  dump (): MempoolEntry[] {
-    return this.mempool
   }
 
   count (): number {
@@ -97,5 +97,19 @@ export class MempoolManager {
     for (const userOp of userOps) {
       this.removeUserOp(userOp)
     }
+  }
+
+  /**
+   * debug: dump mempool content
+   */
+  dump (): MempoolDump {
+    return { mempool: this.mempool }
+  }
+
+  /**
+   * for debugging: clear current in-memory state
+   */
+  clearState () {
+    this.mempool = []
   }
 }

@@ -5,6 +5,7 @@ import { BundleManager } from './BundleManager'
 import Debug from 'debug'
 import { UserOperation } from './moduleUtils'
 import { ValidationManager } from './ValidationManager'
+import { Mutex } from 'async-mutex'
 
 const debug = Debug('aa.exec')
 
@@ -17,6 +18,7 @@ export class ExecutionManager {
   private autoBundleInterval: any
   private maxMempoolSize = 10
   private autoInterval = 0
+  private mutex = new Mutex()
 
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
@@ -30,11 +32,14 @@ export class ExecutionManager {
    * @param userOp the UserOp to send.
    */
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
-    debug('sendUserOperation')
-    this.validationManager.validateInputParameters(userOp, entryPointInput)
-    const validationResult = await this.validationManager.validateUserOp(userOp)
-    this.mempoolManager.addUserOp(userOp, validationResult.prefund, validationResult.aggregatorInfo?.actualAggregator)
-    this.attemptBundle()
+    await this.mutex.runExclusive(async () => {
+
+      debug('sendUserOperation')
+      this.validationManager.validateInputParameters(userOp, entryPointInput)
+      const validationResult = await this.validationManager.validateUserOp(userOp)
+      this.mempoolManager.addUserOp(userOp, validationResult.prefund, validationResult.aggregatorInfo?.actualAggregator)
+      this.attemptBundle(false)
+    })
   }
 
   setReputationCorn (interval: number): void {
@@ -58,19 +63,20 @@ export class ExecutionManager {
     clearInterval(this.autoBundleInterval)
     this.autoInterval = autoBundleInterval
     if (autoBundleInterval !== 0) {
-      this.autoBundleInterval = setInterval(this.attemptBundle.bind(this), autoBundleInterval*1000)
+      this.autoBundleInterval = setInterval(() => {
+        this.attemptBundle(true)
+      }, autoBundleInterval * 1000)
     }
     this.maxMempoolSize = maxMempoolSize
-    this.attemptBundle()
   }
 
   /**
    * attempt to send a bundle now.
    * @param force
    */
-  attemptBundle (): void {
+  attemptBundle (force = true): void {
     debug('attemptBundle')
-    if (this.mempoolManager.count() >= this.maxMempoolSize) {
+    if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       void this.bundleManager.sendNextBundle()
     }
   }
