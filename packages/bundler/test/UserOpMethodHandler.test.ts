@@ -1,7 +1,7 @@
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { parseEther, resolveProperties } from 'ethers/lib/utils'
+import { parseEther, recoverPublicKey, resolveProperties } from 'ethers/lib/utils'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
@@ -72,15 +72,16 @@ describe('UserOpMethodHandler', function () {
       autoBundleInterval: 0,
       autoBundleMempoolSize: 1,
       maxBundleGas: 5e6,
-      minStake: '1',
-      minUnstakeDelay: 1
+      //minstake zero, since we don't fund deployer.
+      minStake: '0',
+      minUnstakeDelay: 0
     }
 
     const repMgr = new ReputationManager(BundlerReputationParams)
-      const mempoolMgr = new MempoolManager(repMgr)
-      const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
-      const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
-      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
+    const mempoolMgr = new MempoolManager(repMgr)
+    const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
+    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
 
     methodHandler = new UserOpMethodHandler(
       execManager,

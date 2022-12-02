@@ -5,6 +5,8 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr, UserOperation } from './moduleUtils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
+import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { AddressZero } from '@account-abstraction/utils'
 
 const debug = Debug('aa.cron')
 
@@ -16,6 +18,7 @@ export class BundleManager {
     readonly entryPoint: EntryPoint,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
+    readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number
@@ -43,7 +46,7 @@ export class BundleManager {
       const bundle = await this.createBundle()
       const beneficiary = await this._selectBeneficiary()
       await this.sendBundle(bundle, beneficiary)
-      debug('sendNextBundle exit')
+      debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
     } finally {
       this.sendBundleActive = false
     }
@@ -54,21 +57,69 @@ export class BundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    */
   async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<void> {
-    await this.entryPoint.handleOps(userOps, beneficiary)
-    this.mempoolManager.removeAllUserOps(userOps)
+    try {
+      await this.entryPoint.handleOps(userOps, beneficiary)
+      this.mempoolManager.removeAllUserOps(userOps)
+    } catch (e: any) {
+      //failed to handleOp. use FailedOp to detect by
+      if (e.errorName!='FailedOp') {
+        console.warn('Failed handleOps, but non-FailedOp error', e)
+        return
+      }
+      let {index, paymaster,reason} = e.errorArgs
+      const userOp = userOps[index]
+      if ( paymaster!= AddressZero) {
+        this.reputationManager.crashedHandleOps(paymaster)
+      } else if (reason.startsWith('AA1')) {
+        this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
+      } else {
+        this.mempoolManager.removeUserOp(userOp)
+        console.warn(`Failed handleOps sender=${userOp.sender}`)
+      }
+    }
   }
 
   async createBundle (): Promise<UserOperation[]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: UserOperation[] = []
 
-    const paymasterBalance: { [paymaster: string]: BigNumber } = {}
+    // paymaster deposit should be enough for all UserOps in the bundle.
+    const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
+    // throttled paymasters and deployers are allowed only small UserOps per bundle.
+    const paymasterDeployersCount: { [paymaster: string]: number } = {}
+    // each sender is allowed only once per bundle
+    const senders = new Set<string>()
+
     let totalGas = BigNumber.from(0)
+    debug('got mempool of ', entries.length)
     for (const entry of entries) {
+      const paymaster = getAddr(entry.userOp.paymasterAndData)
+      const deployer = getAddr(entry.userOp.initCode)
+      const paymasterStatus = this.reputationManager.getStatus(paymaster)
+      const deployerStatus = this.reputationManager.getStatus(deployer)
+      if (paymasterStatus == ReputationStatus.BANNED || deployerStatus == ReputationStatus.BANNED) {
+        this.mempoolManager.removeUserOp(entry.userOp)
+        continue
+      }
+      if (paymasterStatus == ReputationStatus.THROTTLED ?? (paymasterDeployersCount[paymaster!] ?? 0) > 1) {
+        debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
+        continue
+      }
+      if (deployerStatus == ReputationStatus.THROTTLED ?? (paymasterDeployersCount[deployer!] ?? 0) > 1) {
+        debug('skipping throttled deployer', entry.userOp.sender, entry.userOp.nonce)
+        continue
+      }
+      if (senders.has(entry.userOp.sender)) {
+        debug('skipping already included sender', entry.userOp.sender, entry.userOp.nonce)
+        // allow only a single UserOp per sender per bundle
+        continue
+      }
       let validationResult: ValidationResult
       try {
-        validationResult = await this.validationManager.validateUserOp(entry.userOp)
-      } catch (e) {
+        // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
+        validationResult = await this.validationManager.validateUserOp(entry.userOp, false)
+      } catch (e:any) {
+        debug('failed 2nd validation',e.message)
         // failed validation. don't try anymore
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
@@ -81,18 +132,23 @@ export class BundleManager {
       if (newTotalGas.gt(this.maxBundleGas)) {
         break
       }
-      const paymaster = getAddr(entry.userOp.paymasterAndData)
+
       if (paymaster != null) {
-        if (paymasterBalance[paymaster] == null) {
-          paymasterBalance[paymaster] = await this.entryPoint.balanceOf(paymaster)
+        if (paymasterDeposit[paymaster] == null) {
+          paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
         }
-        if (paymasterBalance[paymaster].lt(validationResult.prefund)) {
+        if (paymasterDeposit[paymaster].lt(validationResult.prefund)) {
           // not enough balance in paymaster to pay for all UserOps
           // (but it passed validation, so it can sponsor them separately
           continue
         }
-        paymasterBalance[paymaster] = paymasterBalance[paymaster].sub(validationResult.prefund)
+        paymasterDeployersCount[paymaster] = (paymasterDeployersCount[paymaster] ?? 0) + 1
+        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.prefund)
       }
+      if (deployer!=null ) {
+        paymasterDeployersCount[deployer] = (paymasterDeployersCount[deployer] ?? 0) + 1
+      }
+      senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas
     }

@@ -13,8 +13,7 @@ import Debug from 'debug'
 import { isGeth, opcodeScanner } from './opcodeScanner'
 import { CallUserOperationResult, EstimateUserOpGasResult, UserOperationReceipt } from './RpcTypes'
 import { ExecutionManager } from './modules/ExecutionManager'
-import { initServer } from './modules/initServer'
-import { getAddr, UserOperation } from './modules/moduleUtils'
+import { getAddr } from './modules/moduleUtils'
 
 const debug = Debug('aa.handler.userop')
 

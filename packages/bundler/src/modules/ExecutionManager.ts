@@ -58,7 +58,7 @@ export class ExecutionManager {
     clearInterval(this.autoBundleInterval)
     this.autoInterval = autoBundleInterval
     if (autoBundleInterval !== 0) {
-      this.autoBundleInterval = setInterval(this.attemptBundle.bind(this), autoBundleInterval)
+      this.autoBundleInterval = setInterval(this.attemptBundle.bind(this), autoBundleInterval*1000)
     }
     this.maxMempoolSize = maxMempoolSize
     this.attemptBundle()
@@ -69,6 +69,7 @@ export class ExecutionManager {
    * @param force
    */
   attemptBundle (): void {
+    debug('attemptBundle')
     if (this.mempoolManager.count() >= this.maxMempoolSize) {
       void this.bundleManager.sendNextBundle()
     }

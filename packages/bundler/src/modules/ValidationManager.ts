@@ -145,7 +145,7 @@ export class ValidationManager {
    * one item to check that was un-modified is the aggregator..
    * @param userOp
    */
-  async validateUserOp (userOp: UserOperation): Promise<ValidationResult> {
+  async validateUserOp (userOp: UserOperation, checkStakes=true): Promise<ValidationResult> {
     const paymaster = getAddr(userOp.paymasterAndData)
     const deployer = getAddr(userOp.initCode)
 

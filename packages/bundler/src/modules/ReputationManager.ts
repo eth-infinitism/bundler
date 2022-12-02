@@ -1,3 +1,6 @@
+import Debug from 'debug'
+const debug = Debug('aa.rep')
+
 /**
  * throttled entities are allowed minimal number of entries per bundle. banned entities are allowed none
  */
@@ -73,12 +76,12 @@ export class ReputationManager {
     })
   }
 
-  addWhitelist(...params: string[]) {
-    params.forEach(item=>this.whitelist.add(item))
+  addWhitelist (...params: string[]) {
+    params.forEach(item => this.whitelist.add(item))
   }
 
-  addBlacklist(...params: string[]) {
-    params.forEach(item=>this.blackList.add(item))
+  addBlacklist (...params: string[]) {
+    params.forEach(item => this.blackList.add(item))
   }
 
   _getOrCreate (addr: string): ReputationEntry {
@@ -113,14 +116,20 @@ export class ReputationManager {
   updateIncludedStatus (addr: string): void {
     const entry = this._getOrCreate(addr)
     entry.opsIncluded++
+    debug('after Included++', addr, entry)
   }
 
-  isWhitelisted(addr:string): boolean {
+  isWhitelisted (addr: string): boolean {
     return this.whitelist.has(addr)
   }
 
-  // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
   getStatus (addr?: string): ReputationStatus {
+    const ret = this.getStatus1(addr)
+    debug( `getStatus`, addr, ReputationStatus[ret], this.entries[addr!])
+    return ret
+  }
+    // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
+  getStatus1 (addr?: string): ReputationStatus {
     if (addr == null || this.whitelist.has(addr)) {
       return ReputationStatus.OK
     }
@@ -132,12 +141,30 @@ export class ReputationManager {
       return ReputationStatus.OK
     }
     const minExpectedIncluded = Math.min(entry.opsSeen / this.params.minInclusionDenominator)
-    if (minExpectedIncluded >= entry.opsIncluded + this.params.throttlingSlack) {
+    if (minExpectedIncluded <= entry.opsIncluded + this.params.throttlingSlack) {
       return ReputationStatus.OK
     } else if (minExpectedIncluded <= entry.opsIncluded + this.params.banSlack) {
       return ReputationStatus.THROTTLED
     } else {
       return ReputationStatus.BANNED
     }
+  }
+
+
+  /**
+   * an entity that caused handleOps to revert, which requires re-building the bundle from scratch.
+   * should be banned immediately, by increasing its opSeen counter
+   * @param addr
+   */
+  crashedHandleOps (addr: string | undefined) {
+
+    if (addr == null) {
+      return
+    }
+    //todo: what value to put? how long do we want this banning to hold?
+    const entry = this._getOrCreate(addr)
+    entry.opsSeen = 100
+    entry.opsIncluded = 0
+    debug('crashedHandleOps', addr, entry)
   }
 }

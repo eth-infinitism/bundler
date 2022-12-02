@@ -2,6 +2,9 @@ import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/typ
 import { ReputationManager } from './ReputationManager'
 import { EntryPoint } from '@account-abstraction/contracts'
 import { UserOperation } from './moduleUtils'
+import Debug from 'debug'
+
+const debug = Debug('aa.events')
 
 /**
  * listen to events. trigger ReputationManager's Included
@@ -19,8 +22,8 @@ export class EventsManager {
    * automatically listen to all UserOperationEvent events
    */
   initEventListener (): void {
-    this.entryPoint.on(this.entryPoint.filters.UserOperationEvent(), (ev) => {
-      // todo: check event typing. typechain thinks its a string
+    this.entryPoint.on(this.entryPoint.filters.UserOperationEvent(), (...args) => {
+      const ev = args.slice(-1)[0]
       void this.handleEvent(ev as any)
     })
   }
@@ -36,6 +39,7 @@ export class EventsManager {
   }
 
   async handleEvent (ev: UserOperationEventEvent): Promise<void> {
+    debug('handleEvent', 'sender=', ev.args.sender, 'nonce=', ev.args.nonce)
     // process a single handleEvent for a bundle (transaction), since we read entire bundle data on that first event.
     // TODO: this will break if someone bundles MULTIPLE handleOp calls into a single transaction (but it also breaks our decoding of transaction)
     if (ev.transactionHash === this.lastTx) {

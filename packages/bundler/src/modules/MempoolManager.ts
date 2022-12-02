@@ -3,6 +3,9 @@ import { getAddr, UserOperation } from './moduleUtils'
 import { requireCond } from '../utils'
 import { ValidationErrors } from './ValidationManager'
 import { ReputationManager } from './ReputationManager'
+import Debug from 'debug'
+
+const debug = Debug('aa.mempool')
 
 export interface MempoolEntry {
   userOp: UserOperation
@@ -42,8 +45,10 @@ export class MempoolManager {
       // the error is "invalid fields", even though it is detected only after validation
       requireCond(newGas > oldGas * 1.1,
         'Replacement UserOperation must have higher gas', ValidationErrors.InvalidFields)
+      debug('replace userOp', userOp.sender, userOp.nonce)
       this.mempool[index] = entry
     } else {
+      debug('add userOp', userOp.sender, userOp.nonce)
       this.mempool.push(entry)
     }
 
@@ -81,6 +86,7 @@ export class MempoolManager {
   removeUserOp (userOp: UserOperation): void {
     const index = this._find(userOp)
     if (index !== -1) {
+      debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
     }
   }

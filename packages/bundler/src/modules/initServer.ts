@@ -24,7 +24,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const repMgr = new ReputationManager(BundlerReputationParams)
   const mempoolMgr = new MempoolManager(repMgr)
   const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
-  const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+  const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
   const eventsMgr = new EventsManager(entryPoint, repMgr)
   const execMgr = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
 

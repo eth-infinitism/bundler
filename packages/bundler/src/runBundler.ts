@@ -138,7 +138,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     autoBundleMempoolSize: 1
   }
 
-  const [execManager] = initServer(execManagerConfig, entryPoint.signer)
+  const [execManager, eventsManager] = initServer(execManagerConfig, entryPoint.signer)
   const methodHandler = new UserOpMethodHandler(
     execManager,
     provider,
@@ -146,6 +146,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     config,
     entryPoint
   )
+  eventsManager.initEventListener()
 
   const bundlerServer = new BundlerServer(
     methodHandler,
