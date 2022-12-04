@@ -5,13 +5,9 @@ import { BundleManager } from './BundleManager'
 import { ValidationManager } from './ValidationManager'
 import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { parseEther } from 'ethers/lib/utils'
-import { getDefaultProvider, Signer, Wallet } from 'ethers'
+import { Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
-import Debug from 'debug'
-import fs from 'fs'
-
-const debug = Debug('aa.init')
 
 /**
  * initialize server modules.

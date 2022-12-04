@@ -28,7 +28,6 @@ contract TestRuleAccount is IAccount, IPaymaster {
 
     /**
      * "rules" to test. override to add more "rules"
-     * the return value is used as "deadline".
      */
     function runRule(string memory rule) public virtual returns (uint) {
         if (eq(rule, "")) return 0;
@@ -44,25 +43,27 @@ contract TestRuleAccount is IAccount, IPaymaster {
     }
 
     function validateUserOp(UserOperation calldata userOp, bytes32, address, uint256 missingAccountFunds)
-    external override returns (uint256) {
+    external virtual override returns (uint256) {
         if (missingAccountFunds > 0) {
             /* solhint-disable-next-line avoid-low-level-calls */
             (bool success,) = msg.sender.call{value : missingAccountFunds}("");
             success;
         }
-        return runRule(string(userOp.signature));
+        runRule(string(userOp.signature));
+        return 0;
     }
 
     function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
-    external returns (bytes memory context, uint256 deadline) {
+    external virtual override returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
-        return ("", runRule(rule));
+        runRule(rule);
+        return ("", 0);
     }
 
     function postOp(PostOpMode, bytes calldata, uint256) external {}
 }
 
-contract TestAccountDeployer {
+contract TestRuleAccountDeployer {
     function create(string memory rule) public returns (TestRuleAccount) {
         TestRuleAccount a = new TestRuleAccount{salt : bytes32(uint(0))}();
         a.runRule(rule);

@@ -52,4 +52,3 @@ export function mapOf<T> (keys: Iterable<string>, mapper: (key: string) => T, fi
   }
   return ret
 }
-

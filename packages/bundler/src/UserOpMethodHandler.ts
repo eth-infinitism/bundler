@@ -3,8 +3,8 @@ import { JsonRpcProvider, JsonRpcSigner, Log, Provider } from '@ethersproject/pr
 
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
-import { hexValue, resolveProperties } from 'ethers/lib/utils'
-import { AddressZero, deepHexlify, rethrowError } from '@account-abstraction/utils'
+import { resolveProperties } from 'ethers/lib/utils'
+import { AddressZero, deepHexlify } from '@account-abstraction/utils'
 import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
@@ -20,14 +20,12 @@ const debug = Debug('aa.handler.userop')
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class UserOpMethodHandler {
-
   constructor (
     readonly execManager: ExecutionManager,
     readonly provider: Provider,
     readonly signer: Wallet | JsonRpcSigner,
     readonly config: BundlerConfig,
     readonly entryPoint: EntryPoint
-    // readonly bundlerHelper: BundlerHelper
   ) {
   }
 

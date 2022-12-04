@@ -226,7 +226,6 @@ export function rethrowError (e: any): any {
   throw e
 }
 
-
 /**
  * hexlify all members of object, recursively
  * @param obj
@@ -249,4 +248,3 @@ export function deepHexlify (obj: any): any {
       [key]: deepHexlify(obj[key])
     }), {})
 }
-

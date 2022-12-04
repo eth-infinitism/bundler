@@ -2,13 +2,13 @@ import { EntryPoint, EntryPoint__factory, UserOperationStruct } from '@account-a
 import { hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
-import { TestCoin, TestCoin__factory, TestRuleAccount, TestAccountDeployer, TestAccountDeployer__factory, TestRuleAccount__factory } from '../src/types'
+import { TestCoin, TestCoin__factory, TestOpcodesAccountDeployer__factory, TestOpcodesAccountDeployer, TestOpcodesAccount, TestOpcodesAccount__factory } from '../src/types'
 import { isGeth, opcodeScanner } from '../src/opcodeScanner'
 import { BundlerCollectorReturn } from '../src/BundlerCollectorTracer'
 
 describe('opcode banning', () => {
-  let deployer: TestAccountDeployer
-  let paymaster: TestRuleAccount
+  let deployer: TestOpcodesAccountDeployer
+  let paymaster: TestOpcodesAccount
   let entryPoint: EntryPoint
   let token: TestCoin
 
@@ -51,14 +51,14 @@ describe('opcode banning', () => {
   before(async function () {
     const ethersSigner = ethers.provider.getSigner()
     entryPoint = await new EntryPoint__factory(ethersSigner).deploy()
-    paymaster = await new TestRuleAccount__factory(ethersSigner).deploy()
+    paymaster = await new TestOpcodesAccount__factory(ethersSigner).deploy()
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
-    deployer = await new TestAccountDeployer__factory(ethersSigner).deploy()
+    deployer = await new TestOpcodesAccountDeployer__factory(ethersSigner).deploy()
     token = await new TestCoin__factory(ethersSigner).deploy()
 
     if (!await isGeth(ethers.provider)) {
-      console.log('opcode banning tests can only run with geth')
+      console.log('WARNING: opcode banning tests can only run with geth')
       this.skip()
     }
   })

@@ -20,7 +20,6 @@ export async function startBundler (options: BundlerConfig): Promise<BundlerServ
   args.push('--beneficiary', options.beneficiary)
   args.push('--entryPoint', options.entryPoint)
   args.push('--gasFactor', options.gasFactor)
-  args.push('--helper', options.helper)
   args.push('--minBalance', options.minBalance)
   args.push('--mnemonic', options.mnemonic)
   args.push('--network', options.network)
@@ -46,8 +45,6 @@ describe('Flow', function () {
     const entryPoint = await EntryPointFactory.deploy()
     entryPointAddress = entryPoint.address
 
-    const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
-    const bundleHelper = await bundleHelperFactory.deploy()
     await signer.sendTransaction({
       to: '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1',
       value: 10e18.toString()
@@ -59,7 +56,6 @@ describe('Flow', function () {
     bundlerServer = await startBundler({
       beneficiary,
       entryPoint: entryPoint.address,
-      helper: bundleHelper.address,
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: mnemonicFile,

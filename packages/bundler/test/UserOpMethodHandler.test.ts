@@ -1,7 +1,7 @@
 import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
-import { parseEther, recoverPublicKey, resolveProperties } from 'ethers/lib/utils'
+import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
@@ -12,7 +12,7 @@ import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  BundlerHelper, SampleRecipient, TestRuleAccount__factory, TestRuleAccount
+  SampleRecipient, TestRuleAccount__factory, TestRuleAccount
 } from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
@@ -40,9 +40,7 @@ describe('UserOpMethodHandler', function () {
   const accountSigner = Wallet.createRandom()
 
   let entryPoint: EntryPoint
-  let bundleHelper: BundlerHelper
   let sampleRecipient: SampleRecipient
-  let execManager: ExecutionManager
 
   before(async function () {
     provider = ethers.provider
@@ -54,9 +52,6 @@ describe('UserOpMethodHandler', function () {
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
     entryPoint = await EntryPointFactory.deploy()
 
-    const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
-    bundleHelper = await bundleHelperFactory.deploy()
-    console.log('bundler from=', await bundleHelper.signer.getAddress())
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
 
@@ -64,7 +59,6 @@ describe('UserOpMethodHandler', function () {
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
-      helper: bundleHelper.address,
       minBalance: '0',
       mnemonic: '',
       network: '',
@@ -72,7 +66,7 @@ describe('UserOpMethodHandler', function () {
       autoBundleInterval: 0,
       autoBundleMempoolSize: 1,
       maxBundleGas: 5e6,
-      //minstake zero, since we don't fund deployer.
+      // minstake zero, since we don't fund deployer.
       minStake: '0',
       minUnstakeDelay: 0
     }
@@ -88,7 +82,7 @@ describe('UserOpMethodHandler', function () {
       provider,
       signer,
       config,
-      entryPoint,
+      entryPoint
     )
   })
 
@@ -164,7 +158,7 @@ describe('UserOpMethodHandler', function () {
       }))
     })
 
-    it('should send UserOperation transaction to BundlerHelper', async function () {
+    it('should send UserOperation transaction to entryPoint', async function () {
       const userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
       const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
       const transactionReceipt = await req[0].getTransactionReceipt()

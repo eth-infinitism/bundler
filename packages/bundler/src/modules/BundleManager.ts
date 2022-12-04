@@ -7,7 +7,7 @@ import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
-import {Mutex} from 'async-mutex'
+import { Mutex } from 'async-mutex'
 
 const debug = Debug('aa.cron')
 
@@ -39,9 +39,13 @@ export class BundleManager {
       debug('sendNextBundle')
 
       const bundle = await this.createBundle()
-      const beneficiary = await this._selectBeneficiary()
-      await this.sendBundle(bundle, beneficiary)
-      debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
+      if ( bundle.length==0 ) {
+        debug('sendNextBundle - no bundle to send')
+      } else {
+        const beneficiary = await this._selectBeneficiary()
+        await this.sendBundle(bundle, beneficiary)
+        debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
+      }
     })
   }
 
@@ -54,16 +58,20 @@ export class BundleManager {
       await this.entryPoint.handleOps(userOps, beneficiary)
       this.mempoolManager.removeAllUserOps(userOps)
     } catch (e: any) {
-      //failed to handleOp. use FailedOp to detect by
-      if (e.errorName!='FailedOp') {
+      // failed to handleOp. use FailedOp to detect by
+      if (e.errorName !== 'FailedOp') {
         console.warn('Failed handleOps, but non-FailedOp error', e)
         return
       }
-      let {index, paymaster,reason} = e.errorArgs
+      const {
+        index,
+        paymaster,
+        reason
+      } = e.errorArgs
       const userOp = userOps[index]
-      if ( paymaster!= AddressZero) {
+      if (paymaster !== AddressZero) {
         this.reputationManager.crashedHandleOps(paymaster)
-      } else if (reason.startsWith('AA1')) {
+      } else if (typeof reason === 'string' && reason.startsWith('AA1')) {
         this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
       } else {
         this.mempoolManager.removeUserOp(userOp)
@@ -90,15 +98,15 @@ export class BundleManager {
       const deployer = getAddr(entry.userOp.initCode)
       const paymasterStatus = this.reputationManager.getStatus(paymaster)
       const deployerStatus = this.reputationManager.getStatus(deployer)
-      if (paymasterStatus == ReputationStatus.BANNED || deployerStatus == ReputationStatus.BANNED) {
+      if (paymasterStatus === ReputationStatus.BANNED || deployerStatus === ReputationStatus.BANNED) {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
-      if (paymasterStatus == ReputationStatus.THROTTLED ?? (paymasterDeployersCount[paymaster!] ?? 0) > 1) {
+      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (paymasterDeployersCount[paymaster] ?? 0) > 1)) {
         debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
-      if (deployerStatus == ReputationStatus.THROTTLED ?? (paymasterDeployersCount[deployer!] ?? 0) > 1) {
+      if (deployer != null && (deployerStatus === ReputationStatus.THROTTLED ?? (paymasterDeployersCount[deployer] ?? 0) > 1)) {
         debug('skipping throttled deployer', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
@@ -111,8 +119,8 @@ export class BundleManager {
       try {
         // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
         validationResult = await this.validationManager.validateUserOp(entry.userOp, false)
-      } catch (e:any) {
-        debug('failed 2nd validation',e.message)
+      } catch (e: any) {
+        debug('failed 2nd validation', e.message)
         // failed validation. don't try anymore
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
@@ -138,7 +146,7 @@ export class BundleManager {
         paymasterDeployersCount[paymaster] = (paymasterDeployersCount[paymaster] ?? 0) + 1
         paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.prefund)
       }
-      if (deployer!=null ) {
+      if (deployer != null) {
         paymasterDeployersCount[deployer] = (paymasterDeployersCount[deployer] ?? 0) + 1
       }
       senders.add(entry.userOp.sender)

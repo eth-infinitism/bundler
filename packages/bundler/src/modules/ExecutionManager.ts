@@ -18,7 +18,7 @@ export class ExecutionManager {
   private autoBundleInterval: any
   private maxMempoolSize = 10
   private autoInterval = 0
-  private mutex = new Mutex()
+  private readonly mutex = new Mutex()
 
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
@@ -33,7 +33,6 @@ export class ExecutionManager {
    */
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
     await this.mutex.runExclusive(async () => {
-
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp)

@@ -53,6 +53,7 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
         const errParams = entryPoint.interface.decodeErrorResult(errorFragment, data)
         const errName = `${errorFragment.name}(${errParams.toString()})`
         if (!errorSig.includes('Result')) {
+          console.log('ex=', result.calls)
           // a real error, not a result.
           throw new Error(errName)
         }
@@ -70,7 +71,6 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
 }
 
 export function parseScannerResult (userOp: UserOperation, result: BundlerCollectorReturn) {
-
   debug('=== simulation result:', inspect(result, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 

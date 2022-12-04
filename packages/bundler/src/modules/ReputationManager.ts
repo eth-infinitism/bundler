@@ -35,7 +35,9 @@ interface ReputationEntry {
   status?: ReputationStatus
 }
 
-type ReputationMap = { [addr: string]: ReputationEntry }
+interface ReputationMap {
+  [addr: string]: ReputationEntry
+}
 
 export interface ReputationDump {
   reputation: ReputationMap
@@ -79,11 +81,11 @@ export class ReputationManager {
     })
   }
 
-  addWhitelist (...params: string[]) {
+  addWhitelist (...params: string[]): void {
     params.forEach(item => this.whitelist.add(item))
   }
 
-  addBlacklist (...params: string[]) {
+  addBlacklist (...params: string[]): void {
     params.forEach(item => this.blackList.add(item))
   }
 
@@ -126,14 +128,8 @@ export class ReputationManager {
     return this.whitelist.has(addr)
   }
 
-  getStatus (addr?: string): ReputationStatus {
-    const ret = this.getStatus1(addr)
-    debug(`getStatus`, addr, ReputationStatus[ret], this.entries[addr!])
-    return ret
-  }
-
   // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
-  getStatus1 (addr?: string): ReputationStatus {
+  getStatus (addr?: string): ReputationStatus {
     if (addr == null || this.whitelist.has(addr)) {
       return ReputationStatus.OK
     }
@@ -159,12 +155,11 @@ export class ReputationManager {
    * should be banned immediately, by increasing its opSeen counter
    * @param addr
    */
-  crashedHandleOps (addr: string | undefined) {
-
+  crashedHandleOps (addr: string | undefined): void {
     if (addr == null) {
       return
     }
-    //todo: what value to put? how long do we want this banning to hold?
+    // todo: what value to put? how long do we want this banning to hold?
     const entry = this._getOrCreate(addr)
     entry.opsSeen = 100
     entry.opsIncluded = 0
@@ -174,7 +169,7 @@ export class ReputationManager {
   /**
    * for debugging: clear in-memory state
    */
-  clearState () {
+  clearState (): void {
     this.entries = {}
   }
 
@@ -182,7 +177,7 @@ export class ReputationManager {
    * for debugging: put in the given reputation entries
    * @param entries
    */
-  setReputation(reputationMap: ReputationMap) {
+  setReputation (reputationMap: ReputationMap): void {
     Object.keys(reputationMap).forEach(addr => {
       this.entries[addr] = reputationMap[addr]
     })

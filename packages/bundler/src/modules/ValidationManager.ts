@@ -57,25 +57,24 @@ export class ValidationManager {
     readonly minUnstakeDelay: number) {
   }
 
-  //standard eth_call to simulateValidation
+  // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
-
     const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
     return this._parseErrorResult(userOp, errorResult)
   }
 
   _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
-    if (!(errorResult.errorName as string).startsWith('SimulationResult')) {
+    if (!(errorResult.errorName).startsWith('SimulationResult')) {
       // if its FailedOp, then we have the paymaster... otherwise its an Error(string)
       let paymaster = errorResult.errorArgs.paymaster
       if (paymaster === AddressZero) {
         paymaster = undefined
       }
-      const msg = errorResult.errorArgs.reason ?? errorResult.toString()
-      if ( paymaster==null ) {
-        throw new RpcError('account validation failed: '+msg, ValidationErrors.SimulateValidation)
+      const msg: string = errorResult.errorArgs.reason ?? errorResult.toString()
+      if (paymaster == null) {
+        throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
       } else {
-        throw new RpcError('paymaster validation failed: '+msg, ValidationErrors.SimulatePaymasterValidation)
+        throw new RpcError(`paymaster validation failed: ${msg}`, ValidationErrors.SimulatePaymasterValidation)
       }
     }
 
@@ -104,7 +103,6 @@ export class ValidationManager {
   }
 
   async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
-
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
@@ -145,7 +143,7 @@ export class ValidationManager {
    * one item to check that was un-modified is the aggregator..
    * @param userOp
    */
-  async validateUserOp (userOp: UserOperation, checkStakes=true): Promise<ValidationResult> {
+  async validateUserOp (userOp: UserOperation, checkStakes = true): Promise<ValidationResult> {
     const paymaster = getAddr(userOp.paymasterAndData)
     const deployer = getAddr(userOp.initCode)
 
@@ -180,7 +178,7 @@ export class ValidationManager {
    * @param title the address title (field name to put into the "data" element)
    * @param addr
    */
-  async _checkStake (title: 'paymaster' | 'aggregator' | 'deployer', addr ?: string): Promise<void> {
+  async _checkStake (title: 'paymaster' | 'aggregator' | 'deployer', addr?: string): Promise<void> {
     if (addr == null || this.reputationManager.isWhitelisted(addr)) {
       return
     }

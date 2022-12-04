@@ -109,7 +109,7 @@ export class MempoolManager {
   /**
    * for debugging: clear current in-memory state
    */
-  clearState () {
+  clearState (): void {
     this.mempool = []
   }
 }

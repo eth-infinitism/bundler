@@ -70,9 +70,9 @@ contract TestOpcodesAccount is TestRuleAccount {
 }
 
 contract TestOpcodesAccountDeployer {
-    function create(string memory rule, TestCoin coin) public returns (TestOpcodesAccount) {
+    function create(string memory rule) public returns (TestOpcodesAccount) {
         TestOpcodesAccount a = new TestOpcodesAccount{salt : bytes32(uint(0))}();
-        a.setCoin(coin);
+//        a.setCoin(coin);
         a.runRule(rule);
         return a;
     }

@@ -11,7 +11,6 @@ import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
-import { BundlerHelper, BundlerHelper__factory } from './types'
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
@@ -56,7 +55,7 @@ export async function connectContracts (
   entryPointAddress: string): Promise<{ entryPoint: EntryPoint}> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
   return {
-    entryPoint,
+    entryPoint
   }
 }
 
@@ -88,7 +87,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
-    .option('--helper <string>', 'address of the BundlerHelper contract')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
@@ -129,8 +127,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   } = await connectContracts(wallet, config.entryPoint)
 
-  //bundleSize=1 replicate current immediate bundling mode
-  let execManagerConfig = {
+  // bundleSize=1 replicate current immediate bundling mode
+  const execManagerConfig = {
     ...config,
     autoBundleMempoolSize: 1
   }
