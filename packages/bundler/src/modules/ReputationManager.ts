@@ -177,9 +177,17 @@ export class ReputationManager {
    * for debugging: put in the given reputation entries
    * @param entries
    */
-  setReputation (reputationMap: ReputationMap): void {
-    Object.keys(reputationMap).forEach(addr => {
-      this.entries[addr] = reputationMap[addr]
+  setReputation (reputationMap: ReputationDump): ReputationDump {
+    Object.keys(reputationMap.reputation).forEach(addr => {
+      const {
+        opsSeen,
+        opsIncluded
+      } = reputationMap.reputation[addr]
+      this.entries[addr] = {
+        opsSeen,
+        opsIncluded
+      }
     })
+    return this.dump()
   }
 }

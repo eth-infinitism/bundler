@@ -22,6 +22,8 @@ import { BundlerReputationParams, ReputationManager } from '../src/modules/Reput
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
+import { UserOperationEventListener } from '@account-abstraction/sdk/dist/src/UserOperationEventListener'
+import { sleep, waitFor } from '../src/utils'
 
 // resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
@@ -64,7 +66,7 @@ describe('UserOpMethodHandler', function () {
       network: '',
       port: '3000',
       autoBundleInterval: 0,
-      autoBundleMempoolSize: 1,
+      autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
@@ -160,9 +162,11 @@ describe('UserOpMethodHandler', function () {
 
     it('should send UserOperation transaction to entryPoint', async function () {
       const userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
-      const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
-      const transactionReceipt = await req[0].getTransactionReceipt()
 
+      //sendUserOperation is async, even in auto-mining. need to wait for it.
+      const event = await waitFor( ()=> entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret=>ret?.[0]))
+
+      const transactionReceipt = await event.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
       const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
       const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[1])

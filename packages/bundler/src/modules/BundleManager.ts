@@ -39,7 +39,7 @@ export class BundleManager {
       debug('sendNextBundle')
 
       const bundle = await this.createBundle()
-      if ( bundle.length==0 ) {
+      if (bundle.length == 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
@@ -56,6 +56,7 @@ export class BundleManager {
   async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<void> {
     try {
       await this.entryPoint.handleOps(userOps, beneficiary)
+      debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       this.mempoolManager.removeAllUserOps(userOps)
     } catch (e: any) {
       // failed to handleOp. use FailedOp to detect by

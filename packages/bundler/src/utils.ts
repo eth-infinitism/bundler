@@ -52,3 +52,21 @@ export function mapOf<T> (keys: Iterable<string>, mapper: (key: string) => T, fi
   }
   return ret
 }
+
+export async function sleep (sleeptime: number) {
+  await new Promise(resolve => setTimeout(resolve, sleeptime))
+}
+
+export async function waitFor<T> (func: () => T | undefined, timeout = 10000, interval = 500) {
+  const endTime = Date.now() + timeout
+  while (true) {
+    const ret = await func()
+    if (ret != null) {
+      return ret
+    }
+    if (Date.now() > endTime) {
+      throw new Error('Timed out waiting for' + func)
+    }
+    await sleep(interval)
+  }
+}

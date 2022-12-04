@@ -47,7 +47,7 @@ export class UserOpMethodHandler {
   async _validateParameters (userOp1: UserOperationStruct, entryPointInput: string, requireSignature = true, requireGasParams = true): Promise<void> {
     requireCond(entryPointInput != null, 'No entryPoint param', -32602)
 
-    if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
+    if (entryPointInput?.toString().toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
 
@@ -178,6 +178,7 @@ export class UserOpMethodHandler {
   }
 
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
+    this._validateParameters(userOp1, entryPointInput)
     const userOp = await resolveProperties(userOp1)
 
     console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${getAddr(userOp.paymasterAndData)}`)
