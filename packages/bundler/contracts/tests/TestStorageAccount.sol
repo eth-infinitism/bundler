@@ -54,8 +54,16 @@ contract TestStorageAccount is TestRuleAccount {
         else if (eq(rule, "mint-self")) return coin.mint(address(this));
         else if (eq(rule, "balance-1")) return coin.balanceOf(address(1));
         else if (eq(rule, "mint-1")) return coin.mint(address(1));
-        else if (eq(rule, "inner-revert")) return coin.reverting();
-        else if (eq(rule, "oog")) return coin.wasteGas();
+        else if (eq(rule, "inner-revert")) {
+            (bool success,) = address(coin).call(abi.encode(coin.reverting));
+            success;
+            return 0;
+        }
+        else if (eq(rule, "oog")) {
+            try coin.wasteGas{gas:50000}() {}
+            catch {}
+            return 0;
+        }
         //        else if (eq(rule, "handleOps")) {
         //            entryPoint.handleOps([], msg.sender);
         //            return 0;

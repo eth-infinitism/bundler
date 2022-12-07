@@ -22,7 +22,7 @@ contract TestRuleAccount is IAccount, IPaymaster {
         state = _state;
     }
 
-    function eq(string memory a, string memory b) internal returns (bool) {
+    function eq(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
@@ -53,7 +53,7 @@ contract TestRuleAccount is IAccount, IPaymaster {
         return 0;
     }
 
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256)
     external virtual override returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         runRule(rule);

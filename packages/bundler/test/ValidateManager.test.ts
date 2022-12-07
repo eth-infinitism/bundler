@@ -55,7 +55,6 @@ describe('#ValidationManager', () => {
     if (decodeErrorReason(callinitCodeForAddr)?.message!=null) {
       throw new Error(decodeErrorReason(callinitCodeForAddr)?.message)
     }
-    console.log('initcode for addr: ',callinitCodeForAddr)
     const [sender] = defaultAbiCoder.decode(['address'], callinitCodeForAddr)
     return {
       sender,
@@ -127,5 +126,14 @@ describe('#ValidationManager', () => {
     expect(await testUserOp('balance-1', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
       .catch(e=>e.message))
       .to.match(/account has forbidden read/)
+  })
+
+  it('should succeed with inner revert', async () => {
+    expect(await testUserOp('inner-revert', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address))
+  })
+  it('should fail with inner oog revert', async () => {
+    expect(await testUserOp('oog', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
+      .catch(e=>e.message))
+      .to.match(/oog/)
   })
 })

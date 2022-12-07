@@ -58,7 +58,7 @@ export async function sleep (sleeptime: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, sleeptime))
 }
 
-export async function waitFor<T> (func: () => T | undefined, timeout = 10000, interval = 500): void {
+export async function waitFor<T> (func: () => T | undefined, timeout = 10000, interval = 500): Promise<T> {
   const endTime = Date.now() + timeout
   while (true) {
     const ret = await func()

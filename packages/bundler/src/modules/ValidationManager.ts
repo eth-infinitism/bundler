@@ -11,7 +11,7 @@ import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../Bun
 import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
 
-const debug = Debug('mgr.validate')
+const debug = Debug('aa.mgr.validate')
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -67,7 +67,6 @@ export class ValidationManager {
 
   _parseErrorResult (userOp: UserOperation, errorResult: { name: string, args: any }): ValidationResult {
     if (!(errorResult?.name).startsWith('SimulationResult')) {
-      console.log('non-result error: ', errorResult)
       // if its FailedOp, then we have the paymaster... otherwise its an Error(string)
       let paymaster = errorResult.args.paymaster
       if (paymaster === AddressZero) {

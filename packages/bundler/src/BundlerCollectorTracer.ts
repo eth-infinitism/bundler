@@ -47,6 +47,7 @@ export interface NumberLevelInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: number }
+  oog?: boolean
 }
 
 export interface AccessInfo {
@@ -130,7 +131,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
-      // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth())
+      this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth()+'-'+ log.getGas()+'-'+log.getCost())
+      if (log.getGas()< log.getCost()) {
+        this.currentLevel.oog = true
+      }
+
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
         const ofs = parseInt(log.stack.peek(0).toString())
@@ -154,6 +159,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             contractSize: {}
           }
         }
+        this.lastOp = ''
         return
       }
 
