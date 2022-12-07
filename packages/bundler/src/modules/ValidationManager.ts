@@ -9,6 +9,9 @@ import { isGeth, parseScannerResult } from '../opcodeScanner'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
+import Debug from 'debug'
+
+const debug = Debug('mgr.validate')
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -89,7 +92,10 @@ export class ValidationManager {
     const paymaster = getAddr(userOp.paymasterAndData)
 
     if (paymaster != null) {
-      paymasterInfo = { ...paymasterInfo, paymaster }
+      paymasterInfo = {
+        ...paymasterInfo,
+        paymaster
+      }
     } else {
       paymasterInfo = undefined
     }
@@ -122,16 +128,25 @@ export class ValidationManager {
     }
     const data = (lastResult as ExitInfo).data
     try {
-      const { name, args } = this.entryPoint.interface.parseError(data)
+      const {
+        name,
+        args
+      } = this.entryPoint.interface.parseError(data)
       const errName = `${name}(${args.toString()})`
       const errorResult = this._parseErrorResult(userOp, {
-        name, args
+        name,
+        args
       })
       if (!name.includes('Result')) {
         // a real error, not a result.
         throw new Error(errName)
       }
-      console.log('==debug=', tracerResult.numberLevels)
+      debug('==dump tree=', JSON.stringify(tracerResult,null,2)
+        .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
+        .replace(new RegExp(getAddr(userOp.paymasterAndData) ??'--no-paymaster--'), '{paymaster}')
+        .replace(new RegExp(getAddr(userOp.initCode) ??'--no-initcode--'), '{factory}')
+      )
+      // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       return [errorResult, tracerResult]
     } catch (e: any) {
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)

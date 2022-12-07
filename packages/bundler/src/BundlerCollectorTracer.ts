@@ -149,7 +149,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         if (opcode === 'NUMBER') this.numberCounter++
         if (this.numberLevels[this.numberCounter] == null) {
           this.currentLevel = this.numberLevels[this.numberCounter] = {
-            level: this.numberCounter,
             access: {},
             opcodes: {},
             contractSize: {}

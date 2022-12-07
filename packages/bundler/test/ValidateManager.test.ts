@@ -1,5 +1,5 @@
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
-import { hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
+import { defaultAbiCoder, hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import {
@@ -8,31 +8,36 @@ import {
   TestOpcodesAccountFactory__factory,
   TestOpcodesAccountFactory,
   TestOpcodesAccount,
-  TestOpcodesAccount__factory
+  TestOpcodesAccount__factory,
+  TestStorageAccountFactory,
+  TestStorageAccountFactory__factory
 } from '../src/types'
 import { isGeth } from '../src/opcodeScanner'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
 import { UserOperation } from '../src/modules/moduleUtils'
+import { decodeErrorReason } from '@account-abstraction/utils'
 
 describe('#ValidationManager', () => {
   let vm: ValidationManager
-  let deployer: TestOpcodesAccountFactory
+  let opcodeFactory: TestOpcodesAccountFactory
+  let storageFactory: TestStorageAccountFactory
+
   let paymaster: TestOpcodesAccount
   let entryPoint: EntryPoint
   let token: TestCoin
 
-  async function testUserOp (validateRule: string = '', initFunc?: string, pmRule?: string): Promise<void> {
-    await vm.validateUserOp(await createTestUserOp(validateRule, initFunc, pmRule))
+  async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<void> {
+    await vm.validateUserOp(await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress))
   }
 
-  async function createTestUserOp (validateRule: string = '', initFunc?: string, pmRule?: string): Promise<UserOperation> {
+  async function createTestUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<UserOperation> {
     if (initFunc === undefined) {
-      initFunc = deployer.interface.encodeFunctionData('create', [''])
+      initFunc = opcodeFactory.interface.encodeFunctionData('create', [''])
     }
 
     const initCode = hexConcat([
-      deployer.address,
+      factoryAddress,
       initFunc
     ])
     const paymasterAndData = pmRule == null ? '0x' : hexConcat([paymaster.address, Buffer.from(pmRule)])
@@ -42,7 +47,16 @@ describe('#ValidationManager', () => {
     } else {
       signature = hexlify(Buffer.from(validateRule))
     }
-    const sender = await deployer.callStatic.create('')
+    let callinitCodeForAddr = await provider.call({
+      to: factoryAddress,
+      data: initFunc
+    })
+    //todo: why "call" above doesn't throw on error ?!?!
+    if (decodeErrorReason(callinitCodeForAddr)?.message!=null) {
+      throw new Error(decodeErrorReason(callinitCodeForAddr)?.message)
+    }
+    console.log('initcode for addr: ',callinitCodeForAddr)
+    const [sender] = defaultAbiCoder.decode(['address'], callinitCodeForAddr)
     return {
       sender,
       initCode,
@@ -58,14 +72,17 @@ describe('#ValidationManager', () => {
     }
   }
 
+  const provider = ethers.provider
+  const ethersSigner = provider.getSigner()
+
   before(async function () {
     ethers.provider = ethers.getDefaultProvider('http://localhost:8545') as any
-    const ethersSigner = ethers.provider.getSigner()
     entryPoint = await new EntryPoint__factory(ethersSigner).deploy()
     paymaster = await new TestOpcodesAccount__factory(ethersSigner).deploy()
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
-    deployer = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
+    opcodeFactory = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
+    storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy()
     token = await new TestCoin__factory(ethersSigner).deploy()
 
     const reputationManager = new ReputationManager({
@@ -88,12 +105,11 @@ describe('#ValidationManager', () => {
       .catch(e => e.message)).to.match(/unknown rule/)
   })
   it('should fail with bad opcode in ctr', async () => {
-    expect(await testUserOp('',
-      deployer.interface.encodeFunctionData('create', ['coinbase']))
+    expect(await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase']))
       .catch(e => e.message)).to.match(/factory uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in paymaster', async () => {
-    expect(await testUserOp('', undefined, 'coinbase')
+    expect(await testUserOp('', 'coinbase', undefined)
       .catch(e => e.message)).to.match(/paymaster uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in validation', async () => {
@@ -105,9 +121,11 @@ describe('#ValidationManager', () => {
       .catch(e => e.message)).to.match(/account uses banned opcode: CREATE2/)
   })
   it('should succeed if referencing self token balance', async () => {
-    await testUserOp('balance-self')
+    await testUserOp('balance-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
   })
   it('should fail if referencing other token balance', async () => {
-    expect(await testUserOp('balance-1').catch(e => e)).to.match(/forbidden read/)
+    expect(await testUserOp('balance-1', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
+      .catch(e=>e.message))
+      .to.match(/account has forbidden read/)
   })
 })
