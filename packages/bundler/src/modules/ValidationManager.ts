@@ -7,9 +7,11 @@ import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { isGeth, parseScannerResult } from '../opcodeScanner'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { keccak256 } from 'ethers/lib/utils'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
+import Debug from 'debug'
+
+const debug = Debug('aa.validator')
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -63,14 +65,15 @@ export class ValidationManager {
     return this._parseErrorResult(userOp, errorResult)
   }
 
-  _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
-    if (!(errorResult.errorName).startsWith('SimulationResult')) {
+  _parseErrorResult (userOp: UserOperation, errorResult: { name: string, args: any }): ValidationResult {
+    if (!(errorResult?.name).startsWith('SimulationResult')) {
+      console.log('non-result error: ', errorResult)
       // if its FailedOp, then we have the paymaster... otherwise its an Error(string)
-      let paymaster = errorResult.errorArgs.paymaster
+      let paymaster = errorResult.args.paymaster
       if (paymaster === AddressZero) {
         paymaster = undefined
       }
-      const msg: string = errorResult.errorArgs.reason ?? errorResult.toString()
+      const msg: string = errorResult.args.reason ?? errorResult.toString()
       if (paymaster == null) {
         throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
       } else {
@@ -84,11 +87,11 @@ export class ValidationManager {
       deadline,
       aggregatorInfo,
       paymasterInfo
-    } = errorResult.errorArgs
+    } = errorResult.args
     const paymaster = getAddr(userOp.paymasterAndData)
 
     if (paymaster != null) {
-      paymasterInfo.paymaster = paymaster
+      paymasterInfo = {...paymasterInfo, paymaster }
     } else {
       paymasterInfo = undefined
     }
@@ -120,17 +123,19 @@ export class ValidationManager {
       throw new Error('Invalid response. simulateCall must revert')
     }
     const data = (lastResult as ExitInfo).data
-    const sighash = data.slice(0, 10)
-    const errorSig = Object.keys(this.entryPoint.interface.errors).find(err => keccak256(Buffer.from(err)).startsWith(sighash))
-    if (errorSig != null) {
-      const errorFragment = this.entryPoint.interface.errors[errorSig]
-      const errorArgs = this.entryPoint.interface.decodeErrorResult(errorFragment, data)
+    try {
+      const {name, args} = this.entryPoint.interface.parseError(data)
+      const errName = `${name}(${args.toString()})`
       const errorResult = this._parseErrorResult(userOp, {
-        errorName: errorFragment.name,
-        errorArgs
+        name, args
       })
+      if (!name.includes('Result')) {
+        // a real error, not a result.
+        throw new Error(errName)
+      }
+      console.log('opcodes=', ...Object.keys(tracerResult.numberLevels).map(k=>tracerResult.numberLevels[k].opcodes))
       return [errorResult, tracerResult]
-    } else {
+    } catch (e:any) {
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
       const err = decodeErrorReason(data)
       throw new Error(err != null ? err.message : data)
@@ -155,7 +160,7 @@ export class ValidationManager {
     if (await isGeth(this.entryPoint.provider as any)) {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
-      parseScannerResult(userOp, tracerResult)
+      parseScannerResult(userOp, tracerResult, this.entryPoint)
     } else {
       res = await this._callSimulateValidation(userOp)
     }

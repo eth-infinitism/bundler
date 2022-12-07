@@ -30,7 +30,7 @@
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
     "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
-    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployDeployer --selfBundler"
+    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.33.0",

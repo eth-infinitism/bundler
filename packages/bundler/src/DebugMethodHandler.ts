@@ -11,14 +11,13 @@ export class DebugMethodHandler {
   }
 
   setBundleInterval (interval: number | 'manual' | 'auto', maxPoolSize = 100) {
-    if ( interval == null ) {
+    if (interval == null) {
       throw new Error('must specify interval <number>|manual|auto')
     }
     if (interval === 'auto') {
       // size=0 ==> auto-bundle on each userop
       this.execManager.setAutoBundler(0, 0)
-    } else
-    if (interval === 'manual') {
+    } else if (interval === 'manual') {
       // interval=0, but never auto-mine
       this.execManager.setAutoBundler(0, 1000)
     } else {
@@ -40,7 +39,9 @@ export class DebugMethodHandler {
   }
 
   setReputation (param: any): ReputationDump {
-    if (param.reputation == null) { throw new Error('expected structure { reputation: {addr:{opsSeen:1, opsIncluded:2} }') }
+    if (param.reputation == null) {
+      throw new Error('expected structure { reputation: {addr:{opsSeen:1, opsIncluded:2} }')
+    }
     return this.repManager.setReputation(param)
   }
 

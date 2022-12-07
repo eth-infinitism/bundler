@@ -3,12 +3,14 @@
   "port": "3000",
   "network": "http://localhost:8545",
   "entryPoint": "0x2DF1592238420ecFe7f2431360e224707e77fA0E",
+"entryPoint": "new entrypoint below, of 3.1, with AccountDeployed",
+  "entryPoint": "0xF934F418A137D0a1546Bcd09dEB4f908768c7bd2",
   "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 5e6,
   "minStake": "0" ,
   "minUnstakeDelay": 0 ,
-  "autoBundleInterval": 0,
-  "autoBundleMempoolSize": 1
+  "autoBundleInterval": 3,
+  "autoBundleMempoolSize": 10
 }

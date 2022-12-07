@@ -62,8 +62,8 @@ export interface UserOperationReceipt {
   paymaster?: string
   /// actual payment for this UserOperation (by either paymaster or account)
   actualGasCost: BigNumberish
-  /// gas price used for payment (based on UserOp gas parameters and basefee)
-  actualGasPrice: BigNumberish
+  /// total gas used by this UserOperation (including preVerification, creation, validation and execution)
+  actualGasUsed: BigNumberish
   /// did this execution completed without revert
   success: boolean
   /// in case of revert, this is the revert reason

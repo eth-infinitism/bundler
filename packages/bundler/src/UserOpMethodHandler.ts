@@ -2,18 +2,16 @@ import { BigNumber, Wallet } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner, Log, Provider } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
-import { EntryPoint } from './types'
 import { resolveProperties } from 'ethers/lib/utils'
 import { AddressZero, deepHexlify } from '@account-abstraction/utils'
-import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import { EntryPoint__factory, UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond, RpcError } from './utils'
-import Debug from 'debug'
-import { isGeth, opcodeScanner } from './opcodeScanner'
 import { CallUserOperationResult, EstimateUserOpGasResult, UserOperationReceipt } from './RpcTypes'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr } from './modules/moduleUtils'
+import Debug from 'debug'
 
 const debug = Debug('aa.handler.userop')
 
@@ -158,6 +156,7 @@ export class UserOpMethodHandler {
    * @param userOp1
    * @param entryPointInput
    */
+/*
   async _simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string): Promise<void> {
     const userOp = deepHexlify(await resolveProperties(userOp1))
 
@@ -176,9 +175,10 @@ export class UserOpMethodHandler {
       await opcodeScanner(userOp1, this.entryPoint)
     }
   }
-
+*/
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
-    this._validateParameters(userOp1, entryPointInput)
+    await this._validateParameters(userOp1, entryPointInput)
+
     const userOp = await resolveProperties(userOp1)
 
     console.log(`UserOperation: Sender=${userOp.sender} EntryPoint=${entryPointInput} Paymaster=${getAddr(userOp.paymasterAndData)}`)
@@ -231,7 +231,7 @@ export class UserOpMethodHandler {
       sender: event.args.sender,
       nonce: event.args.nonce,
       actualGasCost: event.args.actualGasCost,
-      actualGasPrice: event.args.actualGasPrice,
+      actualGasUsed: event.args.actualGasUsed,
       success: event.args.success,
       logs,
       receipt

@@ -88,7 +88,7 @@ export class BundleManager {
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
     // throttled paymasters and deployers are allowed only small UserOps per bundle.
-    const paymasterDeployersCount: { [paymaster: string]: number } = {}
+    const stakedEntityCount: { [addr: string]: number } = {}
     // each sender is allowed only once per bundle
     const senders = new Set<string>()
 
@@ -96,19 +96,19 @@ export class BundleManager {
     debug('got mempool of ', entries.length)
     for (const entry of entries) {
       const paymaster = getAddr(entry.userOp.paymasterAndData)
-      const deployer = getAddr(entry.userOp.initCode)
+      const factory = getAddr(entry.userOp.initCode)
       const paymasterStatus = this.reputationManager.getStatus(paymaster)
-      const deployerStatus = this.reputationManager.getStatus(deployer)
+      const deployerStatus = this.reputationManager.getStatus(factory)
       if (paymasterStatus === ReputationStatus.BANNED || deployerStatus === ReputationStatus.BANNED) {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
-      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (paymasterDeployersCount[paymaster] ?? 0) > 1)) {
+      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > 1)) {
         debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
-      if (deployer != null && (deployerStatus === ReputationStatus.THROTTLED ?? (paymasterDeployersCount[deployer] ?? 0) > 1)) {
-        debug('skipping throttled deployer', entry.userOp.sender, entry.userOp.nonce)
+      if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > 1)) {
+        debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
       if (senders.has(entry.userOp.sender)) {
@@ -144,11 +144,11 @@ export class BundleManager {
           // (but it passed validation, so it can sponsor them separately
           continue
         }
-        paymasterDeployersCount[paymaster] = (paymasterDeployersCount[paymaster] ?? 0) + 1
+        stakedEntityCount[paymaster] = (stakedEntityCount[paymaster] ?? 0) + 1
         paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.prefund)
       }
-      if (deployer != null) {
-        paymasterDeployersCount[deployer] = (paymasterDeployersCount[deployer] ?? 0) + 1
+      if (factory != null) {
+        stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)

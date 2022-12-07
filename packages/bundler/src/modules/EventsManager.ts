@@ -1,8 +1,9 @@
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { AccountDeployedEvent, UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { ReputationManager } from './ReputationManager'
 import { EntryPoint } from '@account-abstraction/contracts'
-import { UserOperation } from './moduleUtils'
 import Debug from 'debug'
+import { SignatureAggregatorForUserOperationsEvent } from '@account-abstraction/contracts/types/EntryPoint'
+import { TypedEvent } from '@account-abstraction/contracts/dist/types/common'
 
 const debug = Debug('aa.events')
 
@@ -32,35 +33,58 @@ export class EventsManager {
    * manually handle all new events since last run
    */
   async handlePastEvents (): Promise<void> {
-    const events = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationEvent(), this.lastBlock)
+    const events = await this.entryPoint.queryFilter({address: this.entryPoint.address}, this.lastBlock)
     for (const ev of events) {
       await this.handleEvent(ev)
     }
   }
 
-  async handleEvent (ev: UserOperationEventEvent): Promise<void> {
-    debug('handleEvent', 'sender=', ev.args.sender, 'nonce=', ev.args.nonce)
-    // process a single handleEvent for a bundle (transaction), since we read entire bundle data on that first event.
-    // TODO: this will break if someone bundles MULTIPLE handleOp calls into a single transaction (but it also breaks our decoding of transaction)
-    if (ev.transactionHash === this.lastTx) {
-      return
+  async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorForUserOperationsEvent ): Promise<void> {
+    switch (ev.event) {
+      case 'UserOperationEventEvent':
+        this.handleUserOperationEvent(ev as any)
+        break
+      case 'AccountDeployedEvent':
+        this.handleAccountDeployedEvent(ev as any)
+        break
+      case 'SignatureAggregatorForUserOperationsEvent':
+        this.handleAggregatorChangedEvent(ev as any)
+        break
     }
-    this.lastTx = ev.transactionHash
-    this.lastBlock = ev.blockNumber
-    const tx = await ev.getTransaction()
-    const handleOpsFuncFragment = this.entryPoint.interface.getFunction('handleOps')
-    // TODO: parse also handleOpsWithAggregators
-    const ret = this.entryPoint.interface.decodeFunctionData(handleOpsFuncFragment, tx.data)
-    const userOps: UserOperation[] = ret[0]
-    userOps.forEach(userOp => {
-      this._includedAddress(userOp.initCode as any)
-      this._includedAddress(userOp.paymasterAndData as any)
-      // TODO: do we handle aggerator?
-    })
   }
 
-  _includedAddress (data: string): void {
-    if (data.length > 42) {
+  handleAggregatorChangedEvent(ev: SignatureAggregatorForUserOperationsEvent) {
+    debug('handle ', ev.event, ev.args.aggregator)
+    this.eventAggregator = ev.args.aggregator
+    this.eventAggregatorTxHash = ev.transactionHash
+  }
+
+  eventAggregator: string | null = null
+  eventAggregatorTxHash: string | null = null
+
+  // aggregator event is sent once per events bundle for all UserOperationEvents in this bundle.
+  // it is not sent at all if the transaction is handleOps
+  getEventAggregator(ev: TypedEvent): string | null {
+    if (ev.transactionHash != this.eventAggregatorTxHash) {
+      this.eventAggregator = null
+      this.eventAggregatorTxHash = ev.transactionHash
+    }
+    return this.eventAggregator
+  }
+
+  // AccountDeployed event is sent before each UserOperationEvent that deploys a contract.
+  handleAccountDeployedEvent(ev: AccountDeployedEvent) {
+    this._includedAddress(ev.args.factory)
+  }
+
+  handleUserOperationEvent(ev: UserOperationEventEvent) {
+    this._includedAddress(ev.args.sender)
+    this._includedAddress(ev.args.paymaster)
+    this._includedAddress(this.getEventAggregator(ev))
+  }
+
+  _includedAddress (data: string | null): void {
+    if (data!=null && data.length > 42) {
       const addr = data.slice(0, 42)
       this.reputationManager.updateIncludedStatus(addr)
     }

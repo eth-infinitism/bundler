@@ -63,7 +63,7 @@ contract TestRuleAccount is IAccount, IPaymaster {
     function postOp(PostOpMode, bytes calldata, uint256) external {}
 }
 
-contract TestRuleAccountDeployer {
+contract TestRuleAccountFactory {
     function create(string memory rule) public returns (TestRuleAccount) {
         TestRuleAccount a = new TestRuleAccount{salt : bytes32(uint(0))}();
         a.runRule(rule);

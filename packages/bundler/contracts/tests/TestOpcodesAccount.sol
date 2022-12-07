@@ -63,16 +63,21 @@ contract TestOpcodesAccount is TestRuleAccount {
         else if (eq(rule, "oog")) return coin.wasteGas();
         else if (eq(rule, "emit-msg")) {
             emit TestMessage(address(this));
-            return 0;}
+            return 0;
+        }
+//        else if (eq(rule, "handleOps")) {
+//            entryPoint.handleOps([], msg.sender);
+//            return 0;
+//        }
 
         return super.runRule(rule);
     }
 }
 
-contract TestOpcodesAccountDeployer {
+contract TestOpcodesAccountFactory {
     function create(string memory rule) public returns (TestOpcodesAccount) {
         TestOpcodesAccount a = new TestOpcodesAccount{salt : bytes32(uint(0))}();
-//        a.setCoin(coin);
+        //        a.setCoin(coin);
         a.runRule(rule);
         return a;
     }

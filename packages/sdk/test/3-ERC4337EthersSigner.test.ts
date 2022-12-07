@@ -47,7 +47,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       await recipient.something('hello', { gasLimit: 1e6 })
       throw new Error('should revert')
     } catch (e: any) {
-      expect(e.message).to.eq('FailedOp(0,0x0000000000000000000000000000000000000000,account didn\'t pay prefund)')
+      expect(e.message).to.eq('FailedOp(0,0x0000000000000000000000000000000000000000,AA21 didn\'t pay prefund)')
     }
   })
 

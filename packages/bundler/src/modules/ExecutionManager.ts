@@ -16,7 +16,7 @@ const debug = Debug('aa.exec')
 export class ExecutionManager {
   private reputationCron: any
   private autoBundleInterval: any
-  private maxMempoolSize = 0  // default to auto-mining
+  private maxMempoolSize = 0 // default to auto-mining
   private autoInterval = 0
   private readonly mutex = new Mutex()
 
@@ -74,7 +74,7 @@ export class ExecutionManager {
    * @param force
    */
   attemptBundle (force = true): void {
-    debug('attemptBundle force=', force, 'count=',this.mempoolManager.count(), 'max=', this.maxMempoolSize)
+    debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       void this.bundleManager.sendNextBundle()
     }

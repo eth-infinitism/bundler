@@ -45,7 +45,7 @@ export class DeterministicDeployer {
     return await this.isContractDeployed(this.proxyAddress)
   }
 
-  async deployDeployer (): Promise<void> {
+  async deployFactory (): Promise<void> {
     if (await this.isContractDeployed(this.proxyAddress)) {
       return
     }
@@ -66,7 +66,7 @@ export class DeterministicDeployer {
   }
 
   async getDeployTransaction (ctrCode: string, salt: BigNumberish = 0): Promise<TransactionRequest> {
-    await this.deployDeployer()
+    await this.deployFactory()
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
     return {
       to: this.proxyAddress,

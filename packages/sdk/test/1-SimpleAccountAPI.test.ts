@@ -1,7 +1,7 @@
 import {
   EntryPoint,
   EntryPoint__factory,
-  SimpleAccountDeployer__factory,
+  SimpleAccountFactory__factory,
   UserOperationStruct
 } from '@account-abstraction/contracts'
 import { Wallet } from 'ethers'
@@ -32,7 +32,7 @@ describe('SimpleAccountAPI', () => {
 
     recipient = await new SampleRecipient__factory(signer).deploy()
     owner = Wallet.createRandom()
-    const factoryAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+    const factoryAddress = await DeterministicDeployer.deploy(SimpleAccountFactory__factory.bytecode)
     api = new SimpleAccountAPI({
       provider,
       entryPointAddress: entryPoint.address,

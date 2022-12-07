@@ -6,13 +6,13 @@ import { parseEther, resolveProperties } from 'ethers/lib/utils'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { EntryPoint, SimpleAccountDeployer__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import { EntryPoint, SimpleAccountFactory__factory, UserOperationStruct } from '@account-abstraction/contracts'
 
 import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  SampleRecipient, TestRuleAccount__factory, TestRuleAccount
+  SampleRecipient, TestRuleAccount__factory, TestRuleAccount, TestOpcodesAccount__factory
 } from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
@@ -22,8 +22,7 @@ import { BundlerReputationParams, ReputationManager } from '../src/modules/Reput
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { UserOperationEventListener } from '@account-abstraction/sdk/dist/src/UserOperationEventListener'
-import { sleep, waitFor } from '../src/utils'
+import { waitFor } from '../src/utils'
 
 // resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
@@ -49,7 +48,7 @@ describe('UserOpMethodHandler', function () {
     signer = ethers.provider.getSigner()
 
     DeterministicDeployer.init(ethers.provider)
-    accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+    accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountFactory__factory.bytecode)
 
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
     entryPoint = await EntryPointFactory.deploy()
@@ -140,7 +139,7 @@ describe('UserOpMethodHandler', function () {
     let accountDeployerAddress: string
     before(async function () {
       DeterministicDeployer.init(ethers.provider)
-      accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+      accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountFactory__factory.bytecode)
 
       const smartAccountAPI = new SimpleAccountAPI({
         provider,
@@ -163,14 +162,18 @@ describe('UserOpMethodHandler', function () {
     it('should send UserOperation transaction to entryPoint', async function () {
       const userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
 
-      //sendUserOperation is async, even in auto-mining. need to wait for it.
-      const event = await waitFor( ()=> entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret=>ret?.[0]))
+      // sendUserOperation is async, even in auto-mining. need to wait for it.
+      const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
 
       const transactionReceipt = await event.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
-      const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
-      const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[1])
-      const userOperationEvent = entryPoint.interface.parseLog(transactionReceipt.logs[2])
+
+      const deployedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
+      const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[1])
+      const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[2])
+      const userOperationEvent = entryPoint.interface.parseLog(transactionReceipt.logs[3])
+
+      assert.equal(deployedEvent.args.sender, userOperation.sender)
       assert.equal(userOperationEvent.name, 'UserOperationEvent')
       assert.equal(userOperationEvent.args.success, true)
 
@@ -199,7 +202,7 @@ describe('UserOpMethodHandler', function () {
         await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
         throw Error('expected fail')
       } catch (e: any) {
-        expect(e.message).to.match(/account didn't pay prefund/)
+        expect(e.message).to.match(/AA21 didn't pay prefund/)
       }
     })
 
@@ -302,7 +305,7 @@ describe('UserOpMethodHandler', function () {
     let receipt: UserOperationReceipt
     let acc: TestRuleAccount
     before(async () => {
-      acc = await new TestRuleAccount__factory(signer).deploy()
+      acc = await new TestOpcodesAccount__factory(signer).deploy()
       const op: UserOperationStruct = {
         sender: acc.address,
         initCode: '0x',
@@ -318,7 +321,6 @@ describe('UserOpMethodHandler', function () {
       }
       await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})
-      console.log(2)
       userOpHash = await entryPoint.getUserOpHash(op)
       const beneficiary = signer.getAddress()
       await entryPoint.handleOps([op], beneficiary).then(async ret => await ret.wait())
