@@ -9,9 +9,6 @@ import { isGeth, parseScannerResult } from '../opcodeScanner'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
-import Debug from 'debug'
-
-const debug = Debug('aa.validator')
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -73,6 +70,7 @@ export class ValidationManager {
       if (paymaster === AddressZero) {
         paymaster = undefined
       }
+      // eslint-disable-next-line
       const msg: string = errorResult.args.reason ?? errorResult.toString()
       if (paymaster == null) {
         throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
@@ -91,7 +89,7 @@ export class ValidationManager {
     const paymaster = getAddr(userOp.paymasterAndData)
 
     if (paymaster != null) {
-      paymasterInfo = {...paymasterInfo, paymaster }
+      paymasterInfo = { ...paymasterInfo, paymaster }
     } else {
       paymasterInfo = undefined
     }
@@ -124,7 +122,7 @@ export class ValidationManager {
     }
     const data = (lastResult as ExitInfo).data
     try {
-      const {name, args} = this.entryPoint.interface.parseError(data)
+      const { name, args } = this.entryPoint.interface.parseError(data)
       const errName = `${name}(${args.toString()})`
       const errorResult = this._parseErrorResult(userOp, {
         name, args
@@ -133,9 +131,9 @@ export class ValidationManager {
         // a real error, not a result.
         throw new Error(errName)
       }
-      console.log('opcodes=', ...Object.keys(tracerResult.numberLevels).map(k=>tracerResult.numberLevels[k].opcodes))
+      console.log('opcodes=', ...Object.keys(tracerResult.numberLevels).map(k => tracerResult.numberLevels[k].opcodes))
       return [errorResult, tracerResult]
-    } catch (e:any) {
+    } catch (e: any) {
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
       const err = decodeErrorReason(data)
       throw new Error(err != null ? err.message : data)

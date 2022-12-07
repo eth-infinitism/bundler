@@ -36,7 +36,6 @@ export async function postExecutionCheck (entryPoint: EntryPoint, userOpHash: st
   const userOp = await resolveProperties(ops[0] as UserOperationStruct)
   const {
     actualGasUsed,
-    actualGasCost,
     success
   } = req[0].args
   const gasPaid = actualGasUsed.toNumber()

@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { JsonRpcProvider } from '@ethersproject/providers'
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
@@ -53,11 +54,11 @@ export function mapOf<T> (keys: Iterable<string>, mapper: (key: string) => T, fi
   return ret
 }
 
-export async function sleep (sleeptime: number) {
+export async function sleep (sleeptime: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, sleeptime))
 }
 
-export async function waitFor<T> (func: () => T | undefined, timeout = 10000, interval = 500) {
+export async function waitFor<T> (func: () => T | undefined, timeout = 10000, interval = 500): void {
   const endTime = Date.now() + timeout
   while (true) {
     const ret = await func()
@@ -65,8 +66,18 @@ export async function waitFor<T> (func: () => T | undefined, timeout = 10000, in
       return ret
     }
     if (Date.now() > endTime) {
-      throw new Error('Timed out waiting for' + func)
+      throw new Error(`Timed out waiting for ${func as unknown as string}`)
     }
     await sleep(interval)
   }
+}
+
+export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
+  const p = provider.send as any
+  if (p._clientVersion == null) {
+    p._clientVersion = await provider.send('web3_clientVersion', [])
+  }
+
+  // debug('client version', p._clientVersion)
+  return p._clientVersion?.match('Geth') != null
 }

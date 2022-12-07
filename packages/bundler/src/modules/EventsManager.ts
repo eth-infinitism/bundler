@@ -33,13 +33,13 @@ export class EventsManager {
    * manually handle all new events since last run
    */
   async handlePastEvents (): Promise<void> {
-    const events = await this.entryPoint.queryFilter({address: this.entryPoint.address}, this.lastBlock)
+    const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, this.lastBlock)
     for (const ev of events) {
       await this.handleEvent(ev)
     }
   }
 
-  async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorForUserOperationsEvent ): Promise<void> {
+  async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorForUserOperationsEvent): Promise<void> {
     switch (ev.event) {
       case 'UserOperationEventEvent':
         this.handleUserOperationEvent(ev as any)
@@ -53,7 +53,7 @@ export class EventsManager {
     }
   }
 
-  handleAggregatorChangedEvent(ev: SignatureAggregatorForUserOperationsEvent) {
+  handleAggregatorChangedEvent (ev: SignatureAggregatorForUserOperationsEvent): void {
     debug('handle ', ev.event, ev.args.aggregator)
     this.eventAggregator = ev.args.aggregator
     this.eventAggregatorTxHash = ev.transactionHash
@@ -64,8 +64,8 @@ export class EventsManager {
 
   // aggregator event is sent once per events bundle for all UserOperationEvents in this bundle.
   // it is not sent at all if the transaction is handleOps
-  getEventAggregator(ev: TypedEvent): string | null {
-    if (ev.transactionHash != this.eventAggregatorTxHash) {
+  getEventAggregator (ev: TypedEvent): string | null {
+    if (ev.transactionHash !== this.eventAggregatorTxHash) {
       this.eventAggregator = null
       this.eventAggregatorTxHash = ev.transactionHash
     }
@@ -73,18 +73,18 @@ export class EventsManager {
   }
 
   // AccountDeployed event is sent before each UserOperationEvent that deploys a contract.
-  handleAccountDeployedEvent(ev: AccountDeployedEvent) {
+  handleAccountDeployedEvent (ev: AccountDeployedEvent): void {
     this._includedAddress(ev.args.factory)
   }
 
-  handleUserOperationEvent(ev: UserOperationEventEvent) {
+  handleUserOperationEvent (ev: UserOperationEventEvent): void {
     this._includedAddress(ev.args.sender)
     this._includedAddress(ev.args.paymaster)
     this._includedAddress(this.getEventAggregator(ev))
   }
 
   _includedAddress (data: string | null): void {
-    if (data!=null && data.length > 42) {
+    if (data != null && data.length > 42) {
       const addr = data.slice(0, 42)
       this.reputationManager.updateIncludedStatus(addr)
     }

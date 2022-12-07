@@ -12,7 +12,7 @@ import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  SampleRecipient, TestRuleAccount__factory, TestRuleAccount, TestOpcodesAccount__factory
+  SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory
 } from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'

@@ -1,6 +1,6 @@
-import { EntryPoint, EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { ErrorFragment, hexZeroPad, keccak256, resolveProperties } from 'ethers/lib/utils'
+import { hexZeroPad, keccak256, resolveProperties } from 'ethers/lib/utils'
 import { BigNumber, ethers } from 'ethers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo, MethodInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
@@ -9,7 +9,7 @@ import { requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
-import { getAddr, UserOperation } from './modules/moduleUtils'
+import { UserOperation } from './modules/moduleUtils'
 import { ValidationErrors } from './modules/ValidationManager'
 const debug = Debug('aa.handler.opcodes')
 
@@ -48,8 +48,7 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
       const data = (last as ExitInfo).data
       const sighash = data.slice(0, 10)
       try {
-        const xface =new ethers.utils.Interface([...entryPoint.interface.errors as any, 'Error(string)'])
-        //find sighash in errors of entryPoint (FailedOp, SimulationResult, etc)
+        // find sighash in errors of entryPoint (FailedOp, SimulationResult, etc)
         const errorFragment = entryPoint.interface.getError(sighash)
 
         const errParams = entryPoint.interface.decodeErrorResult(errorFragment, data)
@@ -58,7 +57,7 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
           // a real error, not a result.
           throw new Error(errName)
         }
-      } catch (e:any) {
+      } catch (e: any) {
         // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
         const err = decodeErrorReason(data)
         throw new Error(err != null ? err.message : data)
@@ -70,24 +69,23 @@ export async function opcodeScanner (userOp1: UserOperationStruct, entryPoint: E
   return result
 }
 
-export function parseScannerResult (userOp: UserOperation, result: BundlerCollectorReturn, entryPoint: EntryPoint) {
+export function parseScannerResult (userOp: UserOperation, result: BundlerCollectorReturn, entryPoint: EntryPoint): void {
   debug('=== simulation result:', inspect(result, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  const paymaster = getAddr(userOp.paymasterAndData)
   if (Object.values(result.numberLevels).length < 2) {
     // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
     // console.log('debug=', result.debug)
     throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
   }
   const handleOpsMethodSig = entryPoint.interface.getSighash('innerHandleOp')
-  result.calls.forEach(call=>{
+  result.calls.forEach(call => {
     if (call.type.includes('CALL')) {
       const call1 = call as MethodInfo
-      requireCond(entryPoint.address != call1.to || call1.method != handleOpsMethodSig.toString(),
+      requireCond(entryPoint.address !== call1.to || call1.method !== handleOpsMethodSig.toString(),
         'Must not make recursive call to handleOps', ValidationErrors.OpcodeValidation)
     }
   })
@@ -112,8 +110,8 @@ export function parseScannerResult (userOp: UserOperation, result: BundlerCollec
     Object.keys(opcodes).forEach(opcode =>
       requireCond(!bannedOpCodes.has(opcode), `${entity} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
     )
-    if (entity == 'factory') {
-      requireCond((opcodes.CREATE2 ?? 0) <= 1, '${entity} with too many CREATE2', ValidationErrors.OpcodeValidation)
+    if (entity === 'factory') {
+      requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entity} with too many CREATE2`, ValidationErrors.OpcodeValidation)
     } else {
       requireCond(opcodes.CREATE2 == null, `${entity} uses banned opcode: CREATE2`, ValidationErrors.OpcodeValidation)
     }
@@ -131,8 +129,6 @@ export function parseScannerResult (userOp: UserOperation, result: BundlerCollec
       Object.keys(reads).forEach(slot => requireCond(accountSlots.has(slot), `${entity} has forbidden read from addr ${addr}  slot ${slot}`), ValidationErrors.OpcodeValidation)
     })
 
-    //TODO: need to check "staked" rules: allow entity to access storage of itself
+    // TODO: need to check "staked" rules: allow entity to access storage of itself
   })
-
-  return result
 }

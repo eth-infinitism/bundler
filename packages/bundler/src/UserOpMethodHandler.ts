@@ -7,13 +7,10 @@ import { AddressZero, deepHexlify } from '@account-abstraction/utils'
 import { EntryPoint__factory, UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { requireCond, RpcError } from './utils'
+import { requireCond } from './utils'
 import { CallUserOperationResult, EstimateUserOpGasResult, UserOperationReceipt } from './RpcTypes'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr } from './modules/moduleUtils'
-import Debug from 'debug'
-
-const debug = Debug('aa.handler.userop')
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -156,7 +153,7 @@ export class UserOpMethodHandler {
    * @param userOp1
    * @param entryPointInput
    */
-/*
+  /*
   async _simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string): Promise<void> {
     const userOp = deepHexlify(await resolveProperties(userOp1))
 

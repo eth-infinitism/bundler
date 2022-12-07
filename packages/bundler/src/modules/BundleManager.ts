@@ -39,7 +39,7 @@ export class BundleManager {
       debug('sendNextBundle')
 
       const bundle = await this.createBundle()
-      if (bundle.length == 0) {
+      if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()

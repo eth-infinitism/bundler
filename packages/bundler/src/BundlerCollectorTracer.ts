@@ -5,8 +5,9 @@
 
 import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from './GethTracer'
 
-// toHex is available in a context of geth tracer
+// functions available in a context of geth tracer
 declare function toHex (a: any): string
+declare function toAddress (a: any): string
 
 /**
  * return type of our BundlerCollectorTracer.
@@ -106,7 +107,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      const addr = frame.getTo()
       this.debug.push(`enter gas=${frame.getGas()} type=${frame.getType()} to=${toHex(frame.getTo())} in=${toHex(frame.getInput()).slice(0, 500)}`)
       this.calls.push({
         type: frame.getType(),
@@ -167,15 +167,13 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           this.countSlot(this.currentLevel.opcodes, opcode)
         }
       }
-  if(false) {
       if (opcode.startsWith('EXT') || opcode.includes('CALL') || this.lastOp === 'CREATE2') {
         const idx = opcode.startsWith('EXT') ? 0 : 1
-        const addr = '0x' + log.stack.peek(idx).toString(16)
+        const addr = toAddress(log.stack.peek(idx).toString(16))
         if (this.contractSize[addr] == null) {
           this.contractSize[addr] = db.getCode(addr).length()
         }
       }
-}
 
       this.lastOp = opcode
 

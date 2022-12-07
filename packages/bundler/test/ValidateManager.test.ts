@@ -10,7 +10,7 @@ import {
   TestOpcodesAccount,
   TestOpcodesAccount__factory
 } from '../src/types'
-import { isGeth, } from '../src/opcodeScanner'
+import { isGeth } from '../src/opcodeScanner'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
 import { UserOperation } from '../src/modules/moduleUtils'

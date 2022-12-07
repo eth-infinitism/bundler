@@ -10,7 +10,7 @@ export class DebugMethodHandler {
   ) {
   }
 
-  setBundleInterval (interval: number | 'manual' | 'auto', maxPoolSize = 100) {
+  setBundleInterval (interval: number | 'manual' | 'auto', maxPoolSize = 100): void {
     if (interval == null) {
       throw new Error('must specify interval <number>|manual|auto')
     }
