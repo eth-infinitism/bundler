@@ -18,14 +18,13 @@ export interface BundlerCollectorReturn {
   /**
    * storage and opcode info, collected between "NUMBER" opcode calls (which is used as our "level marker")
    */
-  numberLevels: { [numberOpcodeLevel: string]: NumberLevelInfo }
+  numberLevels:NumberLevelInfo[]
   /**
    * values passed into KECCAK opcode
    */
   keccak: string[]
   calls: Array<ExitInfo | MethodInfo>
   logs: LogInfo[]
-  contractSize: { [addr: string]: number }
   debug: any[]
 }
 
@@ -47,6 +46,7 @@ export interface ExitInfo {
 export interface NumberLevelInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
+  contractSize: { [addr: string]: number }
 }
 
 export interface AccessInfo {
@@ -82,7 +82,7 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
  */
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
   return {
-    numberLevels: {},
+    numberLevels: [],
     currentLevel: null as any,
     keccak: [],
     calls: [],
@@ -90,13 +90,12 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     debug: [],
     lastOp: '',
     numberCounter: 0,
-    contractSize: {},
 
     fault (log: LogStep, db: LogDb): void {
       this.debug.push(`fault depth=${log.getDepth()} gas=${log.getGas()} cost=${log.getCost()} err=${log.getError()}`)
     },
 
-    result (ctx: LogContext, db: LogDb): any {
+    result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
         numberLevels: this.numberLevels,
         keccak: this.keccak,
@@ -150,8 +149,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         if (opcode === 'NUMBER') this.numberCounter++
         if (this.numberLevels[this.numberCounter] == null) {
           this.currentLevel = this.numberLevels[this.numberCounter] = {
+            level: this.numberCounter,
             access: {},
-            opcodes: {}
+            opcodes: {},
+            contractSize: {}
           }
         }
         return
@@ -167,11 +168,13 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           this.countSlot(this.currentLevel.opcodes, opcode)
         }
       }
-      if (opcode.startsWith('EXT') || opcode.includes('CALL') || this.lastOp === 'CREATE2') {
+      if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL|CREATE2)$/) != null) {
+        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length())
         const idx = opcode.startsWith('EXT') ? 0 : 1
         const addr = toAddress(log.stack.peek(idx).toString(16))
-        if (this.contractSize[addr] == null) {
-          this.contractSize[addr] = db.getCode(addr).length()
+        const addrHex = toHex(addr)
+        if (this.currentLevel.contractSize[addrHex] == null) {
+          this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
         }
       }
 

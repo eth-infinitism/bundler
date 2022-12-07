@@ -131,7 +131,7 @@ export class ValidationManager {
         // a real error, not a result.
         throw new Error(errName)
       }
-      console.log('opcodes=', ...Object.keys(tracerResult.numberLevels).map(k => tracerResult.numberLevels[k].opcodes))
+      console.log('==debug=', tracerResult.numberLevels)
       return [errorResult, tracerResult]
     } catch (e: any) {
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
