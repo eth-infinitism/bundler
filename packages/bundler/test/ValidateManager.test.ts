@@ -72,7 +72,6 @@ describe('#ValidationManager', () => {
   const ethersSigner = provider.getSigner()
 
   before(async function () {
-    ethers.provider = ethers.getDefaultProvider('http://localhost:8545') as any
     entryPoint = await new EntryPoint__factory(ethersSigner).deploy()
     paymaster = await new TestOpcodesAccount__factory(ethersSigner).deploy()
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
@@ -102,7 +101,7 @@ describe('#ValidationManager', () => {
   it('should fail with bad opcode in ctr', async () => {
     expect(
       await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase']))
-      .catch(e => e.message)).to.match(/factory uses banned opcode: COINBASE/)
+        .catch(e => e.message)).to.match(/factory uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in paymaster', async () => {
     expect(await testUserOp('', 'coinbase', undefined)
@@ -121,7 +120,7 @@ describe('#ValidationManager', () => {
   })
   it('should fail if referencing other token balance', async () => {
     expect(await testUserOp('balance-1', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
-      .catch(e=>e.message))
+      .catch(e => e.message))
       .to.match(/account has forbidden read/)
   })
 

@@ -69,10 +69,7 @@ export class ValidationManager {
         paymaster = undefined
       }
       // eslint-disable-next-line
-      const e = errorResult as any
-      const msg: string = errorResult.errorArgs?.reason ?? e.errorName != null ?
-        e.errorName + '(' + e.errorArgs + ')' :
-        e.toString()
+      const msg: string = errorResult.errorArgs?.reason ?? errorResult.toString()
 
       if (paymaster == null) {
         throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
@@ -99,9 +96,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-          ...info,
-          addr
-        }
+            ...info,
+            addr
+          }
     }
 
     return {
@@ -178,11 +175,11 @@ export class ValidationManager {
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       parseScannerResult(userOp, tracerResult, res, this.entryPoint)
     } else {
-      //NOTE: this mode doesn't do any opcode checking and no stake checking!
+      // NOTE: this mode doesn't do any opcode checking and no stake checking!
       res = await this._callSimulateValidation(userOp)
     }
 
-    requireCond(res.deadline==null || res.deadline + 30 < Date.now() / 1000,
+    requireCond(res.deadline == null || res.deadline + 30 < Date.now() / 1000,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
