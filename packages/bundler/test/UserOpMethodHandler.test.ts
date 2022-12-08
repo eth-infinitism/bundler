@@ -221,27 +221,6 @@ describe('UserOpMethodHandler', function () {
         })
         const id = await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
 
-        // {
-        //   console.log('wrong method')
-        //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
-        //     data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld + helloWorld + helloWorld + helloWorld + helloWorld]).padEnd(2000, '1'),
-        //     target: accountAddress,
-        //     gasLimit: 1e6
-        //
-        //   }), entryPoint.address)
-        // }
-        //
-        // {
-        //   console.log('self nonce')
-        //   const data = keccak256(Buffer.from('nonce()')).slice(0, 10)
-        //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
-        //     data: data,
-        //     target: accountAddress,
-        //     gasLimit: 1e6
-        //
-        //   }), entryPoint.address)
-        // }
-
         await postExecutionDump(entryPoint, id)
       })
       it('should reject if doesn\'t pay enough', async () => {
