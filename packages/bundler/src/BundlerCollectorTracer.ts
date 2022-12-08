@@ -7,6 +7,7 @@ import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } f
 
 // functions available in a context of geth tracer
 declare function toHex (a: any): string
+
 declare function toAddress (a: any): string
 
 /**
@@ -18,7 +19,7 @@ export interface BundlerCollectorReturn {
   /**
    * storage and opcode info, collected between "NUMBER" opcode calls (which is used as our "level marker")
    */
-  numberLevels:NumberLevelInfo[]
+  numberLevels: NumberLevelInfo[]
   /**
    * values passed into KECCAK opcode
    */
@@ -131,11 +132,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
-      this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth()+'-'+ log.getGas()+'-'+log.getCost())
-      if (log.getGas()< log.getCost()) {
+      // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth() + '-' + log.getGas() + '-' + log.getCost())
+      if (log.getGas() < log.getCost()) {
         this.currentLevel.oog = true
       }
-
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
         const ofs = parseInt(log.stack.peek(0).toString())

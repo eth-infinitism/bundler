@@ -36,7 +36,7 @@ export class ExecutionManager {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp)
-      this.mempoolManager.addUserOp(userOp, validationResult.prefund, validationResult.aggregatorInfo?.actualAggregator)
+      this.mempoolManager.addUserOp(userOp, validationResult.prefund, validationResult.aggregatorInfo?.addr)
       this.attemptBundle(false)
     })
   }
@@ -73,10 +73,10 @@ export class ExecutionManager {
    * attempt to send a bundle now.
    * @param force
    */
-  attemptBundle (force = true): void {
+  async attemptBundle (force = true): Promise<void> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
-      void this.bundleManager.sendNextBundle()
+      await this.bundleManager.sendNextBundle()
     }
   }
 }

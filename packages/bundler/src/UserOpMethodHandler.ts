@@ -106,8 +106,10 @@ export class UserOpMethodHandler {
 
     const userOp = {
       ...await resolveProperties(userOp1),
+
+      // default values for missing fields.
       paymasterAndData: '0x',
-      signature: '0x'.padEnd(66 * 2, '1b'), // TODO: each wallet has to put in a signature in the correct size
+      signature: '0x'.padEnd(66 * 2, '1b'), // TODO: each wallet has to put in a signature in the correct length
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
       preVerificationGas: 0,
@@ -146,33 +148,6 @@ export class UserOpMethodHandler {
     }
   }
 
-  /**
-   * simulate UserOperation.
-   * Note that simulation requires debug API:
-   * - debug_traceCall, to trace the call.
-   * @param userOp1
-   * @param entryPointInput
-   */
-  /*
-  async _simulateUserOp (userOp1: UserOperationStruct, entryPointInput: string): Promise<void> {
-    const userOp = deepHexlify(await resolveProperties(userOp1))
-
-    await this._validateParameters(userOp, entryPointInput, true)
-
-    const revert = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
-    // simulation always reverts. SimulateResult is a valid response with no error
-    if (revert.errorName === 'FailedOp') {
-      let data: any
-      if (revert.errorArgs.paymaster !== AddressZero) {
-        data = { paymaster: revert.errorArgs.paymaster }
-      }
-      throw new RpcError(revert.errorArgs.reason, -32500, data)
-    }
-    if (await isGeth(this.provider as JsonRpcProvider)) {
-      await opcodeScanner(userOp1, this.entryPoint)
-    }
-  }
-*/
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
     await this._validateParameters(userOp1, entryPointInput)
 

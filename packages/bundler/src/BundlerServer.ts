@@ -146,8 +146,11 @@ export class BundlerServer {
       case 'eth_getUserOperationReceipt':
         result = await this.methodHandler.getUserOperationReceipt(params[0])
         break
+      case 'aa_version':
+        result = this.debugHandler.getAAVersion()
+        break
       case 'aa_clearState':
-        result = await this.debugHandler.clearState()
+        result = this.debugHandler.clearState()
         break
       case 'aa_dumpMempool':
         result = await this.debugHandler.dumpMempool()

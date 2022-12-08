@@ -1,11 +1,11 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
-import { BigNumber, BigNumberish, ethers } from 'ethers'
+import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { getAddr, UserOperation } from './moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { isGeth, parseScannerResult } from '../opcodeScanner'
+import { isGeth, parseScannerResult } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
@@ -31,22 +31,17 @@ export interface ValidationResult {
   preOpGas: BigNumberish
   prefund: BigNumberish
   deadline: number
-  // paymasterInfo exists only if there was a paymaster in the request
-  paymasterInfo?: PaymasterInfo
-  // aggregatorInfo is filled only if the wallet has an aggregator.
-  aggregatorInfo?: AggregationInfo
+
+  senderInfo: StakeInfo
+  factoryInfo?: StakeInfo
+  paymasterInfo?: StakeInfo
+  aggregatorInfo?: StakeInfo
 }
 
-export interface AggregationInfo {
-  actualAggregator: string
-  aggregatorStake: BigNumberish
-  aggregatorUnstakeDelay: BigNumberish
-}
-
-export interface PaymasterInfo {
-  paymaster?: string // NOTE: filled locally from userOp. not received directly from validate
-  paymasterStake: BigNumberish
-  paymasterUnstakeDelay: BigNumber
+export interface StakeInfo {
+  addr: string
+  stake: BigNumberish
+  unstakeDelaySec: BigNumberish
 }
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -65,15 +60,20 @@ export class ValidationManager {
     return this._parseErrorResult(userOp, errorResult)
   }
 
-  _parseErrorResult (userOp: UserOperation, errorResult: { name: string, args: any }): ValidationResult {
-    if (!(errorResult?.name).startsWith('SimulationResult')) {
+  _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
+    if (!(errorResult?.errorName).startsWith('SimulationResult')) {
+      // parse it as FailedOp
       // if its FailedOp, then we have the paymaster... otherwise its an Error(string)
-      let paymaster = errorResult.args.paymaster
+      let paymaster = errorResult.errorArgs.paymaster
       if (paymaster === AddressZero) {
         paymaster = undefined
       }
       // eslint-disable-next-line
-      const msg: string = errorResult.args.reason ?? errorResult.toString()
+      const e = errorResult as any
+      const msg: string = errorResult.errorArgs?.reason ?? e.errorName != null ?
+        e.errorName + '(' + e.errorArgs + ')' :
+        e.toString()
+
       if (paymaster == null) {
         throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
       } else {
@@ -81,30 +81,40 @@ export class ValidationManager {
       }
     }
 
-    let {
+    const {
       preOpGas,
       prefund,
       deadline,
-      aggregatorInfo,
-      paymasterInfo
-    } = errorResult.args
-    const paymaster = getAddr(userOp.paymasterAndData)
+      senderInfo,
+      factoryInfo,
+      paymasterInfo,
+      aggregatorInfo // may be missing (exists only SimulationResultWithAggregator
+    } = errorResult.errorArgs
 
-    if (paymaster != null) {
-      paymasterInfo = {
-        ...paymasterInfo,
-        paymaster
-      }
-    } else {
-      paymasterInfo = undefined
+    // extract address from "data" (first 20 bytes)
+    // add it as "addr" member to the "stakeinfo" struct
+    // if no address, then return "undefined" instead of struct.
+    function fillEntity (data: BytesLike, info: StakeInfo): StakeInfo | undefined {
+      const addr = getAddr(data)
+      return addr == null
+        ? undefined
+        : {
+          ...info,
+          addr
+        }
     }
 
     return {
       preOpGas,
       prefund,
       deadline,
-      paymasterInfo,
-      aggregatorInfo
+      senderInfo: {
+        ...senderInfo,
+        addr: userOp.sender
+      },
+      factoryInfo: fillEntity(userOp.initCode, factoryInfo),
+      paymasterInfo: fillEntity(userOp.paymasterAndData, paymasterInfo),
+      aggregatorInfo: fillEntity(aggregatorInfo?.actualAggregator, aggregatorInfo?.stakeInfo)
     }
   }
 
@@ -128,22 +138,22 @@ export class ValidationManager {
     const data = (lastResult as ExitInfo).data
     try {
       const {
-        name,
-        args
+        name: errorName,
+        args: errorArgs
       } = this.entryPoint.interface.parseError(data)
-      const errName = `${name}(${args.toString()})`
+      const errFullName = `${errorName}(${errorArgs.toString()})`
       const errorResult = this._parseErrorResult(userOp, {
-        name,
-        args
+        errorName,
+        errorArgs
       })
-      if (!name.includes('Result')) {
+      if (!errorName.includes('Result')) {
         // a real error, not a result.
-        throw new Error(errName)
+        throw new Error(errFullName)
       }
-      debug('==dump tree=', JSON.stringify(tracerResult,null,2)
+      debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
-        .replace(new RegExp(getAddr(userOp.paymasterAndData) ??'--no-paymaster--'), '{paymaster}')
-        .replace(new RegExp(getAddr(userOp.initCode) ??'--no-initcode--'), '{factory}')
+        .replace(new RegExp(getAddr(userOp.paymasterAndData) ?? '--no-paymaster--'), '{paymaster}')
+        .replace(new RegExp(getAddr(userOp.initCode) ?? '--no-initcode--'), '{factory}')
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       return [errorResult, tracerResult]
@@ -161,27 +171,22 @@ export class ValidationManager {
    * @param userOp
    */
   async validateUserOp (userOp: UserOperation, checkStakes = true): Promise<ValidationResult> {
-    const paymaster = getAddr(userOp.paymasterAndData)
-    const deployer = getAddr(userOp.initCode)
-
-    await this._checkStake('paymaster', paymaster)
-    await this._checkStake('deployer', deployer)
-
     // TODO: use traceCall
     let res: ValidationResult
     if (await isGeth(this.entryPoint.provider as any)) {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
-      parseScannerResult(userOp, tracerResult, this.entryPoint)
+      parseScannerResult(userOp, tracerResult, res, this.entryPoint)
     } else {
+      //NOTE: this mode doesn't do any opcode checking and no stake checking!
       res = await this._callSimulateValidation(userOp)
     }
 
-    requireCond(res.deadline + 30 < Date.now() / 1000,
+    requireCond(res.deadline==null || res.deadline + 30 < Date.now() / 1000,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
-    await this._checkStake('aggregator', res.aggregatorInfo?.actualAggregator)
+    await this._checkStake('aggregator', res.aggregatorInfo?.addr)
 
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',

@@ -3,8 +3,6 @@ import { defaultAbiCoder, hexConcat, hexlify, parseEther } from 'ethers/lib/util
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import {
-  TestCoin,
-  TestCoin__factory,
   TestOpcodesAccountFactory__factory,
   TestOpcodesAccountFactory,
   TestOpcodesAccount,
@@ -12,11 +10,11 @@ import {
   TestStorageAccountFactory,
   TestStorageAccountFactory__factory
 } from '../src/types'
-import { isGeth } from '../src/opcodeScanner'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
 import { UserOperation } from '../src/modules/moduleUtils'
 import { decodeErrorReason } from '@account-abstraction/utils'
+import { isGeth } from '../src/utils'
 
 describe('#ValidationManager', () => {
   let vm: ValidationManager
@@ -25,7 +23,6 @@ describe('#ValidationManager', () => {
 
   let paymaster: TestOpcodesAccount
   let entryPoint: EntryPoint
-  let token: TestCoin
 
   async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<void> {
     await vm.validateUserOp(await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress))
@@ -47,12 +44,12 @@ describe('#ValidationManager', () => {
     } else {
       signature = hexlify(Buffer.from(validateRule))
     }
-    let callinitCodeForAddr = await provider.call({
+    const callinitCodeForAddr = await provider.call({
       to: factoryAddress,
       data: initFunc
     })
-    //todo: why "call" above doesn't throw on error ?!?!
-    if (decodeErrorReason(callinitCodeForAddr)?.message!=null) {
+    // todo: why "call" above doesn't throw on error ?!?!
+    if (decodeErrorReason(callinitCodeForAddr)?.message != null) {
       throw new Error(decodeErrorReason(callinitCodeForAddr)?.message)
     }
     const [sender] = defaultAbiCoder.decode(['address'], callinitCodeForAddr)
@@ -82,7 +79,6 @@ describe('#ValidationManager', () => {
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
     opcodeFactory = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
     storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy()
-    token = await new TestCoin__factory(ethersSigner).deploy()
 
     const reputationManager = new ReputationManager({
       minInclusionDenominator: 1,
@@ -104,7 +100,8 @@ describe('#ValidationManager', () => {
       .catch(e => e.message)).to.match(/unknown rule/)
   })
   it('should fail with bad opcode in ctr', async () => {
-    expect(await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase']))
+    expect(
+      await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase']))
       .catch(e => e.message)).to.match(/factory uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in paymaster', async () => {
@@ -133,7 +130,7 @@ describe('#ValidationManager', () => {
   })
   it('should fail with inner oog revert', async () => {
     expect(await testUserOp('oog', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
-      .catch(e=>e.message))
+      .catch(e => e.message))
       .to.match(/oog/)
   })
 })

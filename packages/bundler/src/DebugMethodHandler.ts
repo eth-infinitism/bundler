@@ -25,11 +25,11 @@ export class DebugMethodHandler {
     }
   }
 
-  sendBundleNow (): void {
-    this.execManager.attemptBundle(true)
+  async sendBundleNow (): Promise<void> {
+    await this.execManager.attemptBundle(true)
   }
 
-  async clearState (): Promise<void> {
+  clearState (): void {
     this.mempoolMgr.clearState()
     this.repManager.clearState()
   }
@@ -47,5 +47,10 @@ export class DebugMethodHandler {
 
   dumpReputation (): ReputationDump {
     return this.repManager.dump()
+  }
+
+  getAAVersion (): string {
+    // eslint-disable-next-line
+    return 'aa-bundler-' + require('../package.json').version
   }
 }
