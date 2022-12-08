@@ -198,7 +198,7 @@ export class UserOpMethodHandler {
     }
     const receipt = await event.getTransactionReceipt()
     const logs = this._filterLogs(event, receipt.logs)
-    return {
+    return deepHexlify({
       userOpHash,
       sender: event.args.sender,
       nonce: event.args.nonce,
@@ -207,6 +207,6 @@ export class UserOpMethodHandler {
       success: event.args.success,
       logs,
       receipt
-    }
+    })
   }
 }

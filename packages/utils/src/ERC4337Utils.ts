@@ -237,7 +237,7 @@ export function deepHexlify (obj: any): any {
   if (obj == null || typeof obj === 'string' || typeof obj === 'boolean') {
     return obj
   } else if (obj._isBigNumber != null || typeof obj !== 'object') {
-    return hexlify(obj)
+    return hexlify(obj).replace(/^0x0/, '0x')
   }
   if (Array.isArray(obj)) {
     return obj.map(member => deepHexlify(member))

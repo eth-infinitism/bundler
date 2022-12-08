@@ -37,7 +37,7 @@ export class ExecutionManager {
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp)
       this.mempoolManager.addUserOp(userOp, validationResult.prefund, validationResult.aggregatorInfo?.addr)
-      this.attemptBundle(false)
+      await this.attemptBundle(false)
     })
   }
 
