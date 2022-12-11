@@ -54,7 +54,7 @@ contract TestRuleAccount is IAccount, IPaymaster {
     }
 
     function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256)
-    external virtual override returns (bytes memory context, uint256 deadline) {
+    public virtual override returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         runRule(rule);
         return ("", 0);

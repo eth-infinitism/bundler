@@ -1,17 +1,33 @@
-import { EntryPoint } from '@account-abstraction/contracts'
+import {
+  EntryPoint,
+  IAggregatedAccount__factory, IEntryPoint__factory,
+  IPaymaster__factory, SenderCreator__factory
+} from '@account-abstraction/contracts'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { hexZeroPad, keccak256 } from 'ethers/lib/utils'
+import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { BundlerCollectorReturn, MethodInfo } from './BundlerCollectorTracer'
 import { requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
 import { UserOperation } from './modules/moduleUtils'
-import { ValidationErrors, ValidationResult } from './modules/ValidationManager'
+import { StakeInfo, ValidationErrors, ValidationResult } from './modules/ValidationManager'
 import { BigNumber } from 'ethers'
+import {
+  TestStorageAccountFactory__factory,
+  TestStorageAccount__factory
+} from '../src/types/factories/contracts/tests/TestStorageAccount.sol'
+import {
+  TestOpcodesAccountFactory__factory,
+  TestOpcodesAccount__factory
+} from './types/factories/contracts/tests/TestOpcodesAccount.sol'
 
 const debug = Debug('aa.handler.opcodes')
 
+/**
+ * helper method: check if currently connected node is geth.
+ * @param provider
+ */
 export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
@@ -22,43 +38,115 @@ export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   return p._clientVersion?.match('Geth') != null
 }
 
+interface CallEntry {
+  to: string
+  type: string // call opcode
+  method: string // parsed method, or signash if unparsed
+  revert?: any  // parsed output from REVERT
+  return?: any //parsed method output.
+}
+
 /**
- * parse collected simulation traces and revert if they break our rules
- * @param userOp the userOperation that was used in this simulation
- * @param tracerResults the tracer return value
- * @aaram validationResult output from simulateValidation
- * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
+ * parse all call operation in the trace.
+ * notes:
+ * - entries are ordered by the return (so nested call appears before its outer call
+ * - last entry is top-level return from "simulateValidation". it as ret and rettype, but no type or address
+ * @param tracerResults
  */
-export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): void {
-  debug('=== simulation result:', inspect(tracerResults, true, 10, true))
-  // todo: block access to no-code addresses (might need update to tracer)
+function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
 
-  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT'])
-
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  if (Object.values(tracerResults.numberLevels).length < 2) {
-    // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
-    // console.log('debug=', result.debug)
-    throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
-  }
-  const handleOpsMethodSig = entryPoint.interface.getSighash('innerHandleOp')
-  tracerResults.calls.forEach(call => {
-    if (call.type.includes('CALL')) {
-      const call1 = call as MethodInfo
-      requireCond(entryPoint.address !== call1.to || call1.method !== handleOpsMethodSig.toString(),
-        'Must not make recursive call to handleOps', ValidationErrors.OpcodeValidation)
+  const abi = Object.values([
+    ...TestOpcodesAccount__factory.abi,
+    ...TestOpcodesAccountFactory__factory.abi,
+    ...TestStorageAccount__factory.abi,
+    ...TestStorageAccountFactory__factory.abi,
+    ...SenderCreator__factory.abi,
+    ...IEntryPoint__factory.abi,
+    ...IPaymaster__factory.abi,
+    ...IAggregatedAccount__factory.abi
+  ].reduce((set, entry) => {
+    let key = entry.name + '(' + entry.inputs.map(i => i.type).join(',') + ')'
+    // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
+    return {
+      ...set,
+      [key]: entry
     }
-  })
+  }, {})) as any
 
-  const sender = userOp.sender.toLowerCase()
-  // stake info per "number" level (factory, sender, paymaster)
-  // we only use stake info if we notice a memory reference that require stake
-  const stakeInfoArray = [validationResult.factoryInfo, validationResult.senderInfo, validationResult.paymasterInfo]
+  const xfaces = new Interface(abi)
+
+  function callCatch<T> (x: () => T, def: T) {
+    try {
+      return x()
+    } catch {
+      return def
+    }
+  }
+
+  const out: CallEntry[] = []
+  const stack: any[] = []
+  tracerResults.calls
+    .filter(x => !x.type.startsWith('depth'))
+    .map(c => {
+      if (c.type.match(/REVERT|RETURN/)) {
+        const top = stack.splice(-1)[0] ?? {
+          type: 'top',
+          method: 'simulateValidation'
+        }
+        let returnData = (c as any).data
+        if (top.type.match(/CREATE/)) {
+          out.push({
+            to: top.to,
+            type: top.type,
+            method: '',
+            return: `len=${returnData.length}`
+          })
+        } else {
+          let method: any
+          method = callCatch(() => xfaces.getFunction(top.method), top.method)
+          if (c.type == 'REVERT') {
+            const parsedError = callCatch(() => xfaces.parseError(returnData), returnData)
+            out.push({
+              to: top.to,
+              type: top.type,
+              method: method.name,
+              revert: parsedError
+            })
+          } else {
+            const ret = callCatch(() => xfaces.decodeFunctionResult(method, returnData), returnData)
+            out.push({
+              to: top.to,
+              type: top.type,
+              method: method.name,
+              return: ret
+            })
+          }
+        }
+      } else {
+        stack.push(c)
+      }
+    })
+
+  //TODO: verify that stack is empty at the end.
+
+  return out
+}
+
+/**
+ * slots associated with each entity.
+ * keccak( A || ...) is associated with "A"
+ * keccak( ... || ASSOC ) (for a previously associated hash) is also associated with "A"
+ *  
+ * @param stakeInfoArray stake info for (factory, account, paymaster). factory and paymaster can be null.
+ * @param keccak array of buffers that were given to keccak in the transaction
+ */
+function parseEntitySlots (stakeInfoArray: (StakeInfo | undefined)[], keccak: string[]): { [addr: string]: Set<string> } {
 
   // for each entity (sender, factory, paymaster), hold the valid slot addresses
+  // valid: the slot was generated by keccak(entity || ...) or by keccak( ... || OWN) where OWN is previous allowed slot
   const entitySlots: { [addr: string]: Set<string> } = {}
 
-  tracerResults.keccak.forEach(k => {
+  keccak.forEach(k => {
     const value = keccak256(k).slice(2)
     stakeInfoArray.forEach(info => {
       const addr = info?.addr?.toLowerCase()
@@ -78,9 +166,43 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         currentEntitySlots.add(value)
       }
     })
-  });
+  })
 
-  ['factory', 'account', 'paymaster'].forEach((entity, index) => {
+  return entitySlots
+}
+
+/**
+ * parse collected simulation traces and revert if they break our rules
+ * @param userOp the userOperation that was used in this simulation
+ * @param tracerResults the tracer return value
+ * @param validationResult output from simulateValidation
+ * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
+ */
+export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): void {
+  debug('=== simulation result:', inspect(tracerResults, true, 10, true))
+  // todo: block access to no-code addresses (might need update to tracer)
+
+  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT'])
+
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
+  if (Object.values(tracerResults.numberLevels).length < 2) {
+    // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
+    // console.log('debug=', result.debug)
+    throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
+  }
+  const callStack = parseCallStack(tracerResults)
+
+  requireCond(callStack.find(x => x.method === 'handleOps' && x.to === entryPoint.address.toLowerCase()) == null,
+    'Must not make recursive call to handleOps', ValidationErrors.OpcodeValidation)
+
+  const sender = userOp.sender.toLowerCase()
+  // stake info per "number" level (factory, sender, paymaster)
+  // we only use stake info if we notice a memory reference that require stake
+  const stakeInfoArray = [validationResult.factoryInfo, validationResult.senderInfo, validationResult.paymasterInfo]
+
+  const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoArray, tracerResults.keccak);
+
+  ['factory', 'account', 'paymaster'].forEach((entityTitle, index) => {
     const entStakes = stakeInfoArray[index]
     const entityAddr = entStakes?.addr ?? ''
     const currentNumLevel = tracerResults.numberLevels[index]
@@ -88,21 +210,21 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     const access = currentNumLevel.access
 
     requireCond(!(currentNumLevel.oog ?? false),
-      `${entity} internally reverts on oog`, ValidationErrors.OpcodeValidation)
+      `${entityTitle} internally reverts on oog`, ValidationErrors.OpcodeValidation)
     Object.keys(opcodes).forEach(opcode =>
-      requireCond(!bannedOpCodes.has(opcode), `${entity} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
+      requireCond(!bannedOpCodes.has(opcode), `${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
     )
-    if (entity === 'factory') {
-      requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entity} with too many CREATE2`, ValidationErrors.OpcodeValidation)
+    if (entityTitle === 'factory') {
+      requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entityTitle} with too many CREATE2`, ValidationErrors.OpcodeValidation)
     } else {
-      requireCond(opcodes.CREATE2 == null, `${entity} uses banned opcode: CREATE2`, ValidationErrors.OpcodeValidation)
+      requireCond(opcodes.CREATE2 == null, `${entityTitle} uses banned opcode: CREATE2`, ValidationErrors.OpcodeValidation)
     }
 
     Object.entries(access).forEach(([addr, {
       reads,
       writes
     }]) => {
-      // console.log('testing access addr', addr, 'op.sender=', userOp.sender)
+      // testing read/write access on contract "addr"
       if (addr === sender) {
         // allowed to access sender's storage
         return
@@ -117,23 +239,37 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
         } else if (addr === entityAddr) {
-          // accessing storage member entity
+          // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract
           const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
-          requireCond(false, `${entity} has forbidden ${readWrite} addr ${addr} slot ${slot}`, ValidationErrors.OpcodeValidation, { [entity]: entStakes?.addr })
+          requireCond(false, `${entityTitle} has forbidden ${readWrite} addr ${addr} slot ${slot}`, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
-      if (requireStakeSlot != null) {
-        if (entStakes == null) {
-          throw new Error(`internal: ${entity} no entStake, but has storage accesses in ${JSON.stringify(access)}`)
-        }
-        requireCond(BigNumber.from(1).lt(entStakes.stake) && BigNumber.from(1).lt(entStakes.unstakeDelaySec),
-          `unstaked ${entity} accessed addr ${addr} slot ${requireStakeSlot}`, ValidationErrors.OpcodeValidation, { [entity]: entStakes?.addr })
-
-        // TODO: check real minimum stake values
-      }
+      requireCondAndStake(requireStakeSlot != null, entStakes,
+        `unstaked ${entityTitle} accessed addr ${addr} slot ${requireStakeSlot}`)
     })
+
+    if (entityTitle == 'paymaster') {
+      const validatePaymasterUserOp = callStack.find(call => call.method == 'validatePaymasterUserOp' && call.to == entityAddr)
+      const context = validatePaymasterUserOp?.return?.context
+      requireCondAndStake(context != null && context != '0x', entStakes,
+        'paymaster without stake must not return context')
+    }
+
+    //helper method: if condition is true, then entity must be staked.
+    function requireCondAndStake (cond: boolean, entStake: StakeInfo | undefined, failureMessage: string) {
+      if (!cond) {
+        return
+      }
+      if (entStakes == null) {
+        throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
+      }
+      requireCond(BigNumber.from(1).lt(entStakes.stake) && BigNumber.from(1).lt(entStakes.unstakeDelaySec),
+        failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
+
+      // TODO: check real minimum stake values
+    }
   })
 }

@@ -138,15 +138,19 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
-        const ofs = parseInt(log.stack.peek(0).toString())
-        const len = parseInt(log.stack.peek(1).toString())
-        const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 1000)
-        this.debug.push(opcode + ' ' + data)
-        this.calls.push({
-          type: opcode,
-          gasUsed: 0,
-          data
-        })
+        if ( log.getDepth()==1) {
+          //exit() is not called on top-level return/revent, so we reconstruct it
+          // from opcode
+          const ofs = parseInt(log.stack.peek(0).toString())
+          const len = parseInt(log.stack.peek(1).toString())
+          const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 1000)
+          this.debug.push(opcode + ' ' + data)
+          this.calls.push({
+            type: opcode,
+            gasUsed: 0,
+            data
+          })
+        }
       }
 
       if (log.getDepth() === 1) {

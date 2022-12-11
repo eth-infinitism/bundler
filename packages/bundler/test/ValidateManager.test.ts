@@ -8,13 +8,29 @@ import {
   TestOpcodesAccount,
   TestOpcodesAccount__factory,
   TestStorageAccountFactory,
-  TestStorageAccountFactory__factory
+  TestStorageAccountFactory__factory,
+  TestStorageAccount__factory
 } from '../src/types'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
 import { UserOperation } from '../src/modules/moduleUtils'
-import { decodeErrorReason } from '@account-abstraction/utils'
+import { AddressZero, decodeErrorReason, deepHexlify } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
+import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
+
+const cEmptyUserOp: UserOperation = {
+  sender: AddressZero,
+  nonce: 0,
+  paymasterAndData: '0x',
+  signature: '0x',
+  initCode: '0x',
+  callData: '0x',
+  callGasLimit: 0,
+  verificationGasLimit: 50000,
+  maxFeePerGas: 0,
+  maxPriorityFeePerGas: 0,
+  preVerificationGas: 0
+}
 
 describe('#ValidationManager', () => {
   let vm: ValidationManager
@@ -54,17 +70,14 @@ describe('#ValidationManager', () => {
     }
     const [sender] = defaultAbiCoder.decode(['address'], callinitCodeForAddr)
     return {
+      ...cEmptyUserOp,
       sender,
       initCode,
       signature,
-      nonce: 0,
       paymasterAndData,
-      callData: '0x',
       callGasLimit: 1e6,
       verificationGasLimit: 1e6,
       preVerificationGas: 50000,
-      maxFeePerGas: 0,
-      maxPriorityFeePerGas: 0
     }
   }
 
@@ -124,6 +137,38 @@ describe('#ValidationManager', () => {
       .to.match(/account has forbidden read/)
   })
 
+  it('should fail with unstaked paymaster returning context', async () => {
+    const pm = await new TestStorageAccount__factory(ethersSigner).deploy()
+    // await entryPoint.depositTo(pm.address, { value: parseEther('0.1') })
+    // await pm.addStake(entryPoint.address, { value: parseEther('0.1') })
+    const acct = await new TestRecursionAccount__factory(ethersSigner).deploy(entryPoint.address)
+
+    const userOp = {
+      ...cEmptyUserOp,
+      sender: acct.address,
+      paymasterAndData: hexConcat([
+        pm.address,
+        Buffer.from('postOp-context')
+      ])
+    }
+    expect(await vm.validateUserOp(userOp)
+      .then(()=>'should fail', e=>e.message))
+      .to.match(/paymaster without stake must not return context/)
+  })
+
+  it('should fail if validation recursively calls handleOps', async () => {
+    const acct = await new TestRecursionAccount__factory(ethersSigner).deploy(entryPoint.address)
+    const op : UserOperation = {
+      ...cEmptyUserOp,
+      sender: acct.address,
+      signature: hexlify(Buffer.from('handleOps')),
+      preVerificationGas: 50000
+    }
+    expect(
+    await vm.validateUserOp(op)
+      .catch(e=>e.message)
+    ).to.match(/recursive/)
+  })
   it('should succeed with inner revert', async () => {
     expect(await testUserOp('inner-revert', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address))
   })

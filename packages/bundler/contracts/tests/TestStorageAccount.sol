@@ -6,10 +6,6 @@ import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "./TestRuleAccount.sol";
 
-contract Dummy {
-    uint public value = 1;
-}
-
 contract TestCoin {
     mapping(address => uint) balances;
 
@@ -48,6 +44,16 @@ contract TestStorageAccount is TestRuleAccount {
 
     event TestMessage(address eventSender);
 
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    public virtual override returns (bytes memory context, uint256 deadline) {
+        string memory rule = string(userOp.paymasterAndData[20 :]);
+        if (eq(rule, 'postOp-context')) {
+            return ("some-context",0);
+        }
+//        return ("",0);
+        return super.validatePaymasterUserOp(userOp, userOpHash, maxCost);
+    }
+
     function runRule(string memory rule) public virtual override returns (uint) {
         if (eq(rule, "number")) return block.number;
         else if (eq(rule, "balance-self")) return coin.balanceOf(address(this));
@@ -60,15 +66,10 @@ contract TestStorageAccount is TestRuleAccount {
             return 0;
         }
         else if (eq(rule, "oog")) {
-            try coin.wasteGas{gas:50000}() {}
+            try coin.wasteGas{gas : 50000}() {}
             catch {}
             return 0;
         }
-        //        else if (eq(rule, "handleOps")) {
-        //            entryPoint.handleOps([], msg.sender);
-        //            return 0;
-        //        }
-
         return super.runRule(rule);
     }
 }

@@ -7,7 +7,6 @@ import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "./TestRuleAccount.sol";
 
 contract Dummy {
-    uint public value = 1;
 }
 
 
@@ -22,16 +21,14 @@ contract TestOpcodesAccount is TestRuleAccount {
         if (eq(rule, "number")) return block.number;
         else if (eq(rule, "coinbase")) return uint160(address(block.coinbase));
         else if (eq(rule, "blockhash")) return uint(blockhash(0));
-        else if (eq(rule, "create2")) return new Dummy{salt : bytes32(uint(0x1))}().value();
+        else if (eq(rule, "create2")) {
+            new Dummy{salt : bytes32(uint(0x1))}();
+            return 0;
+        }
         else if (eq(rule, "emit-msg")) {
             emit TestMessage(address(this));
             return 0;
         }
-//        else if (eq(rule, "handleOps")) {
-//            entryPoint.handleOps([], msg.sender);
-//            return 0;
-//        }
-
         return super.runRule(rule);
     }
 }
