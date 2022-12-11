@@ -155,6 +155,10 @@ export class ValidationManager {
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       return [errorResult, tracerResult]
     } catch (e: any) {
+      //if already parsed, throw as is
+      if (e.code!=null) {
+        throw e
+      }
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
       const err = decodeErrorReason(data)
       throw new Error(err != null ? err.message : data)
