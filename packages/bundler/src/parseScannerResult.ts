@@ -74,7 +74,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
 
   const xfaces = new Interface(abi)
 
-  function callCatch<T> (x: () => T, def: T): T {
+  function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
     try {
       return x()
     } catch {

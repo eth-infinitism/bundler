@@ -5,7 +5,7 @@ import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 
-import { AddressZero, erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
@@ -101,7 +101,7 @@ export class BundlerServer {
       id
     } = req.body
     try {
-      const result = await this.handleMethod(method, params)
+      const result = deepHexlify(await this.handleMethod(method, params))
       console.log('sent', method, '-', result)
       res.send({
         jsonrpc,
@@ -129,7 +129,7 @@ export class BundlerServer {
       case 'eth_chainId':
         // eslint-disable-next-line no-case-declarations
         const { chainId } = await this.provider.getNetwork()
-        result = hexlify(chainId)
+        result = chainId
         break
       case 'eth_supportedEntryPoints':
         result = await this.methodHandler.getSupportedEntryPoints()
