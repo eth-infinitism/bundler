@@ -137,35 +137,36 @@ export class BundlerServer {
       case 'eth_sendUserOperation':
         result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
-      case 'eth_callUserOperation':
-        result = await this.methodHandler.callUserOperation(params[0], params[1])
-        break
       case 'eth_estimateUserOperationGas':
         result = await this.methodHandler.estimateUserOperationGas(params[0], params[1])
         break
       case 'eth_getUserOperationReceipt':
         result = await this.methodHandler.getUserOperationReceipt(params[0])
         break
-      case 'aa_version':
-        result = this.debugHandler.getAAVersion()
+      case 'web3_clientVersion':
+        result = this.methodHandler.clientVersion()
         break
       case 'aa_clearState':
-        result = this.debugHandler.clearState()
+        this.debugHandler.clearState()
+        result = true
         break
       case 'aa_dumpMempool':
         result = await this.debugHandler.dumpMempool()
         break
       case 'aa_setReputation':
-        result = await this.debugHandler.setReputation(params[0])
+        await this.debugHandler.setReputation(params[0])
+        result = true
         break
       case 'aa_dumpReputation':
         result = await this.debugHandler.dumpReputation()
         break
       case 'aa_setBundleInterval':
-        result = await this.debugHandler.setBundleInterval(params[0], params[1])
+        await this.debugHandler.setBundleInterval(params[0], params[1])
+        return true
         break
       case 'aa_sendBundleNow':
-        result = await this.debugHandler.sendBundleNow()
+        await this.debugHandler.sendBundleNow()
+        return true
         break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)

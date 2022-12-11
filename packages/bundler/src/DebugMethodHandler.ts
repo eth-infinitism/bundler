@@ -48,9 +48,4 @@ export class DebugMethodHandler {
   dumpReputation (): ReputationDump {
     return this.repManager.dump()
   }
-
-  getAAVersion (): string {
-    // eslint-disable-next-line
-    return 'aa-bundler-' + require('../package.json').version
-  }
 }

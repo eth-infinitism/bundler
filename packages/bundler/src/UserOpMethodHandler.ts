@@ -65,38 +65,6 @@ export class UserOpMethodHandler {
   }
 
   /**
-   * eth_callUserOperation RPC api.
-   * @param userOp1
-   * @param entryPointInput
-   */
-  async callUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<CallUserOperationResult> {
-    const userOp = await resolveProperties(userOp1)
-    // TODO: currently performs separately the validation and execution.
-    // should attempt to execute entire UserOp, so it can detect execution code dependency on validatiokn step.
-    const ret = await this.estimateUserOperationGas(userOp1, entryPointInput)
-    let success: boolean
-    let reason: string | undefined
-    try {
-      await this.provider.call({
-        from: entryPointInput,
-        to: userOp.sender,
-        data: userOp.callData,
-        gasLimit: userOp.callGasLimit
-      })
-      success = true
-    } catch (e: any) {
-      success = false
-      reason = e.error?.message ?? e.message
-    }
-
-    return {
-      ...ret as any,
-      success,
-      reason
-    }
-  }
-
-  /**
    * eth_estimateUserOperationGas RPC api.
    * @param userOp1
    * @param entryPointInput
@@ -208,5 +176,9 @@ export class UserOpMethodHandler {
       logs,
       receipt
     })
+  }
+  clientVersion (): string {
+    // eslint-disable-next-line
+    return 'aa-bundler/' + require('../package.json').version
   }
 }

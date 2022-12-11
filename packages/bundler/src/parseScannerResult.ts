@@ -136,7 +136,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
  * slots associated with each entity.
  * keccak( A || ...) is associated with "A"
  * keccak( ... || ASSOC ) (for a previously associated hash) is also associated with "A"
- *  
+ *
  * @param stakeInfoArray stake info for (factory, account, paymaster). factory and paymaster can be null.
  * @param keccak array of buffers that were given to keccak in the transaction
  */
