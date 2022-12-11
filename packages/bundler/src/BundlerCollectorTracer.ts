@@ -138,8 +138,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
-        if ( log.getDepth()==1) {
-          //exit() is not called on top-level return/revent, so we reconstruct it
+        if (log.getDepth() === 1) {
+          // exit() is not called on top-level return/revent, so we reconstruct it
           // from opcode
           const ofs = parseInt(log.stack.peek(0).toString())
           const len = parseInt(log.stack.peek(1).toString())

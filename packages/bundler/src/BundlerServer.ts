@@ -162,11 +162,11 @@ export class BundlerServer {
         break
       case 'aa_setBundleInterval':
         await this.debugHandler.setBundleInterval(params[0], params[1])
-        return true
+        result = true
         break
       case 'aa_sendBundleNow':
         await this.debugHandler.sendBundleNow()
-        return true
+        result = true
         break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)

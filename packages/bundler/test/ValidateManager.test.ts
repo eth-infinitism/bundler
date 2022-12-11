@@ -14,7 +14,7 @@ import {
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
 import { UserOperation } from '../src/modules/moduleUtils'
-import { AddressZero, decodeErrorReason, deepHexlify } from '@account-abstraction/utils'
+import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
 
@@ -77,7 +77,7 @@ describe('#ValidationManager', () => {
       paymasterAndData,
       callGasLimit: 1e6,
       verificationGasLimit: 1e6,
-      preVerificationGas: 50000,
+      preVerificationGas: 50000
     }
   }
 
@@ -152,21 +152,21 @@ describe('#ValidationManager', () => {
       ])
     }
     expect(await vm.validateUserOp(userOp)
-      .then(()=>'should fail', e=>e.message))
+      .then(() => 'should fail', e => e.message))
       .to.match(/paymaster without stake must not return context/)
   })
 
   it('should fail if validation recursively calls handleOps', async () => {
     const acct = await new TestRecursionAccount__factory(ethersSigner).deploy(entryPoint.address)
-    const op : UserOperation = {
+    const op: UserOperation = {
       ...cEmptyUserOp,
       sender: acct.address,
       signature: hexlify(Buffer.from('handleOps')),
       preVerificationGas: 50000
     }
     expect(
-    await vm.validateUserOp(op)
-      .catch(e=>e.message)
+      await vm.validateUserOp(op)
+        .catch(e => e.message)
     ).to.match(/recursive/)
   })
   it('should succeed with inner revert', async () => {

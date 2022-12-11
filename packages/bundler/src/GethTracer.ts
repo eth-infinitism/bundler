@@ -137,17 +137,17 @@ export interface LogTracer {
 
 export interface LogCallFrame {
   // - returns a string which has the type of the call frame
-  getType (): string
+  getType: () => string
   // - returns the address of the call frame sender
-  getFrom (): string
+  getFrom: () => string
   // - returns the address of the call frame target
-  getTo (): string
+  getTo: () => string
   // - returns the input as a buffer
-  getInput (): string
+  getInput: () => string
   // - returns a Number which has the amount of gas provided for the frame
-  getGas (): number
+  getGas: () => number
   // - returns a big.Int with the amount to be transferred only if available, otherwise undefined
-  getValue (): BigNumber
+  getValue: () => BigNumber
 }
 
 export interface LogFrameResult {

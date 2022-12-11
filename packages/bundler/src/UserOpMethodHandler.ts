@@ -8,7 +8,7 @@ import { EntryPoint__factory, UserOperationStruct, EntryPoint } from '@account-a
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond } from './utils'
-import { CallUserOperationResult, EstimateUserOpGasResult, UserOperationReceipt } from './RpcTypes'
+import { EstimateUserOpGasResult, UserOperationReceipt } from './RpcTypes'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr } from './modules/moduleUtils'
 
@@ -177,6 +177,7 @@ export class UserOpMethodHandler {
       receipt
     })
   }
+
   clientVersion (): string {
     // eslint-disable-next-line
     return 'aa-bundler/' + require('../package.json').version
