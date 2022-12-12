@@ -74,7 +74,7 @@ export class ValidationManager {
       if (paymaster == null) {
         throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
       } else {
-        throw new RpcError(`paymaster validation failed: ${msg}`, ValidationErrors.SimulatePaymasterValidation)
+        throw new RpcError(`paymaster validation failed: ${msg}`, ValidationErrors.SimulatePaymasterValidation, { paymaster })
       }
     }
 

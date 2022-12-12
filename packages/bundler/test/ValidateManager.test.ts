@@ -153,7 +153,7 @@ describe('#ValidationManager', () => {
     }
     expect(await vm.validateUserOp(userOp)
       .then(() => 'should fail', e => e.message))
-      .to.match(/paymaster without stake must not return context/)
+      .to.match(/unstaked paymaster must not return context/)
   })
 
   it('should fail if validation recursively calls handleOps', async () => {

@@ -120,16 +120,6 @@ describe('UserOpMethodHandler', function () {
       // and estimation doesn't perform full deploy-validate-execute cycle)
       expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
     })
-    it('callUserOperation should work without eth', async () => {
-      const op = await resolveProperties(await smartAccountAPI.createSignedUserOp({
-        target,
-        data: '0xdeadface'
-      }))
-      const ret = await methodHandler.callUserOperation(await resolveHexlify(op), entryPoint.address)
-      // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
-      // and view-call doesn't perform full deploy-validate-execute cycle)
-      expect(ret.success).to.equal(true, ret as any)
-    })
   })
 
   describe('sendUserOperation', function () {
