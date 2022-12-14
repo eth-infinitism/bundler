@@ -58,11 +58,10 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
     ...TestOpcodesAccount__factory.abi,
     ...TestOpcodesAccountFactory__factory.abi,
     ...TestStorageAccount__factory.abi,
-    ...TestStorageAccountFactory__factory.abi,
     ...SenderCreator__factory.abi,
     ...IEntryPoint__factory.abi,
     ...IPaymaster__factory.abi,
-    ...IAggregatedAccount__factory.abi
+    ...IAggregatedAccount__factory.abi,
   ].reduce((set, entry) => {
     const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
     // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
@@ -203,7 +202,6 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
-  const entityTitles = ['factory', 'account', 'paymaster'];
   Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes], index) => {
     const entityAddr = entStakes?.addr ?? ''
     const currentNumLevel = tracerResults.numberLevels[index]

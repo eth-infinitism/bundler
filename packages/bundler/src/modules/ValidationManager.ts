@@ -56,7 +56,7 @@ export class ValidationManager {
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
+    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp, {gasLimit: 10e6}).catch(e => e)
     return this._parseErrorResult(userOp, errorResult)
   }
 

@@ -2,7 +2,7 @@ import { AccountDeployedEvent, UserOperationEventEvent } from '@account-abstract
 import { ReputationManager } from './ReputationManager'
 import { EntryPoint } from '@account-abstraction/contracts'
 import Debug from 'debug'
-import { SignatureAggregatorForUserOperationsEvent } from '@account-abstraction/contracts/types/EntryPoint'
+import { SignatureAggregatorChangedEvent } from '@account-abstraction/contracts/types/EntryPoint'
 import { TypedEvent } from '@account-abstraction/contracts/dist/types/common'
 
 const debug = Debug('aa.events')
@@ -11,7 +11,6 @@ const debug = Debug('aa.events')
  * listen to events. trigger ReputationManager's Included
  */
 export class EventsManager {
-  lastTx = ''
   lastBlock = 0
 
   constructor (
@@ -39,7 +38,7 @@ export class EventsManager {
     }
   }
 
-  async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorForUserOperationsEvent): Promise<void> {
+  async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorChangedEvent): Promise<void> {
     switch (ev.event) {
       case 'UserOperationEventEvent':
         this.handleUserOperationEvent(ev as any)
@@ -53,7 +52,7 @@ export class EventsManager {
     }
   }
 
-  handleAggregatorChangedEvent (ev: SignatureAggregatorForUserOperationsEvent): void {
+  handleAggregatorChangedEvent (ev: SignatureAggregatorChangedEvent): void {
     debug('handle ', ev.event, ev.args.aggregator)
     this.eventAggregator = ev.args.aggregator
     this.eventAggregatorTxHash = ev.transactionHash
