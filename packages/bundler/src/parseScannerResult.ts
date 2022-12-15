@@ -12,7 +12,7 @@ import { inspect } from 'util'
 import Debug from 'debug'
 import { UserOperation } from './modules/moduleUtils'
 import { StakeInfo, ValidationErrors, ValidationResult } from './modules/ValidationManager'
-import { BigNumber } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 import {
   TestStorageAccountFactory__factory,
   TestStorageAccount__factory
@@ -44,6 +44,7 @@ interface CallEntry {
   method: string // parsed method, or signash if unparsed
   revert?: any // parsed output from REVERT
   return?: any // parsed method output.
+  value?: BigNumberish
 }
 
 /**
@@ -107,6 +108,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
               to: top.to,
               type: top.type,
               method: method.name,
+              value: top.value,
               revert: parsedError
             })
           } else {
@@ -114,7 +116,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
             out.push({
               to: top.to,
               type: top.type,
-              method: method.name,
+              method: method.name ?? method,
               return: ret
             })
           }
@@ -178,6 +180,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
+  const  entryPointAddress = entryPoint.address.toLowerCase()
+
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
@@ -188,9 +192,20 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   }
   const callStack = parseCallStack(tracerResults)
 
-  requireCond(callStack.find(x => x.method === 'handleOps' && x.to === entryPoint.address.toLowerCase()) == null,
-    'Must not make recursive call to handleOps', ValidationErrors.OpcodeValidation)
+  let callInfoEntryPoint = callStack.find(call=>
+    call.to == entryPointAddress &&
+    (call.method != '0x' && call.method != 'depositTo'))
+  requireCond(callInfoEntryPoint==null,
+    `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
+    ValidationErrors.OpcodeValidation
+  )
 
+  requireCond(
+    callStack.find(call=>call.to != entryPointAddress &&
+    BigNumber.from(call.value) != BigNumber.from(0)) != null,
+    'May not may CALL with value',
+    ValidationErrors.OpcodeValidation)
+  
   const sender = userOp.sender.toLowerCase()
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
@@ -228,11 +243,19 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         // allowed to access sender's storage
         return
       }
+      if ( addr == entryPointAddress) {
+        // ignore storage access on entryPoint (balance/deposit of entities.
+        // we block them on method calls: only allowed to deposit, never to read
+        return
+      }
       let requireStakeSlot: string | undefined
       [...Object.keys(writes), ...Object.keys(reads)].forEach(slot => {
-        // slot associated with sender is always allowed (e.g. token.balanceOf(sender)
+        // slot associated with sender is allowed (e.g. token.balanceOf(sender)
+        // but not during initial UserOp (if there is an initCode)
         if (entitySlots[sender]?.has(slot)) {
-          return
+          if (userOp.initCode.length<=2 || addr == entryPoint.address) {
+            return
+          }
         }
         if (entitySlots[entityAddr]?.has(slot)) {
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
@@ -243,7 +266,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         } else {
           // accessing arbitrary storage of another contract
           const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
-          requireCond(false, `${entityTitle} has forbidden ${readWrite} to ${nameAddr(addr, entityTitle)} slot ${slot}`, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
+          requireCond(false, `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot}`, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
 
