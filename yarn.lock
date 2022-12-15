@@ -2,10 +2,6 @@
 # yarn lockfile v1
 
 
-"@account-abstraction/contracts@../../account-abstraction-contracts-v0.3.1.tgz":
-  version "0.3.1"
-  resolved "../../account-abstraction-contracts-v0.3.1.tgz#cf85667ad54040696e03e0f3eb86d5dc8a4ca059"
-
 "@account-abstraction/contracts@../../account-abstraction-contracts-v0.3.2.tgz":
   version "0.3.2"
   resolved "../../account-abstraction-contracts-v0.3.2.tgz#bd0cba3b076e11a3eb61a12f3d6088f12825d4dc"

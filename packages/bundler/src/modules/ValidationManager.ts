@@ -61,9 +61,9 @@ export class ValidationManager {
   }
 
   _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
-    if (!(errorResult?.errorName).startsWith('SimulationResult')) {
+    if (!errorResult?.errorName?.startsWith('SimulationResult')) {
       // parse it as FailedOp
-      // if its FailedOp, then we have the paymaster... otherwise its an Error(string)
+      // if its FailedOp, then we have the paymaster param... otherwise its an Error(string)
       let paymaster = errorResult.errorArgs.paymaster
       if (paymaster === AddressZero) {
         paymaster = undefined
@@ -161,7 +161,7 @@ export class ValidationManager {
       }
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
       const err = decodeErrorReason(data)
-      throw new Error(err != null ? err.message : data)
+      throw new RpcError(err != null ? err.message : data,111)
     }
   }
 

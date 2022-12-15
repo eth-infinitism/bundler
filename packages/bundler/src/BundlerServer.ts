@@ -62,7 +62,7 @@ export class BundlerServer {
       paymasterAndData: '0x',
       nonce: 0,
       preVerificationGas: 0,
-      verificationGasLimit: 0,
+      verificationGasLimit: 100000,
       callGasLimit: 0,
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
