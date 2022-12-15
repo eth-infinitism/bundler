@@ -1,3 +1,4 @@
+import "@ethersproject/shims"
 import { BigNumber, BigNumberish } from 'ethers'
 import { hexConcat, hexlify, hexZeroPad, keccak256 } from 'ethers/lib/utils'
 import { TransactionRequest } from '@ethersproject/abstract-provider'

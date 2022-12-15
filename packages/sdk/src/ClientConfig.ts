@@ -8,16 +8,29 @@ export interface ClientConfig {
    * the entry point to use
    */
   entryPointAddress: string
+
   /**
    * url to the bundler
    */
   bundlerUrl: string
+
+  /**
+   * required ZeroDev project id
+   */
+  projectId: string
+
   /**
    * if set, use this pre-deployed wallet.
    * (if not set, use getSigner().getAddress() to query the "counterfactual" address of wallet.
    *  you may need to fund this address so the wallet can pay for its own creation)
    */
-  walletAddres?: string
+  walletAddress?: string
+
+  /**
+   * the wallet factory address
+   */
+  walletFactoryAddress?: string
+
   /**
    * if set, call just before signing.
    */

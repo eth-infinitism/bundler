@@ -1,3 +1,4 @@
+import "@ethersproject/shims"
 import { BaseProvider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
 import { BigNumber, Signer } from 'ethers'
 import { Network } from '@ethersproject/networks'

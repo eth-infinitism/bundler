@@ -36,7 +36,12 @@ export async function wrapProvider (
   })
   debug('config=', config)
   const chainId = await originalProvider.getNetwork().then(net => net.chainId)
-  const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, chainId)
+  const httpRpcClient = new HttpRpcClient(
+    config.bundlerUrl,
+    config.entryPointAddress,
+    chainId,
+    config.projectId,
+  )
   return await new ERC4337EthersProvider(
     chainId,
     config,
