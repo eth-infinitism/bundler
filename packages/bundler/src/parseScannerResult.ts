@@ -202,10 +202,10 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   requireCond(
     callStack.find(call=>call.to != entryPointAddress &&
-    BigNumber.from(call.value) != BigNumber.from(0)) != null,
+    BigNumber.from(call.value??0) != BigNumber.from(0)) != null,
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
-  
+
   const sender = userOp.sender.toLowerCase()
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
