@@ -78,7 +78,8 @@ describe('Flow', function () {
   it('should send transaction and make profit', async function () {
     const config: ClientConfig = {
       entryPointAddress,
-      bundlerUrl: 'http://localhost:5555/rpc'
+      bundlerUrl: 'http://localhost:5555/rpc',
+      projectId: '123'
     }
 
     // use this as signer (instead of node's first account)

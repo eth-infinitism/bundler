@@ -19,7 +19,8 @@ describe('ERC4337EthersSigner, Provider', function () {
     entryPoint = await new EntryPoint__factory(signer).deploy()
     const config: ClientConfig = {
       entryPointAddress: entryPoint.address,
-      bundlerUrl: ''
+      bundlerUrl: '',
+      projectId: ''
     }
     const aasigner = Wallet.createRandom()
     aaProvider = await wrapProvider(provider, config, aasigner)

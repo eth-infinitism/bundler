@@ -29,13 +29,15 @@ class Runner {
    * @param accountOwner - the wallet signer account. used only as signer (not as transaction sender)
    * @param entryPointAddress - the entrypoint address to use.
    * @param index - unique salt, to allow multiple accounts with the same owner
+   * @param projectId - the ZeroDev project ID
    */
   constructor (
     readonly provider: JsonRpcProvider,
     readonly bundlerUrl: string,
     readonly accountOwner: Signer,
     readonly entryPointAddress = ENTRY_POINT,
-    readonly index = 0
+    readonly index = 0,
+    readonly projectId: string
   ) {
   }
 
@@ -57,7 +59,12 @@ class Runner {
       const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
       await dep1.deterministicDeploy(SimpleAccountDeployer__factory.bytecode)
     }
-    this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
+    this.bundlerProvider = new HttpRpcClient(
+      this.bundlerUrl,
+      this.entryPointAddress,
+      chainId,
+      this.projectId
+    )
     this.accountApi = new SimpleAccountAPI({
       provider: this.provider,
       entryPointAddress: this.entryPointAddress,
@@ -104,6 +111,7 @@ async function main (): Promise<void> {
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account (to fund account)')
     .option('--bundlerUrl <url>', 'bundler URL', 'http://localhost:3000/rpc')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract', ENTRY_POINT)
+    .option('--projectId <string>', 'ZeroDev project ID', '')
     .option('--deployDeployer', 'Deploy the "account deployer" on this network (default for testnet)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--selfBundler', 'run bundler in-process (for debugging the bundler)')
@@ -154,7 +162,14 @@ async function main (): Promise<void> {
   const accountOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const index = Date.now()
-  const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployDeployer ? signer : undefined)
+  const client = await new Runner(
+    provider,
+    opts.bundlerUrl,
+    accountOwner,
+    opts.entryPoint,
+    index,
+    opts.projectId
+  ).init(deployDeployer ? signer : undefined)
 
   const addr = await client.getAddress()
 

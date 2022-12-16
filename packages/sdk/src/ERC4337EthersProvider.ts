@@ -68,12 +68,16 @@ export class ERC4337EthersProvider extends BaseProvider {
 
   async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
     const userOpHash = await transactionHash
-    const sender = await this.getSenderAccountAddress()
-    return await new Promise<TransactionReceipt>((resolve, reject) => {
-      new UserOperationEventListener(
-        resolve, reject, this.entryPoint, sender, userOpHash
-      ).start()
-    })
+    const filter = this.entryPoint.filters.UserOperationEvent(userOpHash)
+    const res = await this.entryPoint.queryFilter(filter, -1000)
+    if (res.length === 1) {
+      const event = res[0]
+      return await event.getTransactionReceipt()
+    } else if (res.length === 0) {
+      throw new Error('Transaction receipt not found')
+    } else {
+      throw new Error('Multiple transaction receipts found')
+    }
   }
 
   async getSenderAccountAddress (): Promise<string> {
