@@ -40,7 +40,7 @@ export async function wrapProvider (
     config.bundlerUrl,
     config.entryPointAddress,
     chainId,
-    config.projectId,
+    config.projectId
   )
   return await new ERC4337EthersProvider(
     chainId,

@@ -1,4 +1,4 @@
-import "@ethersproject/shims"
+import '@ethersproject/shims'
 import { Deferrable, defineReadOnly } from '@ethersproject/properties'
 import { Provider, TransactionRequest, TransactionResponse } from '@ethersproject/providers'
 import { Signer } from '@ethersproject/abstract-signer'
@@ -12,7 +12,7 @@ import { BaseAccountAPI } from './BaseAccountAPI'
 
 export class ERC4337EthersSigner extends Signer {
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
-  constructor(
+  constructor (
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
     readonly erc4337provider: ERC4337EthersProvider,
@@ -25,12 +25,12 @@ export class ERC4337EthersSigner extends Signer {
   address?: string
 
   // This one is called by Contract. It signs the request and passes in to Provider to be sent.
-  async sendTransaction(transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
+  async sendTransaction (transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
     // `populateTransaction` internally calls `estimateGas`.
     // Some providers revert if you try to call estimateGas without the wallet first having some ETH,
     // which is going to be the case here if we use paymasters.  Therefore we set the gas price to
     // 0 to ensure that estimateGas works even if the wallet has no ETH.
-    if (transaction.maxFeePerGas || transaction.maxPriorityFeePerGas) {
+    if (transaction.maxFeePerGas !== 0 || transaction.maxPriorityFeePerGas !== 0) {
       transaction.maxFeePerGas = 0
       transaction.maxPriorityFeePerGas = 0
     } else {
@@ -44,7 +44,7 @@ export class ERC4337EthersSigner extends Signer {
       value: tx.value,
       gasLimit: tx.gasLimit,
       maxFeePerGas: tx.maxFeePerGas,
-      maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas
     })
     const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
     try {
@@ -57,7 +57,7 @@ export class ERC4337EthersSigner extends Signer {
     return transactionResponse
   }
 
-  unwrapError(errorIn: any): Error {
+  unwrapError (errorIn: any): Error {
     if (errorIn.body != null) {
       const errorBody = JSON.parse(errorIn.body)
       let paymasterInfo: string = ''
@@ -78,7 +78,7 @@ export class ERC4337EthersSigner extends Signer {
     return errorIn
   }
 
-  async verifyAllNecessaryFields(transactionRequest: TransactionRequest): Promise<void> {
+  async verifyAllNecessaryFields (transactionRequest: TransactionRequest): Promise<void> {
     if (transactionRequest.to == null) {
       throw new Error('Missing call target')
     }
@@ -88,26 +88,26 @@ export class ERC4337EthersSigner extends Signer {
     }
   }
 
-  connect(provider: Provider): Signer {
+  connect (provider: Provider): Signer {
     throw new Error('changing providers is not supported')
   }
 
-  async getAddress(): Promise<string> {
+  async getAddress (): Promise<string> {
     if (this.address == null) {
       this.address = await this.erc4337provider.getSenderAccountAddress()
     }
     return this.address
   }
 
-  async signMessage(message: Bytes | string): Promise<string> {
+  async signMessage (message: Bytes | string): Promise<string> {
     return await this.originalSigner.signMessage(message)
   }
 
-  async signTransaction(transaction: Deferrable<TransactionRequest>): Promise<string> {
+  async signTransaction (transaction: Deferrable<TransactionRequest>): Promise<string> {
     throw new Error('not implemented')
   }
 
-  async signUserOperation(userOperation: UserOperationStruct): Promise<string> {
+  async signUserOperation (userOperation: UserOperationStruct): Promise<string> {
     const message = await this.smartWalletAPI.getUserOpHash(userOperation)
     return await this.originalSigner.signMessage(message)
   }

@@ -12,7 +12,7 @@ export class HttpRpcClient {
 
   initializing: Promise<void>
 
-  constructor(
+  constructor (
     readonly bundlerUrl: string,
     readonly entryPointAddress: string,
     readonly chainId: number,
@@ -22,13 +22,13 @@ export class HttpRpcClient {
       this.bundlerUrl,
       {
         name: 'Connected bundler network',
-        chainId,
+        chainId
       }
     )
     this.initializing = this.validateChainId()
   }
 
-  async validateChainId(): Promise<void> {
+  async validateChainId (): Promise<void> {
     // validate chainId is in sync with expected chainid
     const chain = await this.userOpJsonRpcProvider.send('eth_chainId', [])
     const bundlerChain = parseInt(chain)
@@ -44,7 +44,7 @@ export class HttpRpcClient {
    * @param userOp1
    * @return userOpHash the id of this operation, for getUserOperationTransaction
    */
-  async sendUserOpToBundler(userOp1: UserOperationStruct): Promise<string> {
+  async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<string> {
     await this.initializing
     const userOp = await resolveProperties(userOp1)
     const hexifiedUserOp: any = Object.keys(userOp)
@@ -58,24 +58,24 @@ export class HttpRpcClient {
       .reduce(
         (set, [k, v]) => ({
           ...set,
-          [k]: v,
+          [k]: v
         }),
         {}
       )
 
     const jsonRequestData: [UserOperationStruct, string] = [
       hexifiedUserOp,
-      this.entryPointAddress,
+      this.entryPointAddress
     ]
     await this.printUserOperation(jsonRequestData)
     return await this.userOpJsonRpcProvider.send('eth_sendUserOperation', [
       hexifiedUserOp,
       this.entryPointAddress,
-      this.projectId,
+      this.projectId
     ])
   }
 
-  private async printUserOperation([userOp1, entryPointAddress]: [
+  private async printUserOperation ([userOp1, entryPointAddress]: [
     UserOperationStruct,
     string
   ]): Promise<void> {
@@ -83,7 +83,7 @@ export class HttpRpcClient {
     debug(
       'sending eth_sendUserOperation',
       {
-        ...userOp,
+        ...userOp
         // initCode: (userOp.initCode ?? '').length,
         // callData: (userOp.callData ?? '').length
       },
