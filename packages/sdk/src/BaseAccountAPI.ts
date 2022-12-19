@@ -26,8 +26,8 @@ export interface UserOpResult {
 }
 
 /**
- * Base class for all Smart Wallet ERC-4337 Clients to implement.
- * Subclass should inherit 5 methods to support a specific wallet contract:
+ * Base class for all Smart Account ERC-4337 Clients to implement.
+ * Subclass should inherit 5 methods to support a specific account contract:
  *
  * - getAccountInitCode - return the value to put into the "initCode" field, if the account is not yet deployed. should create the account instance using a factory contract.
  * - getNonce - return current account's nonce value
@@ -52,7 +52,7 @@ export abstract class BaseAccountAPI {
 
   /**
    * base constructor.
-   * subclass SHOULD add parameters that define the owner (signer) of this wallet
+   * subclass SHOULD add parameters that define the owner (signer) of this account
    */
   protected constructor (params: BaseApiParams) {
     this.provider = params.provider

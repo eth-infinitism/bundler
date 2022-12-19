@@ -20,16 +20,16 @@ export interface ClientConfig {
   projectId: string
 
   /**
-   * if set, use this pre-deployed wallet.
-   * (if not set, use getSigner().getAddress() to query the "counterfactual" address of wallet.
-   *  you may need to fund this address so the wallet can pay for its own creation)
+   * if set, use this pre-deployed account.
+   * (if not set, use getSigner().getAddress() to query the "counterfactual" address of account.
+   *  you may need to fund this address so the account can pay for its own creation)
    */
-  walletAddress?: string
+  accountAddress?: string
 
   /**
-   * the wallet factory address
+   * the account factory address
    */
-  walletFactoryAddress?: string
+  accountFactoryAddress?: string
 
   /**
    * if set, call just before signing.
