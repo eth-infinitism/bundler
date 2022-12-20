@@ -69,7 +69,6 @@ describe('#ValidationManager', () => {
       throw new Error(decodeErrorReason(callinitCodeForAddr)?.message)
     }
     const [sender] = defaultAbiCoder.decode(['address'], callinitCodeForAddr)
-    console.log('created userop sender=',sender, 'pm=', paymasterAndData.slice(0,42), 'coin=', '?' )
     return {
       ...cEmptyUserOp,
       sender,
@@ -129,8 +128,11 @@ describe('#ValidationManager', () => {
     expect(await testUserOp('create2')
       .catch(e => e.message)).to.match(/account uses banned opcode: CREATE2/)
   })
-  it('should succeed if referencing self token balance', async () => {
-    await testUserOp('balance-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
+  //TODO: add a test with existing wallet, which should succeed (there is one in the "bundler spec"
+  it('should fail referencing self token balance (during wallet creation)', async () => {
+    expect(await testUserOp('balance-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
+      .catch(e=>e.message))
+      .to.match(/account has forbidden read/)
   })
   it('should fail if referencing other token balance', async () => {
     expect(await testUserOp('balance-1', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
