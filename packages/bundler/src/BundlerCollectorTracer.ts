@@ -28,17 +28,17 @@ export interface BundlerCollectorReturn {
 }
 
 export interface MethodInfo {
-  type: string,
-  from: string,
-  to: string,
-  method: string,
-  value: any,
+  type: string
+  from: string
+  to: string
+  method: string
+  value: any
   gas: number
 }
 
 export interface ExitInfo {
-  type: 'REVERT' | 'RETURN',
-  gasUsed: number,
+  type: 'REVERT' | 'RETURN'
+  gasUsed: number
   data: string
 }
 
@@ -133,7 +133,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (opcode === 'REVERT' || opcode === 'RETURN') {
         const ofs = parseInt(log.stack.peek(0).toString())
         const len = parseInt(log.stack.peek(1).toString())
-        let data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 500)
+        const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 500)
         this.debug.push(opcode + ' ' + data)
         this.calls.push({
           type: opcode,
@@ -143,7 +143,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (log.getDepth() === 1) {
-        //NUMBER opcode at top level split levels
+        // NUMBER opcode at top level split levels
         if (opcode === 'NUMBER') this.numberCounter++
         if (this.numberLevels[this.numberCounter] == null) {
           this.currentLevel = this.numberLevels[this.numberCounter] = {
@@ -186,7 +186,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         // currently, solidity uses only 2-word (6-byte) for a key. this might change..
         // still, no need to return too much
         if (len > 20 && len < 512) {
-          // if (len == 64) {
+          // if (len === 64) {
           this.keccak.push(toHex(log.memory.slice(ofs, ofs + len)))
         }
       } else if (opcode.startsWith('LOG')) {
