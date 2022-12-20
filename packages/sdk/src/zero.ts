@@ -189,15 +189,7 @@ class VerifyingPaymasterAPI extends PaymasterAPI {
     userOp: Partial<UserOperationStruct>
   ): Promise<string | undefined> {
     const resolvedUserOp = await resolveProperties(userOp)
-
     const hexifiedUserOp: any = hexifyUserOp(resolvedUserOp)
-
-    console.log(
-      this.projectId,
-      hexifiedUserOp,
-      this.paymasterUrl
-    )
-
     const signature = await api.signUserOp(
       this.projectId,
       hexifiedUserOp,
