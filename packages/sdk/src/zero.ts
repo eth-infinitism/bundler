@@ -192,6 +192,12 @@ class VerifyingPaymasterAPI extends PaymasterAPI {
 
     const hexifiedUserOp: any = hexifyUserOp(resolvedUserOp)
 
+    console.log(
+      this.projectId,
+      hexifiedUserOp,
+      this.paymasterUrl
+    )
+
     const signature = await api.signUserOp(
       this.projectId,
       hexifiedUserOp,

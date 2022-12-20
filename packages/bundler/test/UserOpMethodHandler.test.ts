@@ -14,7 +14,7 @@ import {
 } from '@account-abstraction/contracts'
 
 import { Wallet } from 'ethers'
-import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { DeterministicDeployer, SimpleAccountAPI } from '@zerodevapp/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import { BundlerHelper, SampleRecipient } from '../src/types'
 

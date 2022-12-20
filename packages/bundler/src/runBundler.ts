@@ -117,11 +117,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       ethers.getDefaultProvider(config.network)
   let mnemonic: string
   let wallet: Wallet
-  try {
-    mnemonic = fs.readFileSync(config.mnemonic, 'ascii').trim()
-    wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
-  } catch (e: any) {
-    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
+  if (config.privateKey !== undefined && config.privateKey !== '') {
+    wallet = new Wallet(config.privateKey, provider)
+  } else {
+    try {
+      mnemonic = fs.readFileSync(config.mnemonic, 'ascii').trim()
+      wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+    } catch (e: any) {
+      throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
+    }
   }
 
   const {

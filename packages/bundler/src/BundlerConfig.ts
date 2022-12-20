@@ -8,6 +8,7 @@ export interface BundlerConfig {
   helper: string
   minBalance: string
   mnemonic: string
+  privateKey?: string
   network: string
   port: string
 }
@@ -20,6 +21,7 @@ export const BundlerConfigShape = {
   helper: ow.string,
   minBalance: ow.string,
   mnemonic: ow.string,
+  privateKey: ow.optional.string,
   network: ow.string,
   port: ow.string
 }

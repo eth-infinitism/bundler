@@ -9,8 +9,10 @@ import { debug_traceCall } from './GethTracer'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { calcPreVerificationGas } from '@zerodevapp/sdk'
 import { deepHexlify, requireCond, RpcError } from './utils'
+import { trackUsage } from './utils/stripe'
+import { isBillableChain } from './utils/zerodev'
 import Debug from 'debug'
 
 const debug = Debug('aa.handler.userop')
@@ -133,7 +135,11 @@ export class UserOpMethodHandler {
     }
   }
 
-  async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
+  async sendUserOperation (
+    userOp1: UserOperationStruct,
+    entryPointInput: string,
+    projectId?: string
+  ): Promise<string> {
     const userOp = await resolveProperties(userOp1)
     if (entryPointInput.toLowerCase() !== this.config.entryPoint.toLowerCase()) {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
@@ -144,6 +150,8 @@ export class UserOpMethodHandler {
     await this.simulateUserOp(userOp1, entryPointInput)
     const beneficiary = await this.selectBeneficiary()
     const userOpHash = await this.entryPoint.getUserOpHash(userOp)
+
+    const chainId = await this.provider.getNetwork().then((n) => n.chainId)
 
     // TODO: this is only printing debug info, remove once not necessary
     // await this.printGasEstimationDebugInfo(userOp, beneficiary)
@@ -156,7 +164,15 @@ export class UserOpMethodHandler {
 
     const gasLimit = undefined
     debug('using gasLimit=', gasLimit)
-    await this.entryPoint.handleOps([userOp], beneficiary, { gasLimit }).catch(rethrowError)
+    const tx = await this.entryPoint.handleOps([userOp], beneficiary, { gasLimit }).catch(rethrowError)
+    const receipt = tx.wait()
+
+    // non-blocking tracks gas usage and overages
+    if (projectId !== undefined && isBillableChain(chainId)) {
+      trackUsage(projectId, chainId, userOp.sender, receipt).catch((e) =>
+        console.error(e)
+      )
+    }
 
     // await postExecutionDump(this.entryPoint, userOpHash)
     return userOpHash

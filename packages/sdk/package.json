@@ -1,39 +1,35 @@
 {
-  "name": "@account-abstraction/sdk",
-  "version": "0.3.0",
-  "main": "./dist/src/index.js",
-  "license": "MIT",
-  "files": [
-    "dist/src",
-    "README.md"
-  ],
+  "name": "@zerodevapp/sdk",
+  "version": "1.6.6",
+  "description": "SDK for building consumer-friendly Web3 apps",
   "scripts": {
+    "tsc": "rm -rf dist && tsc",
+    "build:local": "yarn tsc && yarn pack",
     "clear": "rm -rf dist artifacts cache",
-    "lint": "eslint -f unix .",
-    "lint-fix": "eslint -f unix . --fix",
-    "test": "hardhat test",
-    "hardhat-test": "hardhat test",
-    "tsc": "tsc",
-    "watch-tsc": "tsc -w --preserveWatchOutput"
+    "dev": "tsc --watch"
+  },
+  "author": "ZeroDev, Inc.",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/debug": "^4.1.7",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.3"
   },
   "dependencies": {
     "@account-abstraction/contracts": "0.3.0",
     "@account-abstraction/utils": "^0.3.0",
-    "@ethersproject/abstract-provider": "^5.7.0",
-    "@ethersproject/abstract-signer": "^5.7.0",
-    "@ethersproject/networks": "^5.7.0",
-    "@ethersproject/properties": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
     "@ethersproject/shims": "^5.7.0",
-    "@types/debug": "^4.1.7",
+    "@types/keccak": "^3.0.1",
+    "@types/readable-stream": "^2.3.14",
+    "buffer": "^6.0.3",
     "debug": "^4.3.4",
-    "ethers": "^5.7.0"
+    "ethers": "^5.7.1",
+    "typescript": "^4.9.4"
   },
-  "devDependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^1.0.3",
-    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-    "@nomiclabs/hardhat-ethers": "^2.0.0",
-    "chai": "^4.3.6",
-    "hardhat": "^2.11.0"
-  }
+  "main": "./dist/src/index.js",
+  "files": [
+    "dist/src",
+    "LICENSE",
+    "README.md"
+  ]
 }

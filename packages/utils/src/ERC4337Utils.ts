@@ -87,10 +87,11 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
     encoded = '0x' + encoded.slice(66, encoded.length - 64)
     return encoded
   }
-  const typevalues = (UserOpType as any).components.map((c: { name: keyof typeof op, type: string }) => ({
+  let typevalues = (UserOpType as any).components.map((c: { name: keyof typeof op, type: string }) => ({
     type: c.type,
     val: op[c.name]
   }))
+  typevalues = typevalues.filter((c: any) => c.val !== undefined)
   return encode(typevalues, forSignature)
 }
 

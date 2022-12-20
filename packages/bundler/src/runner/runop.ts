@@ -12,7 +12,7 @@ import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'
-import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@zerodevapp/sdk'
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
