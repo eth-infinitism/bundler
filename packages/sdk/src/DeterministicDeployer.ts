@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, Wallet } from 'ethers'
 import { hexConcat, hexlify, hexZeroPad, keccak256 } from 'ethers/lib/utils'
 import { TransactionRequest } from '@ethersproject/abstract-provider'
 import { JsonRpcProvider } from '@ethersproject/providers'
@@ -89,11 +89,30 @@ export class DeterministicDeployer {
     ])).slice(-40)
   }
 
+  // async deterministicDeploy (ctrCode: string, salt: BigNumberish = 0): Promise<string> {
+  //   const addr = await this.getDeterministicDeployAddress(ctrCode, salt)
+  //   if (!await this.isContractDeployed(addr)) {
+  //     await this.provider.getSigner().sendTransaction(
+  //       await this.getDeployTransaction(ctrCode, salt))
+  //   }
+  //   return addr
+  // }
   async deterministicDeploy (ctrCode: string, salt: BigNumberish = 0): Promise<string> {
+    console.log(' before 1 in deterministicDeploy -------')
     const addr = await this.getDeterministicDeployAddress(ctrCode, salt)
+    console.log(' before 2 in deterministicDeploy -------')
     if (!await this.isContractDeployed(addr)) {
-      await this.provider.getSigner().sendTransaction(
-        await this.getDeployTransaction(ctrCode, salt))
+      let mnemonicWallet = Wallet.fromMnemonic('whale happy crane puppy expand shoe unusual damage camera seat ritual search')
+      mnemonicWallet = mnemonicWallet.connect(this.provider)
+      console.log('mnemonicWallet: ', await mnemonicWallet.getAddress(), mnemonicWallet.privateKey)
+      console.log('in deterministicDeploy -------', await this.provider.listAccounts())
+      const txData = await this.getDeployTransaction(ctrCode, salt)
+      // txData.maxFeePerGas = '500000000000000'
+      // txData.maxPriorityFeePerGas = '50000000000000'
+      await mnemonicWallet.sendTransaction(
+        // await this.provider.getSigner(0).sendTransaction(
+        txData
+      )
     }
     return addr
   }

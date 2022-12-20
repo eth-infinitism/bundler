@@ -30,7 +30,8 @@
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
     "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
-    "runop-self": "yarn runop --deployDeployer --selfBundler"
+    "runop-self": "yarn runop --deployDeployer --selfBundler",
+    "runop-local": "yarn runop --deployDeployer --network 'http://0.0.0.0:8545/' --entryPoint 0x5FbDB2315678afecb367f032d93F642f64180aa3 --mnemonic ./localconfig/mnemonic.txt"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.33.0",

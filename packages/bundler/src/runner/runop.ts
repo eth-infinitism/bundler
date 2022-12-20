@@ -49,6 +49,7 @@ class Runner {
     const dep = new DeterministicDeployer(this.provider)
     const accountDeployer = await dep.getDeterministicDeployAddress(SimpleAccountDeployer__factory.bytecode)
     // const accountDeployer = await new SimpleAccountDeployer__factory(this.provider.getSigner()).deploy().then(d=>d.address)
+    console.log('accountDeployer info: ', accountDeployer, await dep.isContractDeployed(accountDeployer))
     if (!await dep.isContractDeployed(accountDeployer)) {
       if (deploymentSigner == null) {
         console.log(`AccountDeployer not deployed at ${accountDeployer}. run with --deployDeployer`)
@@ -65,7 +66,7 @@ class Runner {
       owner: this.accountOwner,
       index: this.index,
       overheads: {
-        // perUserOp: 100000
+        perUserOp: 100000
       }
     })
     return this
@@ -87,8 +88,10 @@ class Runner {
       target,
       data
     })
+    console.log('userOp: ', userOp)
     try {
       const userOpHash = await this.bundlerProvider.sendUserOpToBundler(userOp)
+      console.log('userOpHash: ', userOpHash)
       const txid = await this.accountApi.getUserOpReceipt(userOpHash)
       console.log('reqId', userOpHash, 'txid=', txid)
     } catch (e: any) {
@@ -118,7 +121,7 @@ async function main (): Promise<void> {
     const signer = provider.getSigner()
 
     const signerBalance = await provider.getBalance(signer.getAddress())
-    const account = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+    const account = '0xca912aeEc3a53598Ad57e42AD185dcfb1FF22D1D'
     const bal = await provider.getBalance(account)
     if (bal.lt(parseEther('1')) && signerBalance.gte(parseEther('10000'))) {
       console.log('funding hardhat account', account)
@@ -151,9 +154,10 @@ async function main (): Promise<void> {
       throw new Error('must specify --mnemonic')
     }
   }
-  const accountOwner = new Wallet('0x'.padEnd(66, '7'))
-
-  const index = Date.now()
+  // const accountOwner = new Wallet('0x'.padEnd(66, '8'))
+  const accountOwner = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim(), "m/44'/60'/1'/4").connect(provider)
+  console.log('account owner: ', accountOwner)
+  const index = 4
   const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployDeployer ? signer : undefined)
 
   const addr = await client.getAddress()
@@ -169,7 +173,7 @@ async function main (): Promise<void> {
   const bal = await getBalance(addr)
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   // TODO: actual required val
-  const requiredBalance = parseEther('0.5')
+  const requiredBalance = parseEther('0.05')
   if (bal.lt(requiredBalance.div(2))) {
     console.log('funding account to', requiredBalance)
     await signer.sendTransaction({
@@ -186,8 +190,8 @@ async function main (): Promise<void> {
   await client.runUserOp(dest, data)
   console.log('after run1')
   // client.accountApi.overheads!.perUserOp = 30000
-  await client.runUserOp(dest, data)
-  console.log('after run2')
+  // await client.runUserOp(dest, data)
+  // console.log('after run2')
   await bundler?.stop()
 }
 
