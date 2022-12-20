@@ -27,30 +27,6 @@ export interface EstimateUserOpGasResult {
   callGasLimit: BigNumberish
 }
 
-export interface CallUserOperationResult extends EstimateUserOpGasResult {
-
-  /**
-   * true/false whether this userOp execution succeeds
-   */
-  success: boolean
-
-  /**
-   * optional: in case the execution fails, attempt to return the revert reason code
-   */
-  reason?: string
-
-  /**
-   * the total amount to be paid for this execution (including validation)
-   */
-
-  actualGasCost?: number
-
-  /**
-   * the gas price used to calculate gas cost (depends on the UserOp's priorityFee, maxFeePerGas and also on the network's basefee)
-   */
-  actualGasPrice?: number
-}
-
 export interface UserOperationReceipt {
   /// the request hash
   userOpHash: string

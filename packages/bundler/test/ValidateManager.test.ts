@@ -69,6 +69,7 @@ describe('#ValidationManager', () => {
       throw new Error(decodeErrorReason(callinitCodeForAddr)?.message)
     }
     const [sender] = defaultAbiCoder.decode(['address'], callinitCodeForAddr)
+    console.log('created userop sender=',sender, 'pm=', paymasterAndData.slice(0,42), 'coin=', '?' )
     return {
       ...cEmptyUserOp,
       sender,
@@ -167,7 +168,7 @@ describe('#ValidationManager', () => {
     expect(
       await vm.validateUserOp(op)
         .catch(e => e.message)
-    ).to.match(/recursive/)
+    ).to.match(/illegal call into EntryPoint/)
   })
   it('should succeed with inner revert', async () => {
     expect(await testUserOp('inner-revert', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address))

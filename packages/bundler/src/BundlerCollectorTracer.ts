@@ -9,7 +9,6 @@ import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } f
 declare function toHex (a: any): string
 
 declare function toAddress (a: any): string
-
 /**
  * return type of our BundlerCollectorTracer.
  * collect access and opcodes, split into "levels" based on NUMBER opcode
@@ -186,7 +185,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
         }
       }
-
       this.lastOp = opcode
 
       if (opcode === 'SLOAD' || opcode === 'SSTORE') {
@@ -209,7 +207,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         // currently, solidity uses only 2-word (6-byte) for a key. this might change..
         // still, no need to return too much
         if (len > 20 && len < 512) {
-          // if (len == 64) {
+          // if (len === 64) {
           this.keccak.push(toHex(log.memory.slice(ofs, ofs + len)))
         }
       } else if (opcode.startsWith('LOG')) {

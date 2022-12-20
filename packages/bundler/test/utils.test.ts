@@ -7,7 +7,7 @@ describe('#deepHexlify', function () {
     expect(deepHexlify({})).to.eql({})
   })
   it('flat', () => {
-    expect(deepHexlify({ a: 1 })).to.eql({ a: '0x01' })
+    expect(deepHexlify({ a: 1 })).to.eql({ a: '0x1' })
   })
   it('no-modify for strings', () => {
     expect(deepHexlify({ a: 'hello' })).to.eql({ a: 'hello' })
@@ -16,7 +16,7 @@ describe('#deepHexlify', function () {
     expect(deepHexlify({ a: false })).to.eql({ a: false })
   })
   it('bignum', () => {
-    expect(deepHexlify({ a: BigNumber.from(3) })).to.eql({ a: '0x03' })
+    expect(deepHexlify({ a: BigNumber.from(3) })).to.eql({ a: '0x3' })
   })
   it('deep object ', () => {
     expect(deepHexlify({
@@ -31,15 +31,15 @@ describe('#deepHexlify', function () {
         }, 2, 3]
       }
     })).to.eql({
-      a: '0x01',
+      a: '0x1',
       b: {
-        c: '0x04',
+        c: '0x4',
         d: false,
         e: [{
-          f: '0x05',
+          f: '0x5',
           g: 'nothing',
           h: true
-        }, '0x02', '0x03']
+        }, '0x2', '0x3']
       }
     })
   })

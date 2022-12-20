@@ -1,4 +1,3 @@
-import fs from 'fs'
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 export class RpcError extends Error {
@@ -12,30 +11,6 @@ export function requireCond (cond: boolean, msg: string, code?: number, data: an
   if (!cond) {
     throw new RpcError(msg, code, data)
   }
-}
-
-let gSigs: any = null
-let gSigsRegex: RegExp = null as any
-
-// debug:
-export function replaceMethodSig (s: string): string {
-  if (gSigs == null) {
-    gSigs = {}
-    if (!fs.existsSync('/tmp/hashes.txt')) {
-      return s
-    }
-    const hashes = fs.readFileSync('/tmp/hashes.txt', 'ascii')
-    hashes.split(/\n/).forEach(hash => {
-      const m = hash.match(/(\w+): (\w+)[(]/)
-      if (m != null) {
-        gSigs['0x' + m[1]] = m[2]
-      }
-    })
-    gSigsRegex = new RegExp('(' + Object.keys(gSigs).join('|') + ')', 'g')
-  }
-
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-  return s.replace(gSigsRegex, substr => `${gSigs[substr]} - ${substr}`)
 }
 
 /**
@@ -54,8 +29,8 @@ export function mapOf<T> (keys: Iterable<string>, mapper: (key: string) => T, fi
   return ret
 }
 
-export async function sleep (sleeptime: number): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, sleeptime))
+export async function sleep (sleepTime: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, sleepTime))
 }
 
 export async function waitFor<T> (func: () => T | undefined, timeout = 10000, interval = 500): Promise<T> {

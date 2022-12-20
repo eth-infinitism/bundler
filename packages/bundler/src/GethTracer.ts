@@ -191,7 +191,7 @@ export interface LogStep {
   getCost: () => number // returns the cost of the opcode as a Number
   getDepth: () => number // returns the execution depth as a Number
   getRefund: () => number // returns the amount to be refunded as a Number
-  getError: () => string //  returns information about the error if one occured, otherwise returns undefined
+  getError: () => string | undefined //  returns information about the error if one occured, otherwise returns undefined
   // If error is non-empty, all other fields should be ignored.
 }
 

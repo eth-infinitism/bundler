@@ -77,7 +77,6 @@ describe('UserOpMethodHandler', function () {
     const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
     const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
-
     methodHandler = new UserOpMethodHandler(
       execManager,
       provider,
@@ -157,7 +156,6 @@ describe('UserOpMethodHandler', function () {
 
       const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
-
       const deployedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
       const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[1])
       const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[2])
@@ -210,6 +208,7 @@ describe('UserOpMethodHandler', function () {
           gasLimit: 1e6
         })
         const id = await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
+
 
         await postExecutionDump(entryPoint, id)
       })
