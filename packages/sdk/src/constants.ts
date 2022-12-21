@@ -6,7 +6,7 @@ export const PAYMASTER_URL =
   process.env.REACT_APP_ZERODEV_PAYMASTER_URL ??
   'https://paymaster-server.onrender.com'
 
-export { abi as PAYMASTER_ABI } from '@account-abstraction/contracts/artifacts/BasePaymaster.json'
+export { abi as PAYMASTER_ABI } from '@zerodevapp/contracts/artifacts/BasePaymaster.json'
 
 export const ENTRYPOINT_ADDRESS: { [key: string]: any } = {
   5: '0x49bd26a61DABE4D9F5B8e2B4fD947B9b250D30B9',

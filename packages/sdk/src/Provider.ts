@@ -1,6 +1,6 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-import { EntryPoint__factory, SimpleAccountDeployer__factory } from '@account-abstraction/contracts'
+import { EntryPoint__factory, SimpleAccountDeployer__factory } from '@zerodevapp/contracts'
 
 import { ClientConfig } from './ClientConfig'
 import { SimpleAccountAPI } from './SimpleAccountAPI'

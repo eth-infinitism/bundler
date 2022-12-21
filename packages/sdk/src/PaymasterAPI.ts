@@ -1,4 +1,4 @@
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { UserOperationStruct } from '@zerodevapp/contracts'
 
 /**
  * an API to external a UserOperation with paymaster info

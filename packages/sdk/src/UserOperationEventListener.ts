@@ -1,7 +1,7 @@
 import '@ethersproject/shims'
 import { BigNumberish, Event } from 'ethers'
 import { TransactionReceipt } from '@ethersproject/providers'
-import { EntryPoint } from '@account-abstraction/contracts'
+import { EntryPoint } from '@zerodevapp/contracts'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 import Debug from 'debug'
 

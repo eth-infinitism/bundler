@@ -7,10 +7,10 @@
 
 import { BigNumber, getDefaultProvider, Signer, Wallet } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { SimpleAccountDeployer__factory } from '@account-abstraction/contracts'
+import { SimpleAccountDeployer__factory } from '@zerodevapp/contracts'
 import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
-import { erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { erc4337RuntimeVersion } from '@zerodevapp/utils'
 import fs from 'fs'
 import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@zerodevapp/sdk'
 import { runBundler } from '../runBundler'

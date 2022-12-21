@@ -5,7 +5,7 @@ import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 
-import { erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { erc4337RuntimeVersion } from '@zerodevapp/utils'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'

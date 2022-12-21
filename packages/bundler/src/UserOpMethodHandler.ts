@@ -4,11 +4,11 @@ import { JsonRpcProvider, JsonRpcSigner, Provider } from '@ethersproject/provide
 import { BundlerConfig } from './BundlerConfig'
 import { EntryPoint } from './types'
 import { hexValue, resolveProperties } from 'ethers/lib/utils'
-import { AddressZero, rethrowError } from '@account-abstraction/utils'
+import { AddressZero, rethrowError } from '@zerodevapp/utils'
 import { debug_traceCall } from './GethTracer'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from './BundlerCollectorTracer'
-import { UserOperationStruct } from '@account-abstraction/contracts'
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { UserOperationStruct } from '@zerodevapp/contracts'
+import { UserOperationEventEvent } from '@zerodevapp/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@zerodevapp/sdk'
 import { deepHexlify, requireCond, RpcError } from './utils'
 import { trackUsage } from './utils/stripe'
@@ -89,7 +89,7 @@ export class UserOpMethodHandler {
     }
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
-    const revert = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
+    const revert = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch((e: any) => e)
     // simulation always reverts...
     if (revert.errorName === 'FailedOp') {
       let data: any

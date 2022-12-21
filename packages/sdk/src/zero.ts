@@ -7,7 +7,7 @@ import {
   ERC4337EthersSigner
 } from './index'
 import { resolveProperties } from 'ethers/lib/utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { UserOperationStruct } from '@zerodevapp/contracts'
 
 import { getRpcUrl, hexifyUserOp } from './utils'
 import { ErrNoIdentifierProvided, ErrTransactionFailedGasChecks } from './errors'

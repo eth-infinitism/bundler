@@ -1,6 +1,6 @@
 import { resolveProperties } from 'ethers/lib/utils'
 import { NotPromise } from './ERC4337Utils'
-import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
+import { EntryPoint, UserOperationStruct } from '@zerodevapp/contracts'
 
 export async function postExecutionDump (entryPoint: EntryPoint, userOpHash: string): Promise<void> {
   const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, userOpHash)
@@ -35,11 +35,11 @@ export async function postExecutionCheck (entryPoint: EntryPoint, userOpHash: st
   const { ops } = entryPoint.interface.decodeFunctionData('handleOps', tx.data)
   const userOp = await resolveProperties(ops[0] as UserOperationStruct)
   const {
-    actualGasPrice,
     actualGasCost,
+    actualGasUsed,
     success
   } = req[0].args
-  const gasPaid = actualGasCost.div(actualGasPrice).toNumber()
+  const gasPaid = actualGasCost.div(actualGasUsed).toNumber()
   const gasUsed = transactionReceipt.gasUsed.toNumber()
   return {
     gasUsed,

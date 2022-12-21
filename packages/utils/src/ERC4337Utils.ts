@@ -1,6 +1,6 @@
 import { defaultAbiCoder, hexConcat, keccak256 } from 'ethers/lib/utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
-import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
+import { UserOperationStruct } from '@zerodevapp/contracts'
+import { abi as entryPointAbi } from '@zerodevapp/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
 
 export const AddressZero = ethers.constants.AddressZero

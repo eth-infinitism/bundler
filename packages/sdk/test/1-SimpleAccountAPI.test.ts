@@ -3,16 +3,16 @@ import {
   EntryPoint__factory,
   SimpleAccountDeployer__factory,
   UserOperationStruct
-} from '@account-abstraction/contracts'
+} from '@zerodevapp/contracts'
 import { Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
 import { SimpleAccountAPI } from '../src'
-import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
+import { SampleRecipient, SampleRecipient__factory } from '@zerodevapp/utils/dist/src/types'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
-import { rethrowError } from '@account-abstraction/utils'
+import { rethrowError } from '@zerodevapp/utils'
 
 const provider = ethers.provider
 const signer = provider.getSigner()

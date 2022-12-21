@@ -11,11 +11,11 @@ import {
   EntryPoint,
   SimpleAccountDeployer__factory,
   UserOperationStruct
-} from '@account-abstraction/contracts'
+} from '@zerodevapp/contracts'
 
 import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@zerodevapp/sdk'
-import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
+import { postExecutionDump } from '@zerodevapp/utils/dist/src/postExecCheck'
 import { BundlerHelper, SampleRecipient } from '../src/types'
 
 describe('UserOpMethodHandler', function () {

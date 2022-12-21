@@ -1,6 +1,6 @@
 {
-  "name": "@account-abstraction/utils",
-  "version": "0.3.0",
+  "name": "@zerodevapp/utils",
+  "version": "1.0.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -17,7 +17,7 @@
     "build:local": "yarn tsc && yarn pack"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "0.3.0",
+    "@zerodevapp/contracts": "1.0.2",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
