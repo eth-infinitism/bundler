@@ -125,6 +125,7 @@ export abstract class BaseAccountAPI {
     // use entryPoint to query account address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
     try {
+      console.log('initCode', await initCode)
       await this.entryPointView.callStatic.getSenderAddress(initCode)
     } catch (e: any) {
       return e.errorArgs.sender

@@ -13,15 +13,15 @@ export const ENTRYPOINT_ADDRESS: { [key: string]: string } = {
   137: '0xaec9CE12Edd21BD042967008d24fD4ab12C745E5',
   43113: '0x49bd26a61DABE4D9F5B8e2B4fD947B9b250D30B9',
   43114: '0xaec9CE12Edd21BD042967008d24fD4ab12C745E5',
-  80001: '0xaec9CE12Edd21BD042967008d24fD4ab12C745E5'
+  80001: '0x5f928C9afA19ffdB4529DDbdc384B5195A19Be15'
 }
 
-export const WALLET_FACTORY_ADDRESS: { [key: string]: string } = {
+export const ACCOUNT_FACTORY_ADDRESS: { [key: string]: string } = {
   5: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
   137: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
   43113: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
   43114: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
-  80001: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2'
+  80001: '0x3167758c74dc43e7Df4Aa4E54407f91f0FcCff0c'
 }
 
 export const BUNDLER_URL: { [key: string]: string } = {
@@ -29,7 +29,7 @@ export const BUNDLER_URL: { [key: string]: string } = {
   137: 'https://polygon-bundler.onrender.com/rpc',
   43113: 'https://fuji-bundler.onrender.com/rpc',
   43114: 'https://avalanche-bundler.onrender.com/rpc',
-  80001: 'https://bundler.onrender.com/rpc'
+  80001: 'https://polygon-mumbai-bundler.onrender.com/rpc'
 }
 
 export const PAYMASTER_ADDRESS: { [key: string]: string } = {
@@ -37,7 +37,7 @@ export const PAYMASTER_ADDRESS: { [key: string]: string } = {
   137: '0x2E59ebb954BF7B0e1FB63c3B2F583C35C31Cd604',
   43113: '0x2E59ebb954BF7B0e1FB63c3B2F583C35C31Cd604',
   43114: '0x5aa766cEC2768ae505deC6dF46fE5769C433b6D2',
-  80001: '0x73a073E6e3C2A0020995Fcc380ef86718c6ff6f3'
+  80001: '0xA5c84723c193FFA7f37604D4b07738D60B516548'
 }
 
 export const INFURA_API_KEY = 'f36f7f706a58477884ce6fe89165666c'

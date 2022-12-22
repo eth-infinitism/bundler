@@ -33,7 +33,7 @@ export interface AdvancedParams {
   contractAddresses?: {
     entrypoint?: string
     paymaster?: string
-    walletFactory?: string
+    accountFactory?: string
   }
 }
 
@@ -62,9 +62,9 @@ export async function getSigner (
   const entrypointAddress =
     advancedParams?.contractAddresses?.entrypoint ??
     constants.ENTRYPOINT_ADDRESS[chainId]
-  const walletFactoryAddress =
-    advancedParams?.contractAddresses?.walletFactory ??
-    constants.WALLET_FACTORY_ADDRESS[chainId]
+  const accountFactoryAddress =
+    advancedParams?.contractAddresses?.accountFactory ??
+    constants.ACCOUNT_FACTORY_ADDRESS[chainId]
 
   const paymaster = new ethers.Contract(
     paymasterAddress,
@@ -87,7 +87,7 @@ export async function getSigner (
       backendUrl,
       paymasterUrl
     ),
-    walletFactoryAddress
+    accountFactoryAddress
   }
   const aaProvider = await wrapProvider(provider, aaConfig, signer)
   const aaSigner = aaProvider.getSigner()
