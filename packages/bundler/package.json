@@ -30,7 +30,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
-    "@zerodevapp/contracts": "1.0.2",
+    "@zerodevapp/contracts": "^1.0.2",
     "@zerodevapp/sdk": "^1.6.6",
     "@zerodevapp/utils": "^1.0.4",
     "commander": "^9.4.0",
