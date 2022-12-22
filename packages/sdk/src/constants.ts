@@ -8,7 +8,7 @@ export const PAYMASTER_URL =
 
 export { abi as PAYMASTER_ABI } from '@zerodevapp/contracts/artifacts/BasePaymaster.json'
 
-export const ENTRYPOINT_ADDRESS: { [key: string]: any } = {
+export const ENTRYPOINT_ADDRESS: { [key: string]: string } = {
   5: '0x49bd26a61DABE4D9F5B8e2B4fD947B9b250D30B9',
   137: '0xaec9CE12Edd21BD042967008d24fD4ab12C745E5',
   43113: '0x49bd26a61DABE4D9F5B8e2B4fD947B9b250D30B9',
@@ -16,7 +16,7 @@ export const ENTRYPOINT_ADDRESS: { [key: string]: any } = {
   80001: '0xaec9CE12Edd21BD042967008d24fD4ab12C745E5'
 }
 
-export const WALLET_FACTORY_ADDRESS: { [key: string]: any } = {
+export const WALLET_FACTORY_ADDRESS: { [key: string]: string } = {
   5: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
   137: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
   43113: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2',
@@ -24,7 +24,7 @@ export const WALLET_FACTORY_ADDRESS: { [key: string]: any } = {
   80001: '0x6D261eD72837f4001d4Cc89f9002ddb5AB3a93B2'
 }
 
-export const BUNDLER_URL: { [key: string]: any } = {
+export const BUNDLER_URL: { [key: string]: string } = {
   5: 'https://goerli-bundler.onrender.com/rpc',
   137: 'https://polygon-bundler.onrender.com/rpc',
   43113: 'https://fuji-bundler.onrender.com/rpc',
@@ -32,7 +32,7 @@ export const BUNDLER_URL: { [key: string]: any } = {
   80001: 'https://bundler.onrender.com/rpc'
 }
 
-export const PAYMASTER_ADDRESS: { [key: string]: any } = {
+export const PAYMASTER_ADDRESS: { [key: string]: string } = {
   5: '0x2E59ebb954BF7B0e1FB63c3B2F583C35C31Cd604',
   137: '0x2E59ebb954BF7B0e1FB63c3B2F583C35C31Cd604',
   43113: '0x2E59ebb954BF7B0e1FB63c3B2F583C35C31Cd604',
@@ -42,7 +42,7 @@ export const PAYMASTER_ADDRESS: { [key: string]: any } = {
 
 export const INFURA_API_KEY = 'f36f7f706a58477884ce6fe89165666c'
 
-export const CHAIN_ID_TO_INFURA_NAMES: { [key: string]: any } = {
+export const CHAIN_ID_TO_INFURA_NAMES: { [key: string]: string } = {
   1: 'mainnet',
   5: 'goerli',
   137: 'polygon-mainnet',

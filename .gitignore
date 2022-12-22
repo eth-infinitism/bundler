@@ -21,3 +21,5 @@ tsconfig.tsbuildinfo
 /packages/bundler/src/types/
 yarn-error.log
 **/*.tgz
+bundler.config.json
+**/localconfig/

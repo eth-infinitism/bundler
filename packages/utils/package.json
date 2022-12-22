@@ -1,6 +1,6 @@
 {
   "name": "@zerodevapp/utils",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -17,10 +17,10 @@
     "build:local": "yarn tsc && yarn pack"
   },
   "dependencies": {
-    "@zerodevapp/contracts": "1.0.2",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
+    "@zerodevapp/contracts": "^1.0.2",
     "ethers": "^5.7.0",
     "typescript": "^4.9.4"
   },
