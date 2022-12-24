@@ -90,7 +90,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
       if (c.type.match(/REVERT|RETURN/) != null) {
         const top = stack.splice(-1)[0] ?? {
           type: 'top',
-          method: 'simulateValidation'
+          method: 'validateUserOp'
         }
         const returnData: string = (c as any).data
         if (top.type.match(/CREATE/) != null) {

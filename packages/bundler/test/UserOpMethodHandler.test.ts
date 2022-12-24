@@ -45,11 +45,11 @@ describe('UserOpMethodHandler', function () {
   before(async function () {
     provider = ethers.provider
     signer = ethers.provider.getSigner()
-
-    DeterministicDeployer.init(ethers.provider)
-    accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountFactory__factory.bytecode)
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
     entryPoint = await EntryPointFactory.deploy()
+
+    DeterministicDeployer.init(ethers.provider)
+    accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
@@ -111,7 +111,7 @@ describe('UserOpMethodHandler', function () {
       })
       const ret = await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address)
       // verification gas should be high - it creates this wallet
-      expect(ret.verificationGas).to.be.closeTo(1e6, 300000)
+      expect(ret.verificationGas).to.be.closeTo(300000, 100000)
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)
@@ -126,7 +126,7 @@ describe('UserOpMethodHandler', function () {
     let accountDeployerAddress: string
     before(async function () {
       DeterministicDeployer.init(ethers.provider)
-      accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountFactory__factory.bytecode)
+      accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
 
       const smartAccountAPI = new SimpleAccountAPI({
         provider,

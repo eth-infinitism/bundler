@@ -70,7 +70,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
     }
     return hexConcat([
       this.factory.address,
-      this.factory.interface.encodeFunctionData('createAccount', [this.entryPointAddress, await this.owner.getAddress(), this.index])
+      this.factory.interface.encodeFunctionData('createAccount', [await this.owner.getAddress(), this.index])
     ])
   }
 
@@ -91,7 +91,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   async encodeExecute (target: string, value: BigNumberish, data: string): Promise<string> {
     const accountContract = await this._getAccountContract()
     return accountContract.interface.encodeFunctionData(
-      'execFromEntryPoint',
+      'execute',
       [
         target,
         value,

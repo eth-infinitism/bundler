@@ -113,7 +113,7 @@ describe('#ValidationManager', () => {
   })
   it('should fail with bad opcode in ctr', async () => {
     expect(
-      await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase']))
+      await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase®']))
         .catch(e => e.message)).to.match(/factory uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in paymaster', async () => {

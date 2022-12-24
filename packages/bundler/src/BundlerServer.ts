@@ -3,7 +3,7 @@ import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
 import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
-import { hexlify, parseEther } from 'ethers/lib/utils'
+import {  parseEther } from 'ethers/lib/utils'
 
 import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 
@@ -69,7 +69,7 @@ export class BundlerServer {
       signature: '0x'
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
-    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.simulateValidation(emptyUserOp)
+    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.validateUserOp(emptyUserOp)
       .catch(e => e)
     if (err?.errorName !== 'FailedOp') {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)

@@ -26,7 +26,7 @@ export async function wrapProvider (
   const entryPoint = EntryPoint__factory.connect(config.entryPointAddress, originalProvider)
   // Initial SimpleAccount instance is not deployed and exists just for the interface
   const detDeployer = new DeterministicDeployer(originalProvider)
-  const SimpleAccountFactory = await detDeployer.deterministicDeploy(SimpleAccountFactory__factory.bytecode)
+  const SimpleAccountFactory = await detDeployer.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
   const smartAccountAPI = new SimpleAccountAPI({
     provider: originalProvider,
     entryPointAddress: entryPoint.address,

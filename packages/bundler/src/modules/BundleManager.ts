@@ -129,7 +129,7 @@ export class BundleManager {
       // todo: we take UserOp's callGasLimit, even though it will probably require less (but we don't
       // attempt to estimate it to check)
       // which means we could "cram" more UserOps into a bundle.
-      const userOpGasCost = BigNumber.from(validationResult.preOpGas).add(entry.userOp.callGasLimit)
+      const userOpGasCost = BigNumber.from(validationResult.returnInfo.preOpGas).add(entry.userOp.callGasLimit)
       const newTotalGas = totalGas.add(userOpGasCost)
       if (newTotalGas.gt(this.maxBundleGas)) {
         break
@@ -139,13 +139,13 @@ export class BundleManager {
         if (paymasterDeposit[paymaster] == null) {
           paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
         }
-        if (paymasterDeposit[paymaster].lt(validationResult.prefund)) {
+        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund)) {
           // not enough balance in paymaster to pay for all UserOps
           // (but it passed validation, so it can sponsor them separately
           continue
         }
         stakedEntityCount[paymaster] = (stakedEntityCount[paymaster] ?? 0) + 1
-        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.prefund)
+        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund)
       }
       if (factory != null) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1

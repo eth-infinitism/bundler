@@ -49,7 +49,6 @@ export class UserOpMethodHandler {
   ) {
   }
 
-
   async getSupportedEntryPoints (): Promise<string[]> {
     return [this.config.entryPoint]
   }
@@ -112,15 +111,16 @@ export class UserOpMethodHandler {
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
 
     const entryPointFromAddrZero = EntryPoint__factory.connect(entryPointInput, provider.getSigner(AddressZero))
-    const errorResult = await entryPointFromAddrZero.callStatic.simulateValidation(userOp).catch(e => e)
-    if (errorResult.errorName !== 'SimulationResult') {
+    const errorResult = await entryPointFromAddrZero.callStatic.validateUserOp(userOp).catch(e => e)
+    if (errorResult.errorName !== 'ValidationResult') {
       throw errorResult
     }
 
+    const { returnInfo } = errorResult.errorArgs
     let {
       preOpGas,
       deadline
-    } = errorResult.errorArgs
+    } = returnInfo
     const callGasLimit = await this.provider.estimateGas({
       from: this.entryPoint.address,
       to: userOp.sender,
@@ -139,7 +139,6 @@ export class UserOpMethodHandler {
       callGasLimit
     }
   }
-
 
   async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
     await this._validateParameters(userOp1, entryPointInput)

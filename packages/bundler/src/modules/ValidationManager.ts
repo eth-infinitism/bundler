@@ -28,9 +28,11 @@ export enum ValidationErrors {
  * result from successful simulateValidation
  */
 export interface ValidationResult {
-  preOpGas: BigNumberish
-  prefund: BigNumberish
-  deadline: number
+  returnInfo: {
+    preOpGas: BigNumberish
+    prefund: BigNumberish
+    deadline: number
+  }
 
   senderInfo: StakeInfo
   factoryInfo?: StakeInfo
@@ -56,12 +58,12 @@ export class ValidationManager {
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp, {gasLimit: 10e6}).catch(e => e)
+    const errorResult = await this.entryPoint.callStatic.validateUserOp(userOp, {gasLimit: 10e6}).catch(e => e)
     return this._parseErrorResult(userOp, errorResult)
   }
 
   _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
-    if (!errorResult?.errorName?.startsWith('SimulationResult')) {
+    if (!errorResult?.errorName?.startsWith('ValidationResult')) {
       // parse it as FailedOp
       // if its FailedOp, then we have the paymaster param... otherwise its an Error(string)
       let paymaster = errorResult.errorArgs.paymaster
@@ -79,9 +81,7 @@ export class ValidationManager {
     }
 
     const {
-      preOpGas,
-      prefund,
-      deadline,
+      returnInfo,
       senderInfo,
       factoryInfo,
       paymasterInfo,
@@ -102,9 +102,7 @@ export class ValidationManager {
     }
 
     return {
-      preOpGas,
-      prefund,
-      deadline,
+      returnInfo,
       senderInfo: {
         ...senderInfo,
         addr: userOp.sender
@@ -117,7 +115,7 @@ export class ValidationManager {
 
   async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
     const provider = this.entryPoint.provider as JsonRpcProvider
-    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
+    const simulateCall = this.entryPoint.interface.encodeFunctionData('validateUserOp', [userOp])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
@@ -153,6 +151,7 @@ export class ValidationManager {
         .replace(new RegExp(getAddr(userOp.initCode) ?? '--no-initcode--'), '{factory}')
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
+      //errorResult is "ValidationResult"
       return [errorResult, tracerResult]
     } catch (e: any) {
       //if already parsed, throw as is
@@ -183,7 +182,7 @@ export class ValidationManager {
       res = await this._callSimulateValidation(userOp)
     }
 
-    requireCond(res.deadline == null || res.deadline + 30 < Date.now() / 1000,
+    requireCond(res.returnInfo.deadline == null || res.returnInfo.deadline + 30 < Date.now() / 1000,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 

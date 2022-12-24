@@ -3,10 +3,14 @@ import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
 
-export const AddressZero = ethers.constants.AddressZero
+// UserOperation is the first parameter of validateUseOp
+const validateUserOpMethod = 'validateUserOp'
+const UserOpType = entryPointAbi.find(entry => entry.name === validateUserOpMethod)?.inputs[0]
+if (UserOpType == undefined) {
+  throw new Error(`unable to find method ${validateUserOpMethod} in EP ${entryPointAbi.filter(x=>x.type=='function').map(x=>x.name).join(',')}`)
+}
 
-// UserOperation is the first parameter of simulateValidation
-const UserOpType = entryPointAbi.find(entry => entry.name === 'simulateValidation')?.inputs[0]
+export const AddressZero = ethers.constants.AddressZero
 
 // reverse "Deferrable" or "PromiseOrValue" fields
 export type NotPromise<T> = {
@@ -88,6 +92,7 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
     encoded = '0x' + encoded.slice(66, encoded.length - 64)
     return encoded
   }
+
   const typevalues = (UserOpType as any).components.map((c: { name: keyof typeof op, type: string }) => ({
     type: c.type,
     val: op[c.name]
