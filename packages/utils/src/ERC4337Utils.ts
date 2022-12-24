@@ -92,57 +92,6 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
     type: c.type,
     val: op[c.name]
   }))
-  // const typevalues = [
-  //   {
-  //     type: 'address',
-  //     val: op.sender
-  //   },
-  //   {
-  //     type: 'uint256',
-  //     val: op.nonce
-  //   },
-  //   {
-  //     type: 'bytes',
-  //     val: op.initCode
-  //   },
-  //   {
-  //     type: 'bytes',
-  //     val: op.callData
-  //   },
-  //   {
-  //     type: 'uint256',
-  //     val: op.callGasLimit
-  //   },
-  //   {
-  //     type: 'uint256',
-  //     val: op.verificationGasLimit
-  //   },
-  //   {
-  //     type: 'uint256',
-  //     val: op.preVerificationGas
-  //   },
-  //   {
-  //     type: 'uint256',
-  //     val: op.maxFeePerGas
-  //   },
-  //   {
-  //     type: 'uint256',
-  //     val: op.maxPriorityFeePerGas
-  //   },
-  //   {
-  //     type: 'bytes',
-  //     val: op.paymasterAndData
-  //   }
-  // ]
-  // console.log('hard-coded typedvalues', typevalues)
-  // console.log('from ABI typedValues', typedValues)
-  if (!forSignature) {
-    // for the purpose of calculating gas cost, also hash signature
-    typevalues.push({
-      type: 'bytes',
-      val: op.signature
-    })
-  }
   return encode(typevalues, forSignature)
 }
 

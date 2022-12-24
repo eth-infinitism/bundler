@@ -42,7 +42,6 @@ export interface ExitInfo {
   gasUsed: number
   data: string
 }
-
 export interface NumberLevelInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }

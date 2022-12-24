@@ -34,7 +34,6 @@ describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
   let accountDeployerAddress: string
-
   let methodHandler: UserOpMethodHandler
   let provider: BaseProvider
   let signer: JsonRpcSigner
@@ -49,7 +48,6 @@ describe('UserOpMethodHandler', function () {
 
     DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountFactory__factory.bytecode)
-
     const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
     entryPoint = await EntryPointFactory.deploy()
 
