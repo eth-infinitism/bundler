@@ -108,7 +108,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
     const newMnemonic = Wallet.createRandom().mnemonic.phrase
     fs.writeFileSync(mnemonicFile, newMnemonic)
-    console.log('creaed mnemonic file', mnemonicFile)
+    console.log('created mnemonic file', mnemonicFile)
     process.exit(1)
   }
   const provider: BaseProvider =

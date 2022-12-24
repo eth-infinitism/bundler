@@ -2,9 +2,6 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { ethers } from 'hardhat'
 
-const UNSTAKE_DELAY_SEC = 100
-const PAYMASTER_STAKE = ethers.utils.parseEther('1')
-
 // deploy entrypoint - but only on debug network..
 const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // first verify if already deployed:
@@ -12,7 +9,6 @@ const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     await hre.deployments.deploy(
       'EntryPoint', {
         from: ethers.constants.AddressZero,
-        args: [PAYMASTER_STAKE, UNSTAKE_DELAY_SEC],
         deterministicDeployment: true,
         log: true
       })
@@ -35,7 +31,6 @@ const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
     'EntryPoint', {
       // from: ethers.constants.AddressZero,
       from: deployer,
-      // args: [PAYMASTER_STAKE, UNSTAKE_DELAY_SEC],
       gasLimit: 4e6,
       deterministicDeployment: true,
       log: true
