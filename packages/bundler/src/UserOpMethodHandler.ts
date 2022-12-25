@@ -110,8 +110,7 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
 
-    const entryPointFromAddrZero = EntryPoint__factory.connect(entryPointInput, provider.getSigner(AddressZero))
-    const errorResult = await entryPointFromAddrZero.callStatic.validateUserOp(userOp).catch(e => e)
+    const errorResult = await this.entryPoint.callStatic.validateUserOp(userOp).catch(e => e)
     if (errorResult.errorName !== 'ValidationResult') {
       throw errorResult
     }
@@ -121,6 +120,7 @@ export class UserOpMethodHandler {
       preOpGas,
       deadline
     } = returnInfo
+
     const callGasLimit = await this.provider.estimateGas({
       from: this.entryPoint.address,
       to: userOp.sender,
