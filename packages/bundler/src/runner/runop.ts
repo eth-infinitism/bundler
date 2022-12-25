@@ -16,7 +16,7 @@ import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0x6a414B0aDB35Ef7D072c806690c390e3B4f44824'
+const ENTRY_POINT = '0x002BCB667F6b3e3CECf654548b961cE10A4Fff46'
 
 class Runner {
   bundlerProvider!: HttpRpcClient

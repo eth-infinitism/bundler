@@ -13,6 +13,7 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
+import { DeterministicDeployer } from '@account-abstraction/sdk'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -121,6 +122,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
   } catch (e: any) {
     throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
+  }
+
+  const {
+    name: chainName,
+    chainId
+  } = await provider.getNetwork()
+
+  if (chainId== 31337 || chainId == 1337) {
+    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
   }
 
   const {
