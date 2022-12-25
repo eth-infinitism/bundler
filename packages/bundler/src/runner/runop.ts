@@ -47,7 +47,7 @@ class Runner {
     const net = await this.provider.getNetwork()
     const chainId = net.chainId
     const dep = new DeterministicDeployer(this.provider)
-    const accountDeployer = await dep.getDeterministicDeployAddress(SimpleAccountFactory__factory.bytecode)
+    const accountDeployer = await dep.getDeterministicDeployAddress(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     // const accountDeployer = await new SimpleAccountFactory__factory(this.provider.getSigner()).deploy().then(d=>d.address)
     if (!await dep.isContractDeployed(accountDeployer)) {
       if (deploymentSigner == null) {
@@ -55,7 +55,7 @@ class Runner {
         process.exit(1)
       }
       const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
-      await dep1.deterministicDeploy(SimpleAccountFactory__factory.bytecode)
+      await dep1.deterministicDeploy(new SimpleAccountFactory__factory(),0, [this.entryPointAddress])
     }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
     this.accountApi = new SimpleAccountAPI({
