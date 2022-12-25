@@ -24,7 +24,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "../../account-abstraction-contracts-v0.3.4.tgz",
+    "@account-abstraction/contracts": "../../account-abstraction-contracts-v0.3.6.tgz",
     "@account-abstraction/sdk": "^0.3.0",
     "@account-abstraction/utils": "^0.3.0",
     "@ethersproject/abi": "^5.7.0",

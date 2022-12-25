@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@account-abstraction/contracts@../../account-abstraction-contracts-v0.3.4.tgz":
-  version "0.3.4"
-  uid "60d1ac95cb22cfabd8c0f201e6ba413c711c668e"
-  resolved "../../account-abstraction-contracts-v0.3.4.tgz#60d1ac95cb22cfabd8c0f201e6ba413c711c668e"
+"@account-abstraction/contracts@../../account-abstraction-contracts-v0.3.6.tgz":
+  version "0.3.6"
+  uid "529d4f077225543cf82f4d37ba93690bfd5d11f4"
+  resolved "../../account-abstraction-contracts-v0.3.6.tgz#529d4f077225543cf82f4d37ba93690bfd5d11f4"
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.18.6":
   version "7.18.6"
