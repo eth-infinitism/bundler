@@ -145,25 +145,25 @@ export class BundlerServer {
       case 'web3_clientVersion':
         result = this.methodHandler.clientVersion()
         break
-      case 'aa_clearState':
+      case 'debug_bundler_clearState':
         this.debugHandler.clearState()
         result = true
         break
-      case 'aa_dumpMempool':
+      case 'debug_bundler_dumpMempool':
         result = await this.debugHandler.dumpMempool()
         break
-      case 'aa_setReputation':
+      case 'debug_bundler_setReputation':
         await this.debugHandler.setReputation(params[0])
         result = true
         break
-      case 'aa_dumpReputation':
+      case 'debug_bundler_dumpReputation':
         result = await this.debugHandler.dumpReputation()
         break
-      case 'aa_setBundleInterval':
+      case 'debug_bundler_setBundleInterval':
         await this.debugHandler.setBundleInterval(params[0], params[1])
         result = true
         break
-      case 'aa_sendBundleNow':
+      case 'debug_bundler_sendBundleNow':
         await this.debugHandler.sendBundleNow()
         result = true
         break
