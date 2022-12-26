@@ -15,7 +15,7 @@ export interface MempoolEntry {
 }
 
 export interface MempoolDump {
-  mempool: MempoolEntry[]
+  mempool: UserOperation[]
 }
 
 export class MempoolManager {
@@ -103,7 +103,7 @@ export class MempoolManager {
    * debug: dump mempool content
    */
   dump (): MempoolDump {
-    return { mempool: this.mempool }
+    return { mempool: this.mempool.map(entry=>entry.userOp) }
   }
 
   /**
