@@ -1,5 +1,6 @@
 import { BigNumberish } from 'ethers'
 import { TransactionReceipt } from '@ethersproject/providers'
+import { UserOperation } from './modules/moduleUtils'
 
 /**
  * RPC calls return types
@@ -25,6 +26,13 @@ export interface EstimateUserOpGasResult {
    * estimated cost of calling the account with the given callData
    */
   callGasLimit: BigNumberish
+}
+
+export interface UserOperationByHashResponse extends UserOperation {
+  entryPoint: string
+  transactionHash: string
+  blockNumber: number
+  blockHash: string
 }
 
 export interface UserOperationReceipt {

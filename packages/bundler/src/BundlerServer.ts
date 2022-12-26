@@ -142,6 +142,9 @@ export class BundlerServer {
       case 'eth_getUserOperationReceipt':
         result = await this.methodHandler.getUserOperationReceipt(params[0])
         break
+      case 'eth_getUserOperationByHash':
+        result = await this.methodHandler.getUserOperationByHash(params[0])
+        break
       case 'web3_clientVersion':
         result = this.methodHandler.clientVersion()
         break

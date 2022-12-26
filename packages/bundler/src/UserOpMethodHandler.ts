@@ -9,8 +9,8 @@ import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/typ
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond } from './utils'
 import { ExecutionManager } from './modules/ExecutionManager'
-import { getAddr } from './modules/moduleUtils'
-import { UserOperationReceipt } from './RpcTypes'
+import { getAddr, UserOperation } from './modules/moduleUtils'
+import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -177,6 +177,60 @@ export class UserOpMethodHandler {
     return logs.slice(startIndex + 1, endIndex)
   }
 
+  async getUserOperationByHash (userOpHash: string): Promise<UserOperationByHashResponse | null> {
+    requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
+    const event = await this._getUserOperationEvent(userOpHash)
+    if (event == null) {
+      return null
+    }
+    const tx = await event.getTransaction()
+    if (tx.to != this.entryPoint.address) {
+      throw new Error('unable to parse transaction')
+    }
+    const parsed = this.entryPoint.interface.parseTransaction(tx)
+    const ops: UserOperation[] = parsed?.args.ops
+    if (ops == null) {
+      throw new Error('failed to parse transaction')
+    }
+    const op = ops.find(op =>
+      op.sender === event.args.sender &&
+      op.nonce.toString() === event.args.nonce.toString()
+    )
+    if (op == null) {
+      throw new Error('unable to find userOp in transaction')
+    }
+    const {
+      sender,
+      nonce,
+      initCode,
+      callData,
+      callGasLimit,
+      verificationGasLimit,
+      preVerificationGas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      paymasterAndData,
+      signature
+    } = op
+    return {
+      sender,
+      nonce,
+      initCode,
+      callData,
+      callGasLimit,
+      verificationGasLimit,
+      preVerificationGas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      paymasterAndData,
+      signature,
+      entryPoint: this.entryPoint.address,
+      transactionHash: tx.hash,
+      blockHash: tx.blockHash!,
+      blockNumber: tx.blockNumber!
+    }
+  }
+
   async getUserOperationReceipt (userOpHash: string): Promise<UserOperationReceipt | null> {
     requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
     const event = await this._getUserOperationEvent(userOpHash)
@@ -201,4 +255,5 @@ export class UserOpMethodHandler {
     // eslint-disable-next-line
     return 'aa-bundler/' + require('../package.json').version
   }
+
 }
