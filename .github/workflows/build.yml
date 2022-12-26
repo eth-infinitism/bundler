@@ -25,7 +25,8 @@ jobs:
         with:
           path: node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-      - run: yarn install
+          #yarn can't find the "tgz" in the workspace root. need to change folder
+      - run: cd packages/bundler; yarn install
       - run: yarn run ci
 
   lint:
@@ -39,7 +40,7 @@ jobs:
         with:
           path: node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-      - run: yarn install
+      - run: cd packages/bundler; yarn install
       - run: yarn lint
 
 
