@@ -5,9 +5,10 @@
 
 import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from './GethTracer'
 
-// toHex is available in a context of geth tracer
+// functions available in a context of geth tracer
 declare function toHex (a: any): string
 
+declare function toAddress (a: any): string
 /**
  * return type of our BundlerCollectorTracer.
  * collect access and opcodes, split into "levels" based on NUMBER opcode
@@ -17,7 +18,7 @@ export interface BundlerCollectorReturn {
   /**
    * storage and opcode info, collected between "NUMBER" opcode calls (which is used as our "level marker")
    */
-  numberLevels: { [numberOpcodeLevel: string]: NumberLevelInfo }
+  numberLevels: NumberLevelInfo[]
   /**
    * values passed into KECCAK opcode
    */
@@ -41,10 +42,11 @@ export interface ExitInfo {
   gasUsed: number
   data: string
 }
-
 export interface NumberLevelInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
+  contractSize: { [addr: string]: number }
+  oog?: boolean
 }
 
 export interface AccessInfo {
@@ -80,7 +82,7 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
  */
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
   return {
-    numberLevels: {},
+    numberLevels: [],
     currentLevel: null as any,
     keccak: [],
     calls: [],
@@ -90,10 +92,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     numberCounter: 0,
 
     fault (log: LogStep, db: LogDb): void {
-      this.debug.push(`fault depth=${log.getDepth()} gas=${log.getGas()} cost=${log.getCost()} err=${log.getError() ?? ''}`)
+      this.debug.push(`fault depth=${log.getDepth()} gas=${log.getGas()} cost=${log.getCost()} err=${log.getError()}`)
     },
 
-    result (ctx: LogContext, db: LogDb): any {
+    result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
         numberLevels: this.numberLevels,
         keccak: this.keccak,
@@ -118,7 +120,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       this.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
-        data: toHex(frame.getOutput()).slice(0, 500)
+        data: toHex(frame.getOutput()).slice(0, 1000)
       })
     },
 
@@ -128,18 +130,25 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
-      // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth())
+      // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth() + '-' + log.getGas() + '-' + log.getCost())
+      if (log.getGas() < log.getCost()) {
+        this.currentLevel.oog = true
+      }
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
-        const ofs = parseInt(log.stack.peek(0).toString())
-        const len = parseInt(log.stack.peek(1).toString())
-        const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 500)
-        this.debug.push(opcode + ' ' + data)
-        this.calls.push({
-          type: opcode,
-          gasUsed: 0,
-          data
-        })
+        if (log.getDepth() === 1) {
+          // exit() is not called on top-level return/revent, so we reconstruct it
+          // from opcode
+          const ofs = parseInt(log.stack.peek(0).toString())
+          const len = parseInt(log.stack.peek(1).toString())
+          const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 1000)
+          this.debug.push(opcode + ' ' + data)
+          this.calls.push({
+            type: opcode,
+            gasUsed: 0,
+            data
+          })
+        }
       }
 
       if (log.getDepth() === 1) {
@@ -148,9 +157,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         if (this.numberLevels[this.numberCounter] == null) {
           this.currentLevel = this.numberLevels[this.numberCounter] = {
             access: {},
-            opcodes: {}
+            opcodes: {},
+            contractSize: {}
           }
         }
+        this.lastOp = ''
         return
       }
 
@@ -162,6 +173,15 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         // ignore "unimportant" opcodes:
         if (opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/) == null) {
           this.countSlot(this.currentLevel.opcodes, opcode)
+        }
+      }
+      if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL|CREATE2)$/) != null) {
+        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length())
+        const idx = opcode.startsWith('EXT') ? 0 : 1
+        const addr = toAddress(log.stack.peek(idx).toString(16))
+        const addrHex = toHex(addr)
+        if (this.currentLevel.contractSize[addrHex] == null) {
+          this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
         }
       }
       this.lastOp = opcode

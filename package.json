@@ -23,14 +23,14 @@
     "lerna-clear": "lerna run clear",
     "lerna-lint": "lerna run lint --stream --parallel",
     "lerna-test": "lerna run hardhat-test --stream",
-    "lerna-test-flows": "lerna run hardhat-test-flows --stream --no-prefix",
     "lerna-tsc": "lerna run tsc --scope @account-abstraction/*",
     "lerna-watch-tsc": "lerna run --parallel watch-tsc",
     "lint-fix": "lerna run lint-fix --parallel",
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
     "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
-    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployDeployer --selfBundler"
+    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler",
+    "ci": "env ; yarn depcheck; yarn preprocess"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.33.0",

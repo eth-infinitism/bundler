@@ -1,7 +1,7 @@
 import {
   EntryPoint,
   EntryPoint__factory,
-  SimpleAccountDeployer__factory,
+  SimpleAccountFactory__factory,
   UserOperationStruct
 } from '@account-abstraction/contracts'
 import { Wallet } from 'ethers'
@@ -9,9 +9,8 @@ import { parseEther } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
-import { SimpleAccountAPI } from '../src'
+import { DeterministicDeployer, SimpleAccountAPI } from '../src'
 import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
-import { DeterministicDeployer } from '../src/DeterministicDeployer'
 import { rethrowError } from '@account-abstraction/utils'
 
 const provider = ethers.provider
@@ -32,7 +31,8 @@ describe('SimpleAccountAPI', () => {
 
     recipient = await new SampleRecipient__factory(signer).deploy()
     owner = Wallet.createRandom()
-    const factoryAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+    DeterministicDeployer.init(ethers.provider)
+    const factoryAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
     api = new SimpleAccountAPI({
       provider,
       entryPointAddress: entryPoint.address,

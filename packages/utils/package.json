@@ -16,7 +16,7 @@
     "tsc": "tsc"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "0.3.0",
+    "@account-abstraction/contracts": "^0.4.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",

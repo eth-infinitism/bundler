@@ -3,14 +3,16 @@ import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
 import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
-import { hexlify, parseEther } from 'ethers/lib/utils'
+import { parseEther } from 'ethers/lib/utils'
 
-import { erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
 import { RpcError } from './utils'
+import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import { DebugMethodHandler } from './DebugMethodHandler'
 
 export class BundlerServer {
   app: Express
@@ -18,6 +20,7 @@ export class BundlerServer {
 
   constructor (
     readonly methodHandler: UserOpMethodHandler,
+    readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
     readonly provider: Provider,
     readonly wallet: Wallet
@@ -51,6 +54,26 @@ export class BundlerServer {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
 
+    // minimal UserOp to revert with "FailedOp"
+    const emptyUserOp: UserOperationStruct = {
+      sender: AddressZero,
+      callData: '0x',
+      initCode: AddressZero,
+      paymasterAndData: '0x',
+      nonce: 0,
+      preVerificationGas: 0,
+      verificationGasLimit: 100000,
+      callGasLimit: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
+      signature: '0x'
+    }
+    // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
+    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.simulateValidation(emptyUserOp)
+      .catch(e => e)
+    if (err?.errorName !== 'FailedOp') {
+      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
+    }
     const bal = await this.provider.getBalance(this.wallet.address)
     console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
     if (bal.eq(0)) {
@@ -77,7 +100,7 @@ export class BundlerServer {
       id
     } = req.body
     try {
-      const result = await this.handleMethod(method, params)
+      const result = deepHexlify(await this.handleMethod(method, params))
       console.log('sent', method, '-', result)
       res.send({
         jsonrpc,
@@ -99,13 +122,13 @@ export class BundlerServer {
     }
   }
 
-  async handleMethod (method: string, params: any[]): Promise<void> {
+  async handleMethod (method: string, params: any[]): Promise<any> {
     let result: any
     switch (method) {
       case 'eth_chainId':
         // eslint-disable-next-line no-case-declarations
         const { chainId } = await this.provider.getNetwork()
-        result = hexlify(chainId)
+        result = chainId
         break
       case 'eth_supportedEntryPoints':
         result = await this.methodHandler.getSupportedEntryPoints()
@@ -113,17 +136,36 @@ export class BundlerServer {
       case 'eth_sendUserOperation':
         result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
-      case 'eth_callUserOperation':
-        result = await this.methodHandler.callUserOperation(params[0], params[1])
-        break
       case 'eth_estimateUserOperationGas':
         result = await this.methodHandler.estimateUserOperationGas(params[0], params[1])
         break
       case 'eth_getUserOperationReceipt':
         result = await this.methodHandler.getUserOperationReceipt(params[0])
         break
-      case 'eth_getUserOperationTransactionByHash':
-        result = await this.methodHandler.getUserOperationTransactionByHash(params[0])
+      case 'web3_clientVersion':
+        result = this.methodHandler.clientVersion()
+        break
+      case 'aa_clearState':
+        this.debugHandler.clearState()
+        result = true
+        break
+      case 'aa_dumpMempool':
+        result = await this.debugHandler.dumpMempool()
+        break
+      case 'aa_setReputation':
+        await this.debugHandler.setReputation(params[0])
+        result = true
+        break
+      case 'aa_dumpReputation':
+        result = await this.debugHandler.dumpReputation()
+        break
+      case 'aa_setBundleInterval':
+        await this.debugHandler.setBundleInterval(params[0], params[1])
+        result = true
+        break
+      case 'aa_sendBundleNow':
+        await this.debugHandler.sendBundleNow()
+        result = true
         break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)

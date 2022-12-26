@@ -20,7 +20,7 @@ In another Window:
   so it will listen on port 3000
 
 
-To run a simple test, do `yarn run runop --deployDeployer --network localhost`
+To run a simple test, do `yarn run runop --deployFactory --network localhost`
 
    The runop script:
    - deploys a wallet deployer (if not already there)

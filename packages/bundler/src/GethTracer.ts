@@ -135,39 +135,19 @@ export interface LogTracer {
   exit?: (frame: LogFrameResult) => void
 }
 
-export class LogCallFrame {
-  constructor (readonly type: string,
-    readonly caller: string,
-    readonly address: string,
-    readonly value: BigNumber,
-    readonly input: string,
-    readonly gas: number
-  ) {
-  }
-
-  getType (): string {
-    return this.type
-  } // - returns a string which has the type of the call frame
-
-  getFrom (): string {
-    return this.caller
-  } // - returns the address of the call frame sender
-
-  getTo (): string {
-    return this.address
-  }// - returns the address of the call frame target
-
-  getInput (): string {
-    return this.input
-  } // - returns the input as a buffer
-
-  getGas (): number {
-    return this.gas
-  } // - returns a Number which has the amount of gas provided for the frame
-
-  getValue (): BigNumber {
-    return this.value
-  } // - returns a big.Int with the amount to be transferred only if available, otherwise undefined
+export interface LogCallFrame {
+  // - returns a string which has the type of the call frame
+  getType: () => string
+  // - returns the address of the call frame sender
+  getFrom: () => string
+  // - returns the address of the call frame target
+  getTo: () => string
+  // - returns the input as a buffer
+  getInput: () => string
+  // - returns a Number which has the amount of gas provided for the frame
+  getGas: () => number
+  // - returns a big.Int with the amount to be transferred only if available, otherwise undefined
+  getValue: () => BigNumber
 }
 
 export interface LogFrameResult {

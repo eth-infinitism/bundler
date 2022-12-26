@@ -1,6 +1,6 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-import { EntryPoint__factory, SimpleAccountDeployer__factory } from '@account-abstraction/contracts'
+import { EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
 
 import { ClientConfig } from './ClientConfig'
 import { SimpleAccountAPI } from './SimpleAccountAPI'
@@ -26,12 +26,12 @@ export async function wrapProvider (
   const entryPoint = EntryPoint__factory.connect(config.entryPointAddress, originalProvider)
   // Initial SimpleAccount instance is not deployed and exists just for the interface
   const detDeployer = new DeterministicDeployer(originalProvider)
-  const simpleAccountDeployer = await detDeployer.deterministicDeploy(SimpleAccountDeployer__factory.bytecode)
+  const SimpleAccountFactory = await detDeployer.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
   const smartAccountAPI = new SimpleAccountAPI({
     provider: originalProvider,
     entryPointAddress: entryPoint.address,
     owner: originalSigner,
-    factoryAddress: simpleAccountDeployer,
+    factoryAddress: SimpleAccountFactory,
     paymasterAPI: config.paymasterAPI
   })
   debug('config=', config)

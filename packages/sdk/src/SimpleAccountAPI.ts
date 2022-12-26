@@ -1,8 +1,8 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import {
   SimpleAccount,
-  SimpleAccount__factory, SimpleAccountDeployer,
-  SimpleAccountDeployer__factory
+  SimpleAccount__factory, SimpleAccountFactory,
+  SimpleAccountFactory__factory
 } from '@account-abstraction/contracts'
 
 import { arrayify, hexConcat } from 'ethers/lib/utils'
@@ -40,7 +40,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
    */
   accountContract?: SimpleAccount
 
-  factory?: SimpleAccountDeployer
+  factory?: SimpleAccountFactory
 
   constructor (params: SimpleAccountApiParams) {
     super(params)
@@ -63,14 +63,14 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   async getAccountInitCode (): Promise<string> {
     if (this.factory == null) {
       if (this.factoryAddress != null && this.factoryAddress !== '') {
-        this.factory = SimpleAccountDeployer__factory.connect(this.factoryAddress, this.provider)
+        this.factory = SimpleAccountFactory__factory.connect(this.factoryAddress, this.provider)
       } else {
         throw new Error('no factory to get initCode')
       }
     }
     return hexConcat([
       this.factory.address,
-      this.factory.interface.encodeFunctionData('deployAccount', [this.entryPointAddress, await this.owner.getAddress(), this.index])
+      this.factory.interface.encodeFunctionData('createAccount', [await this.owner.getAddress(), this.index])
     ])
   }
 
@@ -91,7 +91,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   async encodeExecute (target: string, value: BigNumberish, data: string): Promise<string> {
     const accountContract = await this._getAccountContract()
     return accountContract.interface.encodeFunctionData(
-      'execFromEntryPoint',
+      'execute',
       [
         target,
         value,

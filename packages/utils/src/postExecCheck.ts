@@ -35,11 +35,10 @@ export async function postExecutionCheck (entryPoint: EntryPoint, userOpHash: st
   const { ops } = entryPoint.interface.decodeFunctionData('handleOps', tx.data)
   const userOp = await resolveProperties(ops[0] as UserOperationStruct)
   const {
-    actualGasPrice,
-    actualGasCost,
+    actualGasUsed,
     success
   } = req[0].args
-  const gasPaid = actualGasCost.div(actualGasPrice).toNumber()
+  const gasPaid = actualGasUsed.toNumber()
   const gasUsed = transactionReceipt.gasUsed.toNumber()
   return {
     gasUsed,

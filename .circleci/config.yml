@@ -49,22 +49,6 @@ jobs: # a collection of steps
           command: yarn lerna-test | tee /tmp/test-dev-results.log
       - store_test_results: # special step to upload test results for display in Test Summary
           path: /tmp/test-dev-results.log
-  test-flow:
-    working_directory: ~/aa # directory where steps will run
-    docker: # run the steps with Docker
-      - image: cimg/node:16.6.2
-    steps: # a collection of executable commands
-      - attach_workspace:
-          at: .
-      - run: # run hardhat-node as standalone process fork
-          name: hardhat-node-process
-          command: yarn hardhat-node
-          background: true
-      - run: # run tests
-          name: test
-          command: yarn lerna-test-flows | tee /tmp/test-flows-results.log
-      - store_test_results: # special step to upload test results for display in Test Summary
-          path: /tmp/test-flow-results.log
 
   lint:
     working_directory: ~/aa # directory where steps will run
@@ -94,9 +78,6 @@ workflows:
     jobs:
       - build
       - test:
-          requires:
-            - build
-      - test-flow:
           requires:
             - build
       - lint:

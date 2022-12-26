@@ -3,19 +3,31 @@ import { assert, expect } from 'chai'
 import { ethers } from 'hardhat'
 import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
-import { UserOperationReceipt, UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { EntryPoint, SimpleAccountDeployer__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import {
+  EntryPoint,
+  EntryPoint__factory,
+  SimpleAccountFactory__factory,
+  UserOperationStruct
+} from '@account-abstraction/contracts'
 
 import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  BundlerHelper, SampleRecipient, TestRulesAccount__factory, TestRulesAccount
+  SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory
 } from '../src/types'
 import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { UserOperationReceipt } from '../src/RpcTypes'
+import { ExecutionManager } from '../src/modules/ExecutionManager'
+import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
+import { MempoolManager } from '../src/modules/MempoolManager'
+import { ValidationManager } from '../src/modules/ValidationManager'
+import { BundleManager } from '../src/modules/BundleManager'
+import { waitFor } from '../src/utils'
 
 // resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
@@ -27,29 +39,22 @@ describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
   let accountDeployerAddress: string
-
   let methodHandler: UserOpMethodHandler
   let provider: BaseProvider
   let signer: JsonRpcSigner
   const accountSigner = Wallet.createRandom()
 
   let entryPoint: EntryPoint
-  let bundleHelper: BundlerHelper
   let sampleRecipient: SampleRecipient
 
   before(async function () {
     provider = ethers.provider
     signer = ethers.provider.getSigner()
+    entryPoint = await new EntryPoint__factory(signer).deploy()
 
     DeterministicDeployer.init(ethers.provider)
-    accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+    accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
 
-    const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
-    entryPoint = await EntryPointFactory.deploy()
-
-    const bundleHelperFactory = await ethers.getContractFactory('BundlerHelper')
-    bundleHelper = await bundleHelperFactory.deploy()
-    console.log('bundler from=', await bundleHelper.signer.getAddress())
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
 
@@ -57,14 +62,25 @@ describe('UserOpMethodHandler', function () {
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
-      helper: bundleHelper.address,
       minBalance: '0',
       mnemonic: '',
       network: '',
-      port: '3000'
+      port: '3000',
+      autoBundleInterval: 0,
+      autoBundleMempoolSize: 0,
+      maxBundleGas: 5e6,
+      // minstake zero, since we don't fund deployer.
+      minStake: '0',
+      minUnstakeDelay: 0
     }
 
+    const repMgr = new ReputationManager(BundlerReputationParams)
+    const mempoolMgr = new MempoolManager(repMgr)
+    const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
+    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
+      execManager,
       provider,
       signer,
       config,
@@ -99,21 +115,11 @@ describe('UserOpMethodHandler', function () {
       })
       const ret = await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address)
       // verification gas should be high - it creates this wallet
-      expect(ret.verificationGas).to.be.closeTo(1e6, 300000)
+      expect(ret.verificationGas).to.be.closeTo(300000, 100000)
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)
       expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
-    })
-    it('callUserOperation should work without eth', async () => {
-      const op = await resolveProperties(await smartAccountAPI.createSignedUserOp({
-        target,
-        data: '0xdeadface'
-      }))
-      const ret = await methodHandler.callUserOperation(await resolveHexlify(op), entryPoint.address)
-      // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
-      // and view-call doesn't perform full deploy-validate-execute cycle)
-      expect(ret.success).to.equal(true, ret as any)
     })
   })
 
@@ -124,7 +130,7 @@ describe('UserOpMethodHandler', function () {
     let accountDeployerAddress: string
     before(async function () {
       DeterministicDeployer.init(ethers.provider)
-      accountDeployerAddress = await DeterministicDeployer.deploy(SimpleAccountDeployer__factory.bytecode)
+      accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
 
       const smartAccountAPI = new SimpleAccountAPI({
         provider,
@@ -144,19 +150,26 @@ describe('UserOpMethodHandler', function () {
       }))
     })
 
-    it('should send UserOperation transaction to BundlerHelper', async function () {
+    it('should send UserOperation transaction to entryPoint', async function () {
       const userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
-      const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
-      const transactionReceipt = await req[0].getTransactionReceipt()
 
+      // sendUserOperation is async, even in auto-mining. need to wait for it.
+      const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
+
+      console.log('userop=', userOperation)
+      const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
-      const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
-      const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[1])
-      const userOperationEvent = entryPoint.interface.parseLog(transactionReceipt.logs[2])
+      console.log('ep events=', await entryPoint.queryFilter('*' as any, 1))
+      const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
+      const deployedEvent = entryPoint.interface.parseLog(logs[0])
+      const depositedEvent = entryPoint.interface.parseLog(logs[1])
+      const [senderEvent] = await sampleRecipient.queryFilter(sampleRecipient.filters.Sender(), transactionReceipt.blockHash)
+      const userOperationEvent = entryPoint.interface.parseLog(logs[2])
+
+      assert.equal(deployedEvent.args.sender, userOperation.sender)
       assert.equal(userOperationEvent.name, 'UserOperationEvent')
       assert.equal(userOperationEvent.args.success, true)
 
-      assert.equal(senderEvent.name, 'Sender')
       const expectedTxOrigin = await methodHandler.signer.getAddress()
       assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
       assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')
@@ -181,7 +194,7 @@ describe('UserOpMethodHandler', function () {
         await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
         throw Error('expected fail')
       } catch (e: any) {
-        expect(e.message).to.match(/account didn't pay prefund/)
+        expect(e.message).to.match(/AA21 didn't pay prefund/)
       }
     })
 
@@ -199,27 +212,6 @@ describe('UserOpMethodHandler', function () {
           gasLimit: 1e6
         })
         const id = await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
-
-        // {
-        //   console.log('wrong method')
-        //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
-        //     data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld + helloWorld + helloWorld + helloWorld + helloWorld]).padEnd(2000, '1'),
-        //     target: accountAddress,
-        //     gasLimit: 1e6
-        //
-        //   }), entryPoint.address)
-        // }
-        //
-        // {
-        //   console.log('self nonce')
-        //   const data = keccak256(Buffer.from('nonce()')).slice(0, 10)
-        //   await methodHandler.sendUserOperation(await api.createSignedUserOp({
-        //     data: data,
-        //     target: accountAddress,
-        //     gasLimit: 1e6
-        //
-        //   }), entryPoint.address)
-        // }
 
         await postExecutionDump(entryPoint, id)
       })
@@ -282,9 +274,9 @@ describe('UserOpMethodHandler', function () {
   describe('#getUserOperationReceipt', function () {
     let userOpHash: string
     let receipt: UserOperationReceipt
-    let acc: TestRulesAccount
+    let acc: TestRuleAccount
     before(async () => {
-      acc = await new TestRulesAccount__factory(signer).deploy()
+      acc = await new TestOpcodesAccount__factory(signer).deploy()
       const op: UserOperationStruct = {
         sender: acc.address,
         initCode: '0x',
@@ -300,7 +292,6 @@ describe('UserOpMethodHandler', function () {
       }
       await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})
-      console.log(2)
       userOpHash = await entryPoint.getUserOpHash(op)
       const beneficiary = signer.getAddress()
       await entryPoint.handleOps([op], beneficiary).then(async ret => await ret.wait())

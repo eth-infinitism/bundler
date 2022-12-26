@@ -7,7 +7,7 @@
 
 import { BigNumber, getDefaultProvider, Signer, Wallet } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { SimpleAccountDeployer__factory } from '@account-abstraction/contracts'
+import { SimpleAccountFactory__factory } from '@account-abstraction/contracts'
 import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
@@ -16,7 +16,7 @@ import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0x2DF1592238420ecFe7f2431360e224707e77fA0E'
+const ENTRY_POINT = '0x1306b01bc3e4ad202612d3843387e94737673f53'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
@@ -47,15 +47,15 @@ class Runner {
     const net = await this.provider.getNetwork()
     const chainId = net.chainId
     const dep = new DeterministicDeployer(this.provider)
-    const accountDeployer = await dep.getDeterministicDeployAddress(SimpleAccountDeployer__factory.bytecode)
-    // const accountDeployer = await new SimpleAccountDeployer__factory(this.provider.getSigner()).deploy().then(d=>d.address)
+    const accountDeployer = await dep.getDeterministicDeployAddress(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
+    // const accountDeployer = await new SimpleAccountFactory__factory(this.provider.getSigner()).deploy().then(d=>d.address)
     if (!await dep.isContractDeployed(accountDeployer)) {
       if (deploymentSigner == null) {
-        console.log(`AccountDeployer not deployed at ${accountDeployer}. run with --deployDeployer`)
+        console.log(`AccountDeployer not deployed at ${accountDeployer}. run with --deployFactory`)
         process.exit(1)
       }
       const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
-      await dep1.deterministicDeploy(SimpleAccountDeployer__factory.bytecode)
+      await dep1.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
     this.accountApi = new SimpleAccountAPI({
@@ -104,14 +104,14 @@ async function main (): Promise<void> {
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account (to fund account)')
     .option('--bundlerUrl <url>', 'bundler URL', 'http://localhost:3000/rpc')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract', ENTRY_POINT)
-    .option('--deployDeployer', 'Deploy the "account deployer" on this network (default for testnet)')
+    .option('--deployFactory', 'Deploy the "account deployer" on this network (default for testnet)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--selfBundler', 'run bundler in-process (for debugging the bundler)')
 
   const opts = program.parse().opts()
   const provider = getDefaultProvider(opts.network) as JsonRpcProvider
   let signer: Signer
-  const deployDeployer: boolean = opts.deployDeployer
+  const deployFactory: boolean = opts.deployFactory
   let bundler: BundlerServer | undefined
   if (opts.selfBundler != null) {
     // todo: if node is geth, we need to fund our bundler's account:
@@ -146,7 +146,7 @@ async function main (): Promise<void> {
       }
       // for hardhat/node, use account[0]
       signer = provider.getSigner()
-      // deployDeployer = true
+      // deployFactory = true
     } catch (e) {
       throw new Error('must specify --mnemonic')
     }
@@ -154,7 +154,7 @@ async function main (): Promise<void> {
   const accountOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const index = Date.now()
-  const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployDeployer ? signer : undefined)
+  const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployFactory ? signer : undefined)
 
   const addr = await client.getAddress()
 

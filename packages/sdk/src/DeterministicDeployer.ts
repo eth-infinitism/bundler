@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, ContractFactory } from 'ethers'
 import { hexConcat, hexlify, hexZeroPad, keccak256 } from 'ethers/lib/utils'
 import { TransactionRequest } from '@ethersproject/abstract-provider'
 import { JsonRpcProvider } from '@ethersproject/providers'
@@ -10,21 +10,27 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 export class DeterministicDeployer {
   /**
    * return the address this code will get deployed to.
-   * @param ctrCode constructor code to pass to CREATE2
+   * @param ctrCode constructor code to pass to CREATE2, or ContractFactory
    * @param salt optional salt. defaults to zero
    */
-  static async getAddress (ctrCode: string, salt: BigNumberish = 0): Promise<string> {
-    return await DeterministicDeployer.instance.getDeterministicDeployAddress(ctrCode, salt)
+  static async getAddress (ctrCode: string, salt: BigNumberish): Promise<string>
+  static async getAddress (ctrCode: string): Promise<string>
+  static async getAddress (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>
+  static async getAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
+    return await DeterministicDeployer.instance.getDeterministicDeployAddress(ctrCode, salt, params)
   }
 
   /**
    * deploy the contract, unless already deployed
-   * @param ctrCode constructor code to pass to CREATE2
+   * @param ctrCode constructor code to pass to CREATE2 or ContractFactory
    * @param salt optional salt. defaults to zero
    * @return the deployed address
    */
-  static async deploy (ctrCode: string, salt: BigNumberish = 0): Promise<string> {
-    return await DeterministicDeployer.instance.deterministicDeploy(ctrCode, salt)
+  static async deploy (ctrCode: string, salt: BigNumberish): Promise<string>
+  static async deploy (ctrCode: string): Promise<string>
+  static async deploy (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>
+  static async deploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
+    return await DeterministicDeployer.instance.deterministicDeploy(ctrCode, salt, params)
   }
 
   // from: https://github.com/Arachnid/deterministic-deployment-proxy
@@ -45,7 +51,7 @@ export class DeterministicDeployer {
     return await this.isContractDeployed(this.proxyAddress)
   }
 
-  async deployDeployer (): Promise<void> {
+  async deployFactory (): Promise<void> {
     if (await this.isContractDeployed(this.proxyAddress)) {
       return
     }
@@ -65,35 +71,49 @@ export class DeterministicDeployer {
     }
   }
 
-  async getDeployTransaction (ctrCode: string, salt: BigNumberish = 0): Promise<TransactionRequest> {
-    await this.deployDeployer()
+  async getDeployTransaction (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<TransactionRequest> {
+    await this.deployFactory()
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
+    const ctrEncoded = DeterministicDeployer.getCtrCode(ctrCode, params)
     return {
       to: this.proxyAddress,
       data: hexConcat([
         saltEncoded,
-        ctrCode])
+        ctrEncoded])
     }
   }
 
-  async getDeterministicDeployAddress (ctrCode: string, salt: BigNumberish = 0): Promise<string> {
+  static getCtrCode (ctrCode: string | ContractFactory, params: any[]): string {
+    if (typeof ctrCode !== 'string') {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return hexlify(ctrCode.getDeployTransaction(...params).data!)
+    } else {
+      if (params.length !== 0) {
+        throw new Error('constructor params can only be passed to ContractFactory')
+      }
+      return ctrCode
+    }
+  }
+
+  async getDeterministicDeployAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     // this method works only before the contract is already deployed:
     // return await this.provider.call(await this.getDeployTransaction(ctrCode, salt))
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
 
+    const ctrCode1 = DeterministicDeployer.getCtrCode(ctrCode, params)
     return '0x' + keccak256(hexConcat([
       '0xff',
       this.proxyAddress,
       saltEncoded,
-      keccak256(ctrCode)
+      keccak256(ctrCode1)
     ])).slice(-40)
   }
 
-  async deterministicDeploy (ctrCode: string, salt: BigNumberish = 0): Promise<string> {
-    const addr = await this.getDeterministicDeployAddress(ctrCode, salt)
+  async deterministicDeploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
+    const addr = await this.getDeterministicDeployAddress(ctrCode, salt, params)
     if (!await this.isContractDeployed(addr)) {
       await this.provider.getSigner().sendTransaction(
-        await this.getDeployTransaction(ctrCode, salt))
+        await this.getDeployTransaction(ctrCode, salt, params))
     }
     return addr
   }
