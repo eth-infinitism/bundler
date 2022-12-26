@@ -13,9 +13,9 @@ export class DeterministicDeployer {
    * @param ctrCode constructor code to pass to CREATE2, or ContractFactory
    * @param salt optional salt. defaults to zero
    */
-  static async getAddress (ctrCode: string, salt: BigNumberish): Promise<string>;
-  static async getAddress (ctrCode: string): Promise<string>;
-  static async getAddress (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>;
+  static async getAddress (ctrCode: string, salt: BigNumberish): Promise<string>
+  static async getAddress (ctrCode: string): Promise<string>
+  static async getAddress (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>
   static async getAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     return await DeterministicDeployer.instance.getDeterministicDeployAddress(ctrCode, salt, params)
   }
@@ -26,9 +26,9 @@ export class DeterministicDeployer {
    * @param salt optional salt. defaults to zero
    * @return the deployed address
    */
-  static async deploy (ctrCode: string, salt: BigNumberish): Promise<string>;
-  static async deploy (ctrCode: string): Promise<string>;
-  static async deploy (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>;
+  static async deploy (ctrCode: string, salt: BigNumberish): Promise<string>
+  static async deploy (ctrCode: string): Promise<string>
+  static async deploy (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>
   static async deploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     return await DeterministicDeployer.instance.deterministicDeploy(ctrCode, salt, params)
   }
@@ -74,7 +74,7 @@ export class DeterministicDeployer {
   async getDeployTransaction (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<TransactionRequest> {
     await this.deployFactory()
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
-    let ctrEncoded = DeterministicDeployer.getCtrCode(ctrCode, params)
+    const ctrEncoded = DeterministicDeployer.getCtrCode(ctrCode, params)
     return {
       to: this.proxyAddress,
       data: hexConcat([
@@ -84,10 +84,10 @@ export class DeterministicDeployer {
   }
 
   static getCtrCode (ctrCode: string | ContractFactory, params: any[]): string {
-    if (typeof ctrCode != 'string') {
+    if (typeof ctrCode !== 'string') {
       return hexlify(ctrCode.getDeployTransaction(...params).data!)
     } else {
-      if (params.length != 0) {
+      if (params.length !== 0) {
         throw new Error('constructor params can only be passed to ContractFactory')
       }
       return ctrCode
@@ -99,7 +99,7 @@ export class DeterministicDeployer {
     // return await this.provider.call(await this.getDeployTransaction(ctrCode, salt))
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
 
-    let ctrCode1 = DeterministicDeployer.getCtrCode(ctrCode, params)
+    const ctrCode1 = DeterministicDeployer.getCtrCode(ctrCode, params)
     return '0x' + keccak256(hexConcat([
       '0xff',
       this.proxyAddress,

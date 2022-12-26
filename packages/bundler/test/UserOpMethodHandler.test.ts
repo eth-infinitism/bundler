@@ -6,7 +6,12 @@ import { parseEther, resolveProperties } from 'ethers/lib/utils'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import { EntryPoint, SimpleAccountFactory__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import {
+  EntryPoint,
+  EntryPoint__factory,
+  SimpleAccountFactory__factory,
+  UserOperationStruct
+} from '@account-abstraction/contracts'
 
 import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
@@ -45,8 +50,7 @@ describe('UserOpMethodHandler', function () {
   before(async function () {
     provider = ethers.provider
     signer = ethers.provider.getSigner()
-    const EntryPointFactory = await ethers.getContractFactory('EntryPoint')
-    entryPoint = await EntryPointFactory.deploy()
+    entryPoint = await new EntryPoint__factory(signer).deploy()
 
     DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
@@ -152,18 +156,20 @@ describe('UserOpMethodHandler', function () {
       // sendUserOperation is async, even in auto-mining. need to wait for it.
       const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
 
+      console.log('userop=', userOperation)
       const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
-      const deployedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[0])
-      const depositedEvent = entryPoint.interface.parseLog(transactionReceipt.logs[1])
-      const senderEvent = sampleRecipient.interface.parseLog(transactionReceipt.logs[2])
-      const userOperationEvent = entryPoint.interface.parseLog(transactionReceipt.logs[3])
+      console.log('ep events=', await entryPoint.queryFilter('*' as any, 1))
+      let logs = transactionReceipt.logs.filter(log=>log.address == entryPoint.address)
+      const deployedEvent = entryPoint.interface.parseLog(logs[0])
+      const depositedEvent = entryPoint.interface.parseLog(logs[1])
+      const [senderEvent] = await sampleRecipient.queryFilter(sampleRecipient.filters.Sender(), transactionReceipt.blockHash)
+      const userOperationEvent = entryPoint.interface.parseLog(logs[2])
 
       assert.equal(deployedEvent.args.sender, userOperation.sender)
       assert.equal(userOperationEvent.name, 'UserOperationEvent')
       assert.equal(userOperationEvent.args.success, true)
 
-      assert.equal(senderEvent.name, 'Sender')
       const expectedTxOrigin = await methodHandler.signer.getAddress()
       assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
       assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')

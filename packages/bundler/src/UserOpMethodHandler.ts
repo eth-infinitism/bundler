@@ -3,8 +3,8 @@ import { JsonRpcProvider, JsonRpcSigner, Log, Provider } from '@ethersproject/pr
 
 import { BundlerConfig } from './BundlerConfig'
 import { resolveProperties } from 'ethers/lib/utils'
-import { AddressZero, deepHexlify } from '@account-abstraction/utils'
-import { EntryPoint__factory, UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
+import { deepHexlify } from '@account-abstraction/utils'
+import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond } from './utils'
@@ -110,7 +110,7 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
 
-    const errorResult = await this.entryPoint.callStatic.validateUserOp(userOp).catch(e => e)
+    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
     if (errorResult.errorName !== 'ValidationResult') {
       throw errorResult
     }

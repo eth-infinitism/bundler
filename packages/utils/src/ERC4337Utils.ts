@@ -4,7 +4,7 @@ import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/I
 import { ethers } from 'ethers'
 
 // UserOperation is the first parameter of validateUseOp
-const validateUserOpMethod = 'validateUserOp'
+const validateUserOpMethod = 'simulateValidation';
 const UserOpType = entryPointAbi.find(entry => entry.name === validateUserOpMethod)?.inputs[0]
 if (UserOpType == undefined) {
   throw new Error(`unable to find method ${validateUserOpMethod} in EP ${entryPointAbi.filter(x=>x.type=='function').map(x=>x.name).join(',')}`)
