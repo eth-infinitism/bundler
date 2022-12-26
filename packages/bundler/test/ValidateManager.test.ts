@@ -128,10 +128,10 @@ describe('#ValidationManager', () => {
     expect(await testUserOp('create2')
       .catch(e => e.message)).to.match(/account uses banned opcode: CREATE2/)
   })
-  //TODO: add a test with existing wallet, which should succeed (there is one in the "bundler spec"
+  // TODO: add a test with existing wallet, which should succeed (there is one in the "bundler spec"
   it('should fail referencing self token balance (during wallet creation)', async () => {
     expect(await testUserOp('balance-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
-      .catch(e=>e.message))
+      .catch(e => e.message))
       .to.match(/account has forbidden read/)
   })
   it('should fail if referencing other token balance', async () => {

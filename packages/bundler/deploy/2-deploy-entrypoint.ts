@@ -8,7 +8,7 @@ import { EntryPoint__factory } from '@account-abstraction/contracts'
 const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const dep = new DeterministicDeployer(ethers.provider)
   const epAddr = await dep.getDeterministicDeployAddress(EntryPoint__factory.bytecode)
-  if ( await dep.isContractDeployed(epAddr)) {
+  if (await dep.isContractDeployed(epAddr)) {
     console.log('EntryPoint already deployed at', epAddr)
     return
   }

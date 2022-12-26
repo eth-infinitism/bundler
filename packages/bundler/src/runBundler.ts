@@ -125,11 +125,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   }
 
   const {
-    name: chainName,
+    // name: chainName,
     chainId
   } = await provider.getNetwork()
 
-  if (chainId== 31337 || chainId == 1337) {
+  if (chainId === 31337 || chainId === 1337) {
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
   }
 

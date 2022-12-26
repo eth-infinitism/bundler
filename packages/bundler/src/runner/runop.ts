@@ -16,7 +16,7 @@ import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0xCd93695Fd5bd30aA819E9f7ea6c8c4FD1C78DD8D'
+const ENTRY_POINT = '0x1306b01bc3e4ad202612d3843387e94737673f53'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
@@ -55,7 +55,7 @@ class Runner {
         process.exit(1)
       }
       const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
-      await dep1.deterministicDeploy(new SimpleAccountFactory__factory(),0, [this.entryPointAddress])
+      await dep1.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
     this.accountApi = new SimpleAccountAPI({

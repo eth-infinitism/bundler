@@ -58,7 +58,7 @@ export class ValidationManager {
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp, {gasLimit: 10e6}).catch(e => e)
+    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
     return this._parseErrorResult(userOp, errorResult)
   }
 
@@ -151,16 +151,16 @@ export class ValidationManager {
         .replace(new RegExp(getAddr(userOp.initCode) ?? '--no-initcode--'), '{factory}')
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
-      //errorResult is "ValidationResult"
+      // errorResult is "ValidationResult"
       return [errorResult, tracerResult]
     } catch (e: any) {
-      //if already parsed, throw as is
-      if (e.code!=null) {
+      // if already parsed, throw as is
+      if (e.code != null) {
         throw e
       }
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
       const err = decodeErrorReason(data)
-      throw new RpcError(err != null ? err.message : data,111)
+      throw new RpcError(err != null ? err.message : data, 111)
     }
   }
 

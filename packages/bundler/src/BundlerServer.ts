@@ -3,7 +3,7 @@ import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
 import { Provider } from '@ethersproject/providers'
 import { Wallet, utils } from 'ethers'
-import {  parseEther } from 'ethers/lib/utils'
+import { parseEther } from 'ethers/lib/utils'
 
 import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 

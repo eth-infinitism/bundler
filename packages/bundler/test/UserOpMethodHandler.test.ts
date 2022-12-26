@@ -160,7 +160,7 @@ describe('UserOpMethodHandler', function () {
       const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
       console.log('ep events=', await entryPoint.queryFilter('*' as any, 1))
-      let logs = transactionReceipt.logs.filter(log=>log.address == entryPoint.address)
+      const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
       const deployedEvent = entryPoint.interface.parseLog(logs[0])
       const depositedEvent = entryPoint.interface.parseLog(logs[1])
       const [senderEvent] = await sampleRecipient.queryFilter(sampleRecipient.filters.Sender(), transactionReceipt.blockHash)
@@ -212,7 +212,6 @@ describe('UserOpMethodHandler', function () {
           gasLimit: 1e6
         })
         const id = await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
-
 
         await postExecutionDump(entryPoint, id)
       })

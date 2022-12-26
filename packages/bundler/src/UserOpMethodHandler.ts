@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish, Wallet } from 'ethers'
-import { JsonRpcProvider, JsonRpcSigner, Log, Provider } from '@ethersproject/providers'
+import { JsonRpcSigner, Log, Provider } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import { resolveProperties } from 'ethers/lib/utils'
@@ -8,12 +8,9 @@ import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond } from './utils'
-import Debug from 'debug'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr } from './modules/moduleUtils'
 import { UserOperationReceipt } from './RpcTypes'
-
-const debug = Debug('aa.handler.userop')
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -94,8 +91,6 @@ export class UserOpMethodHandler {
    * @param entryPointInput
    */
   async estimateUserOperationGas (userOp1: UserOperationStruct, entryPointInput: string): Promise<EstimateUserOpGasResult> {
-    const provider = this.provider as JsonRpcProvider
-
     const userOp = {
       ...await resolveProperties(userOp1),
       // default values for missing fields.

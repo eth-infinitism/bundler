@@ -85,6 +85,7 @@ export class DeterministicDeployer {
 
   static getCtrCode (ctrCode: string | ContractFactory, params: any[]): string {
     if (typeof ctrCode !== 'string') {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return hexlify(ctrCode.getDeployTransaction(...params).data!)
     } else {
       if (params.length !== 0) {
