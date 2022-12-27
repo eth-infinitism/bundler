@@ -1,5 +1,4 @@
 import Debug from 'debug'
-import { mapOf } from '../utils'
 
 const debug = Debug('aa.rep')
 
@@ -30,24 +29,19 @@ export const NonBundlerReputationParams: ReputationParams = {
 }
 
 interface ReputationEntry {
+  address: string
   opsSeen: number
   opsIncluded: number
   status?: ReputationStatus
 }
 
-interface ReputationMap {
-  [addr: string]: ReputationEntry
-}
-
-export interface ReputationDump {
-  reputation: ReputationMap
-}
+export type ReputationDump = ReputationEntry[]
 
 export class ReputationManager {
   constructor (readonly params: ReputationParams) {
   }
 
-  private entries: ReputationMap = {}
+  private entries: { [address: string]: ReputationEntry } = {}
   // black-listed entities - always banned
   readonly blackList = new Set<string>()
 
@@ -58,12 +52,7 @@ export class ReputationManager {
    * debug: dump reputation map (with updated "status" for each entry)
    */
   dump (): ReputationDump {
-    return {
-      reputation: mapOf(Object.keys(this.entries), addr => ({
-        ...this.entries[addr],
-        status: this.getStatus(addr)
-      }))
-    }
+    return Object.values(this.entries)
   }
 
   /**
@@ -93,6 +82,7 @@ export class ReputationManager {
     let entry = this.entries[addr]
     if (entry == null) {
       this.entries[addr] = entry = {
+        address: addr,
         opsSeen: 0,
         opsIncluded: 0
       }
@@ -177,15 +167,12 @@ export class ReputationManager {
    * for debugging: put in the given reputation entries
    * @param entries
    */
-  setReputation (reputationMap: ReputationDump): ReputationDump {
-    Object.keys(reputationMap.reputation).forEach(addr => {
-      const {
-        opsSeen,
-        opsIncluded
-      } = reputationMap.reputation[addr]
-      this.entries[addr] = {
-        opsSeen,
-        opsIncluded
+  setReputation (reputations: ReputationDump): ReputationDump {
+    reputations.forEach(rep => {
+      this.entries[rep.address] = {
+        address: rep.address,
+        opsSeen: rep.opsSeen,
+        opsIncluded: rep.opsIncluded
       }
     })
     return this.dump()

@@ -10,6 +10,10 @@ export class DebugMethodHandler {
   ) {
   }
 
+  setBundlingMode (mode: 'manual' | 'auto'): void {
+    this.setBundleInterval(mode)
+  }
+
   setBundleInterval (interval: number | 'manual' | 'auto', maxPoolSize = 100): void {
     if (interval == null) {
       throw new Error('must specify interval <number>|manual|auto')

@@ -128,6 +128,7 @@ describe('UserOpMethodHandler', function () {
     let accountAddress: string
 
     let accountDeployerAddress: string
+    let userOpHash: string
     before(async function () {
       DeterministicDeployer.init(ethers.provider)
       accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
@@ -148,18 +149,16 @@ describe('UserOpMethodHandler', function () {
         data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
         target: sampleRecipient.address
       }))
+      userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
     })
 
     it('should send UserOperation transaction to entryPoint', async function () {
-      const userOpHash = await methodHandler.sendUserOperation(await resolveHexlify(userOperation), entryPoint.address)
-
       // sendUserOperation is async, even in auto-mining. need to wait for it.
       const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
 
       console.log('userop=', userOperation)
       const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
-      console.log('ep events=', await entryPoint.queryFilter('*' as any, 1))
       const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
       const deployedEvent = entryPoint.interface.parseLog(logs[0])
       const depositedEvent = entryPoint.interface.parseLog(logs[1])
@@ -175,6 +174,19 @@ describe('UserOpMethodHandler', function () {
       assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')
 
       assert.equal(depositedEvent.name, 'Deposited')
+    })
+
+    it('getUserOperationByHash should return submitted UserOp', async () => {
+      const ret = await methodHandler.getUserOperationByHash(userOpHash)
+      expect(ret?.entryPoint === entryPoint.address)
+      expect(ret?.sender === userOperation.sender)
+      expect(ret?.callData === userOperation.callData)
+    })
+
+    it('getUserOperationReceipt should return receipt', async () => {
+      const rcpt = await methodHandler.getUserOperationReceipt(userOpHash)
+      expect(rcpt?.sender === userOperation.sender)
+      expect(rcpt?.success).to.be.true
     })
 
     it('should expose FailedOp errors as text messages', async () => {

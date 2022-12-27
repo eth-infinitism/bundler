@@ -14,9 +14,7 @@ export interface MempoolEntry {
   aggregator?: string
 }
 
-export interface MempoolDump {
-  mempool: MempoolEntry[]
-}
+type MempoolDump = UserOperation[]
 
 export class MempoolManager {
   private mempool: MempoolEntry[] = []
@@ -103,7 +101,7 @@ export class MempoolManager {
    * debug: dump mempool content
    */
   dump (): MempoolDump {
-    return { mempool: this.mempool }
+    return this.mempool.map(entry => entry.userOp)
   }
 
   /**
