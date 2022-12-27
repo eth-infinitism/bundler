@@ -8,8 +8,8 @@ import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
-import { getRequestId } from '@account-abstraction/utils'
-import { BaseWalletAPI } from './BaseWalletAPI'
+import { getUserOpHash } from '@account-abstraction/utils'
+import { BaseAccountAPI } from './BaseAccountAPI'
 import Debug from 'debug'
 const debug = Debug('aa.provider')
 
@@ -25,13 +25,13 @@ export class ERC4337EthersProvider extends BaseProvider {
     readonly originalProvider: BaseProvider,
     readonly httpRpcClient: HttpRpcClient,
     readonly entryPoint: EntryPoint,
-    readonly smartWalletAPI: BaseWalletAPI
+    readonly smartAccountAPI: BaseAccountAPI
   ) {
     super({
       name: 'ERC-4337 Custom Network',
       chainId
     })
-    this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient, smartWalletAPI)
+    this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient, smartAccountAPI)
   }
 
   /**
@@ -41,7 +41,7 @@ export class ERC4337EthersProvider extends BaseProvider {
   async init (): Promise<this> {
     // await this.httpRpcClient.validateChainId()
     this.initializedBlockNumber = await this.originalProvider.getBlockNumber()
-    await this.smartWalletAPI.init()
+    await this.smartAccountAPI.init()
     // await this.signer.init()
     return this
   }
@@ -66,21 +66,21 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
-    const requestId = await transactionHash
-    const sender = await this.getSenderWalletAddress()
+    const userOpHash = await transactionHash
+    const sender = await this.getSenderAccountAddress()
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
-        resolve, reject, this.entryPoint, sender, requestId
+        resolve, reject, this.entryPoint, sender, userOpHash
       ).start()
     })
   }
 
-  async getSenderWalletAddress (): Promise<string> {
-    return await this.smartWalletAPI.getWalletAddress()
+  async getSenderAccountAddress (): Promise<string> {
+    return await this.smartAccountAPI.getAccountAddress()
   }
 
   async waitForTransaction (transactionHash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt> {
-    const sender = await this.getSenderWalletAddress()
+    const sender = await this.getSenderAccountAddress()
 
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       const listener = new UserOperationEventListener(resolve, reject, this.entryPoint, sender, transactionHash, undefined, timeout)
@@ -91,14 +91,14 @@ export class ERC4337EthersProvider extends BaseProvider {
   // fabricate a response in a format usable by ethers users...
   async constructUserOpTransactionResponse (userOp1: UserOperationStruct): Promise<TransactionResponse> {
     const userOp = await resolveProperties(userOp1)
-    const requestId = getRequestId(userOp, this.config.entryPointAddress, this.chainId)
+    const userOpHash = getUserOpHash(userOp, this.config.entryPointAddress, this.chainId)
     const waitPromise = new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
-        resolve, reject, this.entryPoint, userOp.sender, requestId, userOp.nonce
+        resolve, reject, this.entryPoint, userOp.sender, userOpHash, userOp.nonce
       ).start()
     })
     return {
-      hash: requestId,
+      hash: userOpHash,
       confirmations: 0,
       from: userOp.sender,
       nonce: BigNumber.from(userOp.nonce).toNumber(),
@@ -110,7 +110,7 @@ export class ERC4337EthersProvider extends BaseProvider {
         const transactionReceipt = await waitPromise
         if (userOp.initCode.length !== 0) {
           // checking if the wallet has been deployed by the transaction; it must be if we are here
-          await this.smartWalletAPI.checkWalletPhantom()
+          await this.smartAccountAPI.checkAccountPhantom()
         }
         return transactionReceipt
       }

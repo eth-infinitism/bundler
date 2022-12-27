@@ -5,8 +5,8 @@ import Debug from 'debug'
 
 const debug = Debug('aa.postExec')
 
-export async function postExecutionDump (entryPoint: EntryPoint, requestId: string): Promise<void> {
-  const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, requestId)
+export async function postExecutionDump (entryPoint: EntryPoint, userOpHash: string): Promise<void> {
+  const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, userOpHash)
   /// / debug dump:
   debug('==== used=', gasUsed, 'paid', gasPaid, 'over=', gasPaid - gasUsed,
     'callLen=', userOp.callData.length, 'initLen=', userOp.initCode.length, success ? 'success' : 'failed')
@@ -18,15 +18,15 @@ export async function postExecutionDump (entryPoint: EntryPoint, requestId: stri
  * There is no "view-mode" way to determine the actual gas cost of a given transaction,
  * so we must do it after mining it.
  * @param entryPoint
- * @param requestId
+ * @param userOpHash
  */
-export async function postExecutionCheck (entryPoint: EntryPoint, requestId: string): Promise<{
+export async function postExecutionCheck (entryPoint: EntryPoint, userOpHash: string): Promise<{
   gasUsed: number
   gasPaid: number
   success: boolean
   userOp: NotPromise<UserOperationStruct>
 }> {
-  const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(requestId))
+  const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
   if (req.length === 0) {
     debug('postExecutionCheck: failed to read event (not mined)')
     // @ts-ignore
@@ -38,11 +38,10 @@ export async function postExecutionCheck (entryPoint: EntryPoint, requestId: str
   const { ops } = entryPoint.interface.decodeFunctionData('handleOps', tx.data)
   const userOp = await resolveProperties(ops[0] as UserOperationStruct)
   const {
-    actualGasPrice,
-    actualGasCost,
+    actualGasUsed,
     success
   } = req[0].args
-  const gasPaid = actualGasCost.div(actualGasPrice).toNumber()
+  const gasPaid = actualGasUsed.toNumber()
   const gasUsed = transactionReceipt.gasUsed.toNumber()
   return {
     gasUsed,
