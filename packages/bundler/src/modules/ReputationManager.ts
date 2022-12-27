@@ -1,5 +1,4 @@
 import Debug from 'debug'
-import { mapOf } from '../utils'
 
 const debug = Debug('aa.rep')
 
@@ -36,13 +35,13 @@ interface ReputationEntry {
   status?: ReputationStatus
 }
 
-type  ReputationDump = ReputationEntry[]
+type ReputationDump = ReputationEntry[]
 
 export class ReputationManager {
   constructor (readonly params: ReputationParams) {
   }
 
-  private entries: { [address:string]: ReputationEntry } = {}
+  private entries: { [address: string]: ReputationEntry } = {}
   // black-listed entities - always banned
   readonly blackList = new Set<string>()
 
