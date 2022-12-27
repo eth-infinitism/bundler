@@ -184,7 +184,7 @@ export class UserOpMethodHandler {
       return null
     }
     const tx = await event.getTransaction()
-    if (tx.to != this.entryPoint.address) {
+    if (tx.to !== this.entryPoint.address) {
       throw new Error('unable to parse transaction')
     }
     const parsed = this.entryPoint.interface.parseTransaction(tx)
@@ -194,7 +194,7 @@ export class UserOpMethodHandler {
     }
     const op = ops.find(op =>
       op.sender === event.args.sender &&
-      op.nonce.toString() === event.args.nonce.toString()
+      BigNumber.from(op.nonce) === BigNumber.from(event.args.nonce)
     )
     if (op == null) {
       throw new Error('unable to find userOp in transaction')
@@ -226,8 +226,8 @@ export class UserOpMethodHandler {
       signature,
       entryPoint: this.entryPoint.address,
       transactionHash: tx.hash,
-      blockHash: tx.blockHash!,
-      blockNumber: tx.blockNumber!
+      blockHash: tx.blockHash ?? '',
+      blockNumber: tx.blockNumber ?? 0
     }
   }
 
@@ -255,5 +255,4 @@ export class UserOpMethodHandler {
     // eslint-disable-next-line
     return 'aa-bundler/' + require('../package.json').version
   }
-
 }

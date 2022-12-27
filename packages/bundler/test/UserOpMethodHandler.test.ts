@@ -179,14 +179,14 @@ describe('UserOpMethodHandler', function () {
 
     it('getUserOperationByHash should return submitted UserOp', async () => {
       const ret = await methodHandler.getUserOperationByHash(userOpHash)
-      expect(ret?.entryPoint == entryPoint.address)
-      expect(ret?.sender == userOperation.sender)
-      expect(ret?.callData == userOperation.callData)
+      expect(ret?.entryPoint === entryPoint.address)
+      expect(ret?.sender === userOperation.sender)
+      expect(ret?.callData === userOperation.callData)
     })
 
     it('getUserOperationReceipt should return receipt', async () => {
       const rcpt = await methodHandler.getUserOperationReceipt(userOpHash)
-      expect(rcpt?.sender == userOperation.sender)
+      expect(rcpt?.sender === userOperation.sender)
       expect(rcpt?.success).to.be.true
     })
 

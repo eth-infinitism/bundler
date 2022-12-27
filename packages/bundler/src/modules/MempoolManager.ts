@@ -103,7 +103,7 @@ export class MempoolManager {
    * debug: dump mempool content
    */
   dump (): MempoolDump {
-    return { mempool: this.mempool.map(entry=>entry.userOp) }
+    return { mempool: this.mempool.map(entry => entry.userOp) }
   }
 
   /**
