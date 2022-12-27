@@ -35,7 +35,7 @@ interface ReputationEntry {
   status?: ReputationStatus
 }
 
-type ReputationDump = ReputationEntry[]
+export type ReputationDump = ReputationEntry[]
 
 export class ReputationManager {
   constructor (readonly params: ReputationParams) {
