@@ -159,7 +159,6 @@ describe('UserOpMethodHandler', function () {
       console.log('userop=', userOperation)
       const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
-      console.log('ep events=', await entryPoint.queryFilter('*' as any, 1))
       const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
       const deployedEvent = entryPoint.interface.parseLog(logs[0])
       const depositedEvent = entryPoint.interface.parseLog(logs[1])

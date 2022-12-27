@@ -194,7 +194,7 @@ export class UserOpMethodHandler {
     }
     const op = ops.find(op =>
       op.sender === event.args.sender &&
-      BigNumber.from(op.nonce) === BigNumber.from(event.args.nonce)
+      BigNumber.from(op.nonce).eq(event.args.nonce)
     )
     if (op == null) {
       throw new Error('unable to find userOp in transaction')
