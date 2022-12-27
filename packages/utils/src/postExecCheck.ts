@@ -1,11 +1,14 @@
 import { resolveProperties } from 'ethers/lib/utils'
 import { NotPromise } from './ERC4337Utils'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
+import Debug from 'debug'
+
+const debug = Debug('aa.postExec')
 
 export async function postExecutionDump (entryPoint: EntryPoint, userOpHash: string): Promise<void> {
   const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, userOpHash)
   /// / debug dump:
-  console.log('==== used=', gasUsed, 'paid', gasPaid, 'over=', gasPaid - gasUsed,
+  debug('==== used=', gasUsed, 'paid', gasPaid, 'over=', gasPaid - gasUsed,
     'callLen=', userOp.callData.length, 'initLen=', userOp.initCode.length, success ? 'success' : 'failed')
 }
 
@@ -25,7 +28,7 @@ export async function postExecutionCheck (entryPoint: EntryPoint, userOpHash: st
 }> {
   const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
   if (req.length === 0) {
-    console.log('postExecutionCheck: failed to read event (not mined)')
+    debug('postExecutionCheck: failed to read event (not mined)')
     // @ts-ignore
     return { gasUsed: 0, gasPaid: 0, success: false, userOp: {} }
   }
