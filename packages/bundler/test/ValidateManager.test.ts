@@ -97,7 +97,8 @@ describe('#ValidationManager', () => {
       throttlingSlack: 1,
       banSlack: 1
     })
-    vm = new ValidationManager(entryPoint, reputationManager, parseEther('0'), 0, false)
+    const unsafe = !await isGeth(provider)
+    vm = new ValidationManager(entryPoint, reputationManager, parseEther('0'), 0, unsafe)
 
     if (!await isGeth(ethers.provider)) {
       console.log('WARNING: opcode banning tests can only run with geth')
@@ -113,7 +114,7 @@ describe('#ValidationManager', () => {
   })
   it('should fail with bad opcode in ctr', async () => {
     expect(
-      await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase®']))
+      await testUserOp('', undefined, opcodeFactory.interface.encodeFunctionData('create', ['coinbase']))
         .catch(e => e.message)).to.match(/factory uses banned opcode: COINBASE/)
   })
   it('should fail with bad opcode in paymaster', async () => {
