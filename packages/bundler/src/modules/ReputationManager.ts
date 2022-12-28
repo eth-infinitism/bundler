@@ -1,4 +1,7 @@
 import Debug from 'debug'
+import { requireCond } from '../utils'
+import { BigNumber } from 'ethers'
+import { StakeInfo, ValidationErrors } from './ValidationManager'
 
 const debug = Debug('aa.rep')
 
@@ -38,7 +41,10 @@ interface ReputationEntry {
 export type ReputationDump = ReputationEntry[]
 
 export class ReputationManager {
-  constructor (readonly params: ReputationParams) {
+  constructor (
+    readonly params: ReputationParams,
+    readonly minStake: BigNumber,
+    readonly minUnstakeDelay: number) {
   }
 
   private entries: { [address: string]: ReputationEntry } = {}
@@ -176,5 +182,27 @@ export class ReputationManager {
       }
     })
     return this.dump()
+  }
+
+  /**
+   * check the given address (account/paymaster/deployer/aggregator) is staked
+   * @param title the address title (field name to put into the "data" element)
+   * @param addr the address to check the stake of. null is "ok"
+   * @param info stake info from verification. if not given, then read from entryPoint
+   */
+  checkStake (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info?: StakeInfo) {
+    if (info?.addr == null || this.isWhitelisted(info.addr)) {
+      return
+    }
+    requireCond(this.getStatus(info.addr) !== ReputationStatus.BANNED,
+      `${title} ${info.addr} is banned`,
+      ValidationErrors.Reputation, { [title]: info.addr })
+
+    requireCond(BigNumber.from(info.stake).gte(this.minStake),
+      `${title} ${info.addr} stake ${info.stake} is too low (min=${this.minStake})`,
+      ValidationErrors.InsufficientStake)
+    requireCond(BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay),
+      `${title} ${info.addr} unstake delay ${info.unstakeDelaySec} is too low (min=${this.minUnstakeDelay})`,
+      ValidationErrors.InsufficientStake)
   }
 }

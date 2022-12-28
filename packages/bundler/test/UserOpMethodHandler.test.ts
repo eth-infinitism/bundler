@@ -75,9 +75,9 @@ describe('UserOpMethodHandler', function () {
       minUnstakeDelay: 0
     }
 
-    const repMgr = new ReputationManager(BundlerReputationParams)
+    const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay, config.unsafe)
+    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
     const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
