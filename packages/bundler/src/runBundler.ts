@@ -14,6 +14,7 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
+import { isGeth } from './utils'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -91,6 +92,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+    .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic', 'create the mnemonic file')
 
@@ -131,6 +133,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   if (chainId === 31337 || chainId === 1337) {
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+  }
+
+  if (!config.unsafe && !await isGeth(provider as any)) {
+    console.error('FATAL: full validation requires GETH. for local UNSAFE mode: use --unsafe')
+    process.exit(1)
   }
 
   const {

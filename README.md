@@ -4,21 +4,35 @@
 
 A basic eip4337 "bundler"
 
-- expose a node with a minimal RPC calls:
-  - eth_sendUserOperation to send a user operation
-  - eth_supportedEntryPoints to report the bundler's supported entry points
-  - eth_chainId
+This is a reference implementation for a bundler, implementing the full EIP-4337
+RPC calls (both production and debug calls), required to pass the "bundler-test-spec" test suite.
+
+### Running local node
+In order to implement the full spec storage access rules and opcode banning, it must run
+against a GETH node, which supports debug_traceCall with javascript "tracer"
+Specifically, `hardhat node` and `ganache` do NOT support this API.
+You can still run the bundler with such nodes, but with `--unsafe` so it would skip these security checks
+
+If you don't have geth installed locally, you can use docker to run it:
+```
+docker run --rm -ti --name geth -p 8545:8545 ethereum/client-go:v1.10.26 \
+  --miner.gaslimit 12000000 \
+  --http --http.api personal,eth,net,web3,debug \
+  --http.vhosts '*,localhost,host.docker.internal' --http.addr "0.0.0.0" \
+  --ignore-legacy-receipts --allow-insecure-unlock --rpc.allow-unprotected-txs \
+  --dev \
+  --verbosity 2 \
+  --nodiscover --maxpeers 0 --mine --miner.threads 1 \
+  --networkid 1337
+```
 
 ### Usage: 
 1. run `yarn && yarn preprocess`
-2. start hardhat-node with `yarn hardhat-node` (or local `geth`)
+2. deploy contracts with `yarn hardhat-deploy --network localhost`
+3. run `yarn run bundler`
+    (or `yarn run bundler --unsage`, if working with "hardhat node")
 
-In another Window:
-
-3. deploy contracts with `yarn hardhat-deploy --network localhost`
-4. run `yarn run bundler`
-  so it will listen on port 3000
-
+Now your bundler is active on local url http://localhost:3000/rpc    
 
 To run a simple test, do `yarn run runop --deployFactory --network localhost`
 
@@ -34,6 +48,8 @@ To run a simple test, do `yarn run runop --deployFactory --network localhost`
 NOTE: if running on a testnet, you need to supply the bundler (and runop) the network and mnemonic file, e.g.
 
 `yarn run bundler --network localhost --mnemonic file.txt` 
+
+To run the full test bundler spec test suite, visit https://github.com/eth-infinitism/bundler-spec-tests
 
 ## sdk
 

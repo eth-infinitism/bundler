@@ -97,7 +97,7 @@ describe('#ValidationManager', () => {
       throttlingSlack: 1,
       banSlack: 1
     })
-    vm = new ValidationManager(entryPoint, reputationManager, parseEther('0'), 0)
+    vm = new ValidationManager(entryPoint, reputationManager, parseEther('0'), 0, false)
 
     if (!await isGeth(ethers.provider)) {
       console.log('WARNING: opcode banning tests can only run with geth')
