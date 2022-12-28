@@ -11,9 +11,14 @@ contract Dummy {
 
 contract TestCoin {
     mapping(address => uint) balances;
+    mapping(address => mapping(address => uint)) allowances;
 
     function balanceOf(address addr) public returns (uint) {
         return balances[addr];
+    }
+
+    function allowance(address owner, address spender) public view returns (uint256) {
+        return allowances[owner][spender];
     }
 
     function mint(address addr) public returns (uint) {
@@ -64,6 +69,8 @@ contract TestRulesAccount is IAccount, IPaymaster {
         else if (eq(rule, "blockhash")) return uint(blockhash(0));
         else if (eq(rule, "create2")) return new Dummy{salt : bytes32(uint(0x1))}().value();
         else if (eq(rule, "balance-self")) return coin.balanceOf(address(this));
+        else if (eq(rule, "allowance-self-1")) return coin.allowance(address(this), address(1));
+        else if (eq(rule, "allowance-1-self")) return coin.allowance(address(1), address(this));
         else if (eq(rule, "mint-self")) return coin.mint(address(this));
         else if (eq(rule, "balance-1")) return coin.balanceOf(address(1));
         else if (eq(rule, "mint-1")) return coin.mint(address(1));
@@ -74,7 +81,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
             emit TestMessage(address(this));
             return 0;}
 
-        revert(string.concat("unknown rule: ", rule));
+        revert(string.concat("unknown rule1r: ", rule));
     }
 
     function addStake(IEntryPoint entryPoint) public payable {
@@ -82,7 +89,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
     }
 
     function validateUserOp(UserOperation calldata userOp, bytes32, address, uint256 missingAccountFunds)
-    external override returns (uint256 ) {
+    external override returns (uint256) {
         if (missingAccountFunds > 0) {
             /* solhint-disable-next-line avoid-low-level-calls */
             (bool success,) = msg.sender.call{value : missingAccountFunds}("");

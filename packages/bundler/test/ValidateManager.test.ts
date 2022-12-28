@@ -9,7 +9,11 @@ import {
   TestOpcodesAccount__factory,
   TestStorageAccountFactory,
   TestStorageAccountFactory__factory,
-  TestStorageAccount__factory
+  TestStorageAccount__factory,
+  TestStorageAccount,
+  TestRulesAccount,
+  TestRulesAccount__factory,
+  TestRulesAccountDeployer__factory
 } from '../src/types'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
@@ -39,11 +43,29 @@ describe('#ValidationManager', () => {
 
   let paymaster: TestOpcodesAccount
   let entryPoint: EntryPoint
+  let storageAccount: TestRulesAccount
 
   async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<void> {
     await vm.validateUserOp(await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress))
   }
 
+  async function testExistingUserOp (validateRule: string = '', pmRule=''): Promise<void> {
+    await vm.validateUserOp(await existingStorageAccountUserOp(validateRule, pmRule))
+  }
+
+  async function existingStorageAccountUserOp(validateRule= '', pmRule = ''): Promise<UserOperation> {
+    const paymasterAndData = pmRule == '' ? '0x' : hexConcat([paymaster.address, Buffer.from(pmRule)])
+    const signature = hexlify(Buffer.from(validateRule))
+    return {
+      ...cEmptyUserOp,
+      sender: storageAccount.address,
+      signature,
+      paymasterAndData,
+      callGasLimit: 1e6,
+      verificationGasLimit: 1e6,
+      preVerificationGas: 50000
+    }
+  }
   async function createTestUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<UserOperation> {
     if (initFunc === undefined) {
       initFunc = opcodeFactory.interface.encodeFunctionData('create', [''])
@@ -54,12 +76,7 @@ describe('#ValidationManager', () => {
       initFunc
     ])
     const paymasterAndData = pmRule == null ? '0x' : hexConcat([paymaster.address, Buffer.from(pmRule)])
-    let signature: string
-    if (validateRule.startsWith('deadline:')) {
-      signature = hexlify(validateRule.slice(9))
-    } else {
-      signature = hexlify(Buffer.from(validateRule))
-    }
+    const signature = hexlify(Buffer.from(validateRule))
     const callinitCodeForAddr = await provider.call({
       to: factoryAddress,
       data: initFunc
@@ -91,6 +108,11 @@ describe('#ValidationManager', () => {
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
     opcodeFactory = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
     storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy()
+
+    const rulesFactory = await new TestRulesAccountDeployer__factory(ethersSigner).deploy()
+    storageAccount=  TestRulesAccount__factory.connect(await rulesFactory.callStatic.create(1,''), provider)
+    await rulesFactory.create()
+    await entryPoint.depositTo(storageAccount.address, {value: parseEther('1')})
 
     const reputationManager = new ReputationManager({
       minInclusionDenominator: 1,
@@ -135,8 +157,24 @@ describe('#ValidationManager', () => {
       .catch(e => e.message))
       .to.match(/account has forbidden read/)
   })
+  it('should succeed referencing self token balance (after wallet creation)', async () => {
+    await testExistingUserOp('balance-self')
+  })
+  it('should succeed referencing self allowance balance (after wallet creation)', async () => {
+    await testExistingUserOp('allowance-self-1')
+  })
+  it('should succeed referencing self allowance balance (after wallet creation)', async () => {
+    await testExistingUserOp('allowance-1-self')
+  })
+
   it('should fail if referencing other token balance', async () => {
     expect(await testUserOp('balance-1', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
+      .catch(e => e.message))
+      .to.match(/account has forbidden read/)
+  })
+
+  it('should succeed referencing self token balance after wallet creation', async () => {
+    expect(await testUserOp('balance-self', undefined)
       .catch(e => e.message))
       .to.match(/account has forbidden read/)
   })
