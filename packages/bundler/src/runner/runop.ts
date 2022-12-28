@@ -128,7 +128,7 @@ async function main (): Promise<void> {
       })
     }
 
-    const argv = ['node', 'exec', '--config', './localconfig/bundler.config.json']
+    const argv = ['node', 'exec', '--config', './localconfig/bundler.config.json', '--unsafe']
     if (opts.entryPoint != null) {
       argv.push('--entryPoint', opts.entryPoint)
     }

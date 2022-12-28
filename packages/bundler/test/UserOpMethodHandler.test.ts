@@ -27,7 +27,7 @@ import { BundlerReputationParams, ReputationManager } from '../src/modules/Reput
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { waitFor } from '../src/utils'
+import { isGeth, waitFor } from '../src/utils'
 
 // resolve all property and hexlify.
 // (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
@@ -66,6 +66,7 @@ describe('UserOpMethodHandler', function () {
       mnemonic: '',
       network: '',
       port: '3000',
+      unsafe: !await isGeth(provider as any),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
@@ -76,7 +77,7 @@ describe('UserOpMethodHandler', function () {
 
     const repMgr = new ReputationManager(BundlerReputationParams)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay)
+    const validMgr = new ValidationManager(entryPoint, repMgr, parseEther(config.minStake), config.minUnstakeDelay, config.unsafe)
     const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(

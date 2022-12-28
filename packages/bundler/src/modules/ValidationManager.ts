@@ -5,7 +5,7 @@ import { requireCond, RpcError } from '../utils'
 import { getAddr, UserOperation } from './moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { isGeth, parseScannerResult } from '../parseScannerResult'
+import { parseScannerResult } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
@@ -53,7 +53,8 @@ export class ValidationManager {
     readonly entryPoint: EntryPoint,
     readonly reputationManager: ReputationManager,
     readonly minStake: BigNumber,
-    readonly minUnstakeDelay: number) {
+    readonly minUnstakeDelay: number,
+    readonly unsafe: boolean) {
   }
 
   // standard eth_call to simulateValidation
@@ -173,7 +174,7 @@ export class ValidationManager {
   async validateUserOp (userOp: UserOperation, checkStakes = true): Promise<ValidationResult> {
     // TODO: use traceCall
     let res: ValidationResult
-    if (await isGeth(this.entryPoint.provider as any)) {
+    if (!this.unsafe) {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       parseScannerResult(userOp, tracerResult, res, this.entryPoint)
