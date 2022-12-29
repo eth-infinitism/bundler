@@ -49,10 +49,10 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
+      this.entryCount[userOp.sender] = (this.entryCount[userOp.sender] ?? 0) + 1
+      this.checkSenderCountInMempool(userOp, senderInfo)
       this.mempool.push(entry)
     }
-    this.checkSenderCountInMempool(userOp, senderInfo)
-    this.entryCount[userOp.sender] = (this.entryCount[userOp.sender] ?? 0) + 1
     this.updateSeenStatus(aggregator, userOp)
   }
 
@@ -65,7 +65,7 @@ export class MempoolManager {
   // check if there are already too many entries in mempool for that sender.
   // (allow 4 entities if unstaked, or any number if staked)
   private checkSenderCountInMempool (userOp: UserOperation, senderInfo: StakeInfo): void {
-    if ((this.entryCount[userOp.sender] ?? 0) < MAX_MEMPOOL_USEROPS_PER_SENDER) {
+    if ((this.entryCount[userOp.sender] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
       // already enough entities with this sender in mempool.
       // check that it is staked
       this.reputationManager.checkStake('account', senderInfo)
