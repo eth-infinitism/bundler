@@ -6,7 +6,7 @@ import {
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { BundlerCollectorReturn } from './BundlerCollectorTracer'
-import { requireCond } from './utils'
+import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
@@ -262,17 +262,24 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         if (k == null) {
           return false
         }
-        const slotN = BigNumber.from('0x'+slot)
+        const slotN = BigNumber.from('0x' + slot)
         // scan all slot entries to check of the given slot is within a structure, starting at that offset.
         // assume a maximum size on a (static) structure size.
         for (const k1 of k.keys()) {
-          const kn = BigNumber.from('0x'+k1)
+          const kn = BigNumber.from('0x' + k1)
           if (slotN.gte(kn) && slotN.lt(kn.add(128))) {
             return true
           }
         }
         return false
       }
+
+      debug('dump keccak calculations and reads', {
+        entityTitle,
+        entityAddr,
+        k: mapOf(tracerResults.keccak, k => keccak256(k)),
+        reads
+      })
 
       // scan all slots. find a referenced slot
       // at the end of the scan, we will check if the entity has stake, and report that slot if not.
@@ -294,22 +301,19 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         } else {
           // accessing arbitrary storage of another contract is not allowed
           const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
-          requireCond(false, `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot} - ${JSON.stringify({
-            entityTitle,
-            entityAddr,
-            k:tracerResults.keccak.map(v=>[v, keccak256(v)])
-          },null,2)}`, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
+          requireCond(false,
+            `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot}`,
+            ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
 
-      // match address to factory/account/paymaster (or leave it as address if none of these)
+      //if addr is current account/paymaster/factory, then return that title
+      // otherwise, return addr as-is
       function nameAddr (addr: string, currentEntity: string): string {
         const [title] = Object.entries(stakeInfoEntities).find(([title, info]) =>
           info?.addr.toLowerCase() === addr.toLowerCase()) ?? []
-        if (title == null) {
-          return addr
-        }
-        return title
+
+        return title ?? addr
       }
 
       requireCondAndStake(requireStakeSlot != null, entStakes,
