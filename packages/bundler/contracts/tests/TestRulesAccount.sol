@@ -13,7 +13,17 @@ contract TestCoin {
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowances;
 
-    function balanceOf(address addr) public returns (uint) {
+    struct Struct {
+        uint a;
+        uint b;
+        uint c;
+    }
+    mapping(address=>Struct) public structInfo;
+
+    function getInfo(address addr) public returns (Struct memory) {
+        return structInfo[addr];
+    }
+    function balanceOf(address addr) public view returns (uint) {
         return balances[addr];
     }
 
@@ -56,7 +66,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
         return 0;
     }
 
-    function eq(string memory a, string memory b) internal returns (bool) {
+    function eq(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
@@ -74,6 +84,8 @@ contract TestRulesAccount is IAccount, IPaymaster {
         else if (eq(rule, "mint-self")) return coin.mint(address(this));
         else if (eq(rule, "balance-1")) return coin.balanceOf(address(1));
         else if (eq(rule, "mint-1")) return coin.mint(address(1));
+        else if (eq(rule, "struct-self")) return coin.getInfo(address(this)).c;
+        else if (eq(rule, "struct-1")) return coin.getInfo(address(1)).c;
 
         else if (eq(rule, "inner-revert")) return coin.reverting();
         else if (eq(rule, "oog")) return coin.wasteGas();
@@ -81,7 +93,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
             emit TestMessage(address(this));
             return 0;}
 
-        revert(string.concat("unknown rule1r: ", rule));
+        revert(string.concat("unknown ruler: ", rule));
     }
 
     function addStake(IEntryPoint entryPoint) public payable {
@@ -103,7 +115,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
         return 0;
     }
 
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256)
     external returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         runRule(rule);
@@ -114,8 +126,9 @@ contract TestRulesAccount is IAccount, IPaymaster {
 
 }
 
-contract TestRulesAccountDeployer {
-    function create(string memory rule, TestCoin coin) public returns (TestRulesAccount) {
+contract TestRulesAccountFactory {
+    TestCoin immutable coin = new TestCoin();
+    function create(string memory rule) public returns (TestRulesAccount) {
         TestRulesAccount a = new TestRulesAccount{salt : bytes32(uint(0))}();
         a.setCoin(coin);
         a.runRule(rule);

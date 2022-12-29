@@ -20,6 +20,7 @@ import {
   TestOpcodesAccountFactory__factory,
   TestOpcodesAccount__factory
 } from './types/factories/contracts/tests/TestOpcodesAccount.sol'
+import * as util from 'util'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -248,26 +249,24 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         return
       }
 
-      //return true if the given slot is associated with the given address, given the known keccak operations:
+      // return true if the given slot is associated with the given address, given the known keccak operations:
       // @param slot the SLOAD/SSTORE slot address we're testing
-      // @param addr - the address we try to check for assocation
-      function associatedWith (slot: string, addr: string, reverseKeccak: { [addr: string]: Set<string> }): boolean {
+      // @param addr - the address we try to check for association with
+      // @param reverseKeccak - a mapping we built for keccak values that contained the address
+      function associatedWith (slot: string, addr: string, entitySlots: { [addr: string]: Set<string> }): boolean {
         const addrPadded = hexZeroPad(addr, 32).toLowerCase()
-        if (slot == addr) {
+        if (slot == addrPadded) {
           return true
         }
-        const k = reverseKeccak[addr]
+        const k = entitySlots[addr]
         if (k == null) {
           return false
         }
-        if (k.has(slot)) {
-          return true
-        }
-        const slotN = BigNumber.from(slot)
-        //scan all slot entries to check of the given slot is within a structure, starting at that offset.
+        const slotN = BigNumber.from('0x'+slot)
+        // scan all slot entries to check of the given slot is within a structure, starting at that offset.
         // assume a maximum size on a (static) structure size.
-        for (const k1 in k.keys()) {
-          const kn = BigNumber.from(k1)
+        for (const k1 of k.keys()) {
+          const kn = BigNumber.from('0x'+k1)
           if (slotN.gte(kn) && slotN.lt(kn.add(128))) {
             return true
           }
@@ -275,25 +274,31 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         return false
       }
 
+      // scan all slots. find a referenced slot
+      // at the end of the scan, we will check if the entity has stake, and report that slot if not.
       let requireStakeSlot: string | undefined
       [...Object.keys(writes), ...Object.keys(reads)].forEach(slot => {
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
-        // but not during initial UserOp (if there is an initCode)
-        if (entitySlots[sender]?.has(slot)) {
-          if (userOp.initCode.length <= 2 || addr === entryPoint.address) {
+        // but not during initial UserOp (where there is an initCode)
+        if (associatedWith(slot, sender, entitySlots)) {
+          if (userOp.initCode.length <= 2) {
             return
           }
         }
-        if (entitySlots[entityAddr]?.has(slot)) {
+        if (associatedWith(slot, entityAddr, entitySlots)) {
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
         } else if (addr === entityAddr) {
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
         } else {
-          // accessing arbitrary storage of another contract
+          // accessing arbitrary storage of another contract is not allowed
           const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
-          requireCond(false, `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot}`, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
+          requireCond(false, `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot} - ${JSON.stringify({
+            entityTitle,
+            entityAddr,
+            k:tracerResults.keccak.map(v=>[v, keccak256(v)])
+          },null,2)}`, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
 
