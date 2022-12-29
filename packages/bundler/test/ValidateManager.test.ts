@@ -173,13 +173,13 @@ describe('#ValidationManager', () => {
     })
   })
 
-  describe('access struct (existing wallet)', ()=>{
+  describe('access struct (existing wallet)', () => {
     it('should access self struct data', async () => {
       await testExistingUserOp('struct-self')
     })
     it('should fail to access other address struct data', async () => {
       expect(await testExistingUserOp('struct-1')
-        .catch(e=>e.message)
+        .catch(e => e.message)
       ).match(/account has forbidden read/)
     })
   })
