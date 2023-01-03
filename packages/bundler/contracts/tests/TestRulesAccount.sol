@@ -93,7 +93,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
             emit TestMessage(address(this));
             return 0;}
 
-        revert(string.concat("unknown ruler: ", rule));
+        revert(string.concat("unknown rule: ", rule));
     }
 
     function addStake(IEntryPoint entryPoint) public payable {
