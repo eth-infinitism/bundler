@@ -7,7 +7,7 @@ import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { requireCond } from './utils'
+import { requireCond, tostr } from './utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr, UserOperation } from './modules/moduleUtils'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
@@ -140,7 +140,7 @@ export class UserOpMethodHandler {
 
     const userOp = await resolveProperties(userOp1)
 
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${userOp.nonce} EntryPoint=${entryPointInput} Paymaster=${getAddr(userOp.paymasterAndData)}`)
+    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(userOp.paymasterAndData)}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput)
     return await this.entryPoint.getUserOpHash(userOp)
   }

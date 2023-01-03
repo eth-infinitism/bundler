@@ -1,5 +1,5 @@
 import Debug from 'debug'
-import { requireCond } from '../utils'
+import { requireCond, tostr } from '../utils'
 import { BigNumber } from 'ethers'
 import { StakeInfo, ValidationErrors } from './ValidationManager'
 
@@ -187,10 +187,10 @@ export class ReputationManager {
   /**
    * check the given address (account/paymaster/deployer/aggregator) is staked
    * @param title the address title (field name to put into the "data" element)
-   * @param addr the address to check the stake of. null is "ok"
+   * @param raddr the address to check the stake of. null is "ok"
    * @param info stake info from verification. if not given, then read from entryPoint
    */
-  checkStake (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info?: StakeInfo) {
+  checkStake (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info?: StakeInfo): void {
     if (info?.addr == null || this.isWhitelisted(info.addr)) {
       return
     }
@@ -199,10 +199,10 @@ export class ReputationManager {
       ValidationErrors.Reputation, { [title]: info.addr })
 
     requireCond(BigNumber.from(info.stake).gte(this.minStake),
-      `${title} ${info.addr} stake ${info.stake} is too low (min=${this.minStake})`,
+      `${title} ${tostr(info.addr)} stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`,
       ValidationErrors.InsufficientStake)
     requireCond(BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay),
-      `${title} ${info.addr} unstake delay ${info.unstakeDelaySec} is too low (min=${this.minUnstakeDelay})`,
+      `${title} ${info.addr} unstake delay ${tostr(info.unstakeDelaySec)} is too low (min=${tostr(this.minUnstakeDelay)})`,
       ValidationErrors.InsufficientStake)
   }
 }
