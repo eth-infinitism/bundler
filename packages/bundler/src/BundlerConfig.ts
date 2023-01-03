@@ -5,12 +5,20 @@ export interface BundlerConfig {
   beneficiary: string
   entryPoint: string
   gasFactor: string
-  helper: string
   minBalance: string
   mnemonic: string
   privateKey?: string
   network: string
   port: string
+  unsafe: boolean
+
+  whitelist?: string[]
+  blacklist?: string[]
+  maxBundleGas: number
+  minStake: string
+  minUnstakeDelay: number
+  autoBundleInterval: number
+  autoBundleMempoolSize: number
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -18,18 +26,26 @@ export const BundlerConfigShape = {
   beneficiary: ow.string,
   entryPoint: ow.string,
   gasFactor: ow.string,
-  helper: ow.string,
   minBalance: ow.string,
   mnemonic: ow.string,
   privateKey: ow.optional.string,
   network: ow.string,
-  port: ow.string
+  port: ow.string,
+  unsafe: ow.boolean,
+
+  whitelist: ow.optional.array.ofType(ow.string),
+  blacklist: ow.optional.array.ofType(ow.string),
+  maxBundleGas: ow.number,
+  minStake: ow.string,
+  minUnstakeDelay: ow.number,
+  autoBundleInterval: ow.number,
+  autoBundleMempoolSize: ow.number
 }
 
 // TODO: consider if we want any default fields at all
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
 export const bundlerConfigDefault: Partial<BundlerConfig> = {
   port: '3000',
-  helper: '0xdD747029A0940e46D20F17041e747a7b95A67242',
-  entryPoint: '0x602aB3881Ff3Fa8dA60a8F44Cf633e91bA1FdB69'
+  entryPoint: '0x1306b01bC3e4AD202612D3843387e94737673F53',
+  unsafe: false
 }

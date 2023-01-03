@@ -1,0 +1,22 @@
+0 silly argv {
+0 silly argv   _: [ 'add' ],
+0 silly argv   globs: [ 'packages/bundler' ],
+0 silly argv   lernaVersion: '5.6.2',
+0 silly argv   '$0': '/Users/hex/repos/zero/core/node_modules/.bin/lerna',
+0 silly argv   pkg: '@zerodevapp/sdk'
+0 silly argv }
+1 notice cli v5.6.2
+2 verbose rootPath /Users/hex/repos/zero/core
+3 info versioning independent
+4 error JSONError: Unexpected token "<" (0x3C) in JSON at position 2 while parsing near "{\n<<<<<<< HEAD\n  \"name..." in packages/utils/package.json
+4 error
+4 error [0m [90m 1 |[39m {[0m
+4 error [0m[31m[1m>[22m[39m[90m 2 |[39m [33m<<[39m[33m<<[39m[33m<<[39m[33m<[39m [33mHEAD[39m[0m
+4 error [0m [90m   |[39m [31m[1m^[22m[39m[0m
+4 error [0m [90m 3 |[39m   [32m"name"[39m[33m:[39m [32m"@zerodevapp/utils"[39m[33m,[39m[0m
+4 error [0m [90m 4 |[39m   [32m"version"[39m[33m:[39m [32m"1.0.4"[39m[33m,[39m[0m
+4 error [0m [90m 5 |[39m [33m===[39m[33m===[39m[33m=[39m[0m
+4 error
+4 error     at parseJson (/Users/hex/repos/zero/core/node_modules/parse-json/index.js:29:21)
+4 error     at parse (/Users/hex/repos/zero/core/node_modules/load-json-file/index.js:15:9)
+4 error     at module.exports (/Users/hex/repos/zero/core/node_modules/load-json-file/index.js:18:47)

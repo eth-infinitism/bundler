@@ -9,11 +9,11 @@ const deployer = new DeterministicDeployer(ethers.provider)
 describe('#deterministicDeployer', () => {
   it('deploy deployer', async () => {
     expect(await deployer.isDeployerDeployed()).to.equal(false)
-    await deployer.deployDeployer()
+    await deployer.deployFactory()
     expect(await deployer.isDeployerDeployed()).to.equal(true)
   })
   it('should ignore deploy again of deployer', async () => {
-    await deployer.deployDeployer()
+    await deployer.deployFactory()
   })
   it('should deploy at given address', async () => {
     const ctr = hexValue(new SampleRecipient__factory(ethers.provider.getSigner()).getDeployTransaction().data!)

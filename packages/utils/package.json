@@ -20,9 +20,9 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
-    "@zerodevapp/contracts": "^1.0.2",
-    "ethers": "^5.7.0",
-    "typescript": "^4.9.4"
+    "@zerodevapp/contracts": "^1.1.0",
+    "debug": "^4.3.4",
+    "ethers": "^5.7.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",

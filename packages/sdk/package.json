@@ -16,10 +16,16 @@
     "typescript": "^4.8.3"
   },
   "dependencies": {
+    "@ethersproject/abstract-provider": "^5.7.0",
+    "@ethersproject/abstract-signer": "^5.7.0",
+    "@ethersproject/networks": "^5.7.0",
+    "@ethersproject/properties": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
     "@ethersproject/shims": "^5.7.0",
+    "@types/debug": "^4.1.7",
     "@types/keccak": "^3.0.1",
     "@types/readable-stream": "^2.3.14",
-    "@zerodevapp/contracts": "^1.0.2",
+    "@zerodevapp/contracts": "^1.1.0",
     "@zerodevapp/utils": "^1.0.4",
     "buffer": "^6.0.3",
     "debug": "^4.3.4",

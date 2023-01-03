@@ -1,0 +1,14 @@
+{
+  "gasFactor": "1",
+  "port": "3000",
+  "network": "http://localhost:8545",
+  "entryPoint": "0x1306b01bC3e4AD202612D3843387e94737673F53",
+  "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
+  "minBalance": "1",
+  "mnemonic": "./localconfig/mnemonic.txt",
+  "maxBundleGas": 5e6,
+  "minStake": "1" ,
+  "minUnstakeDelay": 0 ,
+  "autoBundleInterval": 3,
+  "autoBundleMempoolSize": 10
+}

@@ -1,11 +1,19 @@
-import { defaultAbiCoder, hexConcat, keccak256 } from 'ethers/lib/utils'
+import { defaultAbiCoder, hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@zerodevapp/contracts'
 import { abi as entryPointAbi } from '@zerodevapp/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
+import Debug from 'debug'
+
+const debug = Debug('aa.utils')
+
+// UserOperation is the first parameter of validateUseOp
+const validateUserOpMethod = 'simulateValidation'
+const UserOpType = entryPointAbi.find(entry => entry.name === validateUserOpMethod)?.inputs[0]
+if (UserOpType == null) {
+  throw new Error(`unable to find method ${validateUserOpMethod} in EP ${entryPointAbi.filter(x => x.type === 'function').map(x => x.name).join(',')}`)
+}
 
 export const AddressZero = ethers.constants.AddressZero
-// UserOperation is the first parameter of simulateValidation
-const UserOpType = entryPointAbi.find(entry => entry.name === 'simulateValidation')?.inputs[0]
 
 // reverse "Deferrable" or "PromiseOrValue" fields
 export type NotPromise<T> = {
@@ -87,11 +95,11 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
     encoded = '0x' + encoded.slice(66, encoded.length - 64)
     return encoded
   }
-  let typevalues = (UserOpType as any).components.map((c: { name: keyof typeof op, type: string }) => ({
+
+  const typevalues = (UserOpType as any).components.map((c: { name: keyof typeof op, type: string }) => ({
     type: c.type,
     val: op[c.name]
   }))
-  typevalues = typevalues.filter((c: any) => c.val !== undefined)
   return encode(typevalues, forSignature)
 }
 
@@ -125,7 +133,7 @@ interface DecodedError {
  * decode bytes thrown by revert as Error(message) or FailedOp(opIndex,paymaster,message)
  */
 export function decodeErrorReason (error: string): DecodedError | undefined {
-  // console.log('decoding', error)
+  debug('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }
@@ -173,4 +181,27 @@ export function rethrowError (e: any): any {
     }
   }
   throw e
+}
+
+/**
+ * hexlify all members of object, recursively
+ * @param obj
+ */
+export function deepHexlify (obj: any): any {
+  if (typeof obj === 'function') {
+    return undefined
+  }
+  if (obj == null || typeof obj === 'string' || typeof obj === 'boolean') {
+    return obj
+  } else if (obj._isBigNumber != null || typeof obj !== 'object') {
+    return hexlify(obj).replace(/^0x0/, '0x')
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(member => deepHexlify(member))
+  }
+  return Object.keys(obj)
+    .reduce((set, key) => ({
+      ...set,
+      [key]: deepHexlify(obj[key])
+    }), {})
 }

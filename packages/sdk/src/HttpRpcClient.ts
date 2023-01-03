@@ -1,9 +1,10 @@
 import '@ethersproject/shims'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { ethers } from 'ethers'
-import { hexValue, resolveProperties } from 'ethers/lib/utils'
+import { resolveProperties } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@zerodevapp/contracts'
 import Debug from 'debug'
+import { deepHexlify } from '@zerodevapp/utils'
 
 const debug = Debug('aa.rpc')
 
@@ -46,48 +47,28 @@ export class HttpRpcClient {
    */
   async sendUserOpToBundler (userOp1: UserOperationStruct): Promise<string> {
     await this.initializing
-    const userOp = await resolveProperties(userOp1)
-    const hexifiedUserOp: any = Object.keys(userOp)
-      .map((key) => {
-        let val = (userOp as any)[key]
-        if (typeof val !== 'string' || !val.startsWith('0x')) {
-          val = hexValue(val)
-        }
-        return [key, val]
-      })
-      .reduce(
-        (set, [k, v]) => ({
-          ...set,
-          [k]: v
-        }),
-        {}
-      )
-
-    const jsonRequestData: [UserOperationStruct, string] = [
-      hexifiedUserOp,
-      this.entryPointAddress
-    ]
-    await this.printUserOperation(jsonRequestData)
-    return await this.userOpJsonRpcProvider.send('eth_sendUserOperation', [
-      hexifiedUserOp,
-      this.entryPointAddress,
-      this.projectId
-    ])
+    const hexifiedUserOp = deepHexlify(await resolveProperties(userOp1))
+    const jsonRequestData: [UserOperationStruct, string] = [hexifiedUserOp, this.entryPointAddress]
+    await this.printUserOperation('eth_sendUserOperation', jsonRequestData)
+    return await this.userOpJsonRpcProvider
+      .send('eth_sendUserOperation', [hexifiedUserOp, this.entryPointAddress])
   }
 
-  private async printUserOperation ([userOp1, entryPointAddress]: [
-    UserOperationStruct,
-    string
-  ]): Promise<void> {
+  async estimateUserOpGas (userOp1: Partial<UserOperationStruct>): Promise<string> {
+    await this.initializing
+    const hexifiedUserOp = deepHexlify(await resolveProperties(userOp1))
+    const jsonRequestData: [UserOperationStruct, string] = [hexifiedUserOp, this.entryPointAddress]
+    await this.printUserOperation('eth_estimateUserOperationGas', jsonRequestData)
+    return await this.userOpJsonRpcProvider
+      .send('eth_estimateUserOperationGas', [hexifiedUserOp, this.entryPointAddress])
+  }
+
+  private async printUserOperation (method: string, [userOp1, entryPointAddress]: [UserOperationStruct, string]): Promise<void> {
     const userOp = await resolveProperties(userOp1)
-    debug(
-      'sending eth_sendUserOperation',
-      {
-        ...userOp
-        // initCode: (userOp.initCode ?? '').length,
-        // callData: (userOp.callData ?? '').length
-      },
-      entryPointAddress
-    )
+    debug('sending', method, {
+      ...userOp
+      // initCode: (userOp.initCode ?? '').length,
+      // callData: (userOp.callData ?? '').length
+    }, entryPointAddress)
   }
 }

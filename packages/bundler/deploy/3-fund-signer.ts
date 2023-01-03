@@ -2,7 +2,6 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { parseEther } from 'ethers/lib/utils'
 
-// deploy entrypoint - but only on debug network..
 const fundsigner: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // on geth, fund the default "hardhat node" account.
 

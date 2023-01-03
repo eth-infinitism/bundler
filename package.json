@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "aa-bundler",
+  "name": "@zerodevapp/core",
   "version": "0.2.0",
   "author": "Dror Tirosh",
   "license": "MIT",
@@ -30,7 +30,8 @@
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
     "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
-    "runop-self": "yarn runop --deployDeployer --selfBundler",
+    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler",
+    "ci": "env ; yarn depcheck; yarn preprocess",
     "build": "lerna run tsc"
   },
   "dependencies": {
