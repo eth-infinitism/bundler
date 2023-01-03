@@ -10,7 +10,7 @@ export class RpcError extends Error {
 }
 
 export function tostr (s: BigNumberish): string {
-  return BigNumber.from(s).toNumber().toString()
+  return BigNumber.from(s).toString()
 }
 
 export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
