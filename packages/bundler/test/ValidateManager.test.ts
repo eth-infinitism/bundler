@@ -118,9 +118,10 @@ describe('#ValidationManager', () => {
       minInclusionDenominator: 1,
       throttlingSlack: 1,
       banSlack: 1
-    })
+    },
+    parseEther('0'), 0)
     const unsafe = !await isGeth(provider)
-    vm = new ValidationManager(entryPoint, reputationManager, parseEther('0'), 0, unsafe)
+    vm = new ValidationManager(entryPoint, reputationManager, unsafe)
 
     if (!await isGeth(ethers.provider)) {
       console.log('WARNING: opcode banning tests can only run with geth')

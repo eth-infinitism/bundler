@@ -7,7 +7,7 @@
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 5e6,
-  "minStake": "0" ,
+  "minStake": "1" ,
   "minUnstakeDelay": 0 ,
   "autoBundleInterval": 3,
   "autoBundleMempoolSize": 10

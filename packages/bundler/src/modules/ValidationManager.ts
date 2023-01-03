@@ -1,5 +1,5 @@
 import { EntryPoint } from '@account-abstraction/contracts'
-import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { ReputationManager } from './ReputationManager'
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { getAddr, UserOperation } from './moduleUtils'
@@ -52,8 +52,6 @@ export class ValidationManager {
   constructor (
     readonly entryPoint: EntryPoint,
     readonly reputationManager: ReputationManager,
-    readonly minStake: BigNumber,
-    readonly minUnstakeDelay: number,
     readonly unsafe: boolean) {
   }
 
@@ -187,35 +185,15 @@ export class ValidationManager {
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
-    await this._checkStake('aggregator', res.aggregatorInfo?.addr)
+    if (res.aggregatorInfo != null) {
+      this.reputationManager.checkStake('aggregator', res.aggregatorInfo)
+    }
 
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
 
     return res
-  }
-
-  /**
-   * check the given address (paymaster/deployer/aggregator) is staked
-   * @param title the address title (field name to put into the "data" element)
-   * @param addr
-   */
-  async _checkStake (title: 'paymaster' | 'aggregator' | 'deployer', addr?: string): Promise<void> {
-    if (addr == null || this.reputationManager.isWhitelisted(addr)) {
-      return
-    }
-    requireCond(this.reputationManager.getStatus(addr) !== ReputationStatus.BANNED,
-      `${title} ${addr} is banned`,
-      ValidationErrors.Reputation, { [title]: addr })
-
-    const info = await this.entryPoint.getDepositInfo(addr)
-    requireCond(info.stake.gte(this.minStake),
-      `${title} ${addr} stake ${info.stake.toString()} is too low (min=${this.minStake.toString()})`,
-      ValidationErrors.InsufficientStake)
-    requireCond(info.unstakeDelaySec >= this.minUnstakeDelay,
-      `${title} ${addr} unstake delay ${info.unstakeDelaySec} is too low (min=${this.minUnstakeDelay})`,
-      ValidationErrors.InsufficientStake)
   }
 
   /**
