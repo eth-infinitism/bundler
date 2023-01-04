@@ -287,12 +287,12 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       let requireStakeSlot: string | undefined
       [...Object.keys(writes), ...Object.keys(reads)].forEach(slot => {
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
-        // but not during initial UserOp (where there is an initCode)
+        // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
-          if (userOp.initCode.length <= 2) {
-            return
+          if (userOp.initCode.length > 2) {
+            requireStakeSlot = slot
           }
-        }
+        } else
         if (associatedWith(slot, entityAddr, entitySlots)) {
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
