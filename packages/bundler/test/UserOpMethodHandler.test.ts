@@ -179,8 +179,8 @@ describe('UserOpMethodHandler', function () {
     it('getUserOperationByHash should return submitted UserOp', async () => {
       const ret = await methodHandler.getUserOperationByHash(userOpHash)
       expect(ret?.entryPoint === entryPoint.address)
-      expect(ret?.sender === userOperation.sender)
-      expect(ret?.callData === userOperation.callData)
+      expect(ret?.userOperation.sender).to.eql(userOperation.sender)
+      expect(ret?.userOperation.callData).to.eql(userOperation.callData)
     })
 
     it('getUserOperationReceipt should return receipt', async () => {

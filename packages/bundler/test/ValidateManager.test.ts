@@ -156,7 +156,7 @@ describe('#ValidationManager', () => {
   it('should fail referencing self token balance (during wallet creation)', async () => {
     expect(await testUserOp('balance-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
       .catch(e => e.message))
-      .to.match(/account has forbidden read/)
+      .to.match(/unstaked account accessed/)
   })
 
   it('account succeeds referencing its own balance (after wallet creation)', async () => {

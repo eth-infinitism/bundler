@@ -199,31 +199,9 @@ export class UserOpMethodHandler {
     if (op == null) {
       throw new Error('unable to find userOp in transaction')
     }
-    const {
-      sender,
-      nonce,
-      initCode,
-      callData,
-      callGasLimit,
-      verificationGasLimit,
-      preVerificationGas,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      paymasterAndData,
-      signature
-    } = op
+
     return {
-      sender,
-      nonce,
-      initCode,
-      callData,
-      callGasLimit,
-      verificationGasLimit,
-      preVerificationGas,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      paymasterAndData,
-      signature,
+      userOperation: op,
       entryPoint: this.entryPoint.address,
       transactionHash: tx.hash,
       blockHash: tx.blockHash ?? '',
