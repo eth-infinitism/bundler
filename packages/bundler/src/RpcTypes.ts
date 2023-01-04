@@ -28,11 +28,12 @@ export interface EstimateUserOpGasResult {
   callGasLimit: BigNumberish
 }
 
-export interface UserOperationByHashResponse extends UserOperation {
+export interface UserOperationByHashResponse {
+  userOperation: UserOperation
   entryPoint: string
-  transactionHash: string
   blockNumber: number
   blockHash: string
+  transactionHash: string
 }
 
 export interface UserOperationReceipt {
