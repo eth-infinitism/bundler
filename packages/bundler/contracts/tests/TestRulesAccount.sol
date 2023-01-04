@@ -11,9 +11,24 @@ contract Dummy {
 
 contract TestCoin {
     mapping(address => uint) balances;
+    mapping(address => mapping(address => uint)) allowances;
 
-    function balanceOf(address addr) public returns (uint) {
+    struct Struct {
+        uint a;
+        uint b;
+        uint c;
+    }
+    mapping(address=>Struct) public structInfo;
+
+    function getInfo(address addr) public returns (Struct memory) {
+        return structInfo[addr];
+    }
+    function balanceOf(address addr) public view returns (uint) {
         return balances[addr];
+    }
+
+    function allowance(address owner, address spender) public view returns (uint256) {
+        return allowances[owner][spender];
     }
 
     function mint(address addr) public returns (uint) {
@@ -51,7 +66,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
         return 0;
     }
 
-    function eq(string memory a, string memory b) internal returns (bool) {
+    function eq(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
@@ -64,9 +79,13 @@ contract TestRulesAccount is IAccount, IPaymaster {
         else if (eq(rule, "blockhash")) return uint(blockhash(0));
         else if (eq(rule, "create2")) return new Dummy{salt : bytes32(uint(0x1))}().value();
         else if (eq(rule, "balance-self")) return coin.balanceOf(address(this));
+        else if (eq(rule, "allowance-self-1")) return coin.allowance(address(this), address(1));
+        else if (eq(rule, "allowance-1-self")) return coin.allowance(address(1), address(this));
         else if (eq(rule, "mint-self")) return coin.mint(address(this));
         else if (eq(rule, "balance-1")) return coin.balanceOf(address(1));
         else if (eq(rule, "mint-1")) return coin.mint(address(1));
+        else if (eq(rule, "struct-self")) return coin.getInfo(address(this)).c;
+        else if (eq(rule, "struct-1")) return coin.getInfo(address(1)).c;
 
         else if (eq(rule, "inner-revert")) return coin.reverting();
         else if (eq(rule, "oog")) return coin.wasteGas();
@@ -82,7 +101,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
     }
 
     function validateUserOp(UserOperation calldata userOp, bytes32, address, uint256 missingAccountFunds)
-    external override returns (uint256 ) {
+    external override returns (uint256) {
         if (missingAccountFunds > 0) {
             /* solhint-disable-next-line avoid-low-level-calls */
             (bool success,) = msg.sender.call{value : missingAccountFunds}("");
@@ -96,7 +115,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
         return 0;
     }
 
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256)
     external returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         runRule(rule);
@@ -107,8 +126,9 @@ contract TestRulesAccount is IAccount, IPaymaster {
 
 }
 
-contract TestRulesAccountDeployer {
-    function create(string memory rule, TestCoin coin) public returns (TestRulesAccount) {
+contract TestRulesAccountFactory {
+    TestCoin immutable coin = new TestCoin();
+    function create(string memory rule) public returns (TestRulesAccount) {
         TestRulesAccount a = new TestRulesAccount{salt : bytes32(uint(0))}();
         a.setCoin(coin);
         a.runRule(rule);
