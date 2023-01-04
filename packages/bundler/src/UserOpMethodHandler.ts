@@ -200,13 +200,13 @@ export class UserOpMethodHandler {
       throw new Error('unable to find userOp in transaction')
     }
 
-    return {
+    return deepHexlify({
       userOperation: op,
       entryPoint: this.entryPoint.address,
       transactionHash: tx.hash,
       blockHash: tx.blockHash ?? '',
       blockNumber: tx.blockNumber ?? 0
-    }
+    })
   }
 
   async getUserOperationReceipt (userOpHash: string): Promise<UserOperationReceipt | null> {
