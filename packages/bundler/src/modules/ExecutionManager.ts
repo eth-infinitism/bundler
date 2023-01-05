@@ -9,6 +9,10 @@ import { Mutex } from 'async-mutex'
 
 const debug = Debug('aa.exec')
 
+export enum ExecutionErrors {
+  UserOperationReverted = -32521
+}
+
 /**
  * execute userOps manually or using background timer.
  * This is the top-level interface to send UserOperation

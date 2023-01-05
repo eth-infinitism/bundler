@@ -7,10 +7,11 @@ import { deepHexlify } from '@account-abstraction/utils'
 import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { requireCond, tostr } from './utils'
-import { ExecutionManager } from './modules/ExecutionManager'
+import { requireCond, RpcError, tostr } from './utils'
+import { ExecutionErrors, ExecutionManager } from './modules/ExecutionManager'
 import { getAddr, UserOperation } from './modules/moduleUtils'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
+import { ValidationErrors } from './modules/ValidationManager'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -95,7 +96,6 @@ export class UserOpMethodHandler {
       ...await resolveProperties(userOp1),
       // default values for missing fields.
       paymasterAndData: '0x',
-      signature: '0x'.padEnd(66 * 2, '1b'), // TODO: each wallet has to put in a signature in the correct length
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
       preVerificationGas: 0,
@@ -104,8 +104,12 @@ export class UserOpMethodHandler {
 
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
-
+  // todo: validation manager duplicate?
     const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
+    if (errorResult.errorName === 'FailedOp') {
+      throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
+    }
+    // todo throw valid rpc error
     if (errorResult.errorName !== 'ValidationResult') {
       throw errorResult
     }
@@ -120,7 +124,10 @@ export class UserOpMethodHandler {
       from: this.entryPoint.address,
       to: userOp.sender,
       data: userOp.callData
-    }).then(b => b.toNumber())
+    }).then(b => b.toNumber()).catch(err => {
+      const message = err.message.match(/reason=\"(.*?)\"/)?.at(1) ?? 'execution reverted'
+      throw new RpcError(message, ExecutionErrors.UserOperationReverted)
+    })
     deadline = BigNumber.from(deadline)
     if (deadline === 0) {
       deadline = undefined
