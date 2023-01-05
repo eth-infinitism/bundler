@@ -104,7 +104,7 @@ export class UserOpMethodHandler {
 
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
-  // todo: validation manager duplicate?
+    // todo: validation manager duplicate?
     const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
     if (errorResult.errorName === 'FailedOp') {
       throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
@@ -125,7 +125,7 @@ export class UserOpMethodHandler {
       to: userOp.sender,
       data: userOp.callData
     }).then(b => b.toNumber()).catch(err => {
-      const message = err.message.match(/reason=\"(.*?)\"/)?.at(1) ?? 'execution reverted'
+      const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ExecutionErrors.UserOperationReverted)
     })
     deadline = BigNumber.from(deadline)
@@ -147,7 +147,8 @@ export class UserOpMethodHandler {
 
     const userOp = await resolveProperties(userOp1)
 
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(userOp.paymasterAndData)}`)
+    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(
+      userOp.paymasterAndData)}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput)
     return await this.entryPoint.getUserOpHash(userOp)
   }
