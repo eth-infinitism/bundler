@@ -9,7 +9,7 @@ import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
 
-const debug = Debug('aa.cron')
+const debug = Debug('aa.exec.cron')
 
 export class BundleManager {
   provider: JsonRpcProvider

@@ -1,4 +1,4 @@
-FROM node:13-buster-slim
+FROM node:16-buster-slim
 COPY dist/bundler.js app/
 WORKDIR /app/
-CMD node --no-deprecation bundler.js
+ENTRYPOINT [ "node","/app/bundler.js" ]
