@@ -21,7 +21,8 @@ export enum ValidationErrors {
   ExpiresShortly = -32503,
   Reputation = -32504,
   InsufficientStake = -32505,
-  UnsupportedSignatureAggregator = -32506
+  UnsupportedSignatureAggregator = -32506,
+  InvalidSignature = -32507,
 }
 
 /**
@@ -31,6 +32,7 @@ export interface ValidationResult {
   returnInfo: {
     preOpGas: BigNumberish
     prefund: BigNumberish
+    sigFailed: boolean
     deadline: number
   }
 
@@ -192,6 +194,10 @@ export class ValidationManager {
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
+    
+    requireCond(!res.returnInfo.sigFailed,
+      'Invalid UserOp signature or paymaster signature',
+      ValidationErrors.InvalidSignature)
 
     return res
   }
