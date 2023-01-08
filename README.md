@@ -5,7 +5,7 @@
 A basic eip4337 "bundler"
 
 This is a reference implementation for a bundler, implementing the full EIP-4337
-RPC calls (both production and debug calls), required to pass the "bundler-test-spec" test suite.
+RPC calls (both production and debug calls), required to pass the [bundler-spec-tests](https://github.com/eth-infinitism/bundler-spec-tests) test suite.
 
 ### Running local node
 In order to implement the full spec storage access rules and opcode banning, it must run
