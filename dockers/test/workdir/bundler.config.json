@@ -1,0 +1,12 @@
+{
+  "gasFactor": "1",
+  "port": "3000",
+  "beneficiary": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "minBalance": "1",
+  "mnemonic": "./workdir/mnemonic.txt",
+  "maxBundleGas": 5e6,
+  "minStake": "1" ,
+  "minUnstakeDelay": 0 ,
+  "autoBundleInterval": 3,
+  "autoBundleMempoolSize": 10
+}

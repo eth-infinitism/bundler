@@ -13,11 +13,11 @@ export class DeterministicDeployer {
    * @param ctrCode constructor code to pass to CREATE2, or ContractFactory
    * @param salt optional salt. defaults to zero
    */
-  static async getAddress (ctrCode: string, salt: BigNumberish): Promise<string>
-  static async getAddress (ctrCode: string): Promise<string>
-  static async getAddress (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): Promise<string>
-  static async getAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
-    return await DeterministicDeployer.instance.getDeterministicDeployAddress(ctrCode, salt, params)
+  static getAddress (ctrCode: string, salt: BigNumberish): string
+  static getAddress (ctrCode: string): string
+  static getAddress (ctrCode: ContractFactory, salt: BigNumberish, params: any[]): string
+  static getAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): string {
+    return DeterministicDeployer.instance.getDeterministicDeployAddress(ctrCode, salt, params)
   }
 
   /**
@@ -95,7 +95,7 @@ export class DeterministicDeployer {
     }
   }
 
-  async getDeterministicDeployAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
+  getDeterministicDeployAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): string {
     // this method works only before the contract is already deployed:
     // return await this.provider.call(await this.getDeployTransaction(ctrCode, salt))
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
@@ -110,7 +110,7 @@ export class DeterministicDeployer {
   }
 
   async deterministicDeploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
-    const addr = await this.getDeterministicDeployAddress(ctrCode, salt, params)
+    const addr = this.getDeterministicDeployAddress(ctrCode, salt, params)
     if (!await this.isContractDeployed(addr)) {
       await this.provider.getSigner().sendTransaction(
         await this.getDeployTransaction(ctrCode, salt, params))
