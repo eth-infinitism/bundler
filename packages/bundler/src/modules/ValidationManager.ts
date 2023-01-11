@@ -130,6 +130,10 @@ export class ValidationManager {
       throw new Error('Invalid response. simulateCall must revert')
     }
     const data = (lastResult as ExitInfo).data
+    // Hack to handle SELFDESTRUCT until we fix entrypoint
+    if (data === '0x') {
+      return [data as any, tracerResult]
+    }
     try {
       const {
         name: errorName,
@@ -176,6 +180,9 @@ export class ValidationManager {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      if (res as any === '0x') {
+        throw new Error('simulateValidation returned with an unknown revert!!!')
+      }
     } else {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
       res = await this._callSimulateValidation(userOp)
