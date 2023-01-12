@@ -12,7 +12,8 @@ import {
   TestStorageAccount__factory,
   TestRulesAccount,
   TestRulesAccount__factory,
-  TestRulesAccountFactory__factory
+  TestRulesAccountFactory__factory,
+  BundlerHelper__factory
 } from '../src/types'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
@@ -108,6 +109,7 @@ describe('#ValidationManager', () => {
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
     opcodeFactory = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
     storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy()
+    const bundlerHelper = await new BundlerHelper__factory(ethersSigner).deploy()
 
     const rulesFactory = await new TestRulesAccountFactory__factory(ethersSigner).deploy()
     storageAccount = TestRulesAccount__factory.connect(await rulesFactory.callStatic.create(''), provider)
@@ -121,7 +123,7 @@ describe('#ValidationManager', () => {
     },
     parseEther('0'), 0)
     const unsafe = !await isGeth(provider)
-    vm = new ValidationManager(entryPoint, reputationManager, unsafe)
+    vm = new ValidationManager(entryPoint, bundlerHelper, reputationManager, unsafe)
 
     if (!await isGeth(ethers.provider)) {
       console.log('WARNING: opcode banning tests can only run with geth')

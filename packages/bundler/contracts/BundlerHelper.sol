@@ -1,31 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
-import "@account-abstraction/contracts/core/EntryPoint.sol";
-import "solidity-string-utils/StringUtils.sol";
+
+contract Config {
+
+    uint public immutable val;
+    constructor(ConfigFactory f) {
+        try f.val() returns (uint _val) {
+            val = _val;
+        } catch {
+//            val = 0;
+        }
+    }
+    function destruct() public {
+        selfdestruct(payable(msg.sender));
+    }
+}
+
+contract ConfigFactory {
+    uint public val;
+    Config public cfg = new Config{salt : 0}(this);
+
+    //return config object: always on the same address, but with different code..
+    function getConfig(uint _val) public returns (Config){
+        cfg.destruct();
+        val = _val;
+        return new Config{salt : 0}(this);
+    }
+}
 
 contract BundlerHelper {
-    using StringUtils for *;
-
-    /**
-     * run handleop. require to get refund for the used gas.
-     */
-    function handleOps(uint expectedPaymentGas, EntryPoint ep, UserOperation[] calldata ops, address payable beneficiary)
-    public returns (uint paid, uint gasPrice, bytes memory errorReason){
-        gasPrice = tx.gasprice;
-        uint expectedPayment = expectedPaymentGas * gasPrice;
-        uint preBalance = beneficiary.balance;
-        try ep.handleOps(ops, beneficiary) {
-        } catch (bytes memory err) {
-            errorReason = err;
+    function getCodeHashes(address[] memory addresses) public view returns (bytes32) {
+        bytes32[] memory hashes = new bytes32[](addresses.length);
+        for (uint i = 0; i < addresses.length; i++) {
+            hashes[i] = addresses[i].codehash;
         }
-        paid = beneficiary.balance - preBalance;
-        if (paid < expectedPayment) {
-            revert(string.concat(
-                "didn't pay enough: paid ", paid.toString(),
-                " expected ", expectedPayment.toString(),
-                " gasPrice ", gasPrice.toString()
-            ));
-        }
+        bytes memory data = abi.encode(hashes);
+        return keccak256(data);
     }
 }

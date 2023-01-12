@@ -39,10 +39,11 @@ export class ExecutionManager {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
-      const validationResult = await this.validationManager.validateUserOp(userOp)
+      const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
       this.mempoolManager.addUserOp(userOp,
         validationResult.returnInfo.prefund,
         validationResult.senderInfo,
+        validationResult.referencedContracts,
         validationResult.aggregatorInfo?.addr)
       await this.attemptBundle(false)
     })

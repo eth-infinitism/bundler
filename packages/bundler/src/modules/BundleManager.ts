@@ -119,9 +119,9 @@ export class BundleManager {
       let validationResult: ValidationResult
       try {
         // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
-        validationResult = await this.validationManager.validateUserOp(entry.userOp, false)
+        validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
       } catch (e: any) {
-        debug('failed 2nd validation', e.message)
+        debug('failed 2nd validation:', e.message)
         // failed validation. don't try anymore
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
