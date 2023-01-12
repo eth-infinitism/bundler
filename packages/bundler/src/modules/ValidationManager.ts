@@ -181,7 +181,7 @@ export class ValidationManager {
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       parseScannerResult(userOp, tracerResult, res, this.entryPoint)
       if (res as any === '0x') {
-        throw new Error('simulateValidation returned with an unknown revert!!!')
+        throw new Error('simulateValidation reverted with no revert string!')
       }
     } else {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
