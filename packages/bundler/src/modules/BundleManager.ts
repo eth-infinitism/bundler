@@ -8,8 +8,14 @@ import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
+import { BundlerHelper } from '../types'
 
 const debug = Debug('aa.cron')
+
+export interface SendBundleReturn {
+  transactionHash: string
+  userOpHashes: string[]
+}
 
 export class BundleManager {
   provider: JsonRpcProvider
@@ -18,6 +24,7 @@ export class BundleManager {
 
   constructor (
     readonly entryPoint: EntryPoint,
+    readonly bundlerHelper: BundlerHelper,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
@@ -34,8 +41,8 @@ export class BundleManager {
    * collect UserOps from mempool into a bundle
    * send this bundle.
    */
-  async sendNextBundle (): Promise<void> {
-    await this.mutex.runExclusive(async () => {
+  async sendNextBundle (): Promise<SendBundleReturn | undefined> {
+    return await this.mutex.runExclusive(async () => {
       debug('sendNextBundle')
 
       const bundle = await this.createBundle()
@@ -43,8 +50,9 @@ export class BundleManager {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        await this.sendBundle(bundle, beneficiary)
+        const ret = await this.sendBundle(bundle, beneficiary)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
+        return ret
       }
     })
   }
@@ -52,12 +60,19 @@ export class BundleManager {
   /**
    * submit a bundle.
    * after submitting the bundle, remove all UserOps from the mempool
+   * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<void> {
+  async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<SendBundleReturn | undefined> {
     try {
-      await this.entryPoint.handleOps(userOps, beneficiary)
+      const ret = await this.entryPoint.handleOps(userOps, beneficiary)
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       this.mempoolManager.removeAllUserOps(userOps)
+      // hashes are needed for debug rpc only.
+      const hashes = await this.bundlerHelper.getUserOpHashes(this.entryPoint.address, userOps)
+      return {
+        transactionHash: ret.hash,
+        userOpHashes: hashes
+      }
     } catch (e: any) {
       // failed to handleOp. use FailedOp to detect by
       if (e.errorName !== 'FailedOp') {

@@ -19,7 +19,7 @@ import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecC
 import {
   SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory, BundlerHelper__factory
 } from '../src/types'
-import { deepHexlify } from '@account-abstraction/utils'
+import { resolveHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
@@ -28,12 +28,6 @@ import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { isGeth, waitFor } from '../src/utils'
-
-// resolve all property and hexlify.
-// (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
-async function resolveHexlify (a: any): Promise<any> {
-  return deepHexlify(await resolveProperties(a))
-}
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -82,7 +76,7 @@ describe('UserOpMethodHandler', function () {
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, bundlerHelper, repMgr, config.unsafe)
-    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const bundleMgr = new BundleManager(entryPoint, bundlerHelper, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
       execManager,

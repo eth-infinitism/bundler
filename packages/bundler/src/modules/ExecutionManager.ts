@@ -1,7 +1,7 @@
 import { ReputationManager } from './ReputationManager'
 import { clearInterval } from 'timers'
 import { MempoolManager } from './MempoolManager'
-import { BundleManager } from './BundleManager'
+import { BundleManager, SendBundleReturn } from './BundleManager'
 import Debug from 'debug'
 import { UserOperation } from './moduleUtils'
 import { ValidationManager } from './ValidationManager'
@@ -81,10 +81,10 @@ export class ExecutionManager {
    * attempt to send a bundle now.
    * @param force
    */
-  async attemptBundle (force = true): Promise<void> {
+  async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
-      await this.bundleManager.sendNextBundle()
+      return await this.bundleManager.sendNextBundle()
     }
   }
 }
