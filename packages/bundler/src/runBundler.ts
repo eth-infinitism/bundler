@@ -83,11 +83,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
   }
 
-  process.once('SIGINT', ()=>{
+  process.once('SIGINT', () => {
     console.log('SIGINT: exit')
     process.exit(1)
   })
-  process.once('SIGTERM', ()=>{
+  process.once('SIGTERM', () => {
     console.log('SIGTERM: exit')
     process.exit(1)
   })
