@@ -182,6 +182,10 @@ export class ValidationManager {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
       res = await this._callSimulateValidation(userOp)
     }
+    
+    requireCond(!res.returnInfo.sigFailed,
+      'Invalid UserOp signature or paymaster signature',
+      ValidationErrors.InvalidSignature)
 
     requireCond(res.returnInfo.deadline == null || res.returnInfo.deadline + 30 < Date.now() / 1000,
       'expires too soon',
@@ -194,10 +198,6 @@ export class ValidationManager {
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
-    
-    requireCond(!res.returnInfo.sigFailed,
-      'Invalid UserOp signature or paymaster signature',
-      ValidationErrors.InvalidSignature)
 
     return res
   }
