@@ -1,7 +1,7 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr, UserOperation } from './moduleUtils'
 import { requireCond } from '../utils'
-import { StakeInfo, ValidationErrors } from './ValidationManager'
+import { ReferencedCodeHashes, StakeInfo, ValidationErrors } from './ValidationManager'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 
@@ -10,6 +10,7 @@ const debug = Debug('aa.mempool')
 export interface MempoolEntry {
   userOp: UserOperation
   prefund: BigNumberish
+  referencedContracts: ReferencedCodeHashes
   // aggregator, if one was found during simulation
   aggregator?: string
 }
@@ -35,10 +36,11 @@ export class MempoolManager {
   // add userOp into the mempool, after initial validation.
   // replace existing, if any (and if new gas is higher)
   // revets if unable to add UserOp to mempool (too many UserOps with this sender)
-  addUserOp (userOp: UserOperation, prefund: BigNumberish, senderInfo: StakeInfo, aggregator?: string): void {
+  addUserOp (userOp: UserOperation, prefund: BigNumberish, senderInfo: StakeInfo, referencedContracts: ReferencedCodeHashes, aggregator?: string): void {
     const entry: MempoolEntry = {
       userOp,
       prefund,
+      referencedContracts,
       aggregator
     }
     const index = this._find(userOp)

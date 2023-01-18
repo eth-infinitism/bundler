@@ -10,6 +10,7 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
+import { BundlerHelper } from '../types'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -22,6 +23,13 @@ export enum ValidationErrors {
   Reputation = -32504,
   InsufficientStake = -32505,
   UnsupportedSignatureAggregator = -32506
+}
+
+export interface ReferencedCodeHashes {
+  // addresses accessed during this user operation
+  addresses: string[]
+  // keccak over the code of all referenced addresses
+  hash: string
 }
 
 /**
@@ -40,6 +48,11 @@ export interface ValidationResult {
   aggregatorInfo?: StakeInfo
 }
 
+export interface ValidateUserOpResult extends ValidationResult {
+
+  referencedContracts: ReferencedCodeHashes
+}
+
 export interface StakeInfo {
   addr: string
   stake: BigNumberish
@@ -51,6 +64,7 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 export class ValidationManager {
   constructor (
     readonly entryPoint: EntryPoint,
+    readonly bundlerHelper: BundlerHelper,
     readonly reputationManager: ReputationManager,
     readonly unsafe: boolean) {
   }
@@ -173,13 +187,29 @@ export class ValidationManager {
    * one item to check that was un-modified is the aggregator..
    * @param userOp
    */
-  async validateUserOp (userOp: UserOperation, checkStakes = true): Promise<ValidationResult> {
-    // TODO: use traceCall
+  async validateUserOp (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
+    if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
+      const codeHashes = await this.bundlerHelper.getCodeHashes(previousCodeHashes.addresses)
+      requireCond(codeHashes === previousCodeHashes.hash,
+        'modified code after first validation',
+        ValidationErrors.OpcodeValidation)
+    }
     let res: ValidationResult
+    let codeHashes: ReferencedCodeHashes = {
+      addresses: [],
+      hash: ''
+    }
     if (!this.unsafe) {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
-      parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      const contractAddresses = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      // if no previous contract hashes, then calculate hashes of contracts
+      if (previousCodeHashes == null) {
+        codeHashes = {
+          hash: await this.bundlerHelper.getCodeHashes(contractAddresses),
+          addresses: contractAddresses
+        }
+      }
       if (res as any === '0x') {
         throw new Error('simulateValidation reverted with no revert string!')
       }
@@ -200,7 +230,18 @@ export class ValidationManager {
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
 
-    return res
+    return {
+      ...res,
+      referencedContracts: codeHashes
+    }
+  }
+
+  async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
+    const hash = await this.bundlerHelper.getCodeHashes(addresses)
+    return {
+      hash,
+      addresses
+    }
   }
 
   /**

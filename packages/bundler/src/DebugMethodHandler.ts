@@ -1,6 +1,7 @@
 import { ExecutionManager } from './modules/ExecutionManager'
 import { ReputationDump, ReputationManager } from './modules/ReputationManager'
 import { MempoolManager } from './modules/MempoolManager'
+import { SendBundleReturn } from './modules/BundleManager'
 
 export class DebugMethodHandler {
   constructor (
@@ -29,8 +30,8 @@ export class DebugMethodHandler {
     }
   }
 
-  async sendBundleNow (): Promise<void> {
-    await this.execManager.attemptBundle(true)
+  async sendBundleNow (): Promise<SendBundleReturn | undefined> {
+    return await this.execManager.attemptBundle(true)
   }
 
   clearState (): void {
