@@ -170,8 +170,9 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
  * @param tracerResults the tracer return value
  * @param validationResult output from simulateValidation
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
+ * @return list of contract addresses referenced by this UserOp
  */
-export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): void {
+export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): string[] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -335,5 +336,12 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
       // TODO: check real minimum stake values
     }
+
+    requireCond(Object.keys(currentNumLevel.contractSize).find(addr => currentNumLevel.contractSize[addr] <= 2) == null,
+      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`)
   })
+
+  // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
+  const addresses = tracerResults.numberLevels.flatMap(level => Object.keys(level.contractSize))
+  return addresses
 }

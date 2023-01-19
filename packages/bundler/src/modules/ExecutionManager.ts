@@ -1,7 +1,7 @@
 import { ReputationManager } from './ReputationManager'
 import { clearInterval } from 'timers'
 import { MempoolManager } from './MempoolManager'
-import { BundleManager } from './BundleManager'
+import { BundleManager, SendBundleReturn } from './BundleManager'
 import Debug from 'debug'
 import { UserOperation } from './moduleUtils'
 import { ValidationManager } from './ValidationManager'
@@ -39,10 +39,11 @@ export class ExecutionManager {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
-      const validationResult = await this.validationManager.validateUserOp(userOp)
+      const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
       this.mempoolManager.addUserOp(userOp,
         validationResult.returnInfo.prefund,
         validationResult.senderInfo,
+        validationResult.referencedContracts,
         validationResult.aggregatorInfo?.addr)
       await this.attemptBundle(false)
     })
@@ -80,10 +81,10 @@ export class ExecutionManager {
    * attempt to send a bundle now.
    * @param force
    */
-  async attemptBundle (force = true): Promise<void> {
+  async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
-      await this.bundleManager.sendNextBundle()
+      return await this.bundleManager.sendNextBundle()
     }
   }
 }

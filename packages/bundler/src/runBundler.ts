@@ -3,8 +3,8 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { BigNumber, ethers, Wallet } from 'ethers'
-import { BaseProvider, JsonRpcProvider } from '@ethersproject/providers'
+import { ethers, Wallet } from 'ethers'
+import { BaseProvider } from '@ethersproject/providers'
 
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { BundlerServer } from './BundlerServer'
@@ -15,7 +15,6 @@ import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth } from './utils'
-import { parseEther } from 'ethers/lib/utils'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -55,7 +54,7 @@ function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
 
 export async function connectContracts (
   wallet: Wallet,
-  entryPointAddress: string): Promise<{ entryPoint: EntryPoint }> {
+  entryPointAddress: string): Promise<{ entryPoint: EntryPoint}> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
   return {
     entryPoint
@@ -82,15 +81,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       throw new CommandError(message, code, exitCode)
     }
   }
-
-  process.once('SIGINT', () => {
-    console.log('SIGINT: exit')
-    process.exit(1)
-  })
-  process.once('SIGTERM', () => {
-    console.log('SIGTERM: exit')
-    process.exit(1)
-  })
 
   program
     .version(erc4337RuntimeVersion)
@@ -142,21 +132,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   } = await provider.getNetwork()
 
   if (chainId === 31337 || chainId === 1337) {
-    const deployer = new DeterministicDeployer(provider as any)
-    const entryPointAddr = await deployer.getDeterministicDeployAddress(EntryPoint__factory.bytecode)
-    if (!await deployer.isContractDeployed(entryPointAddr)) {
-      console.log('=== Testnet: deploy EntryPoint at', entryPointAddr)
-      await deployer.deterministicDeploy(EntryPoint__factory.bytecode)
-    }
-
-    if (BigNumber.from(0).eq(await wallet.getBalance())) {
-      console.log('=== Testnet: fund signer account', wallet.address)
-      const signer = (provider as JsonRpcProvider).getSigner()
-      await signer.sendTransaction({
-        to: wallet.address,
-        value: parseEther('10')
-      })
-    }
+    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
   }
 
   if (!config.unsafe && !await isGeth(provider as any)) {

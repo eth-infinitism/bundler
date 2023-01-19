@@ -9441,11 +9441,6 @@ solidity-coverage@^0.7.21:
     shelljs "^0.8.3"
     web3-utils "^1.3.0"
 
-solidity-string-utils@^0.0.8-0:
-  version "0.0.8-0"
-  resolved "https://registry.yarnpkg.com/solidity-string-utils/-/solidity-string-utils-0.0.8-0.tgz#17d9c4ec9297615e17de61e8bc587042727ee55d"
-  integrity sha512-AHyYRuySlm71vk/rzat5YkP/H+xr5g3a0THHljH2DFSilMnsbLNusSUXVfbU1A3IZrfnaocAx1FSM01/mtchzg==
-
 sort-keys@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/sort-keys/-/sort-keys-2.0.0.tgz#658535584861ec97d730d6cf41822e1f56684128"

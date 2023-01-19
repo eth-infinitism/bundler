@@ -9,6 +9,9 @@ import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } f
 declare function toHex (a: any): string
 
 declare function toAddress (a: any): string
+
+declare function isPrecompiled (addr: any): boolean
+
 /**
  * return type of our BundlerCollectorTracer.
  * collect access and opcodes, split into "levels" based on NUMBER opcode
@@ -42,6 +45,7 @@ export interface ExitInfo {
   gasUsed: number
   data: string
 }
+
 export interface NumberLevelInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
@@ -151,6 +155,16 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         }
       }
 
+      if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
+        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length())
+        const idx = opcode.startsWith('EXT') ? 0 : 1
+        const addr = toAddress(log.stack.peek(idx).toString(16))
+        const addrHex = toHex(addr)
+        if ((this.currentLevel.contractSize[addrHex] ?? 0) === 0 && !isPrecompiled(addr)) {
+          this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
+        }
+      }
+
       if (log.getDepth() === 1) {
         // NUMBER opcode at top level split levels
         if (opcode === 'NUMBER') this.numberCounter++
@@ -173,15 +187,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         // ignore "unimportant" opcodes:
         if (opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/) == null) {
           this.countSlot(this.currentLevel.opcodes, opcode)
-        }
-      }
-      if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL|CREATE2)$/) != null) {
-        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length())
-        const idx = opcode.startsWith('EXT') ? 0 : 1
-        const addr = toAddress(log.stack.peek(idx).toString(16))
-        const addrHex = toHex(addr)
-        if (this.currentLevel.contractSize[addrHex] == null) {
-          this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
         }
       }
       this.lastOp = opcode

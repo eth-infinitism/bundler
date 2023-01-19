@@ -1,4 +1,4 @@
-import { defaultAbiCoder, hexConcat, hexlify, keccak256 } from 'ethers/lib/utils'
+import { defaultAbiCoder, hexConcat, hexlify, keccak256, resolveProperties } from 'ethers/lib/utils'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import { ethers } from 'ethers'
@@ -204,4 +204,10 @@ export function deepHexlify (obj: any): any {
       ...set,
       [key]: deepHexlify(obj[key])
     }), {})
+}
+
+// resolve all property and hexlify.
+// (UserOpMethodHandler receives data from the network, so we need to pack our generated values)
+export async function resolveHexlify (a: any): Promise<any> {
+  return deepHexlify(await resolveProperties(a))
 }
