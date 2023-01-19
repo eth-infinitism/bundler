@@ -199,7 +199,7 @@ export class ReputationManager {
       ValidationErrors.Reputation, { [title]: info.addr })
 
     requireCond(BigNumber.from(info.stake).gte(this.minStake),
-      `${title} ${tostr(info.addr)} stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`,
+      `${title} ${info.addr} stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`,
       ValidationErrors.InsufficientStake)
     requireCond(BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay),
       `${title} ${info.addr} unstake delay ${tostr(info.unstakeDelaySec)} is too low (min=${tostr(this.minUnstakeDelay)})`,
