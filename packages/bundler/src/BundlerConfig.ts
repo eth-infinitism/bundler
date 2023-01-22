@@ -1,5 +1,7 @@
 // TODO: consider adopting config-loading approach from hardhat to allow code in config file
+import { DeterministicDeployer } from '@account-abstraction/sdk'
 import ow from 'ow'
+import { BundlerHelper__factory } from './types'
 
 export interface BundlerConfig {
   beneficiary: string
@@ -47,6 +49,6 @@ export const BundlerConfigShape = {
 export const bundlerConfigDefault: Partial<BundlerConfig> = {
   port: '3000',
   entryPoint: '0x1306b01bC3e4AD202612D3843387e94737673F53',
-  bundlerHelper: '0x3ac2913fd3ed9a2c6eb7757bcfc6f9cd49cbfea4',
+  bundlerHelper: DeterministicDeployer.getAddress(BundlerHelper__factory.bytecode),
   unsafe: false
 }
