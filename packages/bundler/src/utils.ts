@@ -1,6 +1,7 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 import { BigNumber } from 'ethers'
+import { debug_traceCall, LogTracer } from './GethTracer'
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
@@ -53,12 +54,17 @@ export async function waitFor<T> (func: () => T | undefined, timeout = 10000, in
   }
 }
 
+//verify we have geth-compatible node (has debug_traceCall which supports custom javascript tracer)
 export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
-  const p = provider.send as any
-  if (p._clientVersion == null) {
-    p._clientVersion = await provider.send('web3_clientVersion', [])
-  }
-
-  // debug('client version', p._clientVersion)
-  return p._clientVersion?.match('Geth') != null
+  const ret = await debug_traceCall(provider, {}, { tracer: function () {
+      return { result: ()=>"test result", fault: ()=>"test fault"}
+    }}).catch(e=>e.message)
+  return ret == 'test result'
+  // const p = provider.send as any
+  // if (p._clientVersion == null) {
+  //   p._clientVersion = await provider.send('web3_clientVersion', [])
+  // }
+  //
+  // // debug('client version', p._clientVersion)
+  // return p._clientVersion?.match('Geth') != null
 }

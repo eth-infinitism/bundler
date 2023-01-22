@@ -45,7 +45,7 @@ export function getTracerBodyString (func: LogTracerFunc): string {
   const tracerFunc = func.toString()
   // function must return a plain object:
   //  function xyz() { return {...}; }
-  const regexp = /function \w+\s*\(\s*\)\s*{\s*return\s*(\{[\s\S]+\});?\s*\}\s*$/ // (\{[\s\S]+\}); \} $/
+  const regexp = /function \w*\s*\(\s*\)\s*{\s*return\s*(\{[\s\S]+\});?\s*\}\s*$/ // (\{[\s\S]+\}); \} $/
   const match = tracerFunc.match(regexp)
   if (match == null) {
     throw new Error('Not a simple method returning value')
