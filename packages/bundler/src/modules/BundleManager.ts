@@ -10,7 +10,7 @@ import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
 import { BundlerHelper } from '../types'
 
-const debug = Debug('aa.cron')
+const debug = Debug('aa.exec.cron')
 
 export interface SendBundleReturn {
   transactionHash: string

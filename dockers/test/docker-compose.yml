@@ -1,0 +1,24 @@
+# start a standlone bundler for testing.
+# bring up a the bundler with its own geth instance
+
+version: '2'
+
+services:
+
+  bundler:
+    ports: [ '3000:3000' ]
+    image: accountabstraction/bundler
+    command: --network http://geth-dev:8545
+    volumes:
+      - ./workdir:/app/workdir:ro
+
+    mem_limit: 300M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 10m
+        max-file: "10"
+
+  geth-dev:
+    build: geth-dev
+    ports: [ '8545:8545' ]

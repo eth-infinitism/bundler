@@ -3,7 +3,7 @@ import { JsonRpcSigner, Log, Provider } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import { resolveProperties } from 'ethers/lib/utils'
-import { deepHexlify } from '@account-abstraction/utils'
+import { deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
@@ -265,6 +265,6 @@ export class UserOpMethodHandler {
 
   clientVersion (): string {
     // eslint-disable-next-line
-    return 'aa-bundler/' + require('../package.json').version
+    return 'aa-bundler/' + erc4337RuntimeVersion + (this.config.unsafe ? "/unsafe":"")
   }
 }
