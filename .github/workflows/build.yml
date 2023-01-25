@@ -43,8 +43,4 @@ jobs:
       - run: yarn preprocess
       - run: yarn lerna-lint
 
-# Allow one concurrent deployment
-concurrency:
-  group: "deploy"
-  cancel-in-progress: true
 
