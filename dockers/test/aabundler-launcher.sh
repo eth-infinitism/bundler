@@ -1,6 +1,9 @@
 #!/bin/bash
-cd `dirname $0`
+cd `dirname \`realpath $0\``
 case $1 in
+ name)
+	echo "AA Reference Bundler/0.4.0"
+	;;
 
  start)
 	docker-compose up -d
