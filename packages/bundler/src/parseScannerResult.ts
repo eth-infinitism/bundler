@@ -338,7 +338,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     }
 
     requireCond(Object.keys(currentNumLevel.contractSize).find(addr => currentNumLevel.contractSize[addr] <= 2) == null,
-      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`)
+      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`, ValidationErrors.OpcodeValidation)
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
