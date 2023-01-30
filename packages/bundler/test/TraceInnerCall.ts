@@ -9,31 +9,32 @@ import { BigNumber } from 'ethers'
 declare function toHex (a: any): string
 
 interface GetInner extends LogTracer {
-  sig?: string
-  out?: any
+  innerOut?: any
+  stack?: any
 }
 
 //extract the return value of "innerHandleOp"
 function InnerCallResult (): LogTracer {
   const trace: GetInner = {
+    stack: [],
     result (ctx: LogContext) {
       return {
         ctxGasUsed: ctx.gasUsed,
-        out: toHex(ctx.output),
-        innerCallGas: parseInt(this.out)
+        out: toHex(ctx.output), //top-level output
+        innerCallGas: parseInt(this.innerOut)
       }
     },
     fault () {
     },
     enter (frame: LogCallFrame): void {
-      this.sig = toHex(frame.getInput().slice(0, 4))
+      this.stack.push(toHex(frame.getInput().slice(0, 4)))
     },
 
     exit (frame: LogFrameResult): void {
       //innerHandleOp(bytes,((address,uint256,uint256,uint256,uint256,address,uint256,uint256),bytes32,uint256,uint256,uint256),bytes)
-      if (this.sig == '0x1d732756') {
-        if (this.out != null) throw new Error('too many results')
-        this.out = toHex(frame.getOutput())
+      if (this.stack.pop() == '0x1d732756') {
+        if (this.innerOut != null) throw new Error('too many results')
+        this.innerOut = toHex(frame.getOutput())
       }
     }
   }
@@ -49,29 +50,31 @@ function InnerCallResult (): LogTracer {
  * @return gasUsed - actual gas used by transaction (paid by bundler)
  * @return gasPaid - gas refunded to beneficiary
  */
-export async function traceUserOpGas (entryPoint: EntryPoint, op: UserOperation, sendAsRealTransaction = false): Promise<{ gasUsed: number, gasPaid: number }> {
+export async function traceUserOpGas (entryPoint: EntryPoint, op: UserOperation, testAgainstRealTransaction = false): Promise<{ gasUsed: number, gasPaid: number, callDataGas: number }> {
   //for gas price to "1", so gas-price==gas-used
   op.maxFeePerGas = 1
   const provider = entryPoint.provider as JsonRpcProvider
   const signer = provider.getSigner()
   const beneficiary = signer.getAddress()
 
-  const tx = await entryPoint.populateTransaction.handleOps([op], beneficiary, {gasLimit: 3e6})
+  const tx = await entryPoint.populateTransaction.handleOps([op], beneficiary, { gasLimit: 3e6 })
   const callDataGas = arrayify(tx.data!).reduce((sum, x) => sum + ((x == 0) ? 4 : 16))
 
+  // console.log('estim=', await provider.call(tx))
   let ret = await debug_traceCall(provider, tx, { tracer: InnerCallResult })
   const {
     ctxGasUsed,
     out,  //set only in case of exception
     innerCallGas
   } = ret
-  console.log('trace ret=', ret)
+  // console.log('trace ret=', ret)
 
   //extract actual "gasUsed" from trace call.
   // notice the magical "15" ...
   const calcGasUsed = ctxGasUsed + 21000 + callDataGas - 15
 
-  if (sendAsRealTransaction) {
+  if (testAgainstRealTransaction) {
+    console.log('== testAgainstRealTransaction')
     await provider.call(tx)
     // await entryPoint.callStatic.handleOps([op], beneficiary)
 
@@ -84,7 +87,7 @@ export async function traceUserOpGas (entryPoint: EntryPoint, op: UserOperation,
     })
     console.log('ev=', ev.args)
     if (ev.args.actualGasUsed != innerCallGas) {
-      throw new Error(`failed to extract paid gas: trace gas=${innerCallGas}, event gasUsed=${ev.args.actualGasUsed}`)
+      throw new Error(`failed to extract paid gas: trace innerCallGas=${innerCallGas}, event actualGasUsed=${ev.args.actualGasUsed}`)
     }
     const diffGasUsed = calcGasUsed - rcpt.gasUsed.toNumber()
     if (diffGasUsed != 0) {
@@ -100,6 +103,7 @@ export async function traceUserOpGas (entryPoint: EntryPoint, op: UserOperation,
 
   return {
     gasUsed: calcGasUsed,
-    gasPaid: gasPaid.toNumber()
+    gasPaid: gasPaid.toNumber(),
+    callDataGas
   }
 }
