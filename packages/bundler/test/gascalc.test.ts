@@ -1,17 +1,18 @@
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
+import { EntryPointInterface } from '@account-abstraction/contracts/types/EntryPoint'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { ethers } from 'hardhat'
-import { debug_traceCall } from '../src/GethTracer'
+import { debug_traceCall, LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from '../src/GethTracer'
 import {
   TestSizeAccount,
   EpWrapper, EpWrapper__factory,
   TestSizeAccount__factory, TestSizeFactory, TestSizeFactory__factory, TestSizePaymaster, TestSizePaymaster__factory
 } from '../src/types'
-import { hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
+import { arrayify, hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
 import { UserOperation } from '../src/modules/moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
+import { traceUserOpGas } from './TraceInnerCall'
 import { expect } from 'chai'
-import { isGeth } from '../src/utils'
 
 const provider = ethers.provider
 const ethersSigner = provider.getSigner()
@@ -22,7 +23,7 @@ const DefaultsForUserOp: UserOperation = {
   initCode: '0x',
   callData: '0x',
   callGasLimit: 0,
-  verificationGasLimit: 100000, // default verification gas. will add create2 cost (3200+200*length) if initCode exists
+  verificationGasLimit: 1e6, // default verification gas. will add create2 cost (3200+200*length) if initCode exists
   preVerificationGas: 21000, // should also cover calldata cost.
   maxFeePerGas: 0,
   maxPriorityFeePerGas: 1e9,
@@ -56,10 +57,27 @@ describe('calculate preVerificationGas', function () {
     paymaster = await new TestSizePaymaster__factory(ethersSigner).deploy()
     sender = await new TestSizeAccount__factory(ethersSigner).deploy()
 
+    const sig1 = sender.interface.encodeFunctionData('called')
+    console.log('sig1=', sig1)
+    const methodsig = '0x50f9b6cd'
+    console.log('sig2=', methodsig)
+    await ethersSigner.sendTransaction({
+      to: sender.address,
+      data: methodsig
+    })
+
+    console.log('called=', await provider.call({
+      to: sender.address,
+      data: methodsig
+    }))
+    const counterFactualWallet = await factory.callStatic.deploy(0, '0x')
+    await entryPoint.depositTo(counterFactualWallet, { value: parseEther('1') })
+
     await entryPoint.depositTo(paymaster.address, { value: parseEther('1') })
     await entryPoint.depositTo(sender.address, { value: parseEther('1') })
 
-    expect(await isGeth(provider), await provider.send('web3_clientVersion', [])).to.be.true
+    // expect(await isGeth(provider), await provider.send('web3_clientVersion', [])).to.be.true
+
   })
 
   function pad (len: number, val = 1) {
@@ -69,15 +87,15 @@ describe('calculate preVerificationGas', function () {
   async function buildUserOp (params: CalcParams): Promise<UserOperation> {
     let op: UserOperation = {
       ...DefaultsForUserOp,
-      verificationGasLimit: 1e5,
-      callGasLimit: 1e5
-
+      verificationGasLimit: 1e6,
+      callGasLimit: 1e6,
+      maxFeePerGas: 1,
     }
     if (params.initLen != null) {
       const salt = 0
-      op.initCode = hexConcat([factory.address, factory.interface.encodeFunctionData('deploy', [salt, pad(params.initLen)])])
-      //its a test factory: it ignores the data when calculating account address.
-      op.sender = await factory.callStatic.deploy(0, '')
+      let initData = pad(params.initLen)
+      op.initCode = hexConcat([factory.address, factory.interface.encodeFunctionData('deploy', [salt, initData])])
+      op.sender = await factory.callStatic.deploy(salt, initData)
     } else {
       op.sender = sender.address
     }
@@ -89,68 +107,105 @@ describe('calculate preVerificationGas', function () {
     return op
   }
 
-  it('validate traceCall matches the gas usage of actual transaction', async () => {
-    //(basically, verify it doesn't estimate, just run the tx)
-    const op: UserOperation = {
-      ...DefaultsForUserOp,
-      sender: sender.address,
-      verificationGasLimit: 1e5,
-      maxFeePerGas: 1,
-      callGasLimit: 1e6
-    }
-    // await entryPoint.callStatic.simulateHandleOp(op)
+  async function checkGas (params: CalcParams): Promise<number> {
+    const op = await buildUserOp(params)
+    const ret = await traceUserOpGas(entryPoint, op)
 
-    const tx = await entryPoint.populateTransaction.handleOps([op], beneficiary)
-    const {
-      gas,
-      failed,
-      returnValue
-    } = await debug_traceCall(provider, tx, { disableStack: true })
-
-    if (failed) {
-      console.log('exception=', decodeErrorReason(returnValue.replace(/^(0x)?/, '0x')))
-    }
-    console.log('ret=', {
-      gas,
-      failed,
-      returnValue
-    })
-    // await entryPoint.simulateHandleOp(op)
-    const rcpt = await entryPoint.handleOps([op], beneficiary).then(r => r.wait())
-    console.log('gasused=', rcpt.gasUsed)
-  })
-
-  async function checkGas (params: CalcParams) {
-    const op = await buildUserOp({ callDataLen: 1 })
-    const tx = await entryPoint.populateTransaction.handleOps([op], beneficiary)
-    //wrapped call is only to check there's an actual "side-effect" of the call.
-    // const tx = await epWrapper.populateTransaction.callEp(entryPoint.address, op)
-    const {
-      gas,
-      failed,
-      returnValue
-    } = await debug_traceCall(provider, tx, { disableStack: true })
-    if (failed) {
-      throw Error(`Failed ${returnValue}`)
-    }
-
-    const exec = false
-    if (exec) {
-      // check actual transaction
-      await ethersSigner.sendTransaction(tx)
-      const [log] = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent())
-      console.log('handleOps success=', log.args.success)
-      console.log('aftermath called=', await sender.called())
-
-    }
-    return gas
-
+    console.log('ret=', ret)
+    return ret.gasUsed
   }
 
-  it('check callData gas', async () => {
-    for (let i = 0; i < 1000; i += 50) {
-      const gas = await checkGas({ initLen: i })
-      console.log('calldata', i, gas)
+  async function hist1 (key: keyof CalcParams, max: number) {
+    const skipOne = true
+    let hist: { [key: number]: number } = {}
+    let last = undefined
+
+    if (!skipOne) {
+
+      for (let i = 0; i < max; i += 1) {
+        const gas = await checkGas({ [key]: i })
+        if (last != null) {
+          const delta = gas - last
+          hist [i % 32] = (hist[i % 32] ?? 0) + delta
+        }
+        last = gas
+      }
+      console.log(key, 'hist=', JSON.stringify(hist)
+        .replace(/"(\d+)"/g, '$1')
+        .replace(/\d+:0,?/g, ''))
+    }
+    last = undefined
+    hist = {}
+    for (let i = 0; i < max; i += 32) {
+      const gas = await checkGas({ [key]: i })
+      if (last != null) {
+        const delta = gas - last
+        hist [i] = (hist[i] ?? 0) + delta
+      }
+      last = gas
+    }
+    console.log(key, '32byte=', Object.values(hist))
+  }
+
+  describe('#traceUserOpGas', () => {
+    it('should calculate same gas as real transaction', async () => {
+      const params = {}
+      const op = await buildUserOp(params)
+      const ret = await traceUserOpGas(entryPoint, op, true)
+    })
+
+    it('should revert if userop causes revert', async () => {
+      const params = {}
+      const op = await buildUserOp(params)
+      op.paymasterAndData = '0xdead'
+      expect(await traceUserOpGas(entryPoint, op, true).catch(e => e.message)).to.match(/AA93 invalid paymasterAndData/)
+    })
+
+    it('should be invariant regardless of op size', async () => {
+      await traceUserOpGas(entryPoint, await buildUserOp({ initLen: 1 }), true)
+      await traceUserOpGas(entryPoint, await buildUserOp({ pmLen: 1 }), true)
+      await traceUserOpGas(entryPoint, await buildUserOp({ pmLen: 100 }), true)
+    })
+  })
+
+  describe('sanity', () => {
+    it('should initCode sizes', async () => {
+      await traceUserOpGas(entryPoint, await buildUserOp({ initLen: 0 }))
+      await traceUserOpGas(entryPoint, await buildUserOp({ initLen: 1 }))
+      await traceUserOpGas(entryPoint, await buildUserOp({ initLen: 100 }))
+    })
+    it('should pm sizes', async () => {
+      await traceUserOpGas(entryPoint, await buildUserOp({ pmLen: 0 }))
+      await traceUserOpGas(entryPoint, await buildUserOp({ pmLen: 1 }))
+      await traceUserOpGas(entryPoint, await buildUserOp({ pmLen: 100 }))
+    })
+    it('should calldata sizes', async () => {
+      await traceUserOpGas(entryPoint, await buildUserOp({ callDataLen: 0 }), true)
+      await traceUserOpGas(entryPoint, await buildUserOp({ callDataLen: 1 }), true)
+      await traceUserOpGas(entryPoint, await buildUserOp({ callDataLen: 100 }))
+    })
+
+    it('should sig sizes', async () => {
+      await traceUserOpGas(entryPoint, await buildUserOp({ sigLen: 0 }))
+      await traceUserOpGas(entryPoint, await buildUserOp({ sigLen: 1 }))
+      await traceUserOpGas(entryPoint, await buildUserOp({ sigLen: 100 }))
+    })
+  })
+  it('check callData gas', async function () {
+    this.timeout(10000)
+    let a: keyof CalcParams
+    a = 'callDataLen'
+    let lastgas = 0
+    await hist1('initLen', 300)
+    await hist1('pmLen', 300)
+    await hist1('sigLen', 300)
+    await hist1('callDataLen', 300)
+    for (let i = 8; i <= 500; i += 1) {
+      let len = i == 8 ? 0 : i
+      const gas = await checkGas({ sigLen: len })
+      const delta = gas - lastgas
+      lastgas = gas
+      // console.log('calldata', len, gas, delta)
     }
   })
   it('should calc cost', async () => {
@@ -168,6 +223,8 @@ describe('calculate preVerificationGas', function () {
       returnValue
     })
     await ethersSigner.sendTransaction(tx)
+    const logerr = await entryPoint.queryFilter(entryPoint.filters.UserOperationRevertReason())
+    console.log(logerr)
     const [log] = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent())
     console.log('handleOps success=', log.args.success)
     console.log('aftermath called=', await sender.called())

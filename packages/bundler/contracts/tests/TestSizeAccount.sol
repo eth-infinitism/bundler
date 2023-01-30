@@ -1,13 +1,24 @@
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
 import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract EpWrapper {
+
+    //helper to call entryPoint, and return used gas
+    // - validate target contract was called (has the "called" counter modified
     function callEp(IEntryPoint ep, UserOperation memory op) public returns (uint) {
         UserOperation[] memory ops = new UserOperation[](1);
         ops[0] = op;
-        ep.handleOps(ops, payable(msg.sender));
-        return TestSizeAccount(op.sender).called();
+        TestSizeAccount account = TestSizeAccount(op.sender);
+        uint pre = account.called();
+        address payable beneficiary = payable(msg.sender);
+        uint preBalance = beneficiary.balance;
+        ep.handleOps(ops, beneficiary);
+        uint post = account.called();
+        require(pre != post, "failed to call account");
+        uint postBalance = beneficiary.balance;
+        return (postBalance - preBalance)/tx.gasprice;
     }
 }
 
@@ -31,23 +42,18 @@ contract TestSizeAccount is IAccount {
 
 contract TestSizeFactory {
     function deploy(uint salt, bytes memory data) public returns (TestSizeAccount) {
-        return new TestSizeAccount{salt : bytes32(salt)}();
+        TestSizeAccount acct = new TestSizeAccount{salt : bytes32(salt)}();
+        return acct;
     }
 }
 
+//test paymaster.
+// use nonce as returned context size (our test account is known to ignore the nonce..)
 contract TestSizePaymaster is IPaymaster {
     function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
     external override returns (bytes memory context, uint256 deadline) {
 
-        bytes memory rule = bytes(userOp.paymasterAndData[20 :]);
-        if (keccak256(rule) == keccak256('ctx100'))
-            context = new bytes(100);
-        else if (keccak256(rule) == keccak256('ctx1k'))
-            context = new bytes(10000);
-        else if (keccak256(rule) == keccak256('ctx10k'))
-            context = new bytes(10000);
-        else if (keccak256(rule) != keccak256(""))
-            revert(string.concat("unknown rule: ", string(rule)));
+        context = new bytes(userOp.nonce);
         deadline = 0;
     }
 
