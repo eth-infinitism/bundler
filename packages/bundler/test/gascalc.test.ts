@@ -16,6 +16,14 @@ import { expect } from 'chai'
 const provider = ethers.provider
 const ethersSigner = provider.getSigner()
 
+const factors = {
+  offset:0,
+  callDataFactory: 3
+}
+function calcPreverificationGas(op: UserOperation) {
+  return factors.offset +
+    op.callData.length * factors.callDataFactory
+}
 const DefaultsForUserOp: UserOperation = {
   sender: AddressZero,
   nonce: 0,
@@ -146,6 +154,14 @@ describe('calculate preVerificationGas', function () {
     })
   })
 
+  it('should bombard huge post', async () => {
+    let op = await buildUserOp({pmCtxLen: 1e3})
+    // op.callGasLimit = '0xfffffffffffffffffffffffffffffffffffffff'
+    let ret = await entryPoint.callStatic.simulateValidation(op, {gasLimit: 1e6})
+      .catch(e=>e.errorName+' '+e.errorArgs)
+    console.log('ret=', ret)
+  })
+
   describe.only('actual gascalc', () => {
     it('should calc gas', async function () {
       this.timeout(20000)
@@ -153,7 +169,7 @@ describe('calculate preVerificationGas', function () {
         var lastPre: any = undefined
         var lastdiff: any = undefined
         var lastsize: any = undefined
-        const sizes = []
+        const sizes: number[] = [null] as any
         for (let i = 0; i < 200; i++) {
           sizes.push(i)
         }
@@ -170,7 +186,7 @@ describe('calculate preVerificationGas', function () {
           const pre = ret.gasUsed - ret.gasPaid - ret.callDataGas
           //diff is sizediff - compared prev size size-1 (or size-32)
           const diff = pre - lastPre
-          if (diff != lastdiff) {
+          if (diff != lastdiff|| size>950) {
             console.log(key, 'size=', size, size - lastsize, 'diff=', pre, pre - lastPre)
             lastdiff = diff
             lastsize = size
