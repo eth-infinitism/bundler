@@ -13,13 +13,7 @@ import Debug from 'debug'
 import { UserOperation } from './modules/moduleUtils'
 import { StakeInfo, ValidationErrors, ValidationResult } from './modules/ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import {
-  TestStorageAccount__factory
-} from '../src/types/factories/contracts/tests/TestStorageAccount.sol'
-import {
-  TestOpcodesAccountFactory__factory,
-  TestOpcodesAccount__factory
-} from './types/factories/contracts/tests/TestOpcodesAccount.sol'
+import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -344,7 +338,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     }
 
     requireCond(Object.keys(currentNumLevel.contractSize).find(addr => currentNumLevel.contractSize[addr] <= 2) == null,
-      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`)
+      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`, ValidationErrors.OpcodeValidation)
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.

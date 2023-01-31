@@ -15,7 +15,6 @@ import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth } from './utils'
-import { BundlerHelper__factory } from './types'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -150,8 +149,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     ...config,
     autoBundleMempoolSize: 1
   }
-
-  await new DeterministicDeployer(wallet.provider as any).deterministicDeploy(BundlerHelper__factory.bytecode)
 
   const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
   const methodHandler = new UserOpMethodHandler(

@@ -1,4 +1,6 @@
-FROM node:13-buster-slim
-COPY dist/bundler.js app/
+FROM node:16-buster-slim
 WORKDIR /app/
-CMD node --no-deprecation bundler.js
+COPY dist/bundler.js /app/
+COPY bundler.sh /app/
+RUN chmod +rx /app/bundler.sh 
+ENTRYPOINT [ "/app/bundler.sh" ]

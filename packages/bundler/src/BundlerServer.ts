@@ -14,6 +14,9 @@ import { RpcError } from './utils'
 import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
+import Debug from 'debug'
+
+const debug = Debug('aa.rpc')
 export class BundlerServer {
   app: Express
   private readonly httpServer: Server
@@ -99,9 +102,11 @@ export class BundlerServer {
       jsonrpc,
       id
     } = req.body
+    debug('>>', { jsonrpc, id, method, params })
     try {
       const result = deepHexlify(await this.handleMethod(method, params))
       console.log('sent', method, '-', result)
+      debug('<<', { jsonrpc, id, result })
       res.send({
         jsonrpc,
         id,
@@ -114,6 +119,8 @@ export class BundlerServer {
         code: err.code
       }
       console.log('failed: ', method, 'error:', JSON.stringify(error))
+      debug('<<', { jsonrpc, id, error })
+
       res.send({
         jsonrpc,
         id,
@@ -172,6 +179,9 @@ export class BundlerServer {
         break
       case 'debug_bundler_sendBundleNow':
         result = await this.debugHandler.sendBundleNow()
+        if (result == null) {
+          result = 'ok'
+        }
         break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)
