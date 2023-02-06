@@ -25,7 +25,7 @@ const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
 export let showStackTraces = false
 
-export async function connectContracts(
+export async function connectContracts (
   wallet: Wallet,
   entryPointAddress: string): Promise<{ entryPoint: EntryPoint }> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
@@ -40,13 +40,13 @@ export async function connectContracts(
  * @param argv
  * @param overrideExit
  */
-export async function runBundler(argv: string[], overrideExit = true): Promise<BundlerServer> {
+export async function runBundler (argv: string[], overrideExit = true): Promise<BundlerServer> {
   const program = new Command()
 
   if (overrideExit) {
     (program as any)._exit = (exitCode: any, code: any, message: any) => {
       class CommandError extends Error {
-        constructor(message: string, readonly code: any, readonly exitCode: any) {
+        constructor (message: string, readonly code: any, readonly exitCode: any) {
           super(message)
         }
       }
@@ -74,7 +74,7 @@ export async function runBundler(argv: string[], overrideExit = true): Promise<B
 
   console.log('command-line arguments: ', program.opts())
 
-  const [config, provider, wallet] = await resolveConfiguration(programOpts)
+  const { config, provider, wallet } = await resolveConfiguration(programOpts)
   if (programOpts.createMnemonic != null) {
     const mnemonicFile = config.mnemonic
     console.log('Creating mnemonic in file', mnemonicFile)
