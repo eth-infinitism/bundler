@@ -1,31 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
-import "@account-abstraction/contracts/core/EntryPoint.sol";
-import "solidity-string-utils/StringUtils.sol";
+import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 contract BundlerHelper {
-    using StringUtils for *;
+    function getUserOpHashes(IEntryPoint entryPoint, UserOperation[] memory userOps) external view returns (bytes32[] memory ret) {
+        ret = new bytes32[](userOps.length);
+        for (uint i = 0; i < userOps.length; i++) {
+            ret[i] = entryPoint.getUserOpHash(userOps[i]);
+        }
+    }
 
-    /**
-     * run handleop. require to get refund for the used gas.
-     */
-    function handleOps(uint expectedPaymentGas, EntryPoint ep, UserOperation[] calldata ops, address payable beneficiary)
-    public returns (uint paid, uint gasPrice, bytes memory errorReason){
-        gasPrice = tx.gasprice;
-        uint expectedPayment = expectedPaymentGas * gasPrice;
-        uint preBalance = beneficiary.balance;
-        try ep.handleOps(ops, beneficiary) {
-        } catch (bytes memory err) {
-            errorReason = err;
+    function getCodeHashes(address[] memory addresses) public view returns (bytes32) {
+        bytes32[] memory hashes = new bytes32[](addresses.length);
+        for (uint i = 0; i < addresses.length; i++) {
+            hashes[i] = addresses[i].codehash;
         }
-        paid = beneficiary.balance - preBalance;
-        if (paid < expectedPayment) {
-            revert(string.concat(
-                "didn't pay enough: paid ", paid.toString(),
-                " expected ", expectedPayment.toString(),
-                " gasPrice ", gasPrice.toString()
-            ));
-        }
+        bytes memory data = abi.encode(hashes);
+        return keccak256(data);
     }
 }

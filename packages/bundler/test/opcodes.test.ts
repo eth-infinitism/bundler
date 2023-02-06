@@ -1,0 +1,3 @@
+describe('opcode banning', () => {
+
+})

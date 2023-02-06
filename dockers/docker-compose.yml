@@ -1,5 +1,7 @@
+# docker-compose configuration to bring up a bunder.
+# configuration is found in $(PWD)/workdir/bundler.config.json
 # You must have the following environment variable set in .env file:
-#  HOST            | my.example.com   | Your Relay Server URL exactly as it is accessed by GSN Clients
+#  HOST            | my.example.com   | Bundler rpc host address
 #  DEFAULT_EMAIL   | me@example.com   | Your e-mail for LetsEncrypt to send SSL alerts to
 
 version: '2'
@@ -40,7 +42,7 @@ services:
   bundler:
     container_name:   bundler
     ports: [ '3000:3000' ]
-    image: accountabstraction/bundler:0.2.1
+    image: accountabstraction/bundler:0.4.0
     restart: on-failure
 
     volumes:

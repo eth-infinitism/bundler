@@ -11,7 +11,10 @@ import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
-import { BundlerHelper, BundlerHelper__factory } from './types'
+import { initServer } from './modules/initServer'
+import { DebugMethodHandler } from './DebugMethodHandler'
+import { DeterministicDeployer } from '@account-abstraction/sdk'
+import { isGeth } from './utils'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -23,6 +26,7 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
 export let showStackTraces = false
+
 export function resolveConfiguration (programOpts: any): BundlerConfig {
   let fileConfig: Partial<BundlerConfig> = {}
 
@@ -50,13 +54,10 @@ function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
 
 export async function connectContracts (
   wallet: Wallet,
-  entryPointAddress: string,
-  bundlerHelperAddress: string): Promise<{ entryPoint: EntryPoint, bundlerHelper: BundlerHelper }> {
+  entryPointAddress: string): Promise<{ entryPoint: EntryPoint}> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
-  const bundlerHelper = BundlerHelper__factory.connect(bundlerHelperAddress, wallet)
   return {
-    entryPoint,
-    bundlerHelper
+    entryPoint
   }
 }
 
@@ -76,6 +77,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
           super(message)
         }
       }
+
       throw new CommandError(message, code, exitCode)
     }
   }
@@ -87,10 +89,10 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
-    .option('--helper <string>', 'address of the BundlerHelper contract')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+    .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic', 'create the mnemonic file')
 
@@ -108,7 +110,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
     const newMnemonic = Wallet.createRandom().mnemonic.phrase
     fs.writeFileSync(mnemonicFile, newMnemonic)
-    console.log('creaed mnemonic file', mnemonicFile)
+    console.log('created mnemonic file', mnemonicFile)
     process.exit(1)
   }
   const provider: BaseProvider =
@@ -125,19 +127,43 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   }
 
   const {
-    entryPoint
-    // bundlerHelper
-  } = await connectContracts(wallet, config.entryPoint, config.helper)
+    // name: chainName,
+    chainId
+  } = await provider.getNetwork()
 
+  if (chainId === 31337 || chainId === 1337) {
+    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+  }
+
+  if (!config.unsafe && !await isGeth(provider as any)) {
+    console.error('FATAL: full validation requires GETH. for local UNSAFE mode: use --unsafe')
+    process.exit(1)
+  }
+
+  const {
+    entryPoint
+  } = await connectContracts(wallet, config.entryPoint)
+
+  // bundleSize=1 replicate current immediate bundling mode
+  const execManagerConfig = {
+    ...config,
+    autoBundleMempoolSize: 1
+  }
+
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
   const methodHandler = new UserOpMethodHandler(
+    execManager,
     provider,
     wallet,
     config,
     entryPoint
   )
+  eventsManager.initEventListener()
+  const debugHandler = new DebugMethodHandler(execManager, reputationManager, mempoolManager)
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    debugHandler,
     config,
     provider,
     wallet

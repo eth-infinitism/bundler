@@ -12,13 +12,13 @@ This package provides 2 APIs for using UserOperations:
 
 An abstract base-class to create UserOperation for a contract wallet.
 
-### SimpleWalletAPI
+### SimpleAccountAPI
 
 An implementation of the BaseWalletAPi, for the SimpleWallet sample of account-abstraction.
 
 ```typescript
 owner = provider.getSigner()
-const walletAPI = new SimpleWalletAPI({
+const walletAPI = new SimpleAccountAPI({
     provider, 
     entryPointAddress,
     owner,
