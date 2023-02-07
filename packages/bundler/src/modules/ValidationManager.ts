@@ -11,6 +11,7 @@ import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../Bun
 import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
 import { BundlerHelper } from '../types'
+import { StorageMap } from './BundleManager'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -28,6 +29,7 @@ export enum ValidationErrors {
 export interface ReferencedCodeHashes {
   // addresses accessed during this user operation
   addresses: string[]
+
   // keccak over the code of all referenced addresses
   hash: string
 }
@@ -51,6 +53,7 @@ export interface ValidationResult {
 export interface ValidateUserOpResult extends ValidationResult {
 
   referencedContracts: ReferencedCodeHashes
+  storageMap: StorageMap
 }
 
 export interface StakeInfo {
@@ -199,10 +202,12 @@ export class ValidationManager {
       addresses: [],
       hash: ''
     }
+    let storageMap: StorageMap= {}
     if (!this.unsafe) {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
-      const contractAddresses = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      let contractAddresses: string[]
+      [contractAddresses, storageMap] = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = {
@@ -232,7 +237,8 @@ export class ValidationManager {
 
     return {
       ...res,
-      referencedContracts: codeHashes
+      referencedContracts: codeHashes,
+      storageMap
     }
   }
 
@@ -240,7 +246,7 @@ export class ValidationManager {
     const hash = await this.bundlerHelper.getCodeHashes(addresses)
     return {
       hash,
-      addresses
+      addresses,
     }
   }
 

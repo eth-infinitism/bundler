@@ -1,9 +1,9 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
-import { ValidationManager, ValidationResult } from './ValidationManager'
+import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, UserOperation } from './moduleUtils'
-import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { getAddr, mergeStorageMap, StorageMap, UserOperation } from './moduleUtils'
+import { JsonRpcProvider, JsonRpcSigner, TransactionResponse } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
@@ -30,7 +30,8 @@ export class BundleManager {
     readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
-    readonly maxBundleGas: number
+    readonly maxBundleGas: number,
+    readonly useConditionalRpc: boolean
   ) {
     this.provider = entryPoint.provider as JsonRpcProvider
     this.signer = this.provider.getSigner()
@@ -45,12 +46,12 @@ export class BundleManager {
     return await this.mutex.runExclusive(async () => {
       debug('sendNextBundle')
 
-      const bundle = await this.createBundle()
+      const [bundle, storageMap] = await this.createBundle()
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle, beneficiary)
+        const ret = await this.sendBundle(bundle, beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -62,9 +63,21 @@ export class BundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<SendBundleReturn | undefined> {
+  async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
-      const ret = await this.entryPoint.handleOps(userOps, beneficiary)
+      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary)
+      const signedTx = await this.signer.signTransaction(tx)
+      let ret: TransactionResponse
+      if (this.useConditionalRpc) {
+        ret = await this.provider.send('eth_sendRawTransactionConditional', [
+          signedTx, { knownAccounts: storageMap }
+        ])
+      } else {
+        // ret = await this.signer.sendTransaction(tx)
+        ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+      }
+      //TODO: parse ret, and revert if needed.
+      console.log('ret=', ret)
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       this.mempoolManager.removeAllUserOps(userOps)
       // hashes are needed for debug rpc only.
@@ -96,7 +109,7 @@ export class BundleManager {
     }
   }
 
-  async createBundle (): Promise<UserOperation[]> {
+  async createBundle (): Promise<[UserOperation[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: UserOperation[] = []
 
@@ -107,6 +120,7 @@ export class BundleManager {
     // each sender is allowed only once per bundle
     const senders = new Set<string>()
 
+    const storageMap: StorageMap = {}
     let totalGas = BigNumber.from(0)
     debug('got mempool of ', entries.length)
     for (const entry of entries) {
@@ -131,7 +145,7 @@ export class BundleManager {
         // allow only a single UserOp per sender per bundle
         continue
       }
-      let validationResult: ValidationResult
+      let validationResult: ValidateUserOpResult
       try {
         // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
         validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
@@ -165,11 +179,14 @@ export class BundleManager {
       if (factory != null) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
+
+      mergeStorageMap(storageMap, validationResult.storageMap)
+
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas
     }
-    return bundle
+    return [bundle, storageMap]
   }
 
   /**

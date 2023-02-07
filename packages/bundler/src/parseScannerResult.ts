@@ -14,6 +14,7 @@ import { UserOperation } from './modules/moduleUtils'
 import { StakeInfo, ValidationErrors, ValidationResult } from './modules/ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
+import { StorageMap } from './modules/BundleManager'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -172,7 +173,7 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
-export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): string[] {
+export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -343,5 +344,11 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
   const addresses = tracerResults.numberLevels.flatMap(level => Object.keys(level.contractSize))
-  return addresses
+  const storageMap: StorageMap = {}
+  tracerResults.numberLevels.flatMap(level=>{
+    Object.keys(level.access).forEach(addr=>{
+      storageMap[addr] = level.access[addr].reads
+    })
+  })
+  return [addresses, storageMap]
 }

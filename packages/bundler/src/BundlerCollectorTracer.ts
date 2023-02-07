@@ -54,7 +54,9 @@ export interface NumberLevelInfo {
 }
 
 export interface AccessInfo {
-  reads: { [slot: string]: number }
+  // slot value, just prior this operation
+  reads: { [slot: string]: string }
+  // count of writes.
   writes: { [slot: string]: number }
 }
 
@@ -201,7 +203,15 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             writes: {}
           }
         }
-        this.countSlot(opcode === 'SLOAD' ? access.reads : access.writes, slot)
+        if (opcode === 'SLOAD') {
+          // read slot values before this UserOp was created
+          // (so saving it if it was written before the first read)
+          if (access.reads[slot] == null && access.writes[slot] == null) {
+            access.reads[slot] = toHex(log.memory.getUint(slot))
+          }
+        } else {
+          this.countSlot(access.writes, slot)
+        }
       }
 
       if (opcode === 'KECCAK256') {
