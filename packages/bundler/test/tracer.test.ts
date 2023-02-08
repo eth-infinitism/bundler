@@ -12,8 +12,8 @@ describe('#bundlerCollectorTracer', () => {
   let tester: TracerTest
   before(async function () {
     const ver = await (provider as any).send('web3_clientVersion')
-    if (ver.match('Geth') == null) {
-      console.warn('\t==WARNING: test requires debug_traceCall on Geth (go-ethereum) node')
+    if (ver.match('go1') == null) {
+      console.warn('\t==WARNING: test requires debug_traceCall on Geth (go-ethereum) node. ver='+ver)
       this.skip()
       return
     }
