@@ -34,7 +34,7 @@ export class BundleManager {
     readonly useConditionalRpc: boolean
   ) {
     this.provider = entryPoint.provider as JsonRpcProvider
-    this.signer = this.provider.getSigner()
+    this.signer = entryPoint.signer as JsonRpcSigner
   }
 
   /**
