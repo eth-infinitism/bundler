@@ -22,7 +22,8 @@ export enum ValidationErrors {
   ExpiresShortly = -32503,
   Reputation = -32504,
   InsufficientStake = -32505,
-  UnsupportedSignatureAggregator = -32506
+  UnsupportedSignatureAggregator = -32506,
+  InvalidSignature = -32507,
 }
 
 export interface ReferencedCodeHashes {
@@ -39,6 +40,7 @@ export interface ValidationResult {
   returnInfo: {
     preOpGas: BigNumberish
     prefund: BigNumberish
+    sigFailed: boolean
     deadline: number
   }
 
@@ -217,6 +219,10 @@ export class ValidationManager {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
       res = await this._callSimulateValidation(userOp)
     }
+    
+    requireCond(!res.returnInfo.sigFailed,
+      'Invalid UserOp signature or paymaster signature',
+      ValidationErrors.InvalidSignature)
 
     requireCond(res.returnInfo.deadline == null || res.returnInfo.deadline + 30 < Date.now() / 1000,
       'expires too soon',
