@@ -260,7 +260,7 @@ export abstract class BaseAccountAPI {
       verificationGasLimit,
       maxFeePerGas,
       maxPriorityFeePerGas,
-      paymasterAndData: "0x"
+      paymasterAndData: '0x'
     }
 
     let paymasterAndData: string | undefined
