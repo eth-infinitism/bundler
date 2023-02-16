@@ -219,7 +219,7 @@ export class ValidationManager {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
       res = await this._callSimulateValidation(userOp)
     }
-    
+
     requireCond(!res.returnInfo.sigFailed,
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
