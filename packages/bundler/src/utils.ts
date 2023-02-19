@@ -67,5 +67,5 @@ export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   return error?.code !== -32601
 
   // debug('client version', p._clientVersion)
-  // return p._clientVersion?.match('Geth') != null
+  //return p._clientVersion?.match('go1') != null
 }

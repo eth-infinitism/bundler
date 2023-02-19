@@ -98,7 +98,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     numberCounter: 0,
 
     fault (log: LogStep, db: LogDb): void {
-      this.debug.push(`fault depth=${log.getDepth()} gas=${log.getGas()} cost=${log.getCost()} err=${log.getError()}`)
+      this.debug.push('fault depth=', log.getDepth(), ' gas=', log.getGas(), ' cost=', log.getCost(), ' err=', log.getError())
     },
 
     result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
@@ -112,7 +112,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      this.debug.push(`enter gas=${frame.getGas()} type=${frame.getType()} to=${toHex(frame.getTo())} in=${toHex(frame.getInput()).slice(0, 500)}`)
+      this.debug.push('enter gas=', frame.getGas(), ' type=', frame.getType(), ' to=', toHex(frame.getTo()), ' in=', toHex(frame.getInput()).slice(0, 500))
       this.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
@@ -197,12 +197,13 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const slot = toWord(log.stack.peek(0).toString(16))
         const slotHex = toHex(slot)
         const addr = toHex(log.contract.getAddress())
-        let access
-        if ((access = this.currentLevel.access[addr]) == null) {
-          this.currentLevel.access[addr] = access = {
+        let access = this.currentLevel.access[addr]
+        if (access == null) {
+          access = {
             reads: {},
             writes: {}
           }
+          this.currentLevel.access[addr] = access
         }
         if (opcode === 'SLOAD') {
           // read slot values before this UserOp was created

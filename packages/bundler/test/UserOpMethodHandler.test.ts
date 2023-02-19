@@ -18,7 +18,7 @@ import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecC
 import {
   SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory, BundlerHelper__factory
 } from '../src/types'
-import { resolveHexlify } from '@account-abstraction/utils'
+import { AddressZero, resolveHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
@@ -331,8 +331,11 @@ describe('UserOpMethodHandler', function () {
       expect(receipt.sender).to.equal(acc.address)
     })
     it('receipt should carry transaction receipt', () => {
+      //filter out BOR-specific events..
+      let logs = receipt.receipt.logs
+        .filter(log=>log.address != '0x0000000000000000000000000000000000001010')
       // one UserOperationEvent, and one op-specific event.
-      expect(receipt.receipt.logs.length).to.equal(2)
+      expect(logs.length).to.equal(2)
     })
   })
 })
