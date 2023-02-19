@@ -17,12 +17,11 @@ import {
 } from '../src/types'
 import { ValidateUserOpResult, ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
-import { toBytes32} from '../src/modules/moduleUtils'
+import { toBytes32 } from '../src/modules/moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
 import { resolveNames } from './testUtils'
-import exp from 'constants'
 import { UserOperation } from '../src/modules/Types'
 
 const cEmptyUserOp: UserOperation = {
@@ -207,7 +206,6 @@ describe('#ValidationManager', () => {
 
     it('should return nothing with no storage access', async () => {
       const ret = await testExistingUserOp('')
-      const resolved = resolveNames(ret, names, true)
       expect(ret.storageMap).to.eql({})
     })
     it('should return referenced storage', async () => {

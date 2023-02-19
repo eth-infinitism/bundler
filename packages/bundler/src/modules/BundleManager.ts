@@ -2,7 +2,7 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, mergeStorageMap} from './moduleUtils'
+import { getAddr, mergeStorageMap } from './moduleUtils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
@@ -71,8 +71,8 @@ export class BundleManager {
         type: 2,
         nonce: await this.signer.getTransactionCount(),
         gasLimit: 1e6,
-        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas!,
-        maxFeePerGas: feeData.maxFeePerGas!
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
+        maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
       tx.chainId = this.provider._network.chainId
       const signedTx = await this.signer.signTransaction(tx)
@@ -122,7 +122,7 @@ export class BundleManager {
   }
 
   // fatal errors we know we can't recover
-  checkFatal (e: any) {
+  checkFatal (e: any): void {
     // console.log('ex entries=',Object.entries(e))
     if (e.error?.code === -32601) {
       throw e

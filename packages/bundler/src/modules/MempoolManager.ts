@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr} from './moduleUtils'
+import { getAddr } from './moduleUtils'
 import { requireCond } from '../utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'

@@ -9,7 +9,7 @@ import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
-import { toBytes32} from './modules/moduleUtils'
+import { toBytes32 } from './modules/moduleUtils'
 import { ValidationResult } from './modules/ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
