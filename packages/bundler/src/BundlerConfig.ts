@@ -13,6 +13,7 @@ export interface BundlerConfig {
   network: string
   port: string
   unsafe: boolean
+  conditionalRpc: boolean
 
   whitelist?: string[]
   blacklist?: string[]
@@ -34,6 +35,7 @@ export const BundlerConfigShape = {
   network: ow.string,
   port: ow.string,
   unsafe: ow.boolean,
+  conditionalRpc: ow.boolean,
 
   whitelist: ow.optional.array.ofType(ow.string),
   blacklist: ow.optional.array.ofType(ow.string),
@@ -50,5 +52,6 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   port: '3000',
   entryPoint: '0x1306b01bC3e4AD202612D3843387e94737673F53',
   bundlerHelper: DeterministicDeployer.getAddress(BundlerHelper__factory.bytecode),
-  unsafe: false
+  unsafe: false,
+  conditionalRpc: false
 }

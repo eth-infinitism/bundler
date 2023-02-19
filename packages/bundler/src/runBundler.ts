@@ -66,6 +66,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
+    .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic', 'create the mnemonic file')
 

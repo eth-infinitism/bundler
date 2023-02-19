@@ -2,13 +2,14 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, mergeStorageMap, StorageMap, UserOperation } from './moduleUtils'
-import { JsonRpcProvider, JsonRpcSigner, TransactionResponse } from '@ethersproject/providers'
+import { getAddr, mergeStorageMap} from './moduleUtils'
+import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
 import { BundlerHelper } from '../types'
+import { StorageMap, UserOperation } from './Types'
 
 const debug = Debug('aa.exec.cron')
 
@@ -31,7 +32,7 @@ export class BundleManager {
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
-    readonly useConditionalRpc: boolean
+    readonly conditionalRpc: boolean
   ) {
     this.provider = entryPoint.provider as JsonRpcProvider
     this.signer = entryPoint.signer as JsonRpcSigner
@@ -65,30 +66,41 @@ export class BundleManager {
    */
   async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
-      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary)
+      const feeData = await this.provider.getFeeData()
+      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
+        type: 2,
+        nonce: await this.signer.getTransactionCount(),
+        gasLimit: 1e6,
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas!,
+        maxFeePerGas: feeData.maxFeePerGas!
+      })
+      tx.chainId = this.provider._network.chainId
       const signedTx = await this.signer.signTransaction(tx)
-      let ret: TransactionResponse
-      if (this.useConditionalRpc) {
+      let ret: string
+      if (this.conditionalRpc) {
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, { knownAccounts: storageMap }
         ])
+        debug('eth_sendRawTransactionConditional ret=', ret)
       } else {
         // ret = await this.signer.sendTransaction(tx)
         ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+        debug('eth_sendRawTransaction ret=', ret)
       }
-      //TODO: parse ret, and revert if needed.
-      console.log('ret=', ret)
+      // TODO: parse ret, and revert if needed.
+      debug('ret=', ret)
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       this.mempoolManager.removeAllUserOps(userOps)
       // hashes are needed for debug rpc only.
       const hashes = await this.bundlerHelper.getUserOpHashes(this.entryPoint.address, userOps)
       return {
-        transactionHash: ret.hash,
+        transactionHash: ret,
         userOpHashes: hashes
       }
     } catch (e: any) {
       // failed to handleOp. use FailedOp to detect by
       if (e.errorName !== 'FailedOp') {
+        this.checkFatal(e)
         console.warn('Failed handleOps, but non-FailedOp error', e)
         return
       }
@@ -106,6 +118,14 @@ export class BundleManager {
         this.mempoolManager.removeUserOp(userOp)
         console.warn(`Failed handleOps sender=${userOp.sender}`)
       }
+    }
+  }
+
+  // fatal errors we know we can't recover
+  checkFatal (e: any) {
+    // console.log('ex entries=',Object.entries(e))
+    if (e.error?.code === -32601) {
+      throw e
     }
   }
 
@@ -180,6 +200,11 @@ export class BundleManager {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
 
+      // If sender's account already exist: replace with its storage root hash
+      if (entry.userOp.initCode.length > 2) {
+        const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
+        storageMap[entry.userOp.sender] = storageHash
+      }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
       senders.add(entry.userOp.sender)

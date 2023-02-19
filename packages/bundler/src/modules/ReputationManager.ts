@@ -1,7 +1,7 @@
 import Debug from 'debug'
 import { requireCond, tostr } from '../utils'
 import { BigNumber } from 'ethers'
-import { StakeInfo, ValidationErrors } from './ValidationManager'
+import { StakeInfo, ValidationErrors } from './Types'
 
 const debug = Debug('aa.rep')
 

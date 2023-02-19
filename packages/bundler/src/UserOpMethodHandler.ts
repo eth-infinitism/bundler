@@ -1,5 +1,5 @@
-import { BigNumber, BigNumberish, Wallet } from 'ethers'
-import { JsonRpcSigner, Log, Provider } from '@ethersproject/providers'
+import { BigNumber, BigNumberish, Signer } from 'ethers'
+import { Log, Provider } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import { resolveProperties } from 'ethers/lib/utils'
@@ -8,10 +8,10 @@ import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond, RpcError, tostr } from './utils'
-import { ExecutionErrors, ExecutionManager } from './modules/ExecutionManager'
-import { getAddr, UserOperation } from './modules/moduleUtils'
+import { ExecutionManager } from './modules/ExecutionManager'
+import { getAddr} from './modules/moduleUtils'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { ValidationErrors } from './modules/ValidationManager'
+import { ExecutionErrors, UserOperation, ValidationErrors } from './modules/Types'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -41,7 +41,7 @@ export class UserOpMethodHandler {
   constructor (
     readonly execManager: ExecutionManager,
     readonly provider: Provider,
-    readonly signer: Wallet | JsonRpcSigner,
+    readonly signer: Signer,
     readonly config: BundlerConfig,
     readonly entryPoint: EntryPoint
   ) {

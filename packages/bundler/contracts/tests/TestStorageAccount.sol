@@ -35,7 +35,7 @@ contract TestCoin {
  */
 contract TestStorageAccount is TestRuleAccount {
 
-    TestCoin coin;
+    TestCoin public coin;
 
     function setCoin(TestCoin _coin) public returns (uint){
         coin = _coin;
@@ -75,10 +75,7 @@ contract TestStorageAccount is TestRuleAccount {
 }
 
 contract TestStorageAccountFactory {
-    TestCoin immutable coin;
-    constructor() {
-        coin = new TestCoin();
-    }
+    TestCoin public immutable coin = new TestCoin();
 
     function create(uint salt, string memory rule) public returns (TestStorageAccount) {
         TestStorageAccount a = new TestStorageAccount{salt : bytes32(salt)}();

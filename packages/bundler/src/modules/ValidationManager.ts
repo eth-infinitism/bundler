@@ -2,7 +2,7 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import { ReputationManager } from './ReputationManager'
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
-import { getAddr, UserOperation } from './moduleUtils'
+import { getAddr} from './moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
@@ -11,29 +11,9 @@ import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../Bun
 import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
 import { BundlerHelper } from '../types'
-import { StorageMap } from './BundleManager'
+import { ReferencedCodeHashes, StakeInfo, StorageMap, UserOperation, ValidationErrors } from './Types'
 
 const debug = Debug('aa.mgr.validate')
-
-export enum ValidationErrors {
-  InvalidFields = -32602,
-  SimulateValidation = -32500,
-  SimulatePaymasterValidation = -32501,
-  OpcodeValidation = -32502,
-  ExpiresShortly = -32503,
-  Reputation = -32504,
-  InsufficientStake = -32505,
-  UnsupportedSignatureAggregator = -32506,
-  InvalidSignature = -32507,
-}
-
-export interface ReferencedCodeHashes {
-  // addresses accessed during this user operation
-  addresses: string[]
-
-  // keccak over the code of all referenced addresses
-  hash: string
-}
 
 /**
  * result from successful simulateValidation
@@ -56,12 +36,6 @@ export interface ValidateUserOpResult extends ValidationResult {
 
   referencedContracts: ReferencedCodeHashes
   storageMap: StorageMap
-}
-
-export interface StakeInfo {
-  addr: string
-  stake: BigNumberish
-  unstakeDelaySec: BigNumberish
 }
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -204,7 +178,7 @@ export class ValidationManager {
       addresses: [],
       hash: ''
     }
-    let storageMap: StorageMap= {}
+    let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
@@ -252,7 +226,7 @@ export class ValidationManager {
     const hash = await this.bundlerHelper.getCodeHashes(addresses)
     return {
       hash,
-      addresses,
+      addresses
     }
   }
 

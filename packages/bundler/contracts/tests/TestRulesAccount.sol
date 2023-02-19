@@ -127,7 +127,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
 }
 
 contract TestRulesAccountFactory {
-    TestCoin immutable coin = new TestCoin();
+    TestCoin public immutable coin = new TestCoin();
     function create(string memory rule) public returns (TestRulesAccount) {
         TestRulesAccount a = new TestRulesAccount{salt : bytes32(uint(0))}();
         a.setCoin(coin);

@@ -1,19 +1,8 @@
 // misc utilities for the various modules.
 
-import { UserOperationStruct } from '@account-abstraction/contracts'
-import { NotPromise } from '@account-abstraction/utils'
 import { BytesLike } from 'ethers'
-import { hexlify } from 'ethers/lib/utils'
-
-export type UserOperation = NotPromise<UserOperationStruct>
-
-export type SlotMap = { [slot: string]: string }
-
-/**
- * map of storage
- * for each address, either a root hash, or a map of slot:value
- */
-export type StorageMap = { [address: string]: string | SlotMap }
+import { hexlify, hexZeroPad } from 'ethers/lib/utils'
+import { SlotMap, StorageMap } from './Types'
 
 // extract address from initCode or paymasterAndData
 export function getAddr (data?: BytesLike): string | undefined {
@@ -27,7 +16,6 @@ export function getAddr (data?: BytesLike): string | undefined {
   return undefined
 }
 
-
 /**
  * merge all validationStorageMap objects into merged map
  * - entry with "root" (string) is always preferred over entry with slot-map
@@ -38,16 +26,15 @@ export function getAddr (data?: BytesLike): string | undefined {
  * @param validationStorageMap
  */
 export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorageMap: StorageMap): StorageMap {
-
   Object.entries(validationStorageMap).forEach(([addr, validationEntry]) => {
-    if (typeof validationEntry == 'string') {
+    if (typeof validationEntry === 'string') {
       // it's a root. override specific slots, if any
       mergedStorageMap[addr] = validationEntry
-    } else if (typeof mergedStorageMap[addr] == 'string') {
-      //merged address already contains a root. ignore specific slot values
+    } else if (typeof mergedStorageMap[addr] === 'string') {
+      // merged address already contains a root. ignore specific slot values
     } else {
       let slots: SlotMap
-      if (validationEntry == null) {
+      if (mergedStorageMap[addr] == null) {
         slots = mergedStorageMap[addr] = {}
       } else {
         slots = mergedStorageMap[addr] as SlotMap
@@ -59,4 +46,8 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
     }
   })
   return mergedStorageMap
+}
+
+export function toBytes32 (b: BytesLike | number): string {
+  return hexZeroPad(hexlify(b).toLowerCase(), 32)
 }

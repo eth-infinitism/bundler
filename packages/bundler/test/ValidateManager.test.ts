@@ -1,26 +1,29 @@
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
-import { defaultAbiCoder, hexConcat, hexlify, parseEther } from 'ethers/lib/utils'
+import { defaultAbiCoder, hexConcat, hexlify, keccak256, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import {
-  TestOpcodesAccountFactory__factory,
-  TestOpcodesAccountFactory,
+  BundlerHelper__factory,
   TestOpcodesAccount,
   TestOpcodesAccount__factory,
-  TestStorageAccountFactory,
-  TestStorageAccountFactory__factory,
-  TestStorageAccount__factory,
+  TestOpcodesAccountFactory,
+  TestOpcodesAccountFactory__factory,
   TestRulesAccount,
   TestRulesAccount__factory,
   TestRulesAccountFactory__factory,
-  BundlerHelper__factory
+  TestStorageAccount__factory,
+  TestStorageAccountFactory,
+  TestStorageAccountFactory__factory
 } from '../src/types'
-import { ValidationManager } from '../src/modules/ValidationManager'
+import { ValidateUserOpResult, ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
-import { UserOperation } from '../src/modules/moduleUtils'
+import { toBytes32} from '../src/modules/moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
+import { resolveNames } from './testUtils'
+import exp from 'constants'
+import { UserOperation } from '../src/modules/Types'
 
 const cEmptyUserOp: UserOperation = {
   sender: AddressZero,
@@ -45,12 +48,14 @@ describe('#ValidationManager', () => {
   let entryPoint: EntryPoint
   let storageAccount: TestRulesAccount
 
-  async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<void> {
-    await vm.validateUserOp(await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress))
+  async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
+    const userOp = await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress)
+    return { userOp, ...await vm.validateUserOp(userOp) }
   }
 
-  async function testExistingUserOp (validateRule: string = '', pmRule = ''): Promise<void> {
-    await vm.validateUserOp(await existingStorageAccountUserOp(validateRule, pmRule))
+  async function testExistingUserOp (validateRule: string = '', pmRule = ''): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
+    const userOp = await existingStorageAccountUserOp(validateRule, pmRule)
+    return { userOp, ...await vm.validateUserOp(userOp) }
   }
 
   async function existingStorageAccountUserOp (validateRule = '', pmRule = ''): Promise<UserOperation> {
@@ -157,8 +162,8 @@ describe('#ValidationManager', () => {
   // TODO: add a test with existing wallet, which should succeed (there is one in the "bundler spec"
   it('should fail referencing self token balance (during wallet creation)', async () => {
     expect(await testUserOp('balance-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
-      .catch(e => e.message))
-      .to.match(/unstaked account accessed/)
+      .catch(e => e)
+    ).to.match(/unstaked account accessed/)
   })
 
   it('account succeeds referencing its own balance (after wallet creation)', async () => {
@@ -184,6 +189,40 @@ describe('#ValidationManager', () => {
       expect(await testExistingUserOp('struct-1')
         .catch(e => e.message)
       ).match(/account has forbidden read/)
+    })
+  })
+
+  describe('validate storageMap', () => {
+    let names: { [name: string]: string }
+    before(async () => {
+      names = {
+        pm: paymaster.address,
+        ep: entryPoint.address,
+        opf: opcodeFactory.address,
+        stf: storageFactory.address,
+        acc: storageAccount.address,
+        tok: await storageAccount.coin()
+      }
+    })
+
+    it('should return nothing with no storage access', async () => {
+      const ret = await testExistingUserOp('')
+      const resolved = resolveNames(ret, names, true)
+      expect(ret.storageMap).to.eql({})
+    })
+    it('should return referenced storage', async () => {
+      const ret = await testExistingUserOp('balance-self')
+      const resolved = resolveNames(ret, names, true)
+      // console.log(resolved)
+      // account's token at slot 1 of account
+      expect(resolved.storageMap.acc).to.eql({
+        [toBytes32(1)]: 'tok'
+      })
+      // token balances at slot 0 of token
+      const hashRef = keccak256(hexConcat([toBytes32(storageAccount.address), toBytes32(0)]))
+      expect(resolved.storageMap.tok).to.eql({
+        [hashRef]: toBytes32(0)
+      })
     })
   })
 

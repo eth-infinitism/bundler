@@ -3,15 +3,11 @@ import { clearInterval } from 'timers'
 import { MempoolManager } from './MempoolManager'
 import { BundleManager, SendBundleReturn } from './BundleManager'
 import Debug from 'debug'
-import { UserOperation } from './moduleUtils'
 import { ValidationManager } from './ValidationManager'
 import { Mutex } from 'async-mutex'
+import { UserOperation } from './Types'
 
 const debug = Debug('aa.exec')
-
-export enum ExecutionErrors {
-  UserOperationReverted = -32521
-}
 
 /**
  * execute userOps manually or using background timer.
