@@ -60,5 +60,5 @@ export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   }
 
   // debug('client version', p._clientVersion)
-  return p._clientVersion?.match('Geth') != null
+  return p._clientVersion?.match('go1') != null
 }

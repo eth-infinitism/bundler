@@ -47,7 +47,7 @@ class Runner {
     const net = await this.provider.getNetwork()
     const chainId = net.chainId
     const dep = new DeterministicDeployer(this.provider)
-    const accountDeployer = DeterministicDeployer.getAddress(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
+    const accountDeployer = await DeterministicDeployer.getAddress(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     // const accountDeployer = await new SimpleAccountFactory__factory(this.provider.getSigner()).deploy().then(d=>d.address)
     if (!await dep.isContractDeployed(accountDeployer)) {
       if (deploymentSigner == null) {

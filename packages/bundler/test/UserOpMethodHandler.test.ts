@@ -326,8 +326,11 @@ describe('UserOpMethodHandler', function () {
       expect(receipt.sender).to.equal(acc.address)
     })
     it('receipt should carry transaction receipt', () => {
+      // filter out BOR-specific events..
+      const logs = receipt.receipt.logs
+        .filter(log => log.address !== '0x0000000000000000000000000000000000001010')
       // one UserOperationEvent, and one op-specific event.
-      expect(receipt.receipt.logs.length).to.equal(2)
+      expect(logs.length).to.equal(2)
     })
   })
 })
