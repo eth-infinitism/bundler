@@ -2,8 +2,6 @@ import { BaseProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { formatEther, parseEther, resolveProperties } from 'ethers/lib/utils'
 
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
-
 import { BundlerConfig } from '../src/BundlerConfig'
 import {
   EntryPoint,
@@ -18,7 +16,7 @@ import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecC
 import {
   SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory, BundlerHelper__factory
 } from '../src/types'
-import { AddressZero, resolveHexlify } from '@account-abstraction/utils'
+import { resolveHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
@@ -27,6 +25,7 @@ import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { isGeth, waitFor } from '../src/utils'
+import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 
@@ -331,9 +330,9 @@ describe('UserOpMethodHandler', function () {
       expect(receipt.sender).to.equal(acc.address)
     })
     it('receipt should carry transaction receipt', () => {
-      //filter out BOR-specific events..
-      let logs = receipt.receipt.logs
-        .filter(log=>log.address != '0x0000000000000000000000000000000000001010')
+      // filter out BOR-specific events..
+      const logs = receipt.receipt.logs
+        .filter(log => log.address !== '0x0000000000000000000000000000000000001010')
       // one UserOperationEvent, and one op-specific event.
       expect(logs.length).to.equal(2)
     })

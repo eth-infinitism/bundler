@@ -78,6 +78,7 @@ export class BundleManager {
       const signedTx = await this.signer.signTransaction(tx)
       let ret: string
       if (this.conditionalRpc) {
+        debug('eth_sendRawTransactionConditional', storageMap)
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, { knownAccounts: storageMap }
         ])
@@ -201,7 +202,7 @@ export class BundleManager {
       }
 
       // If sender's account already exist: replace with its storage root hash
-      if (entry.userOp.initCode.length > 2) {
+      if (this.conditionalRpc && entry.userOp.initCode.length <= 2) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
         storageMap[entry.userOp.sender] = storageHash
       }

@@ -59,7 +59,7 @@ export function getTracerBodyString (func: LogTracerFunc): string {
   ret = ret
     // .replace(/\/\/.*\n/g,'\n')
     // .replace(/\n\s*\n/g, '\n')
-    .replace(/\b(?:const|let)\b/g,'')
+    .replace(/\b(?:const|let)\b/g, '')
   // console.log('== tracer source',ret.split('\n').map((line,index)=>`${index}: ${line}`).join('\n'))
   return ret
 }
