@@ -11,8 +11,7 @@ import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { EntryPoint, EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
-import { BundlerHelper__factory } from '../src/types'
-import { Signer, Wallet } from 'ethers'
+import { Wallet } from 'ethers'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { expect } from 'chai'
 import { createSigner } from './testUtils'
@@ -32,13 +31,10 @@ describe('#DebugMethodHandler', () => {
 
     entryPoint = await new EntryPoint__factory(signer).deploy()
     DeterministicDeployer.init(provider)
-    const bundlerHelperAddress = await DeterministicDeployer.deploy(new BundlerHelper__factory(), 0, [])
-    const bundlerHelper = BundlerHelper__factory.connect(bundlerHelperAddress, provider)
 
     const config: BundlerConfig = {
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
-      bundlerHelper: bundlerHelperAddress,
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',
@@ -56,8 +52,8 @@ describe('#DebugMethodHandler', () => {
 
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, bundlerHelper, repMgr, config.unsafe)
-    const bundleMgr = new BundleManager(entryPoint, bundlerHelper, mempoolMgr, validMgr, repMgr,
+    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
+    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(

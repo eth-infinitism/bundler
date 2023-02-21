@@ -203,7 +203,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         let access = this.currentLevel.access[addrHex] as any
         if (access == null) {
           access = {
-            log:[],
+            log: [],
             reads: {},
             writes: {}
           }

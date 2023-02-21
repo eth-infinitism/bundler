@@ -3,7 +3,6 @@ import { defaultAbiCoder, hexConcat, hexlify, keccak256, parseEther } from 'ethe
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import {
-  BundlerHelper__factory,
   TestOpcodesAccount,
   TestOpcodesAccount__factory,
   TestOpcodesAccountFactory,
@@ -119,7 +118,6 @@ describe('#ValidationManager', () => {
     opcodeFactory = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
     testcoin = await new TestCoin__factory(ethersSigner).deploy()
     storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy(testcoin.address)
-    const bundlerHelper = await new BundlerHelper__factory(ethersSigner).deploy()
 
     storageAccount = TestStorageAccount__factory.connect(await storageFactory.callStatic.create(1, ''), provider)
     await storageFactory.create(1, '')
@@ -136,13 +134,26 @@ describe('#ValidationManager', () => {
     },
     parseEther('0'), 0)
     const unsafe = !await isGeth(provider)
-    vm = new ValidationManager(entryPoint, bundlerHelper, reputationManager, unsafe)
+    vm = new ValidationManager(entryPoint, reputationManager, unsafe)
 
     if (!await isGeth(ethers.provider)) {
       console.log('WARNING: opcode banning tests can only run with geth')
       this.skip()
     }
   })
+
+  it('#getCodeHashes', async () => {
+    const epHash = keccak256(await provider.getCode(entryPoint.address))
+    const pmHash = keccak256(await provider.getCode(paymaster.address))
+    const addresses = [entryPoint.address, paymaster.address]
+    const packed = defaultAbiCoder.encode(['bytes32[]'], [[epHash, pmHash]])
+    const packedHash = keccak256(packed)
+    expect(await vm.getCodeHashes(addresses)).to.eql({
+      addresses,
+      hash: packedHash
+    })
+  })
+
   it('should accept plain request', async () => {
     await testUserOp()
   })

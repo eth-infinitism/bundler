@@ -1,3 +1,3 @@
 describe('runBundler', function () {
-  it('resolveConfiguration')
+  // it('resolveConfiguration')
 })

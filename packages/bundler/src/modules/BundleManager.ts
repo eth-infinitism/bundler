@@ -2,14 +2,14 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, mergeStorageMap } from './moduleUtils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
-import { BundlerHelper } from '../types'
+import { GetUserOpHashes__factory } from '../types'
 import { StorageMap, UserOperation } from './Types'
+import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
 
 const debug = Debug('aa.exec.cron')
 
@@ -25,14 +25,13 @@ export class BundleManager {
 
   constructor (
     readonly entryPoint: EntryPoint,
-    readonly bundlerHelper: BundlerHelper,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
-    //use eth_sendRawTransactionConditional with storasge map
+    // use eth_sendRawTransactionConditional with storage map
     readonly conditionalRpc: boolean,
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
     readonly mergeToAccountRootHash: boolean = false
@@ -96,7 +95,7 @@ export class BundleManager {
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       this.mempoolManager.removeAllUserOps(userOps)
       // hashes are needed for debug rpc only.
-      const hashes = await this.bundlerHelper.getUserOpHashes(this.entryPoint.address, userOps)
+      const hashes = await this.getUserOpHashes(userOps)
       return {
         transactionHash: ret,
         userOpHashes: hashes
@@ -231,5 +230,14 @@ export class BundleManager {
       console.log('low balance. using ', beneficiary, 'as beneficiary instead of ', this.beneficiary)
     }
     return beneficiary
+  }
+
+  // helper function to get hashes of all UserOps
+  async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
+    const { userOpHashes } = await runContractScript(this.entryPoint.provider,
+      new GetUserOpHashes__factory(),
+      [this.entryPoint.address, userOps])
+
+    return userOpHashes
   }
 }
