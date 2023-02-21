@@ -32,7 +32,10 @@ export class BundleManager {
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
-    readonly conditionalRpc: boolean
+    //use eth_sendRawTransactionConditional with storasge map
+    readonly conditionalRpc: boolean,
+    // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
+    readonly mergeToAccountRootHash: boolean = false
   ) {
     this.provider = entryPoint.provider as JsonRpcProvider
     this.signer = entryPoint.signer as JsonRpcSigner
@@ -202,9 +205,9 @@ export class BundleManager {
       }
 
       // If sender's account already exist: replace with its storage root hash
-      if (this.conditionalRpc && entry.userOp.initCode.length <= 2) {
+      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
-        storageMap[entry.userOp.sender] = storageHash
+        storageMap[entry.userOp.sender.toLowerCase()] = storageHash
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
