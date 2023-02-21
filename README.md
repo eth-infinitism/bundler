@@ -30,7 +30,7 @@ docker run --rm -ti --name geth -p 8545:8545 ethereum/client-go:v1.10.26 \
 1. run `yarn && yarn preprocess`
 2. deploy contracts with `yarn hardhat-deploy --network localhost`
 3. run `yarn run bundler`
-    (or `yarn run bundler --unsage`, if working with "hardhat node")
+    (or `yarn run bundler --unsafe`, if working with "hardhat node")
 
 Now your bundler is active on local url http://localhost:3000/rpc    
 
