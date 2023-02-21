@@ -3,13 +3,11 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { ethers } from 'hardhat'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { EntryPoint__factory } from '@account-abstraction/contracts'
-import { BundlerHelper__factory } from '../src/types/factories/contracts'
 
 // deploy entrypoint - but only on debug network..
 const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const dep = new DeterministicDeployer(ethers.provider)
   const epAddr = DeterministicDeployer.getAddress(EntryPoint__factory.bytecode)
-  const bhAddr = DeterministicDeployer.getAddress(BundlerHelper__factory.bytecode)
   if (await dep.isContractDeployed(epAddr)) {
     console.log('EntryPoint already deployed at', epAddr)
     return
@@ -23,9 +21,6 @@ const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
   await dep.deterministicDeploy(EntryPoint__factory.bytecode)
   console.log('Deployed EntryPoint at', epAddr)
-
-  await dep.deterministicDeploy(BundlerHelper__factory.bytecode)
-  console.log('Deployed BundlerHelper at', bhAddr)
 }
 
 export default deployEP

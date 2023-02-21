@@ -17,7 +17,7 @@ import { Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory, BundlerHelper__factory
+  SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory
 } from '../src/types'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
@@ -48,9 +48,6 @@ describe('UserOpMethodHandler', function () {
 
     DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
-    const bundlerHelperAddress = await DeterministicDeployer.deploy(new BundlerHelper__factory(), 0, [])
-
-    const bundlerHelper = BundlerHelper__factory.connect(bundlerHelperAddress, ethers.provider)
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
@@ -58,7 +55,6 @@ describe('UserOpMethodHandler', function () {
     const config: BundlerConfig = {
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
-      bundlerHelper: bundlerHelperAddress,
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',
@@ -75,8 +71,8 @@ describe('UserOpMethodHandler', function () {
 
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, bundlerHelper, repMgr, config.unsafe)
-    const bundleMgr = new BundleManager(entryPoint, bundlerHelper, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
+    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
       execManager,

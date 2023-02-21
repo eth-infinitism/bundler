@@ -10,7 +10,7 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
-import { BundlerHelper } from '../types'
+import { GetCodeHashes__factory } from '../types'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -66,7 +66,6 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 export class ValidationManager {
   constructor (
     readonly entryPoint: EntryPoint,
-    readonly bundlerHelper: BundlerHelper,
     readonly reputationManager: ReputationManager,
     readonly unsafe: boolean) {
   }
@@ -191,7 +190,7 @@ export class ValidationManager {
    */
   async validateUserOp (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
     if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
-      const codeHashes = await this.bundlerHelper.getCodeHashes(previousCodeHashes.addresses)
+      const { hash: codeHashes } = await this.getCodeHashes(previousCodeHashes.addresses)
       requireCond(codeHashes === previousCodeHashes.hash,
         'modified code after first validation',
         ValidationErrors.OpcodeValidation)
@@ -207,10 +206,7 @@ export class ValidationManager {
       const contractAddresses = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
-        codeHashes = {
-          hash: await this.bundlerHelper.getCodeHashes(contractAddresses),
-          addresses: contractAddresses
-        }
+        codeHashes = await this.getCodeHashes(contractAddresses)
       }
       if (res as any === '0x') {
         throw new Error('simulateValidation reverted with no revert string!')
@@ -243,7 +239,13 @@ export class ValidationManager {
   }
 
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
-    const hash = await this.bundlerHelper.getCodeHashes(addresses)
+    // use helper contract to get code hashes of addresses.
+    // (helper contract always reverts, and never gets deployed)
+    const tx = await new GetCodeHashes__factory().getDeployTransaction(addresses)
+    const ret = await this.entryPoint.provider.call(tx) as any
+    const parseError = GetCodeHashes__factory.createInterface().parseError(ret)
+    const { hash } = parseError.args
+
     return {
       hash,
       addresses

@@ -8,7 +8,7 @@ import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
-import { BundlerHelper } from '../types'
+import { GetUserOpHashes__factory } from '../types'
 
 const debug = Debug('aa.exec.cron')
 
@@ -24,7 +24,6 @@ export class BundleManager {
 
   constructor (
     readonly entryPoint: EntryPoint,
-    readonly bundlerHelper: BundlerHelper,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
@@ -68,7 +67,7 @@ export class BundleManager {
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       this.mempoolManager.removeAllUserOps(userOps)
       // hashes are needed for debug rpc only.
-      const hashes = await this.bundlerHelper.getUserOpHashes(this.entryPoint.address, userOps)
+      const hashes = await this.getUserOpHashes(userOps)
       return {
         transactionHash: ret.hash,
         userOpHashes: hashes
@@ -185,5 +184,14 @@ export class BundleManager {
       console.log('low balance. using ', beneficiary, 'as beneficiary instead of ', this.beneficiary)
     }
     return beneficiary
+  }
+
+  // helper function to get hashes of all userops
+  async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
+    const tx = await new GetUserOpHashes__factory().getDeployTransaction(this.entryPoint.address, userOps)
+    const ret = await this.entryPoint.provider.call(tx)
+    const parseError = GetUserOpHashes__factory.createInterface().parseError(ret)
+    // console.log('parsed=', parseError)
+    return parseError.args.userOpHashes
   }
 }
