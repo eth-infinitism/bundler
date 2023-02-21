@@ -7,7 +7,9 @@ import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } f
 
 // functions available in a context of geth tracer
 declare function toHex (a: any): string
+
 declare function toWord (a: any): string
+
 declare function toAddress (a: any): string
 
 declare function isPrecompiled (addr: any): boolean
@@ -196,21 +198,22 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (opcode === 'SLOAD' || opcode === 'SSTORE') {
         const slot = toWord(log.stack.peek(0).toString(16))
         const slotHex = toHex(slot)
-        const addr = toHex(log.contract.getAddress())
-        let access = this.currentLevel.access[addr]
+        let addr = log.contract.getAddress()
+        const addrHex = toHex(addr)
+        let access = this.currentLevel.access[addrHex] as any
         if (access == null) {
           access = {
+            log:[],
             reads: {},
             writes: {}
           }
-          this.currentLevel.access[addr] = access
+          this.currentLevel.access[addrHex] = access
         }
         if (opcode === 'SLOAD') {
           // read slot values before this UserOp was created
           // (so saving it if it was written before the first read)
           if (access.reads[slotHex] == null && access.writes[slotHex] == null) {
-            access.reads[slotHex] = toHex(
-              db.getState(log.contract.getAddress(), slot))
+            access.reads[slotHex] = toHex(db.getState(addr, slot))
           }
         } else {
           this.countSlot(access.writes, slotHex)

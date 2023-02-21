@@ -13,7 +13,10 @@ import {
   TestRulesAccountFactory__factory,
   TestStorageAccount__factory,
   TestStorageAccountFactory,
-  TestStorageAccountFactory__factory
+  TestStorageAccountFactory__factory,
+  TestStorageAccount,
+  TestCoin,
+  TestCoin__factory
 } from '../src/types'
 import { ValidateUserOpResult, ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
@@ -42,10 +45,12 @@ describe('#ValidationManager', () => {
   let vm: ValidationManager
   let opcodeFactory: TestOpcodesAccountFactory
   let storageFactory: TestStorageAccountFactory
+  let testcoin: TestCoin
 
   let paymaster: TestOpcodesAccount
   let entryPoint: EntryPoint
-  let storageAccount: TestRulesAccount
+  let rulesAccount: TestRulesAccount
+  let storageAccount: TestStorageAccount
 
   async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
     const userOp = await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress)
@@ -112,20 +117,24 @@ describe('#ValidationManager', () => {
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })
     opcodeFactory = await new TestOpcodesAccountFactory__factory(ethersSigner).deploy()
-    storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy()
+    testcoin = await new TestCoin__factory(ethersSigner).deploy()
+    storageFactory = await new TestStorageAccountFactory__factory(ethersSigner).deploy(testcoin.address)
     const bundlerHelper = await new BundlerHelper__factory(ethersSigner).deploy()
 
+    storageAccount = TestStorageAccount__factory.connect(await storageFactory.callStatic.create(1, ''), provider)
+    await storageFactory.create(1, '')
+
     const rulesFactory = await new TestRulesAccountFactory__factory(ethersSigner).deploy()
-    storageAccount = TestRulesAccount__factory.connect(await rulesFactory.callStatic.create(''), provider)
+    rulesAccount = TestRulesAccount__factory.connect(await rulesFactory.callStatic.create(''), provider)
     await rulesFactory.create('')
-    await entryPoint.depositTo(storageAccount.address, { value: parseEther('1') })
+    await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
     const reputationManager = new ReputationManager({
-      minInclusionDenominator: 1,
-      throttlingSlack: 1,
-      banSlack: 1
-    },
-    parseEther('0'), 0)
+        minInclusionDenominator: 1,
+        throttlingSlack: 1,
+        banSlack: 1
+      },
+      parseEther('0'), 0)
     const unsafe = !await isGeth(provider)
     vm = new ValidationManager(entryPoint, bundlerHelper, reputationManager, unsafe)
 
@@ -199,26 +208,46 @@ describe('#ValidationManager', () => {
         ep: entryPoint.address,
         opf: opcodeFactory.address,
         stf: storageFactory.address,
-        acc: storageAccount.address,
-        tok: await storageAccount.coin()
+        acc: rulesAccount.address,
+        tok: await rulesAccount.coin()
       }
+    })
+
+    it('should return nothing during account creation', async () => {
+      const ret = await testUserOp('read-self', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
+      // console.log('resolved=', resolveNames(ret, names, true))
+      expect(ret.storageMap[ret.userOp.sender.toLowerCase()]).to.eql({
+        [toBytes32(1)]: toBytes32(0)
+      })
+    })
+
+    it('should return self storage on existing account', async () => {
+      const ret = await testExistingUserOp('read-self')
+      // console.log('resolved=', resolveNames(ret, names, true))
+      let account = ret.userOp.sender.toLowerCase()
+      expect(ret.storageMap[account]).to.eql({
+        [toBytes32(1)]: toBytes32(testcoin.address)
+      })
     })
 
     it('should return nothing with no storage access', async () => {
       const ret = await testExistingUserOp('')
       expect(ret.storageMap).to.eql({})
     })
+
     it('should return referenced storage', async () => {
       const ret = await testExistingUserOp('balance-self')
-      const resolved = resolveNames(ret, names, true)
-      // console.log(resolved)
+      // console.log('resolved=', resolveNames(ret, names, true))
+
+      const account = ret.userOp.sender.toLowerCase()
+
       // account's token at slot 1 of account
-      expect(resolved.storageMap.acc).to.eql({
-        [toBytes32(1)]: 'tok'
+      expect(ret.storageMap[account]).to.eql({
+        [toBytes32(1)]: toBytes32(testcoin.address)
       })
-      // token balances at slot 0 of token
-      const hashRef = keccak256(hexConcat([toBytes32(storageAccount.address), toBytes32(0)]))
-      expect(resolved.storageMap.tok).to.eql({
+      // token.balances[account] - balances uses slot 0 of token
+      const hashRef = keccak256(hexConcat([toBytes32(account), toBytes32(0)]))
+      expect(ret.storageMap[testcoin.address.toLowerCase()]).to.eql({
         [hashRef]: toBytes32(0)
       })
     })
@@ -271,7 +300,7 @@ describe('#ValidationManager', () => {
   })
   it('should fail with inner oog revert', async () => {
     expect(await testUserOp('oog', undefined, storageFactory.interface.encodeFunctionData('create', [0, '']), storageFactory.address)
-      .catch(e => e.message))
-      .to.match(/oog/)
+      .catch(e => e.message)
+    ).to.match(/account internally reverts on oog/)
   })
 })

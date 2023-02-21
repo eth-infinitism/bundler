@@ -331,7 +331,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const storageMap: StorageMap = {}
   tracerResults.numberLevels.forEach(level => {
     Object.keys(level.access).forEach(addr => {
-      storageMap[addr] = level.access[addr].reads
+      storageMap[addr] = storageMap[addr] ?? level.access[addr].reads
     })
   })
   return [addresses, storageMap]
