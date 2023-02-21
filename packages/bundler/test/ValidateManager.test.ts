@@ -24,7 +24,7 @@ import { toBytes32 } from '../src/modules/moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
-import { resolveNames } from './testUtils'
+// import { resolveNames } from './testUtils'
 import { UserOperation } from '../src/modules/Types'
 
 const cEmptyUserOp: UserOperation = {
@@ -130,11 +130,11 @@ describe('#ValidationManager', () => {
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
     const reputationManager = new ReputationManager({
-        minInclusionDenominator: 1,
-        throttlingSlack: 1,
-        banSlack: 1
-      },
-      parseEther('0'), 0)
+      minInclusionDenominator: 1,
+      throttlingSlack: 1,
+      banSlack: 1
+    },
+    parseEther('0'), 0)
     const unsafe = !await isGeth(provider)
     vm = new ValidationManager(entryPoint, bundlerHelper, reputationManager, unsafe)
 
@@ -201,16 +201,16 @@ describe('#ValidationManager', () => {
   })
 
   describe('validate storageMap', () => {
-    let names: { [name: string]: string }
+    // let names: { [name: string]: string }
     before(async () => {
-      names = {
-        pm: paymaster.address,
-        ep: entryPoint.address,
-        opf: opcodeFactory.address,
-        stf: storageFactory.address,
-        acc: rulesAccount.address,
-        tok: await rulesAccount.coin()
-      }
+      // names = {
+      //   pm: paymaster.address,
+      //   ep: entryPoint.address,
+      //   opf: opcodeFactory.address,
+      //   stf: storageFactory.address,
+      //   acc: rulesAccount.address,
+      //   tok: await rulesAccount.coin()
+      // }
     })
 
     it('should return nothing during account creation', async () => {
@@ -224,7 +224,7 @@ describe('#ValidationManager', () => {
     it('should return self storage on existing account', async () => {
       const ret = await testExistingUserOp('read-self')
       // console.log('resolved=', resolveNames(ret, names, true))
-      let account = ret.userOp.sender.toLowerCase()
+      const account = ret.userOp.sender.toLowerCase()
       expect(ret.storageMap[account]).to.eql({
         [toBytes32(1)]: toBytes32(testcoin.address)
       })

@@ -198,7 +198,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (opcode === 'SLOAD' || opcode === 'SSTORE') {
         const slot = toWord(log.stack.peek(0).toString(16))
         const slotHex = toHex(slot)
-        let addr = log.contract.getAddress()
+        const addr = log.contract.getAddress()
         const addrHex = toHex(addr)
         let access = this.currentLevel.access[addrHex] as any
         if (access == null) {
