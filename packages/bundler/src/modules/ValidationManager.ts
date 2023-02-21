@@ -2,7 +2,7 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import { ReputationManager } from './ReputationManager'
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
-import { getAddr, UserOperation } from './moduleUtils'
+import { getAddr, runContractScript, UserOperation } from './moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
@@ -239,12 +239,11 @@ export class ValidationManager {
   }
 
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
-    // use helper contract to get code hashes of addresses.
-    // (helper contract always reverts, and never gets deployed)
-    const tx = await new GetCodeHashes__factory().getDeployTransaction(addresses)
-    const ret = await this.entryPoint.provider.call(tx) as any
-    const parseError = GetCodeHashes__factory.createInterface().parseError(ret)
-    const { hash } = parseError.args
+    const { hash } = await runContractScript(
+      this.entryPoint.provider,
+      new GetCodeHashes__factory(),
+      [addresses]
+    )
 
     return {
       hash,

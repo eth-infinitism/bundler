@@ -2,7 +2,7 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
 import { ValidationManager, ValidationResult } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, UserOperation } from './moduleUtils'
+import { getAddr, runContractScript, UserOperation } from './moduleUtils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
@@ -188,10 +188,10 @@ export class BundleManager {
 
   // helper function to get hashes of all userops
   async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
-    const tx = await new GetUserOpHashes__factory().getDeployTransaction(this.entryPoint.address, userOps)
-    const ret = await this.entryPoint.provider.call(tx)
-    const parseError = GetUserOpHashes__factory.createInterface().parseError(ret)
-    // console.log('parsed=', parseError)
-    return parseError.args.userOpHashes
+    const { userOpHashes } = await runContractScript(this.entryPoint.provider,
+      new GetUserOpHashes__factory(),
+      [this.entryPoint.address, userOps])
+
+    return userOpHashes
   }
 }
