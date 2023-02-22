@@ -4,6 +4,7 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import Debug from 'debug'
 import { SignatureAggregatorChangedEvent } from '@account-abstraction/contracts/types/EntryPoint'
 import { TypedEvent } from '@account-abstraction/contracts/dist/types/common'
+import { MempoolManager } from './MempoolManager'
 
 const debug = Debug('aa.events')
 
@@ -15,6 +16,7 @@ export class EventsManager {
 
   constructor (
     readonly entryPoint: EntryPoint,
+    readonly mempoolManager: MempoolManager,
     readonly reputationManager: ReputationManager) {
   }
 
@@ -40,13 +42,13 @@ export class EventsManager {
 
   async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorChangedEvent): Promise<void> {
     switch (ev.event) {
-      case 'UserOperationEventEvent':
+      case 'UserOperationEvent':
         this.handleUserOperationEvent(ev as any)
         break
-      case 'AccountDeployedEvent':
+      case 'AccountDeployed':
         this.handleAccountDeployedEvent(ev as any)
         break
-      case 'SignatureAggregatorForUserOperationsEvent':
+      case 'SignatureAggregatorForUserOperations':
         this.handleAggregatorChangedEvent(ev as any)
         break
     }
@@ -77,6 +79,8 @@ export class EventsManager {
   }
 
   handleUserOperationEvent (ev: UserOperationEventEvent): void {
+    const hash = ev.args.userOpHash
+    this.mempoolManager.removeUserOp(hash)
     this._includedAddress(ev.args.sender)
     this._includedAddress(ev.args.paymaster)
     this._includedAddress(this.getEventAggregator(ev))

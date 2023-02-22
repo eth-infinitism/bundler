@@ -109,7 +109,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config,
-    autoBundleMempoolSize: 1
+    autoBundleMempoolSize: 0
   }
 
   const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
@@ -121,7 +121,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   )
   eventsManager.initEventListener()
-  const debugHandler = new DebugMethodHandler(execManager, reputationManager, mempoolManager)
+  const debugHandler = new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
 
   const bundlerServer = new BundlerServer(
     methodHandler,

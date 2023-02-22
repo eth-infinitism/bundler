@@ -36,7 +36,9 @@ export class ExecutionManager {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
+      const userOpHash = await this.validationManager.entryPoint.getUserOpHash(userOp)
       this.mempoolManager.addUserOp(userOp,
+        userOpHash,
         validationResult.returnInfo.prefund,
         validationResult.senderInfo,
         validationResult.referencedContracts,
@@ -45,7 +47,7 @@ export class ExecutionManager {
     })
   }
 
-  setReputationCorn (interval: number): void {
+  setReputationCron (interval: number): void {
     debug('set reputation interval to', interval)
     clearInterval(this.reputationCron)
     if (interval !== 0) {
@@ -80,7 +82,12 @@ export class ExecutionManager {
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
-      return await this.bundleManager.sendNextBundle()
+      const ret = await this.bundleManager.sendNextBundle()
+      if (this.maxMempoolSize === 0) {
+        // in "auto-bundling" mode (which implies auto-mining) also flush mempool from included UserOps
+        await this.bundleManager.handlePastEvents()
+      }
+      return ret
     }
   }
 }
