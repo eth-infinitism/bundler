@@ -5,37 +5,14 @@ import "@account-abstraction/contracts/interfaces/IAccount.sol";
 import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "./TestRuleAccount.sol";
-
-contract TestCoin {
-    mapping(address => uint) balances;
-
-    function balanceOf(address addr) public returns (uint) {
-        return balances[addr];
-    }
-
-    function mint(address addr) public returns (uint) {
-        return balances[addr] += 100;
-    }
-
-    //unrelated to token: testing inner object revert
-    function reverting() public returns (uint) {
-        revert("inner-revert");
-    }
-
-    function wasteGas() public returns (uint) {
-        while (true) {
-            require(msg.sender != ecrecover("message", 27, bytes32(0), bytes32(0)));
-        }
-        return 0;
-    }
-}
+import "./TestCoin.sol";
 
 /**
  * an account with "rules" to trigger different opcode validation rules
  */
 contract TestStorageAccount is TestRuleAccount {
 
-    TestCoin coin;
+    TestCoin public coin;
 
     function setCoin(TestCoin _coin) public returns (uint){
         coin = _coin;
@@ -48,9 +25,9 @@ contract TestStorageAccount is TestRuleAccount {
     public virtual override returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         if (eq(rule, 'postOp-context')) {
-            return ("some-context",0);
+            return ("some-context", 0);
         }
-//        return ("",0);
+        //        return ("",0);
         return super.validatePaymasterUserOp(userOp, userOpHash, maxCost);
     }
 
@@ -60,13 +37,18 @@ contract TestStorageAccount is TestRuleAccount {
         else if (eq(rule, "mint-self")) return coin.mint(address(this));
         else if (eq(rule, "balance-1")) return coin.balanceOf(address(1));
         else if (eq(rule, "mint-1")) return coin.mint(address(1));
+        else if (eq(rule, "read-self")) return uint160(address(coin));
+        else if (eq(rule, "allowance-self-1")) return coin.allowance(address(this), address(1));
+        else if (eq(rule, "allowance-1-self")) return coin.allowance(address(1), address(this));
+        else if (eq(rule, "struct-self")) return coin.getInfo(address(this)).c;
+        else if (eq(rule, "struct-1")) return coin.getInfo(address(1)).c;
         else if (eq(rule, "inner-revert")) {
             (bool success,) = address(coin).call(abi.encode(coin.reverting));
             success;
             return 0;
         }
         else if (eq(rule, "oog")) {
-            try coin.wasteGas{gas : 50000}() {}
+            try coin.wasteGas{gas : 10000}() {}
             catch {}
             return 0;
         }
@@ -75,9 +57,10 @@ contract TestStorageAccount is TestRuleAccount {
 }
 
 contract TestStorageAccountFactory {
-    TestCoin immutable coin;
-    constructor() {
-        coin = new TestCoin();
+    TestCoin public immutable coin;
+
+    constructor(TestCoin _coin) {
+        coin = _coin;
     }
 
     function create(uint salt, string memory rule) public returns (TestStorageAccount) {

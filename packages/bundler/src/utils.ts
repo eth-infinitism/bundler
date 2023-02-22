@@ -59,6 +59,14 @@ export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
     p._clientVersion = await provider.send('web3_clientVersion', [])
   }
 
+  // check if we have traceCall
+  const ret = await provider.send('debug_traceCall', []).catch(e => e)
+
+  const code = ret.error?.code ?? ret.code
+  // console.log('code=', code, ret)
+  // its GETH if it has debug_traceCall method.
+  return code === -32602 // wrong params (meaning, method exists)
+
   // debug('client version', p._clientVersion)
-  return p._clientVersion?.match('go1') != null
+  // return p._clientVersion?.match('go1') != null
 }

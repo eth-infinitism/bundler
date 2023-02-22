@@ -1,9 +1,9 @@
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, UserOperation } from './moduleUtils'
+import { getAddr } from './moduleUtils'
 import { requireCond } from '../utils'
-import { ReferencedCodeHashes, StakeInfo, ValidationErrors } from './ValidationManager'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
+import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
 
 const debug = Debug('aa.mempool')
 
