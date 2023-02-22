@@ -65,6 +65,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', 'server listening port', '3000')
     .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+    .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
@@ -108,8 +109,12 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
-    ...config,
-    autoBundleMempoolSize: 0
+    ...config
+    // autoBundleMempoolSize: 0
+  }
+  if (programOpts.auto !=null) {
+    execManagerConfig.autoBundleMempoolSize = 0
+    execManagerConfig.autoBundleInterval = 0
   }
 
   const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)

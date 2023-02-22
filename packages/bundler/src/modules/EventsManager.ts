@@ -31,16 +31,16 @@ export class EventsManager {
   }
 
   /**
-   * manually handle all new events since last run
+   * process all new events since last run
    */
   async handlePastEvents (): Promise<void> {
     const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, this.lastBlock)
     for (const ev of events) {
-      await this.handleEvent(ev)
+      this.handleEvent(ev)
     }
   }
 
-  async handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorChangedEvent): Promise<void> {
+  handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorChangedEvent): void {
     switch (ev.event) {
       case 'UserOperationEvent':
         this.handleUserOperationEvent(ev as any)
