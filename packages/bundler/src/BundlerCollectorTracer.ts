@@ -114,7 +114,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
-      this.debug.push('enter gas=', frame.getGas(), ' type=', frame.getType(), ' to=', toHex(frame.getTo()), ' in=', toHex(frame.getInput()).slice(0, 500))
+      // this.debug.push('enter gas=', frame.getGas(), ' type=', frame.getType(), ' to=', toHex(frame.getTo()), ' in=', toHex(frame.getInput()).slice(0, 500))
       this.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
@@ -150,7 +150,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           const ofs = parseInt(log.stack.peek(0).toString())
           const len = parseInt(log.stack.peek(1).toString())
           const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 1000)
-          this.debug.push(opcode + ' ' + data)
+          // this.debug.push(opcode + ' ' + data)
           this.calls.push({
             type: opcode,
             gasUsed: 0,
@@ -203,7 +203,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         let access = this.currentLevel.access[addrHex] as any
         if (access == null) {
           access = {
-            log: [],
             reads: {},
             writes: {}
           }
