@@ -93,7 +93,7 @@ describe('SimpleAccountAPI', () => {
       await expect(
         entryPoint.handleOps([userOp], beneficiary)
           .catch(rethrowError))
-        .to.revertedWith('FailedOp: ECDSA: invalid signature length')
+        .to.revertedWith('FailedOp: AA23 reverted: ECDSA: invalid signature length')
     })
     it('should parse Error(message) error', async () => {
       await expect(

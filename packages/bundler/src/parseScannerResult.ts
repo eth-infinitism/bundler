@@ -1,6 +1,6 @@
 import {
   EntryPoint,
-  IAggregatedAccount__factory, IEntryPoint__factory,
+  IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/contracts'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
@@ -19,6 +19,7 @@ const debug = Debug('aa.handler.opcodes')
 
 interface CallEntry {
   to: string
+  from: string
   type: string // call opcode
   method: string // parsed method, or signash if unparsed
   revert?: any // parsed output from REVERT
@@ -40,8 +41,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
     ...TestStorageAccount__factory.abi,
     ...SenderCreator__factory.abi,
     ...IEntryPoint__factory.abi,
-    ...IPaymaster__factory.abi,
-    ...IAggregatedAccount__factory.abi
+    ...IPaymaster__factory.abi
   ].reduce((set, entry) => {
     const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
     // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
@@ -75,6 +75,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
         if (top.type.match(/CREATE/) != null) {
           out.push({
             to: top.to,
+            from: top.from,
             type: top.type,
             method: '',
             return: `len=${returnData.length}`
@@ -85,6 +86,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
             const parsedError = callCatch(() => xfaces.parseError(returnData), returnData)
             out.push({
               to: top.to,
+              from: top.from,
               type: top.type,
               method: method.name,
               value: top.value,
@@ -94,6 +96,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
             const ret = callCatch(() => xfaces.decodeFunctionResult(method, returnData), returnData)
             out.push({
               to: top.to,
+              from: top.from,
               type: top.type,
               method: method.name ?? method,
               return: ret
@@ -175,7 +178,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const callStack = parseCallStack(tracerResults)
 
   const callInfoEntryPoint = callStack.find(call =>
-    call.to === entryPointAddress &&
+    call.to === entryPointAddress && call.from !== entryPointAddress &&
     (call.method !== '0x' && call.method !== 'depositTo'))
   requireCond(callInfoEntryPoint == null,
     `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
