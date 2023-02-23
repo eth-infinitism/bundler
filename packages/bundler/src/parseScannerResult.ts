@@ -1,6 +1,6 @@
 import {
   EntryPoint,
-  IAggregatedAccount__factory, IEntryPoint__factory,
+  IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/contracts'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
@@ -41,7 +41,6 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
     ...SenderCreator__factory.abi,
     ...IEntryPoint__factory.abi,
     ...IPaymaster__factory.abi,
-    ...IAggregatedAccount__factory.abi
   ].reduce((set, entry) => {
     const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
     // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))

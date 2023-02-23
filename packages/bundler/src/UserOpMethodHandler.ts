@@ -27,10 +27,16 @@ export interface EstimateUserOpGasResult {
    * gas used for validation of this UserOperation, including account creation
    */
   verificationGas: BigNumberish
+
+  /**
+   * (possibly future timestamp) after which this UserOperation is valid
+   */
+  validAfter?: BigNumberish
+
   /**
    * the deadline after which this UserOperation is invalid (not a gas estimation parameter, but returned by validation
    */
-  deadline?: BigNumberish
+  validUntil?: BigNumberish
   /**
    * estimated cost of calling the account with the given callData
    */
@@ -117,7 +123,8 @@ export class UserOpMethodHandler {
     const { returnInfo } = errorResult.errorArgs
     let {
       preOpGas,
-      deadline
+      validAfter,
+      validUntil
     } = returnInfo
 
     const callGasLimit = await this.provider.estimateGas({
@@ -128,16 +135,21 @@ export class UserOpMethodHandler {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ExecutionErrors.UserOperationReverted)
     })
-    deadline = BigNumber.from(deadline)
-    if (deadline === 0) {
-      deadline = undefined
+    validAfter = BigNumber.from(validAfter)
+    validUntil = BigNumber.from(validUntil)
+    if (validUntil === BigNumber.from(0)) {
+      validUntil = undefined
+    }
+    if (validAfter === BigNumber.from(0)) {
+      validAfter = undefined
     }
     const preVerificationGas = calcPreVerificationGas(userOp)
     const verificationGas = BigNumber.from(preOpGas).toNumber()
     return {
       preVerificationGas,
       verificationGas,
-      deadline,
+      validAfter,
+      validUntil,
       callGasLimit
     }
   }
@@ -265,6 +277,6 @@ export class UserOpMethodHandler {
 
   clientVersion (): string {
     // eslint-disable-next-line
-    return 'aa-bundler/' + erc4337RuntimeVersion + (this.config.unsafe ? "/unsafe":"")
+    return 'aa-bundler/' + erc4337RuntimeVersion + (this.config.unsafe ? '/unsafe' : '')
   }
 }

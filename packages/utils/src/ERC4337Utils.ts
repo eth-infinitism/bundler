@@ -121,12 +121,11 @@ export function getUserOpHash (op: NotPromise<UserOperationStruct>, entryPoint: 
 }
 
 const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
-const FailedOpSig = keccak256(Buffer.from('FailedOp(uint256,address,string)')).slice(0, 10) // 0x00fa072b
+const FailedOpSig = keccak256(Buffer.from('FailedOp(uint256,string)')).slice(0, 10) // 0x220266b6
 
 interface DecodedError {
   message: string
   opIndex?: number
-  paymaster?: string
 }
 
 /**
@@ -138,17 +137,11 @@ export function decodeErrorReason (error: string): DecodedError | undefined {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }
   } else if (error.startsWith(FailedOpSig)) {
-    let [opIndex, paymaster, message] = defaultAbiCoder.decode(['uint256', 'address', 'string'], '0x' + error.substring(10))
+    let [opIndex, message] = defaultAbiCoder.decode(['uint256', 'string'], '0x' + error.substring(10))
     message = `FailedOp: ${message as string}`
-    if (paymaster.toString() !== ethers.constants.AddressZero) {
-      message = `${message as string} (paymaster ${paymaster as string})`
-    } else {
-      paymaster = undefined
-    }
     return {
       message,
-      opIndex,
-      paymaster
+      opIndex
     }
   }
 }

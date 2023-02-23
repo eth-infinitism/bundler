@@ -60,7 +60,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
         entryPoint.addStake{value : msg.value}(1);
     }
 
-    function validateUserOp(UserOperation calldata userOp, bytes32, address, uint256 missingAccountFunds)
+    function validateUserOp(UserOperation calldata userOp, bytes32, uint256 missingAccountFunds)
     external override returns (uint256) {
         if (missingAccountFunds > 0) {
             /* solhint-disable-next-line avoid-low-level-calls */

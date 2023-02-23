@@ -11,6 +11,7 @@ import { GetUserOpHashes__factory } from '../types'
 import { StorageMap, UserOperation } from './Types'
 import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
 import { EventsManager } from './EventsManager'
+import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 
 const debug = Debug('aa.exec.cron')
 
@@ -81,7 +82,7 @@ export class BundleManager {
       const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
         type: 2,
         nonce: await this.signer.getTransactionCount(),
-        gasLimit: 1e6,
+        gasLimit: 10e6,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
@@ -109,25 +110,28 @@ export class BundleManager {
         userOpHashes: hashes
       }
     } catch (e: any) {
-      // failed to handleOp. use FailedOp to detect by
-      if (e.errorName !== 'FailedOp') {
+      let parsedError: ErrorDescription
+      try {
+        parsedError = this.entryPoint.interface.parseError((e.data?.data ?? e.data))
+      } catch (e1) {
         this.checkFatal(e)
         console.warn('Failed handleOps, but non-FailedOp error', e)
         return
       }
       const {
-        index,
-        paymaster,
+        opIndex:index,
         reason
-      } = e.errorArgs
+      } = parsedError.args
       const userOp = userOps[index]
-      if (paymaster !== AddressZero) {
-        this.reputationManager.crashedHandleOps(paymaster)
+      if (typeof reason == 'string' && reason.startsWith('AA3')) {
+        this.reputationManager.crashedHandleOps(getAddr(userOp.paymasterAndData))
+      } else if (typeof reason == 'string' && reason.startsWith('AA2')) {
+        this.reputationManager.crashedHandleOps(userOp.sender)
       } else if (typeof reason === 'string' && reason.startsWith('AA1')) {
         this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
       } else {
         this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender}`)
+        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reason}`)
       }
     }
   }
