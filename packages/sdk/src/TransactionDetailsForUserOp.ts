@@ -8,3 +8,11 @@ export interface TransactionDetailsForUserOp {
   maxFeePerGas?: BigNumberish
   maxPriorityFeePerGas?: BigNumberish
 }
+
+export interface BatchTransactionDetailsForUserOp {
+  dest: string[]
+  data: string[]
+  gasLimit?: BigNumberish
+  maxFeePerGas?: BigNumberish
+  maxPriorityFeePerGas?: BigNumberish
+}

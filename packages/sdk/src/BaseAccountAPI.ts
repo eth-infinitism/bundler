@@ -5,7 +5,7 @@ import {
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
-import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
+import { TransactionDetailsForUserOp, BatchTransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
 import { getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
@@ -93,6 +93,13 @@ export abstract class BaseAccountAPI {
   abstract encodeExecute (target: string, value: BigNumberish, data: string): Promise<string>
 
   /**
+   * encode batched calls from entryPoint through our account to the target contract.
+   * @param dest
+   * @param data
+   */
+  abstract encodeExecuteBatch (dest: string[], data: string[]): Promise<string>
+
+  /**
    * sign a userOp's hash (userOpHash).
    * @param userOpHash
    */
@@ -164,6 +171,26 @@ export abstract class BaseAccountAPI {
    */
   packUserOp (userOp: NotPromise<UserOperationStruct>): string {
     return packUserOp(userOp, false)
+  }
+
+  async encodeUserOpCallDataAndGasLimitBatch (detailsForUserOp: BatchTransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
+    function parseNumber (a: any): BigNumber | null {
+      if (a == null || a === '') return null
+      return BigNumber.from(a.toString())
+    }
+    
+    const callData = await this.encodeExecuteBatch(detailsForUserOp.dest, detailsForUserOp.data)
+
+    const callGasLimit = parseNumber(detailsForUserOp.gasLimit) ?? await this.provider.estimateGas({
+      from: this.entryPointAddress,
+      to: this.getAccountAddress(),
+      data: callData
+    })
+
+    return {
+      callData,
+      callGasLimit
+    }
   }
 
   async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
@@ -281,6 +308,66 @@ export abstract class BaseAccountAPI {
   }
 
   /**
+   * create a UserOperation for a batch transaction, filling all details (except signature)
+   * - if account is not yet created, add initCode to deploy it.
+   * - if gas or nonce are missing, read them from the chain (note that we can't fill gaslimit before the account is created)
+   * @param info
+   */
+  async createUnsignedUserOpBatch (info: BatchTransactionDetailsForUserOp): Promise<UserOperationStruct> {
+    const {
+      callData,
+      callGasLimit
+    } = await this.encodeUserOpCallDataAndGasLimitBatch(info)
+    const initCode = await this.getInitCode()
+
+    const initGas = await this.estimateCreationGas(initCode)
+    const verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
+      .add(initGas)
+
+    let {
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    } = info
+    if (maxFeePerGas == null || maxPriorityFeePerGas == null) {
+      const feeData = await this.provider.getFeeData()
+      if (maxFeePerGas == null) {
+        maxFeePerGas = feeData.maxFeePerGas ?? undefined
+      }
+      if (maxPriorityFeePerGas == null) {
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? undefined
+      }
+    }
+
+    const partialUserOp: any = {
+      sender: this.getAccountAddress(),
+      nonce: this.getNonce(),
+      initCode,
+      callData,
+      callGasLimit,
+      verificationGasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      paymasterAndData: '0x'
+    }
+
+    let paymasterAndData: string | undefined
+    if (this.paymasterAPI != null) {
+      // fill (partial) preVerificationGas (all except the cost of the generated paymasterAndData)
+      const userOpForPm = {
+        ...partialUserOp,
+        preVerificationGas: await this.getPreVerificationGas(partialUserOp)
+      }
+      paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm)
+    }
+    partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
+    return {
+      ...partialUserOp,
+      preVerificationGas: this.getPreVerificationGas(partialUserOp),
+      signature: ''
+    }
+  }
+
+  /**
    * Sign the filled userOp.
    * @param userOp the UserOperation to sign (with signature field ignored)
    */
@@ -300,6 +387,14 @@ export abstract class BaseAccountAPI {
   async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
     return await this.signUserOp(await this.createUnsignedUserOp(info))
   }
+
+    /**
+   * helper method: create and sign a user operation for a batch transaction.
+   * @param info transaction details for the userOp
+   */
+    async createSignedUserOpBatch (info: BatchTransactionDetailsForUserOp): Promise<UserOperationStruct> {
+      return await this.signUserOp(await this.createUnsignedUserOpBatch(info))
+    }
 
   /**
    * get the transaction that has this userOpHash mined, or null if not found

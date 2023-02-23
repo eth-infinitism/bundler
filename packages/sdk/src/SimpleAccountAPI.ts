@@ -99,6 +99,21 @@ export class SimpleAccountAPI extends BaseAccountAPI {
       ])
   }
 
+    /**
+   * encode batched method calls from entryPoint to our contract
+   * @param dest
+   * @param data
+   */
+  async encodeExecuteBatch (dest: string[], data: string[]): Promise<string> {
+    const accountContract = await this._getAccountContract()
+    return accountContract.interface.encodeFunctionData(
+      'executeBatch',
+      [
+        dest, 
+        data
+      ])
+  }
+
   async signUserOpHash (userOpHash: string): Promise<string> {
     return await this.owner.signMessage(arrayify(userOpHash))
   }

@@ -22,6 +22,7 @@ describe('SimpleAccountAPI', () => {
   let entryPoint: EntryPoint
   let beneficiary: string
   let recipient: SampleRecipient
+  let recipient2: SampleRecipient
   let accountAddress: string
   let accountDeployed = false
 
@@ -30,6 +31,7 @@ describe('SimpleAccountAPI', () => {
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()
+    recipient2 = await new SampleRecipient__factory(signer).deploy()
     owner = Wallet.createRandom()
     DeterministicDeployer.init(ethers.provider)
     const factoryAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
@@ -124,6 +126,26 @@ describe('SimpleAccountAPI', () => {
       data: recipient.interface.encodeFunctionData('something', ['world'])
     })
     await expect(entryPoint.handleOps([op1], beneficiary)).to.emit(recipient, 'Sender')
+      .withArgs(anyValue, accountAddress, 'world')
+  })
+  it('should use account API to batched transactions', async function () {
+    if (!accountDeployed) {
+      this.skip()
+    }
+    const api1 = new SimpleAccountAPI({
+      provider,
+      entryPointAddress: entryPoint.address,
+      accountAddress,
+      owner
+    })
+
+    const op1 = await api1.createSignedUserOpBatch({
+      dest: [recipient.address, recipient2.address],
+      data: [recipient.interface.encodeFunctionData('something', ['hello']), recipient2.interface.encodeFunctionData('something', ['world'])]
+    })
+    await expect(entryPoint.handleOps([op1], beneficiary)).to.emit(recipient, 'Sender')
+      .withArgs(anyValue, accountAddress, 'hello')
+      .and.to.emit(recipient2, 'Sender')
       .withArgs(anyValue, accountAddress, 'world')
   })
 })
