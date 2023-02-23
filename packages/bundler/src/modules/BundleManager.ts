@@ -5,7 +5,6 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
-import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
 import { StorageMap, UserOperation } from './Types'
@@ -119,19 +118,20 @@ export class BundleManager {
         return
       }
       const {
-        opIndex:index,
+        opIndex,
         reason
       } = parsedError.args
-      const userOp = userOps[index]
-      if (typeof reason == 'string' && reason.startsWith('AA3')) {
+      const userOp = userOps[opIndex]
+      const reasonStr: string = reason.toString()
+      if (reasonStr.startsWith('AA3')) {
         this.reputationManager.crashedHandleOps(getAddr(userOp.paymasterAndData))
-      } else if (typeof reason == 'string' && reason.startsWith('AA2')) {
+      } else if (reasonStr.startsWith('AA2')) {
         this.reputationManager.crashedHandleOps(userOp.sender)
-      } else if (typeof reason === 'string' && reason.startsWith('AA1')) {
+      } else if (reasonStr.startsWith('AA1')) {
         this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
       } else {
         this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reason}`)
+        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
       }
     }
   }

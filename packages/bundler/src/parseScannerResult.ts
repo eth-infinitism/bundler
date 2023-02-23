@@ -40,7 +40,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
     ...TestStorageAccount__factory.abi,
     ...SenderCreator__factory.abi,
     ...IEntryPoint__factory.abi,
-    ...IPaymaster__factory.abi,
+    ...IPaymaster__factory.abi
   ].reduce((set, entry) => {
     const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
     // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
