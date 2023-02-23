@@ -31,11 +31,14 @@ export interface UserOpResult {
  * - getAccountInitCode - return the value to put into the "initCode" field, if the account is not yet deployed. should create the account instance using a factory contract.
  * - getNonce - return current account's nonce value
  * - encodeExecute - encode the call from entryPoint through our account to the target contract.
+ * - encodeExecuteBatch - encode the batched call from entryPoint through our account to the target contract.
  * - signUserOpHash - sign the hash of a UserOp.
  *
  * The user can use the following APIs:
  * - createUnsignedUserOp - given "target" and "calldata", fill userOp to perform that operation from the account.
  * - createSignedUserOp - helper to call the above createUnsignedUserOp, and then extract the userOpHash and sign it
+ * - createUnsignedUserOpBatch - given "dest" and "data", fill userOp to perform that operation from the account.
+ * - createSignedUserOpBatch - helper to call the above createUnsignedUserOpBatch, and then extract the userOpHash and sign it
  */
 export abstract class BaseAccountAPI {
   private senderAddress!: string
