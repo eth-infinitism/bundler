@@ -52,6 +52,7 @@ export class EventsManager {
         this.handleAggregatorChangedEvent(ev as any)
         break
     }
+    this.lastBlock = ev.blockNumber + 1
   }
 
   handleAggregatorChangedEvent (ev: SignatureAggregatorChangedEvent): void {
