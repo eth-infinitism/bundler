@@ -53,6 +53,12 @@ export async function waitFor<T> (func: () => T | undefined, timeout = 10000, in
   }
 }
 
+export async function supportsRpcMethod (provider: JsonRpcProvider, method: string): Promise<boolean> {
+  const ret = await provider.send(method, []).catch(e => e)
+  const code = ret.error?.code ?? ret.code
+  return code === -32602 // wrong params (meaning, method exists)
+}
+
 export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
@@ -60,13 +66,8 @@ export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
   }
 
   // check if we have traceCall
-  const ret = await provider.send('debug_traceCall', []).catch(e => e)
-
-  const code = ret.error?.code ?? ret.code
-  // console.log('code=', code, ret)
   // its GETH if it has debug_traceCall method.
-  return code === -32602 // wrong params (meaning, method exists)
-
+  return await supportsRpcMethod(provider, 'debug_traceCall')
   // debug('client version', p._clientVersion)
   // return p._clientVersion?.match('go1') != null
 }

@@ -10,6 +10,7 @@ import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
 import { StorageMap, UserOperation } from './Types'
 import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
+import { EventsManager } from './EventsManager'
 
 const debug = Debug('aa.exec.cron')
 
@@ -25,6 +26,7 @@ export class BundleManager {
 
   constructor (
     readonly entryPoint: EntryPoint,
+    readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
@@ -49,6 +51,9 @@ export class BundleManager {
     return await this.mutex.runExclusive(async () => {
       debug('sendNextBundle')
 
+      // first flush mempool from already-included UserOps, by actively scanning past events.
+      await this.handlePastEvents()
+
       const [bundle, storageMap] = await this.createBundle()
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
@@ -59,6 +64,10 @@ export class BundleManager {
         return ret
       }
     })
+  }
+
+  async handlePastEvents (): Promise<void> {
+    await this.eventsManager.handlePastEvents()
   }
 
   /**
@@ -93,7 +102,6 @@ export class BundleManager {
       // TODO: parse ret, and revert if needed.
       debug('ret=', ret)
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
-      this.mempoolManager.removeAllUserOps(userOps)
       // hashes are needed for debug rpc only.
       const hashes = await this.getUserOpHashes(userOps)
       return {

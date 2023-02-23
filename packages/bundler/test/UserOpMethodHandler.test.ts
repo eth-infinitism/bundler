@@ -28,6 +28,7 @@ import { isGeth, waitFor } from '../src/utils'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
+import { EventsManager } from '../src/modules/EventsManager'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -37,6 +38,7 @@ describe('UserOpMethodHandler', function () {
   let provider: BaseProvider
   let signer: Signer
   const accountSigner = Wallet.createRandom()
+  let mempoolMgr: MempoolManager
 
   let entryPoint: EntryPoint
   let sampleRecipient: SampleRecipient
@@ -72,9 +74,10 @@ describe('UserOpMethodHandler', function () {
     }
 
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
-    const mempoolMgr = new MempoolManager(repMgr)
+    mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
-    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+    const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
       execManager,

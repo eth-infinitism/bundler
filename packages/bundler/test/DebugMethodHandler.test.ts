@@ -11,10 +11,11 @@ import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { EntryPoint, EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
-import { Wallet } from 'ethers'
+import { Signer, Wallet } from 'ethers'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { expect } from 'chai'
 import { createSigner } from './testUtils'
+import { EventsManager } from '../src/modules/EventsManager'
 
 const provider = ethers.provider
 
@@ -53,7 +54,8 @@ describe('#DebugMethodHandler', () => {
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
-    const bundleMgr = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr,
+    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    const bundleMgr = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
@@ -64,7 +66,7 @@ describe('#DebugMethodHandler', () => {
       entryPoint
     )
 
-    debugMethodHandler = new DebugMethodHandler(execManager, repMgr, mempoolMgr)
+    debugMethodHandler = new DebugMethodHandler(execManager, eventsManager, repMgr, mempoolMgr)
 
     DeterministicDeployer.init(ethers.provider)
     const accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
