@@ -17,6 +17,8 @@
     "hardhat-node-with-deploy": "npx hardhat node",
     "hardhat-deploy": "hardhat deploy",
     "hardhat-test": "hardhat test",
+    "local:node": "npx hardhat node",
+    "local:bundler": "yarn bundler --unsafe",
     "lint": "eslint -f unix .",
     "lint-fix": "eslint -f unix . --fix",
     "tsc": "tsc",
