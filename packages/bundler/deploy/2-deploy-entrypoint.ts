@@ -21,6 +21,11 @@ const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment)
 
   await dep.deterministicDeploy(EntryPoint__factory.bytecode)
   console.log('Deployed EntryPoint at', epAddr)
+
+  const SimpleAccountFactory = await hre.ethers.getContractFactory('SimpleAccountFactory')
+  const safAddr = DeterministicDeployer.getAddress(SimpleAccountFactory, 0, [epAddr])
+  await dep.deterministicDeploy(SimpleAccountFactory, 0, [epAddr])
+  console.log('Deployed SimpleAccountFactory at', safAddr)
 }
 
 export default deployEP
