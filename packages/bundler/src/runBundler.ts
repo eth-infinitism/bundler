@@ -69,16 +69,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
-    .option('--createMnemonic', 'create the mnemonic file')
+    .option('--createMnemonic <file>', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
 
   console.log('command-line arguments: ', program.opts())
 
-  const { config, provider, wallet } = await resolveConfiguration(programOpts)
   if (programOpts.createMnemonic != null) {
-    const mnemonicFile = config.mnemonic
+    const mnemonicFile = programOpts.createMnemonic
     console.log('Creating mnemonic in file', mnemonicFile)
     if (fs.existsSync(mnemonicFile)) {
       throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
@@ -88,6 +87,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.log('created mnemonic file', mnemonicFile)
     process.exit(1)
   }
+  const { config, provider, wallet } = await resolveConfiguration(programOpts)
 
   const {
     // name: chainName,
