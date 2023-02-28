@@ -13,6 +13,7 @@ import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
+import { bundlerConfigDefault } from './BundlerConfig'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -58,12 +59,12 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   program
     .version(erc4337RuntimeVersion)
     .option('--beneficiary <string>', 'address to receive funds')
-    .option('--gasFactor <number>', '', '1')
+    .option('--gasFactor <number>')
     .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-    .option('--port <number>', 'server listening port', '3000')
+    .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
@@ -77,7 +78,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   console.log('command-line arguments: ', program.opts())
 
   if (programOpts.createMnemonic != null) {
-    const mnemonicFile = programOpts.createMnemonic
+    const mnemonicFile: string = programOpts.createMnemonic
     console.log('Creating mnemonic in file', mnemonicFile)
     if (fs.existsSync(mnemonicFile)) {
       throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
