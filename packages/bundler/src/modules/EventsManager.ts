@@ -12,7 +12,7 @@ const debug = Debug('aa.events')
  * listen to events. trigger ReputationManager's Included
  */
 export class EventsManager {
-  lastBlock = 0
+  lastBlock?: number
 
   constructor (
     readonly entryPoint: EntryPoint,
@@ -34,7 +34,8 @@ export class EventsManager {
    * process all new events since last run
    */
   async handlePastEvents (): Promise<void> {
-    const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, this.lastBlock)
+    const fromBlock = this.lastBlock ?? Math.max(1, await this.entryPoint.provider.getBlockNumber() - 1000)
+    const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, fromBlock)
     for (const ev of events) {
       this.handleEvent(ev)
     }

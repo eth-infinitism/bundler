@@ -16,7 +16,7 @@ import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0x1306b01bc3e4ad202612d3843387e94737673f53'
+const ENTRY_POINT = '0x0576a174D229E3cFA37253523E645A78A0C91B57'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
@@ -54,7 +54,7 @@ class Runner {
         console.log(`AccountDeployer not deployed at ${accountDeployer}. run with --deployFactory`)
         process.exit(1)
       }
-      const dep1 = new DeterministicDeployer(deploymentSigner.provider as any)
+      const dep1 = new DeterministicDeployer(deploymentSigner.provider as any, deploymentSigner)
       await dep1.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
@@ -104,6 +104,7 @@ async function main (): Promise<void> {
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account (to fund account)')
     .option('--bundlerUrl <url>', 'bundler URL', 'http://localhost:3000/rpc')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract', ENTRY_POINT)
+    .option('--nonce <number>', 'account creation nonce. default to random (deploy new account)')
     .option('--deployFactory', 'Deploy the "account deployer" on this network (default for testnet)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--selfBundler', 'run bundler in-process (for debugging the bundler)')
@@ -153,7 +154,7 @@ async function main (): Promise<void> {
   }
   const accountOwner = new Wallet('0x'.padEnd(66, '7'))
 
-  const index = Date.now()
+  const index = opts.nonce ?? Date.now()
   const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployFactory ? signer : undefined)
 
   const addr = await client.getAddress()
@@ -169,7 +170,7 @@ async function main (): Promise<void> {
   const bal = await getBalance(addr)
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   // TODO: actual required val
-  const requiredBalance = parseEther('0.5')
+  const requiredBalance = parseEther('0.1')
   if (bal.lt(requiredBalance.div(2))) {
     console.log('funding account to', requiredBalance)
     await signer.sendTransaction({

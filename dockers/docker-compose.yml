@@ -42,7 +42,7 @@ services:
   bundler:
     container_name:   bundler
     ports: [ '3000:3000' ]
-    image: accountabstraction/bundler:0.4.0
+    image: accountabstraction/bundler:0.5.0
     restart: on-failure
 
     volumes:
