@@ -1,3 +1,3 @@
 describe('BundleServer', function () {
-  it('preflightCheck')
+  // it('preflightCheck')
 })

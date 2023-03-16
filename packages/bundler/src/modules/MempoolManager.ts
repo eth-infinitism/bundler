@@ -1,14 +1,15 @@
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, UserOperation } from './moduleUtils'
+import { getAddr } from './moduleUtils'
 import { requireCond } from '../utils'
-import { ReferencedCodeHashes, StakeInfo, ValidationErrors } from './ValidationManager'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
+import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
 
 const debug = Debug('aa.mempool')
 
 export interface MempoolEntry {
   userOp: UserOperation
+  userOpHash: string
   prefund: BigNumberish
   referencedContracts: ReferencedCodeHashes
   // aggregator, if one was found during simulation
@@ -36,14 +37,15 @@ export class MempoolManager {
   // add userOp into the mempool, after initial validation.
   // replace existing, if any (and if new gas is higher)
   // revets if unable to add UserOp to mempool (too many UserOps with this sender)
-  addUserOp (userOp: UserOperation, prefund: BigNumberish, senderInfo: StakeInfo, referencedContracts: ReferencedCodeHashes, aggregator?: string): void {
+  addUserOp (userOp: UserOperation, userOpHash: string, prefund: BigNumberish, senderInfo: StakeInfo, referencedContracts: ReferencedCodeHashes, aggregator?: string): void {
     const entry: MempoolEntry = {
       userOp,
+      userOpHash,
       prefund,
       referencedContracts,
       aggregator
     }
-    const index = this._find(userOp)
+    const index = this._findBySenderNonce(userOp.sender, userOp.nonce)
     if (index !== -1) {
       const oldEntry = this.mempool[index]
       this.checkReplaceUserOp(oldEntry, entry)
@@ -75,11 +77,15 @@ export class MempoolManager {
   }
 
   private checkReplaceUserOp (oldEntry: MempoolEntry, entry: MempoolEntry): void {
-    const oldGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
-    const newGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
+    const oldMaxPriorityFeePerGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
+    const newMaxPriorityFeePerGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
+    const oldMaxFeePerGas = BigNumber.from(oldEntry.userOp.maxFeePerGas).toNumber()
+    const newMaxFeePerGas = BigNumber.from(entry.userOp.maxFeePerGas).toNumber()
     // the error is "invalid fields", even though it is detected only after validation
-    requireCond(newGas > oldGas * 1.1,
-      'Replacement UserOperation must have higher gas', ValidationErrors.InvalidFields)
+    requireCond(newMaxPriorityFeePerGas >= oldMaxPriorityFeePerGas * 1.1,
+      `Replacement UserOperation must have higher maxPriorityFeePerGas (old=${oldMaxPriorityFeePerGas} new=${newMaxPriorityFeePerGas}) `, ValidationErrors.InvalidFields)
+    requireCond(newMaxFeePerGas >= oldMaxFeePerGas * 1.1,
+      `Replacement UserOperation must have higher maxFeePerGas (old=${oldMaxFeePerGas} new=${newMaxFeePerGas}) `, ValidationErrors.InvalidFields)
   }
 
   getSortedForInclusion (): MempoolEntry[] {
@@ -94,10 +100,20 @@ export class MempoolManager {
     return copy
   }
 
-  _find (userOp: UserOperation): number {
+  _findBySenderNonce (sender: string, nonce: BigNumberish): number {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
-      if (curOp.sender === userOp.sender && curOp.nonce === userOp.nonce) {
+      if (curOp.sender === sender && curOp.nonce === nonce) {
+        return i
+      }
+    }
+    return -1
+  }
+
+  _findByHash (hash: string): number {
+    for (let i = 0; i < this.mempool.length; i++) {
+      const curOp = this.mempool[i]
+      if (curOp.userOpHash === hash) {
         return i
       }
     }
@@ -106,11 +122,17 @@ export class MempoolManager {
 
   /**
    * remove UserOp from mempool. either it is invalid, or was included in a block
-   * @param userOp
+   * @param userOpOrHash
    */
-  removeUserOp (userOp: UserOperation): void {
-    const index = this._find(userOp)
+  removeUserOp (userOpOrHash: UserOperation | string): void {
+    let index: number
+    if (typeof userOpOrHash === 'string') {
+      index = this._findByHash(userOpOrHash)
+    } else {
+      index = this._findBySenderNonce(userOpOrHash.sender, userOpOrHash.nonce)
+    }
     if (index !== -1) {
+      const userOp = this.mempool[index].userOp
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
       const count = (this.entryCount[userOp.sender] ?? 0) - 1
@@ -120,14 +142,6 @@ export class MempoolManager {
       } else {
         this.entryCount[userOp.sender] = count
       }
-    }
-  }
-
-  removeAllUserOps (userOps: UserOperation[]): void {
-    // todo: removing (almost) all userOps from mempool. might use better way than finding and slicing
-    // each one separately...
-    for (const userOp of userOps) {
-      this.removeUserOp(userOp)
     }
   }
 

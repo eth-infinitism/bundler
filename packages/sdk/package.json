@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -17,8 +17,8 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.4.0",
-    "@account-abstraction/utils": "^0.4.0",
+    "@account-abstraction/contracts": "^0.5.0",
+    "@account-abstraction/utils": "^0.5.0",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",

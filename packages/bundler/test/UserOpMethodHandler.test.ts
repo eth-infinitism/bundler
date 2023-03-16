@@ -1,9 +1,6 @@
-import { BaseProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { BaseProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
-import { ethers } from 'hardhat'
-import { parseEther, resolveProperties } from 'ethers/lib/utils'
-
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { formatEther, parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { BundlerConfig } from '../src/BundlerConfig'
 import {
@@ -13,11 +10,11 @@ import {
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
-import { Wallet } from 'ethers'
+import { Signer, Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
-  SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory, BundlerHelper__factory
+  SampleRecipient, TestRuleAccount, TestOpcodesAccount__factory
 } from '../src/types'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
@@ -28,6 +25,10 @@ import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { isGeth, waitFor } from '../src/utils'
+import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { ethers } from 'hardhat'
+import { createSigner } from './testUtils'
+import { EventsManager } from '../src/modules/EventsManager'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -35,22 +36,21 @@ describe('UserOpMethodHandler', function () {
   let accountDeployerAddress: string
   let methodHandler: UserOpMethodHandler
   let provider: BaseProvider
-  let signer: JsonRpcSigner
+  let signer: Signer
   const accountSigner = Wallet.createRandom()
+  let mempoolMgr: MempoolManager
 
   let entryPoint: EntryPoint
   let sampleRecipient: SampleRecipient
 
   before(async function () {
     provider = ethers.provider
-    signer = ethers.provider.getSigner()
+
+    signer = await createSigner()
     entryPoint = await new EntryPoint__factory(signer).deploy()
 
     DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
-    const bundlerHelperAddress = await DeterministicDeployer.deploy(new BundlerHelper__factory(), 0, [])
-
-    const bundlerHelper = BundlerHelper__factory.connect(bundlerHelperAddress, ethers.provider)
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
     sampleRecipient = await sampleRecipientFactory.deploy()
@@ -58,13 +58,13 @@ describe('UserOpMethodHandler', function () {
     const config: BundlerConfig = {
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
-      bundlerHelper: bundlerHelperAddress,
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',
       network: '',
       port: '3000',
       unsafe: !await isGeth(provider as any),
+      conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
@@ -74,9 +74,10 @@ describe('UserOpMethodHandler', function () {
     }
 
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
-    const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, bundlerHelper, repMgr, config.unsafe)
-    const bundleMgr = new BundleManager(entryPoint, bundlerHelper, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    mempoolMgr = new MempoolManager(repMgr)
+    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
+    const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
     methodHandler = new UserOpMethodHandler(
       execManager,
@@ -139,6 +140,8 @@ describe('UserOpMethodHandler', function () {
         factoryAddress: accountDeployerAddress
       })
       accountAddress = await smartAccountAPI.getAccountAddress()
+      console.log('signer addr=', await signer.getAddress())
+      console.log('signer bal=', formatEther(await signer.getBalance()))
       await signer.sendTransaction({
         to: accountAddress,
         value: parseEther('1')

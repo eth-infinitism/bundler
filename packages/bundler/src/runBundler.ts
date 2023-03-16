@@ -11,8 +11,9 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
-import { isGeth } from './utils'
+import { isGeth, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
+import { bundlerConfigDefault } from './BundlerConfig'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -58,25 +59,26 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   program
     .version(erc4337RuntimeVersion)
     .option('--beneficiary <string>', 'address to receive funds')
-    .option('--gasFactor <number>', '', '1')
+    .option('--gasFactor <number>')
     .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-    .option('--port <number>', 'server listening port', '3000')
-    .option('--config <string>', 'path to config file)', CONFIG_FILE_NAME)
+    .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
+    .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
+    .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
+    .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
-    .option('--createMnemonic', 'create the mnemonic file')
+    .option('--createMnemonic <file>', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
 
   console.log('command-line arguments: ', program.opts())
 
-  const { config, provider, wallet } = await resolveConfiguration(programOpts)
   if (programOpts.createMnemonic != null) {
-    const mnemonicFile = config.mnemonic
+    const mnemonicFile: string = programOpts.createMnemonic
     console.log('Creating mnemonic in file', mnemonicFile)
     if (fs.existsSync(mnemonicFile)) {
       throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
@@ -86,6 +88,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.log('created mnemonic file', mnemonicFile)
     process.exit(1)
   }
+  const { config, provider, wallet } = await resolveConfiguration(programOpts)
 
   const {
     // name: chainName,
@@ -96,6 +99,10 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
   }
 
+  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional')) {
+    console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
+    process.exit(1)
+  }
   if (!config.unsafe && !await isGeth(provider as any)) {
     console.error('FATAL: full validation requires GETH. for local UNSAFE mode: use --unsafe')
     process.exit(1)
@@ -107,8 +114,12 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
-    ...config,
-    autoBundleMempoolSize: 1
+    ...config
+    // autoBundleMempoolSize: 0
+  }
+  if (programOpts.auto === true) {
+    execManagerConfig.autoBundleMempoolSize = 0
+    execManagerConfig.autoBundleInterval = 0
   }
 
   const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
@@ -120,7 +131,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   )
   eventsManager.initEventListener()
-  const debugHandler = new DebugMethodHandler(execManager, reputationManager, mempoolManager)
+  const debugHandler = new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
 
   const bundlerServer = new BundlerServer(
     methodHandler,
@@ -131,6 +142,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   )
 
   void bundlerServer.asyncStart().then(async () => {
+    console.log('Bundle interval (seconds)', execManagerConfig.autoBundleInterval)
     console.log('connected to network', await provider.getNetwork().then(net => {
       return {
         name: net.name,

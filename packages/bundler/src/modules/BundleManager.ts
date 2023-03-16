@@ -1,14 +1,16 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
-import { ValidationManager, ValidationResult } from './ValidationManager'
+import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import { getAddr, UserOperation } from './moduleUtils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
-import { AddressZero } from '@account-abstraction/utils'
 import { Mutex } from 'async-mutex'
-import { BundlerHelper } from '../types'
+import { GetUserOpHashes__factory } from '../types'
+import { StorageMap, UserOperation } from './Types'
+import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
+import { EventsManager } from './EventsManager'
+import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 
 const debug = Debug('aa.exec.cron')
 
@@ -24,13 +26,17 @@ export class BundleManager {
 
   constructor (
     readonly entryPoint: EntryPoint,
-    readonly bundlerHelper: BundlerHelper,
+    readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
-    readonly maxBundleGas: number
+    readonly maxBundleGas: number,
+    // use eth_sendRawTransactionConditional with storage map
+    readonly conditionalRpc: boolean,
+    // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
+    readonly mergeToAccountRootHash: boolean = false
   ) {
     this.provider = entryPoint.provider as JsonRpcProvider
     this.signer = entryPoint.signer as JsonRpcSigner
@@ -45,16 +51,23 @@ export class BundleManager {
     return await this.mutex.runExclusive(async () => {
       debug('sendNextBundle')
 
-      const bundle = await this.createBundle()
+      // first flush mempool from already-included UserOps, by actively scanning past events.
+      await this.handlePastEvents()
+
+      const [bundle, storageMap] = await this.createBundle()
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle, beneficiary)
+        const ret = await this.sendBundle(bundle, beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
     })
+  }
+
+  async handlePastEvents (): Promise<void> {
+    await this.eventsManager.handlePastEvents()
   }
 
   /**
@@ -62,41 +75,76 @@ export class BundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string): Promise<SendBundleReturn | undefined> {
+  async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
-      const ret = await this.entryPoint.handleOps(userOps, beneficiary)
+      const feeData = await this.provider.getFeeData()
+      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
+        type: 2,
+        nonce: await this.signer.getTransactionCount(),
+        gasLimit: 10e6,
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
+        maxFeePerGas: feeData.maxFeePerGas ?? 0
+      })
+      tx.chainId = this.provider._network.chainId
+      const signedTx = await this.signer.signTransaction(tx)
+      let ret: string
+      if (this.conditionalRpc) {
+        debug('eth_sendRawTransactionConditional', storageMap)
+        ret = await this.provider.send('eth_sendRawTransactionConditional', [
+          signedTx, { knownAccounts: storageMap }
+        ])
+        debug('eth_sendRawTransactionConditional ret=', ret)
+      } else {
+        // ret = await this.signer.sendTransaction(tx)
+        ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+        debug('eth_sendRawTransaction ret=', ret)
+      }
+      // TODO: parse ret, and revert if needed.
+      debug('ret=', ret)
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
-      this.mempoolManager.removeAllUserOps(userOps)
       // hashes are needed for debug rpc only.
-      const hashes = await this.bundlerHelper.getUserOpHashes(this.entryPoint.address, userOps)
+      const hashes = await this.getUserOpHashes(userOps)
       return {
-        transactionHash: ret.hash,
+        transactionHash: ret,
         userOpHashes: hashes
       }
     } catch (e: any) {
-      // failed to handleOp. use FailedOp to detect by
-      if (e.errorName !== 'FailedOp') {
+      let parsedError: ErrorDescription
+      try {
+        parsedError = this.entryPoint.interface.parseError((e.data?.data ?? e.data))
+      } catch (e1) {
+        this.checkFatal(e)
         console.warn('Failed handleOps, but non-FailedOp error', e)
         return
       }
       const {
-        index,
-        paymaster,
+        opIndex,
         reason
-      } = e.errorArgs
-      const userOp = userOps[index]
-      if (paymaster !== AddressZero) {
-        this.reputationManager.crashedHandleOps(paymaster)
-      } else if (typeof reason === 'string' && reason.startsWith('AA1')) {
+      } = parsedError.args
+      const userOp = userOps[opIndex]
+      const reasonStr: string = reason.toString()
+      if (reasonStr.startsWith('AA3')) {
+        this.reputationManager.crashedHandleOps(getAddr(userOp.paymasterAndData))
+      } else if (reasonStr.startsWith('AA2')) {
+        this.reputationManager.crashedHandleOps(userOp.sender)
+      } else if (reasonStr.startsWith('AA1')) {
         this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
       } else {
         this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender}`)
+        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
       }
     }
   }
 
-  async createBundle (): Promise<UserOperation[]> {
+  // fatal errors we know we can't recover
+  checkFatal (e: any): void {
+    // console.log('ex entries=',Object.entries(e))
+    if (e.error?.code === -32601) {
+      throw e
+    }
+  }
+
+  async createBundle (): Promise<[UserOperation[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: UserOperation[] = []
 
@@ -107,6 +155,7 @@ export class BundleManager {
     // each sender is allowed only once per bundle
     const senders = new Set<string>()
 
+    const storageMap: StorageMap = {}
     let totalGas = BigNumber.from(0)
     debug('got mempool of ', entries.length)
     for (const entry of entries) {
@@ -131,7 +180,7 @@ export class BundleManager {
         // allow only a single UserOp per sender per bundle
         continue
       }
-      let validationResult: ValidationResult
+      let validationResult: ValidateUserOpResult
       try {
         // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
         validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
@@ -165,11 +214,19 @@ export class BundleManager {
       if (factory != null) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
+
+      // If sender's account already exist: replace with its storage root hash
+      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
+        const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
+        storageMap[entry.userOp.sender.toLowerCase()] = storageHash
+      }
+      mergeStorageMap(storageMap, validationResult.storageMap)
+
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas
     }
-    return bundle
+    return [bundle, storageMap]
   }
 
   /**
@@ -185,5 +242,14 @@ export class BundleManager {
       console.log('low balance. using ', beneficiary, 'as beneficiary instead of ', this.beneficiary)
     }
     return beneficiary
+  }
+
+  // helper function to get hashes of all UserOps
+  async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
+    const { userOpHashes } = await runContractScript(this.entryPoint.provider,
+      new GetUserOpHashes__factory(),
+      [this.entryPoint.address, userOps])
+
+    return userOpHashes
   }
 }

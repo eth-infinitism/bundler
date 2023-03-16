@@ -9,7 +9,7 @@ export async function postExecutionDump (entryPoint: EntryPoint, userOpHash: str
   const { gasPaid, gasUsed, success, userOp } = await postExecutionCheck(entryPoint, userOpHash)
   /// / debug dump:
   debug('==== used=', gasUsed, 'paid', gasPaid, 'over=', gasPaid - gasUsed,
-    'callLen=', userOp.callData.length, 'initLen=', userOp.initCode.length, success ? 'success' : 'failed')
+    'callLen=', userOp?.callData?.length, 'initLen=', userOp?.initCode?.length, success ? 'success' : 'failed')
 }
 
 /**
