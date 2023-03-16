@@ -29,13 +29,12 @@ docker run --rm -ti --name geth -p 8545:8545 ethereum/client-go:v1.10.26 \
 ### Usage: 
 1. run `yarn && yarn preprocess`
 2. deploy contracts with `yarn hardhat-deploy --network localhost`
-3. update `ENTRY_POINT` variable at `packages/bundler/src/runner/runop.ts` to address of the deployed EntryPoint contract 
-4. run `yarn run bundler`
+3. run `yarn run bundler`
     (or `yarn run bundler --unsafe`, if working with "hardhat node")
 
 Now your bundler is active on local url http://localhost:3000/rpc    
 
-To run a simple test, do `yarn run runop --deployFactory --network http://localhost:8545/`
+To run a simple test, do `yarn run runop --deployFactory --network http://localhost:8545/ --entryPoint 0x0576a174d229e3cfa37253523e645a78a0c91b57`
 
    The runop script:
    - deploys a wallet deployer (if not already there)
