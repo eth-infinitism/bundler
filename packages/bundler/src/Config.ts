@@ -41,7 +41,11 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
   let wallet: Wallet
   try {
     mnemonic = fs.readFileSync(config.mnemonic, 'ascii').trim()
-    wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+    try {
+      wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+    } catch (e: any) {
+      wallet = new Wallet(mnemonic).connect(provider)
+    }
   } catch (e: any) {
     throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
   }
