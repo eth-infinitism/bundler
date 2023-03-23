@@ -48,14 +48,22 @@ function modifyTx(tx: TransactionRequest): TransactionRequestModified {
     accessList: tx.accessList,
     maxPriorityFeePerGas: tx.maxPriorityFeePerGas?.toString(),
     maxFeePerGas: tx.maxFeePerGas?.toString(),
-
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
+  const anvilProvider = new JsonRpcProvider("http://localhost:8546")
+  const url = provider.connection.url;
+  const blockNumber = await provider.getBlockNumber();
+  await anvilProvider.send('anvil_reset', [{
+    forking: {
+      jsonRpcUrl: url,
+      blockNumber: blockNumber,
+    }  
+  }])
   const tx1 = modifyTx(await resolveProperties(tx));
-  const ret = await provider.send('debug_traceCall', [tx1, 'latest', {
+  const ret = await anvilProvider.send('debug_traceCall', [tx1, 'latest', {
     enableMemory: true,
     disableStack: false,
     disableStorage: false,
