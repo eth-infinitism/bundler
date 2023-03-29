@@ -34,8 +34,10 @@ export class EventsManager {
    * process all new events since last run
    */
   async handlePastEvents (): Promise<void> {
-    const fromBlock = this.lastBlock ?? Math.max(1, await this.entryPoint.provider.getBlockNumber() - 1000)
-    const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, fromBlock)
+    if (this.lastBlock === undefined) {
+      this.lastBlock = Math.max(1, await this.entryPoint.provider.getBlockNumber() - 1000)
+    }
+    const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, this.lastBlock)
     for (const ev of events) {
       this.handleEvent(ev)
     }

@@ -69,7 +69,7 @@ export class ExecutionManager {
     this.autoInterval = autoBundleInterval
     if (autoBundleInterval !== 0) {
       this.autoBundleInterval = setInterval(() => {
-        void this.attemptBundle(true)
+        void this.attemptBundle(true).catch(e => console.error('auto-bundle failed', e))
       }, autoBundleInterval * 1000)
     }
     this.maxMempoolSize = maxMempoolSize
