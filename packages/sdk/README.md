@@ -14,7 +14,7 @@ An abstract base-class to create UserOperation for a contract wallet.
 
 ### SimpleAccountAPI
 
-An implementation of the BaseWalletAPi, for the SimpleWallet sample of account-abstraction.
+An implementation of the BaseWalletAPI, for the SimpleWallet sample of account-abstraction.
 
 ```typescript
 owner = provider.getSigner()
