@@ -1,6 +1,6 @@
 import { BaseProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
-import { formatEther, parseEther, resolveProperties } from 'ethers/lib/utils'
+import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { BundlerConfig } from '../src/BundlerConfig'
 import {
@@ -15,9 +15,6 @@ import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sd
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
   SampleRecipient,
-  TestRuleAccount,
-  TestOpcodesAccount__factory,
-  TestRuleAccount__factory,
   TestRulesAccount,
   TestRulesAccount__factory
 } from '../src/types'
@@ -180,7 +177,6 @@ describe('UserOpMethodHandler', function () {
       const expectedTxOrigin = await methodHandler.signer.getAddress()
       assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
       assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')
-
     })
 
     it('getUserOperationByHash should return submitted UserOp', async () => {
@@ -342,7 +338,7 @@ describe('UserOpMethodHandler', function () {
       const logs = receipt.receipt.logs
         .filter(log => log.address !== '0x0000000000000000000000000000000000001010')
       const eventNames = logs
-        //.filter(l => l.address == entryPoint.address)
+        // .filter(l => l.address == entryPoint.address)
         .map(l => {
           try {
             return entryPoint.interface.parseLog(l)

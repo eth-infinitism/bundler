@@ -8,7 +8,7 @@
 import { BigNumber, getDefaultProvider, Signer, Wallet } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { SimpleAccountFactory__factory } from '@account-abstraction/contracts'
-import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
+import { formatEther, formatUnits, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'
@@ -155,6 +155,7 @@ async function main (): Promise<void> {
   const accountOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const index = opts.nonce ?? Date.now()
+  console.log('using account index=', index)
   const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployFactory ? signer : undefined)
 
   const addr = await client.getAddress()
@@ -169,20 +170,21 @@ async function main (): Promise<void> {
 
   const bal = await getBalance(addr)
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
+  const gasPrice = await provider.getGasPrice()
   // TODO: actual required val
-  const requiredBalance = parseEther('0.1')
+  const requiredBalance = gasPrice.mul(1e6)
   if (bal.lt(requiredBalance.div(2))) {
-    console.log('funding account to', requiredBalance)
+    console.log('funding account to', requiredBalance.toNumber())
     await signer.sendTransaction({
       to: addr,
       value: requiredBalance.sub(bal)
-    })
+    }).then(async tx => await tx.wait())
   } else {
     console.log('not funding account. balance is enough')
   }
 
   const dest = addr
-  const data = keccak256(Buffer.from('nonce()')).slice(0, 10)
+  const data = keccak256(Buffer.from('entryPoint()')).slice(0, 10)
   console.log('data=', data)
   await client.runUserOp(dest, data)
   console.log('after run1')
@@ -193,3 +195,5 @@ async function main (): Promise<void> {
 }
 
 void main()
+  .catch(e => console.log(e))
+  .finally(() => process.exit())

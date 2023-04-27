@@ -12,7 +12,6 @@ import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr } from './modules/moduleUtils'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 import { ExecutionErrors, UserOperation, ValidationErrors } from './modules/Types'
-import { brotliCompress } from 'zlib'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -178,12 +177,12 @@ export class UserOpMethodHandler {
   _filterLogs (userOpEvent: UserOperationEventEvent, logs: Log[]): Log[] {
     let startIndex = -1
     let endIndex = -1
-    let events = Object.values(this.entryPoint.interface.events)
-    const beforeExecutionTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name == 'BeforeExecution')!)
-    const userOperationEventTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name == 'UserOperationEvent')!)
+    const events = Object.values(this.entryPoint.interface.events)
+    const beforeExecutionTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name === 'BeforeExecution')!)
+    const userOperationEventTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name === 'UserOperationEvent')!)
     logs.forEach((log, index) => {
       if (log?.topics[0] === beforeExecutionTopic) {
-        //all UserOp execution events start after the "BeforeExecution" event.
+        // all UserOp execution events start after the "BeforeExecution" event.
         startIndex = endIndex = index
       } else if (log?.topics[0] === userOpEvent.topics[0]) {
         // process UserOperationEvent
