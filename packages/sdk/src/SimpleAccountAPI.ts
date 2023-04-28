@@ -89,8 +89,8 @@ export class SimpleAccountAPI extends BaseAccountAPI {
    * @param data
    */
   async encodeExecute (target: string, value: BigNumberish, data: string): Promise<string> {
-    const accountContract = await this._getAccountContract()
-    return accountContract.interface.encodeFunctionData(
+    const accountInterface = SimpleAccount__factory.createInterface()
+    return accountInterface.encodeFunctionData(
       'execute',
       [
         target,
