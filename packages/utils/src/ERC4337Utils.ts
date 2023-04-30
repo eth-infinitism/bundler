@@ -20,12 +20,6 @@ export type NotPromise<T> = {
   [P in keyof T]: Exclude<T[P], Promise<any>>
 }
 
-function encode (typevalues: Array<{ type: string, val: any }>, forSignature: boolean): string {
-  const types = typevalues.map(typevalue => typevalue.type === 'bytes' && forSignature ? 'bytes32' : typevalue.type)
-  const values = typevalues.map((typevalue) => typevalue.type === 'bytes' && forSignature ? keccak256(typevalue.val) : typevalue.val)
-  return defaultAbiCoder.encode(types, values)
-}
-
 /**
  * pack the userOperation
  * @param op

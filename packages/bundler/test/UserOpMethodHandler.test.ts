@@ -31,7 +31,6 @@ import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
-import { SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -291,8 +290,6 @@ describe('UserOpMethodHandler', function () {
     let receipt: UserOperationReceipt
     let acc: TestRulesAccount
     before(async () => {
-      const recipient = await new SampleRecipient__factory(signer).deploy()
-      const recipientCalldata = recipient.interface.encodeFunctionData('something', ['message'])
       acc = await new TestRulesAccount__factory(signer).deploy()
       const callData = acc.interface.encodeFunctionData('execSendMessage')
 

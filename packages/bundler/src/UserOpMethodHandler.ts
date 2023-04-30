@@ -178,8 +178,8 @@ export class UserOpMethodHandler {
     let startIndex = -1
     let endIndex = -1
     const events = Object.values(this.entryPoint.interface.events)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const beforeExecutionTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name === 'BeforeExecution')!)
-    const userOperationEventTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name === 'UserOperationEvent')!)
     logs.forEach((log, index) => {
       if (log?.topics[0] === beforeExecutionTopic) {
         // all UserOp execution events start after the "BeforeExecution" event.

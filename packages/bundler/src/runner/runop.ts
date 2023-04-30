@@ -8,7 +8,7 @@
 import { BigNumber, getDefaultProvider, Signer, Wallet } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { SimpleAccountFactory__factory } from '@account-abstraction/contracts'
-import { formatEther, formatUnits, keccak256, parseEther } from 'ethers/lib/utils'
+import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'
@@ -172,9 +172,9 @@ async function main (): Promise<void> {
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   const gasPrice = await provider.getGasPrice()
   // TODO: actual required val
-  const requiredBalance = gasPrice.mul(1e6)
+  const requiredBalance = gasPrice.mul(2e6)
   if (bal.lt(requiredBalance.div(2))) {
-    console.log('funding account to', requiredBalance.toNumber())
+    console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({
       to: addr,
       value: requiredBalance.sub(bal)
