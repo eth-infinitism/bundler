@@ -14,6 +14,8 @@ import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
+import { JsonRpcProvider } from '@ethersproject/providers'
+import { parseEther } from 'ethers/lib/utils'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -97,6 +99,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   if (chainId === 31337 || chainId === 1337) {
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+    if ((await wallet.getBalance()).eq(0)) {
+      console.log('=== testnet: fund signer')
+      const signer = (provider as JsonRpcProvider).getSigner()
+      await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
+    }
   }
 
   if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional')) {

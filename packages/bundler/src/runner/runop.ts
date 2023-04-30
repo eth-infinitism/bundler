@@ -129,7 +129,7 @@ async function main (): Promise<void> {
       })
     }
 
-    const argv = ['node', 'exec', '--config', './localconfig/bundler.config.json', '--unsafe']
+    const argv = ['node', 'exec', '--config', './localconfig/bundler.config.json', '--unsafe', '--auto']
     if (opts.entryPoint != null) {
       argv.push('--entryPoint', opts.entryPoint)
     }
@@ -195,5 +195,5 @@ async function main (): Promise<void> {
 }
 
 void main()
-  .catch(e => console.log(e))
-  .finally(() => process.exit())
+  .catch(e => { console.log(e); process.exit(1) })
+  .then(() => process.exit(0))
