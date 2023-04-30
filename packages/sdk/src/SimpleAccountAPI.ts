@@ -18,7 +18,7 @@ import { BaseApiParams, BaseAccountAPI } from './BaseAccountAPI'
 export interface SimpleAccountApiParams extends BaseApiParams {
   owner: Signer
   factoryAddress?: string
-  index?: number
+  index?: BigNumberish
 
 }
 
@@ -32,7 +32,7 @@ export interface SimpleAccountApiParams extends BaseApiParams {
 export class SimpleAccountAPI extends BaseAccountAPI {
   factoryAddress?: string
   owner: Signer
-  index: number
+  index: BigNumberish
 
   /**
    * our account contract.
@@ -46,7 +46,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
     super(params)
     this.factoryAddress = params.factoryAddress
     this.owner = params.owner
-    this.index = params.index ?? 0
+    this.index = BigNumber.from(params.index ?? 0)
   }
 
   async _getAccountContract (): Promise<SimpleAccount> {

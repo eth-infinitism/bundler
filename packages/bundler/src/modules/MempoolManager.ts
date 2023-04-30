@@ -77,11 +77,15 @@ export class MempoolManager {
   }
 
   private checkReplaceUserOp (oldEntry: MempoolEntry, entry: MempoolEntry): void {
-    const oldGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
-    const newGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
+    const oldMaxPriorityFeePerGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
+    const newMaxPriorityFeePerGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
+    const oldMaxFeePerGas = BigNumber.from(oldEntry.userOp.maxFeePerGas).toNumber()
+    const newMaxFeePerGas = BigNumber.from(entry.userOp.maxFeePerGas).toNumber()
     // the error is "invalid fields", even though it is detected only after validation
-    requireCond(newGas > oldGas * 1.1,
-      `Replacement UserOperation must have higher gas (old=${oldGas} new=${newGas}) `, ValidationErrors.InvalidFields)
+    requireCond(newMaxPriorityFeePerGas >= oldMaxPriorityFeePerGas * 1.1,
+      `Replacement UserOperation must have higher maxPriorityFeePerGas (old=${oldMaxPriorityFeePerGas} new=${newMaxPriorityFeePerGas}) `, ValidationErrors.InvalidFields)
+    requireCond(newMaxFeePerGas >= oldMaxFeePerGas * 1.1,
+      `Replacement UserOperation must have higher maxFeePerGas (old=${oldMaxFeePerGas} new=${newMaxFeePerGas}) `, ValidationErrors.InvalidFields)
   }
 
   getSortedForInclusion (): MempoolEntry[] {

@@ -167,7 +167,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   const entryPointAddress = entryPoint.address.toLowerCase()
 
-  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT'])
+  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
   if (Object.values(tracerResults.numberLevels).length < 2) {
