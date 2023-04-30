@@ -31,7 +31,12 @@ contract TestRulesAccount is IAccount, IPaymaster {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
-    event TestMessage(address eventSender);
+    event TestFromValidation();
+    event TestMessage();
+
+    function execSendMessage() public {
+        emit TestMessage();
+    }
 
     function runRule(string memory rule) public returns (uint) {
         if (eq(rule, "")) return 0;
@@ -50,7 +55,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
 
         else if (eq(rule, "inner-revert")) return coin.reverting();
         else if (eq(rule, "emit-msg")) {
-            emit TestMessage(address(this));
+            emit TestFromValidation();
             return 0;}
 
         revert(string.concat("unknown rule: ", rule));

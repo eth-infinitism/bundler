@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/bundler",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "private": true,
   "files": [
@@ -23,9 +23,9 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.5.0",
-    "@account-abstraction/sdk": "^0.5.0",
-    "@account-abstraction/utils": "^0.5.0",
+    "@account-abstraction/contracts": "^0.6.0",
+    "@account-abstraction/sdk": "^0.6.0",
+    "@account-abstraction/utils": "^0.6.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",

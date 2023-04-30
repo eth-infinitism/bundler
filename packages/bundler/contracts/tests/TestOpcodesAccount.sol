@@ -16,6 +16,7 @@ contract Dummy {
 contract TestOpcodesAccount is TestRuleAccount {
 
     event TestMessage(address eventSender);
+    event ExecutionMessage();
 
     function runRule(string memory rule) public virtual override returns (uint) {
         if (eq(rule, "number")) return block.number;
@@ -30,6 +31,10 @@ contract TestOpcodesAccount is TestRuleAccount {
             return 0;
         }
         return super.runRule(rule);
+    }
+
+    function execEvent() public {
+        emit ExecutionMessage();
     }
 }
 

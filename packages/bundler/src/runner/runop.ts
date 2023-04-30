@@ -16,7 +16,7 @@ import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
 
-const ENTRY_POINT = '0x0576a174D229E3cFA37253523E645A78A0C91B57'
+const ENTRY_POINT = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 
 class Runner {
   bundlerProvider!: HttpRpcClient
@@ -155,6 +155,7 @@ async function main (): Promise<void> {
   const accountOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const index = opts.nonce ?? Date.now()
+  console.log('using account index=', index)
   const client = await new Runner(provider, opts.bundlerUrl, accountOwner, opts.entryPoint, index).init(deployFactory ? signer : undefined)
 
   const addr = await client.getAddress()
@@ -169,20 +170,21 @@ async function main (): Promise<void> {
 
   const bal = await getBalance(addr)
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
+  const gasPrice = await provider.getGasPrice()
   // TODO: actual required val
-  const requiredBalance = parseEther('0.1')
+  const requiredBalance = gasPrice.mul(2e6)
   if (bal.lt(requiredBalance.div(2))) {
-    console.log('funding account to', requiredBalance)
+    console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({
       to: addr,
       value: requiredBalance.sub(bal)
-    })
+    }).then(async tx => await tx.wait())
   } else {
     console.log('not funding account. balance is enough')
   }
 
   const dest = addr
-  const data = keccak256(Buffer.from('nonce()')).slice(0, 10)
+  const data = keccak256(Buffer.from('entryPoint()')).slice(0, 10)
   console.log('data=', data)
   await client.runUserOp(dest, data)
   console.log('after run1')
