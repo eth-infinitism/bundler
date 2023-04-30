@@ -1,3 +1,4 @@
+export { BaseAccountAPI } from './BaseAccountAPI'
 export { SimpleAccountAPI } from './SimpleAccountAPI'
 export { PaymasterAPI } from './PaymasterAPI'
 export { wrapProvider } from './Provider'
