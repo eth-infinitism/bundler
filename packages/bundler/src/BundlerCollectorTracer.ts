@@ -128,7 +128,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       this.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
-        data: toHex(frame.getOutput()).slice(0, 1000)
+        data: toHex(frame.getOutput()).slice(0, 4000)
       })
     },
 
@@ -149,7 +149,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           // from opcode
           const ofs = parseInt(log.stack.peek(0).toString())
           const len = parseInt(log.stack.peek(1).toString())
-          const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 1000)
+          const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 4000)
           // this.debug.push(opcode + ' ' + data)
           this.calls.push({
             type: opcode,
