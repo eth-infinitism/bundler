@@ -15,7 +15,7 @@
   "scripts": {
     "bundler": "yarn --cwd packages/bundler bundler",
     "runop": "yarn --cwd packages/bundler runop",
-    "runop-goerli": "yarn runop --network goerli --entryPoint 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+    "runop-goerli": "yarn runop --network goerli --unsafe",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix --",
@@ -29,7 +29,7 @@
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
     "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
-    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler",
+    "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler --unsafe",
     "ci": "env ; yarn depcheck; yarn preprocess ; yarn lerna-test"
   },
   "dependencies": {
