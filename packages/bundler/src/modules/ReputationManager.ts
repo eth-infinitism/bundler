@@ -136,7 +136,7 @@ export class ReputationManager {
     if (entry == null) {
       return ReputationStatus.OK
     }
-    const minExpectedIncluded = Math.min(entry.opsSeen / this.params.minInclusionDenominator)
+    const minExpectedIncluded = Math.floor(entry.opsSeen / this.params.minInclusionDenominator)
     if (minExpectedIncluded <= entry.opsIncluded + this.params.throttlingSlack) {
       return ReputationStatus.OK
     } else if (minExpectedIncluded <= entry.opsIncluded + this.params.banSlack) {
