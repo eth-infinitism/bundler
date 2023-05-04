@@ -5,7 +5,7 @@
  * for a simple target method, we just call the "nonce" method of the account itself.
  */
 
-import { BigNumber, getDefaultProvider, Signer, Wallet } from 'ethers'
+import { BigNumber, Signer, Wallet } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { SimpleAccountFactory__factory } from '@account-abstraction/contracts'
 import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
@@ -15,6 +15,7 @@ import fs from 'fs'
 import { DeterministicDeployer, HttpRpcClient, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { runBundler } from '../runBundler'
 import { BundlerServer } from '../BundlerServer'
+import { getNetworkProvider } from '../Config'
 
 const ENTRY_POINT = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 
@@ -110,7 +111,7 @@ async function main (): Promise<void> {
     .option('--selfBundler', 'run bundler in-process (for debugging the bundler)')
 
   const opts = program.parse().opts()
-  const provider = getDefaultProvider(opts.network) as JsonRpcProvider
+  const provider = getNetworkProvider(opts.network)
   let signer: Signer
   const deployFactory: boolean = opts.deployFactory
   let bundler: BundlerServer | undefined
