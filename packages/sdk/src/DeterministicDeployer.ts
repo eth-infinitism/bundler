@@ -40,6 +40,7 @@ export class DeterministicDeployer {
   static deploymentSignerAddress = '0x3fab184622dc19b6109349b94811493bf2a45362'
   static deploymentGasPrice = 100e9
   static deploymentGasLimit = 100000
+  static txWaitTimeout =  150000
 
   constructor (
     readonly provider: JsonRpcProvider,
@@ -62,13 +63,21 @@ export class DeterministicDeployer {
     const neededBalance = BigNumber.from(DeterministicDeployer.deploymentGasLimit).mul(DeterministicDeployer.deploymentGasPrice)
     if (bal.lt(neededBalance)) {
       const signer = this.signer ?? this.provider.getSigner()
-      await signer.sendTransaction({
+      const txResponse = await signer.sendTransaction({
         to: DeterministicDeployer.deploymentSignerAddress,
         value: neededBalance,
         gasLimit: DeterministicDeployer.deploymentGasLimit
       })
+      const receipt = await this.provider.waitForTransaction(txResponse.hash, 1, DeterministicDeployer.txWaitTimeout)
+      if (receipt.status !== 1) {
+        throw new Error(`Funding TX did not succeed!\n Receipt: ${JSON.stringify(receipt)} `)
+      }
     }
-    await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
+    const txHash = await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
+    const receipt = await this.provider.waitForTransaction(txHash, 1, DeterministicDeployer.txWaitTimeout)
+    if (receipt.status !== 1) {
+      throw new Error(`Deployer was not deployed successfully!\n Receipt: ${JSON.stringify(receipt)}`)
+    }
     if (!await this.isContractDeployed(DeterministicDeployer.proxyAddress)) {
       throw new Error('raw TX didn\'t deploy deployer!')
     }
