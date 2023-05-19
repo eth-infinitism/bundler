@@ -9,9 +9,12 @@ contract SampleRecipient {
 
     SimpleAccount wallet;
 
+     string public lastMessage;
+
     event Sender(address txOrigin, address msgSender, string message);
 
     function something(string memory message) public {
+        lastMessage = message;
         emit Sender(tx.origin, msg.sender, message);
     }
 
