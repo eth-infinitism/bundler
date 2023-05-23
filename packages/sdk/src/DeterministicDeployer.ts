@@ -40,7 +40,7 @@ export class DeterministicDeployer {
   static deploymentSignerAddress = '0x3fab184622dc19b6109349b94811493bf2a45362'
   static deploymentGasPrice = 100e9
   static deploymentGasLimit = 100000
-  static txWaitTimeout =  150000
+  static txWaitTimeout = 150000
 
   constructor (
     readonly provider: JsonRpcProvider,
