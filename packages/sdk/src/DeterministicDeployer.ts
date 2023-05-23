@@ -70,7 +70,7 @@ export class DeterministicDeployer {
       })
       const receipt = await this.provider.waitForTransaction(txResponse.hash, 1, DeterministicDeployer.txWaitTimeout)
       if (receipt.status !== 1) {
-        throw new Error(`Funding TX did not succeed!\n Receipt: ${JSON.stringify(receipt)} `)
+        throw new Error(`Funding TX failed!\n Receipt: ${JSON.stringify(receipt)} `)
       }
     }
     const txHash = await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
@@ -125,8 +125,12 @@ export class DeterministicDeployer {
     const addr = DeterministicDeployer.getDeterministicDeployAddress(ctrCode, salt, params)
     if (!await this.isContractDeployed(addr)) {
       const signer = this.signer ?? this.provider.getSigner()
-      await signer.sendTransaction(
+      const txResponse = await signer.sendTransaction(
         await this.getDeployTransaction(ctrCode, salt, params))
+      const receipt = await this.provider.waitForTransaction(txResponse.hash, 1, DeterministicDeployer.txWaitTimeout)
+      if (receipt.status !== 1) {
+        throw new Error(`deterministicDeploy failed!\n Receipt: ${JSON.stringify(receipt)} `)
+      }
     }
     return addr
   }

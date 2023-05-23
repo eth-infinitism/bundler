@@ -176,10 +176,11 @@ async function main (): Promise<void> {
   const requiredBalance = gasPrice.mul(2e6)
   if (bal.lt(requiredBalance.div(2))) {
     console.log('funding account to', requiredBalance.toString())
-    await signer.sendTransaction({
-      to: addr,
-      value: requiredBalance.sub(bal)
-    }).then(async tx => await tx.wait())
+    const fundTx = await signer.sendTransaction({ to: addr, value: requiredBalance.sub(bal) })
+    const receipt = await provider.waitForTransaction(fundTx.hash, 1, 20000)
+    if (receipt.status !== 1) {
+      throw new Error(`Funding TX did not succeed!\n Receipt: ${JSON.stringify(receipt)} `)
+    }
   } else {
     console.log('not funding account. balance is enough')
   }
