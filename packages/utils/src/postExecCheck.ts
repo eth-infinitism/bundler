@@ -1,4 +1,3 @@
-import { NotPromise } from './ERC4337Utils'
 import { EntryPoint, UserOperationStruct } from './types/@account-abstraction/contracts/core/EntryPoint'
 import Debug from 'debug'
 import { resolveProperties, toNumber } from 'ethers'
@@ -24,7 +23,7 @@ export async function postExecutionCheck (entryPoint: EntryPoint, userOpHash: st
   gasUsed: number
   gasPaid: number
   success: boolean
-  userOp: NotPromise<UserOperationStruct>
+  userOp: UserOperationStruct
 }> {
   const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
   if (req.length === 0) {

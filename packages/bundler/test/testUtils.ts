@@ -1,15 +1,13 @@
-import { Signer, Wallet } from 'ethers'
-import { HDNode, parseEther } from 'ethers/lib/utils'
+import { HDNodeWallet, parseEther, Signer } from 'ethers'
 import { ethers } from 'hardhat'
 
 // create an hdkey signer, and fund it, if needed.
 export async function createSigner (): Promise<Signer> {
   const provider = ethers.provider
-  const privateKey = HDNode.fromMnemonic('test '.repeat(11) + 'junk')
-  const signer = new Wallet(privateKey, provider)
+  const signer = HDNodeWallet.fromPhrase('test '.repeat(11) + 'junk').connect(provider)
   const signerAddress = await signer.getAddress()
-  const signerBalance = await signer.getBalance()
-  if (signerBalance.lt(parseEther('10'))) {
+  const signerBalance = await provider.getBalance(signerAddress)
+  if (signerBalance < parseEther('10')) {
     await ethers.provider.getSigner().sendTransaction({
       to: signerAddress,
       value: parseEther('10')

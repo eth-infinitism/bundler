@@ -135,7 +135,7 @@ export class MempoolManager {
       const userOp = this.mempool[index].userOp
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
-      let userOpSender = userOp.sender.toString()
+      const userOpSender = userOp.sender.toString()
       const count = (this.entryCount[userOpSender] ?? 0) - 1
       if (count <= 0) {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete

@@ -1,5 +1,4 @@
-import { EntryPoint } from '@account-abstraction/utils'
-import { AccountDeployedEvent, UserOperationEventEvent, SignatureAggregatorChangedEvent } from '@account-abstraction/utils'
+import { EntryPoint, AccountDeployedEvent, UserOperationEventEvent, SignatureAggregatorChangedEvent } from '@account-abstraction/utils/dist/src/ContractTypes'
 
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
@@ -20,7 +19,6 @@ export class EventsManager {
     readonly entryPoint: EntryPoint,
     readonly mempoolManager: MempoolManager,
     readonly reputationManager: ReputationManager) {
-
     this.provider = entryPoint.runner as JsonRpcProvider
   }
 

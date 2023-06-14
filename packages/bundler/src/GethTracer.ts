@@ -27,7 +27,7 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Transactio
 
 // a hack for network that doesn't have traceCall: mine the transaction, and use debug_traceTransaction
 export async function execAndTrace (provider: JsonRpcProvider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
-  let signer = await provider.getSigner()
+  const signer = await provider.getSigner()
   const hash = await signer.sendUncheckedTransaction(tx)
   return await debug_traceTransaction(provider, hash, options)
 }

@@ -1,4 +1,4 @@
-import { EntryPoint } from '../../../utils/src/ContractTypes'
+import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import {
@@ -7,7 +7,7 @@ import {
   ErrorDescription,
   getBigInt,
   JsonRpcProvider,
-  JsonRpcSigner,
+  JsonRpcSigner
 } from 'ethers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
@@ -136,7 +136,7 @@ export class BundleManager {
         this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
       } else {
         this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
+        console.warn(`Failed handleOps sender=${userOp.sender.toString()} reason=${reasonStr}`)
       }
     }
   }
@@ -239,7 +239,7 @@ export class BundleManager {
    * if signer's balance is too low, send it to signer. otherwise, send to configured beneficiary.
    */
   async _selectBeneficiary (): Promise<string> {
-    const currentBalance = await this.provider.getBalance(this.signer.getAddress())
+    const currentBalance = await this.provider.getBalance(await this.signer.getAddress())
     let beneficiary = this.beneficiary
     // below min-balance redeem to the signer, to keep it active.
     if (currentBalance <= getBigInt(this.minSignerBalance)) {

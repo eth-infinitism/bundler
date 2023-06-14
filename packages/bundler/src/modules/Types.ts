@@ -1,6 +1,5 @@
 import { BigNumberish } from 'ethers'
-import { NotPromise } from '@account-abstraction/utils'
-import { UserOperationStruct } from '../../../utils/src/ContractTypes'
+import { UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -32,7 +31,7 @@ export interface ReferencedCodeHashes {
   hash: string
 }
 
-export type UserOperation = NotPromise<UserOperationStruct>
+export type UserOperation = UserOperationStruct
 
 export interface SlotMap {
   [slot: string]: string

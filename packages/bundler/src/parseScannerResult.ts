@@ -1,5 +1,4 @@
 import {
-  EntryPoint,
   IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/utils/src/types'
@@ -10,7 +9,7 @@ import { inspect } from 'util'
 import Debug from 'debug'
 import { toBytes32 } from './modules/moduleUtils'
 import { ValidationResult } from './modules/ValidationManager'
-import { BigNumberish, getBigInt } from 'ethers'
+import { AddressLike, BigNumberish, getBigInt, Interface, keccak256, zeroPadBytes } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
 import { StakeInfo, StorageMap, UserOperation, ValidationErrors } from './modules/Types'
 
@@ -160,11 +159,9 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
-export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPoint: EntryPoint): [string[], StorageMap] {
+export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPointAddress: AddressLike): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
-
-  const entryPointAddress = entryPoint.address.toLowerCase()
 
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
 
@@ -190,7 +187,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
 
-  const sender = userOp.sender.toLowerCase()
+  const sender = userOp.sender.toString().toLowerCase()
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
@@ -238,7 +235,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       // @param addr - the address we try to check for association with
       // @param reverseKeccak - a mapping we built for keccak values that contained the address
       function associatedWith (slot: string, addr: string, entitySlots: { [addr: string]: Set<string> }): boolean {
-        const addrPadded = hexZeroPad(addr, 32).toLowerCase()
+        const addrPadded = zeroPadBytes(addr, 32).toLowerCase()
         if (slot === addrPadded) {
           return true
         }
@@ -318,7 +315,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       if (entStakes == null) {
         throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
       }
-      requireCond(1n < entStakes.stake && 1n < entStakes.unstakeDelaySec,
+      requireCond(entStakes.stake > 1n && entStakes.unstakeDelaySec > 1n,
         failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
 
       // TODO: check real minimum stake values

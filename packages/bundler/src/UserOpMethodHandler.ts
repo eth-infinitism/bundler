@@ -1,8 +1,12 @@
-import { BigNumberish, Provider, Signer } from 'ethers'
+import { BigNumberish, getBigInt, hexlify, Log, Provider, Signer } from 'ethers'
 
 import { BundlerConfig } from './BundlerConfig'
 import { deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { UserOperationEventEvent, UserOperationStruct, EntryPoint } from '../../utils/src/ContractTypes'
+import {
+  UserOperationEventEvent,
+  UserOperationStruct,
+  EntryPoint
+} from '@account-abstraction/utils/dist/src/ContractTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond, RpcError, tostr } from './utils'
 import { ExecutionManager } from './modules/ExecutionManager'
@@ -54,17 +58,6 @@ export class UserOpMethodHandler {
     return [this.config.entryPoint]
   }
 
-  async selectBeneficiary (): Promise<string> {
-    const currentBalance = await this.provider.getBalance(this.signer.getAddress())
-    let beneficiary = this.config.beneficiary
-    // below min-balance redeem to the signer, to keep it active.
-    if (currentBalance.lte(this.config.minBalance)) {
-      beneficiary = await this.signer.getAddress()
-      console.log('low balance. using ', beneficiary, 'as beneficiary instead of ', this.config.beneficiary)
-    }
-    return beneficiary
-  }
-
   async _validateParameters (userOp1: UserOperationStruct, entryPointInput: string, requireSignature = true, requireGasParams = true): Promise<void> {
     requireCond(entryPointInput != null, 'No entryPoint param', -32602)
 
@@ -73,7 +66,7 @@ export class UserOpMethodHandler {
     }
     // minimal sanity check: userOp exists, and all members are hex
     requireCond(userOp1 != null, 'No UserOperation param')
-    const userOp = await resolveProperties(userOp1) as any
+    const userOp = userOp1 as any
 
     const fields = ['sender', 'nonce', 'initCode', 'callData', 'paymasterAndData']
     if (requireSignature) {
@@ -96,7 +89,7 @@ export class UserOpMethodHandler {
    */
   async estimateUserOperationGas (userOp1: UserOperationStruct, entryPointInput: string): Promise<EstimateUserOpGasResult> {
     const userOp = {
-      ...await resolveProperties(userOp1),
+      ...userOp1,
       // default values for missing fields.
       paymasterAndData: '0x',
       maxFeePerGas: 0,
@@ -108,7 +101,7 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
+    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => e)
     if (errorResult.errorName === 'FailedOp') {
       throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
     }
@@ -125,23 +118,23 @@ export class UserOpMethodHandler {
     } = returnInfo
 
     const callGasLimit = await this.provider.estimateGas({
-      from: this.entryPoint.address,
+      from: await this.entryPoint.getAddress(),
       to: userOp.sender,
-      data: userOp.callData
-    }).then(b => b.toNumber()).catch(err => {
+      data: hexlify(userOp.callData)
+    }).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ExecutionErrors.UserOperationReverted)
     })
-    validAfter = BigNumber.from(validAfter)
-    validUntil = BigNumber.from(validUntil)
-    if (validUntil === BigNumber.from(0)) {
+    validAfter = getBigInt(validAfter)
+    validUntil = getBigInt(validUntil)
+    if (validUntil === getBigInt(0)) {
       validUntil = undefined
     }
-    if (validAfter === BigNumber.from(0)) {
+    if (validAfter === getBigInt(0)) {
       validAfter = undefined
     }
     const preVerificationGas = calcPreVerificationGas(userOp)
-    const verificationGas = BigNumber.from(preOpGas).toNumber()
+    const verificationGas = getBigInt(preOpGas)
     return {
       preVerificationGas,
       verificationGas,
@@ -151,18 +144,16 @@ export class UserOpMethodHandler {
     }
   }
 
-  async sendUserOperation (userOp1: UserOperationStruct, entryPointInput: string): Promise<string> {
-    await this._validateParameters(userOp1, entryPointInput)
+  async sendUserOperation (userOp: UserOperationStruct, entryPointInput: string): Promise<string> {
+    await this._validateParameters(userOp, entryPointInput)
 
-    const userOp = await resolveProperties(userOp1)
-
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(
+    console.log(`UserOperation: Sender=${userOp.sender.toString()}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(
       userOp.paymasterAndData)}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput)
     return await this.entryPoint.getUserOpHash(userOp)
   }
 
-  async _getUserOperationEvent (userOpHash: string): Promise<UserOperationEventEvent> {
+  async _getUserOperationEvent (userOpHash: string): Promise<UserOperationEventEvent.Log> {
     // TODO: eth_getLogs is throttled. must be acceptable for finding a UserOperation by hash
     const event = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationEvent(userOpHash))
     return event[0]
@@ -171,12 +162,10 @@ export class UserOpMethodHandler {
   // filter full bundle logs, and leave only logs for the given userOpHash
   // @param userOpEvent - the event of our UserOp (known to exist in the logs)
   // @param logs - full bundle logs. after each group of logs there is a single UserOperationEvent with unique hash.
-  _filterLogs (userOpEvent: UserOperationEventEvent, logs: Log[]): Log[] {
+  _filterLogs (userOpEvent: UserOperationEventEvent.Log, logs: readonly Log[]): Log[] {
     let startIndex = -1
     let endIndex = -1
-    const events = Object.values(this.entryPoint.interface.events)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const beforeExecutionTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name === 'BeforeExecution')!)
+    const beforeExecutionTopic = this.entryPoint.interface.getEvent('BeforeExecution').topicHash
     logs.forEach((log, index) => {
       if (log?.topics[0] === beforeExecutionTopic) {
         // all UserOp execution events start after the "BeforeExecution" event.
@@ -207,7 +196,7 @@ export class UserOpMethodHandler {
       return null
     }
     const tx = await event.getTransaction()
-    if (tx.to !== this.entryPoint.address) {
+    if (tx.to !== await this.entryPoint.getAddress()) {
       throw new Error('unable to parse transaction')
     }
     const parsed = this.entryPoint.interface.parseTransaction(tx)
@@ -217,7 +206,7 @@ export class UserOpMethodHandler {
     }
     const op = ops.find(op =>
       op.sender === event.args.sender &&
-      BigNumber.from(op.nonce).eq(event.args.nonce)
+      getBigInt(op.nonce) === event.args.nonce
     )
     if (op == null) {
       throw new Error('unable to find userOp in transaction')
@@ -251,7 +240,7 @@ export class UserOpMethodHandler {
         paymasterAndData,
         signature
       },
-      entryPoint: this.entryPoint.address,
+      entryPoint: await this.entryPoint.getAddress(),
       transactionHash: tx.hash,
       blockHash: tx.blockHash ?? '',
       blockNumber: tx.blockNumber ?? 0

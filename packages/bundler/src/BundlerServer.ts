@@ -71,14 +71,14 @@ export class BundlerServer {
       signature: '0x'
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
-    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.simulateValidation(emptyUserOp)
+    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).simulateValidation.staticCall(emptyUserOp)
       .catch(e => e)
     if (err?.errorName !== 'FailedOp') {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
     }
     const bal = await this.provider.getBalance(this.wallet.address)
     console.log('signer', this.wallet.address, 'balance', formatEther(bal))
-    if (bal == 0n) {
+    if (bal === 0n) {
       this.fatal('cannot run with zero balance')
     } else if (bal < parseEther(this.config.minBalance)) {
       console.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
@@ -175,11 +175,11 @@ export class BundlerServer {
         result = await this.debugHandler.dumpMempool()
         break
       case 'debug_bundler_setReputation':
-        await this.debugHandler.setReputation(params[0])
+        this.debugHandler.setReputation(params[0])
         result = 'ok'
         break
       case 'debug_bundler_dumpReputation':
-        result = await this.debugHandler.dumpReputation()
+        result = this.debugHandler.dumpReputation()
         break
       case 'debug_bundler_setBundlingMode':
         await this.debugHandler.setBundlingMode(params[0])

@@ -1,4 +1,4 @@
-import { EntryPoint } from '../../../utils/src/ContractTypes'
+import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { ReputationManager } from './ReputationManager'
 import { BigNumberish, BytesLike, ErrorDescription, getBigInt, JsonRpcProvider } from 'ethers'
 import { requireCond, RpcError } from '../utils'
@@ -46,8 +46,7 @@ export class ValidationManager {
     readonly entryPoint: EntryPoint,
     readonly reputationManager: ReputationManager,
     readonly unsafe: boolean) {
-
-    entryPoint.getAddress().then(x => this.entryPointAddress = x.toLowerCase())
+    void entryPoint.getAddress().then(x => this.entryPointAddress = x.toLowerCase())
   }
 
   // standard eth_call to simulateValidation
@@ -90,9 +89,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-          ...info,
-          addr
-        }
+            ...info,
+            addr
+          }
     }
 
     return {
@@ -185,7 +184,7 @@ export class ValidationManager {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = parseScannerResult(userOp, tracerResult, res, await this.entryPoint.getAddress())
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)

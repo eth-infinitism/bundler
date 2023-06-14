@@ -9,7 +9,7 @@ import {
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { PaymasterAPI } from './PaymasterAPI'
-import { AddressZero, getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
+import { getUserOpHash, packUserOp } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface BaseApiParams {
@@ -165,7 +165,7 @@ export abstract class BaseAccountAPI {
   /**
    * ABI-encode a user operation. used for calldata cost estimation
    */
-  packUserOp (userOp: NotPromise<UserOperationStruct>): string {
+  packUserOp (userOp: UserOperationStruct): string {
     return packUserOp(userOp, false)
   }
 
