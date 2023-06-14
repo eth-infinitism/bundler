@@ -1,37 +1,39 @@
-import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
 import { ethers } from 'hardhat'
 import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
+import {
+  SampleRecipient, SampleRecipient__factory,
+  EntryPoint, EntryPoint__factory
+} from '@account-abstraction/utils/dist/src/ContractTypes'
 import { expect } from 'chai'
-import { parseEther } from 'ethers/lib/utils'
-import { Wallet } from 'ethers'
+import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const provider = ethers.provider
-const signer = provider.getSigner()
 
 describe('ERC4337EthersSigner, Provider', function () {
   let recipient: SampleRecipient
   let aaProvider: ERC4337EthersProvider
   let entryPoint: EntryPoint
+  let signer: Signer
   before('init', async () => {
+    signer = await ethers.provider.getSigner()
     const deployRecipient = await new SampleRecipient__factory(signer).deploy()
     entryPoint = await new EntryPoint__factory(signer).deploy()
     const config: ClientConfig = {
-      entryPointAddress: entryPoint.address,
+      entryPointAddress: await entryPoint.getAddress(),
       bundlerUrl: ''
     }
     const aasigner = Wallet.createRandom()
     aaProvider = await wrapProvider(provider, config, aasigner)
 
-    const beneficiary = provider.getSigner().getAddress()
+    const beneficiary = await signer.getAddress()
     // for testing: bypass sending through a bundler, and send directly to our entrypoint..
     aaProvider.httpRpcClient.sendUserOpToBundler = async (userOp) => {
       try {
         await entryPoint.handleOps([userOp], beneficiary)
       } catch (e: any) {
         // doesn't report error unless called with callStatic
-        await entryPoint.callStatic.handleOps([userOp], beneficiary).catch((e: any) => {
+        await entryPoint.handleOps.staticCall([userOp], beneficiary).catch((e: any) => {
           // eslint-disable-next-line
           const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
           throw new Error(message)
@@ -39,7 +41,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       }
       return ''
     }
-    recipient = deployRecipient.connect(aaProvider.getSigner())
+    recipient = deployRecipient.connect(signer)
   })
 
   it('should fail to send before funding', async () => {
@@ -52,7 +54,7 @@ describe('ERC4337EthersSigner, Provider', function () {
   })
 
   it('should use ERC-4337 Signer and Provider to send the UserOperation to the bundler', async function () {
-    const accountAddress = await aaProvider.getSigner().getAddress()
+    const accountAddress = await signer.getAddress()
     await signer.sendTransaction({
       to: accountAddress,
       value: parseEther('0.1')

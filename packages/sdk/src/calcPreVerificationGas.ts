@@ -1,6 +1,6 @@
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { UserOperationStruct } from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
 import { NotPromise, packUserOp } from '@account-abstraction/utils'
-import { arrayify, hexlify } from 'ethers/lib/utils'
+import { getBytes, hexlify } from 'ethers'
 
 export interface GasOverheads {
   /**
@@ -67,7 +67,7 @@ export function calcPreVerificationGas (userOp: Partial<NotPromise<UserOperation
     ...userOp
   } as any
 
-  const packed = arrayify(packUserOp(p, false))
+  const packed = getBytes(packUserOp(p, false))
   const lengthInWord = (packed.length + 31) / 32
   const callDataCost = packed.map(x => x === 0 ? ov.zeroByte : ov.nonZeroByte).reduce((sum, x) => sum + x)
   const ret = Math.round(

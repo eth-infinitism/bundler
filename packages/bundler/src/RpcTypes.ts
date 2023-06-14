@@ -1,5 +1,4 @@
-import { BigNumberish } from 'ethers'
-import { TransactionReceipt } from '@ethersproject/providers'
+import { BigNumberish, TransactionReceipt } from 'ethers'
 import { UserOperation } from './modules/Types'
 
 /**

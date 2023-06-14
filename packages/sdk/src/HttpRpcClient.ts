@@ -1,7 +1,5 @@
-import { JsonRpcProvider } from '@ethersproject/providers'
-import { ethers } from 'ethers'
-import { resolveProperties } from 'ethers/lib/utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { ethers, JsonRpcProvider, resolveProperties } from 'ethers'
+import { UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
 import Debug from 'debug'
 import { deepHexlify } from '@account-abstraction/utils'
 
@@ -17,7 +15,7 @@ export class HttpRpcClient {
     readonly entryPointAddress: string,
     readonly chainId: number
   ) {
-    this.userOpJsonRpcProvider = new ethers.providers.JsonRpcProvider(this.bundlerUrl, {
+    this.userOpJsonRpcProvider = new ethers.JsonRpcProvider(this.bundlerUrl, {
       name: 'Connected bundler network',
       chainId
     })

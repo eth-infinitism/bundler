@@ -1,11 +1,8 @@
-import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { Log, Provider } from '@ethersproject/providers'
+import { BigNumberish, Provider, Signer } from 'ethers'
 
 import { BundlerConfig } from './BundlerConfig'
-import { resolveProperties } from 'ethers/lib/utils'
 import { deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import { UserOperationEventEvent, UserOperationStruct, EntryPoint } from '../../utils/src/ContractTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond, RpcError, tostr } from './utils'
 import { ExecutionManager } from './modules/ExecutionManager'

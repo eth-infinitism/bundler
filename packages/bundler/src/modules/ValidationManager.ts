@@ -1,11 +1,10 @@
-import { EntryPoint } from '@account-abstraction/contracts'
+import { EntryPoint } from '../../../utils/src/ContractTypes'
 import { ReputationManager } from './ReputationManager'
-import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
+import { BigNumberish, BytesLike, ErrorDescription, getBigInt, JsonRpcProvider } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
-import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
@@ -41,15 +40,19 @@ export interface ValidateUserOpResult extends ValidationResult {
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class ValidationManager {
+  entryPointAddress?: string
+
   constructor (
     readonly entryPoint: EntryPoint,
     readonly reputationManager: ReputationManager,
     readonly unsafe: boolean) {
+
+    entryPoint.getAddress().then(x => this.entryPointAddress = x.toLowerCase())
   }
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
+    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp, { gasLimit: 10e6 }).catch(e => e)
     return this._parseErrorResult(userOp, errorResult)
   }
 
@@ -87,9 +90,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-            ...info,
-            addr
-          }
+          ...info,
+          addr
+        }
     }
 
     return {
@@ -105,14 +108,14 @@ export class ValidationManager {
   }
 
   async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
-    const provider = this.entryPoint.provider as JsonRpcProvider
+    const provider = this.entryPoint.runner as JsonRpcProvider
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
-    const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
+    const simulationGas = getBigInt(userOp.preVerificationGas) + getBigInt(userOp.verificationGasLimit)
 
     const tracerResult: BundlerCollectorReturn = await debug_traceCall(provider, {
-      from: ethers.constants.AddressZero,
-      to: this.entryPoint.address,
+      from: AddressZero,
+      to: await this.entryPoint.getAddress(),
       data: simulateCall,
       gasLimit: simulationGas
     }, { tracer: bundlerCollectorTracer })
@@ -130,7 +133,7 @@ export class ValidationManager {
       const {
         name: errorName,
         args: errorArgs
-      } = this.entryPoint.interface.parseError(data)
+      } = this.entryPoint.interface.parseError(data) as ErrorDescription
       const errFullName = `${errorName}(${errorArgs.toString()})`
       const errorResult = this._parseErrorResult(userOp, {
         errorName,
@@ -141,7 +144,7 @@ export class ValidationManager {
         throw new Error(errFullName)
       }
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
-        .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
+        .replace(new RegExp(userOp.sender.toString().toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymasterAndData) ?? '--no-paymaster--'), '{paymaster}')
         .replace(new RegExp(getAddr(userOp.initCode) ?? '--no-initcode--'), '{factory}')
       )
@@ -220,7 +223,7 @@ export class ValidationManager {
 
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
     const { hash } = await runContractScript(
-      this.entryPoint.provider,
+      this.entryPoint.runner as JsonRpcProvider,
       new GetCodeHashes__factory(),
       [addresses]
     )
@@ -240,8 +243,8 @@ export class ValidationManager {
    */
   validateInputParameters (userOp: UserOperation, entryPointInput: string, requireSignature = true, requireGasParams = true): void {
     requireCond(entryPointInput != null, 'No entryPoint param', ValidationErrors.InvalidFields)
-    requireCond(entryPointInput.toLowerCase() === this.entryPoint.address.toLowerCase(),
-      `The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.entryPoint.address}`,
+    requireCond(entryPointInput.toLowerCase() === this.entryPointAddress,
+      `The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.entryPointAddress}`,
       ValidationErrors.InvalidFields)
 
     // minimal sanity check: userOp exists, and all members are hex

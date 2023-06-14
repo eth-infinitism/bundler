@@ -5,10 +5,8 @@
  * for a simple target method, we just call the "nonce" method of the account itself.
  */
 
-import { BigNumber, Signer, Wallet } from 'ethers'
-import { JsonRpcProvider } from '@ethersproject/providers'
-import { SimpleAccountFactory__factory } from '@account-abstraction/contracts'
-import { formatEther, keccak256, parseEther } from 'ethers/lib/utils'
+import { formatEther, getBigInt, JsonRpcProvider, keccak256, parseEther, Signer, toNumber, Wallet } from 'ethers'
+import { SimpleAccountFactory__factory } from '@account-abstraction/utils/src/types'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'
@@ -46,7 +44,7 @@ class Runner {
 
   async init (deploymentSigner?: Signer): Promise<this> {
     const net = await this.provider.getNetwork()
-    const chainId = net.chainId
+    const chainId = toNumber(net.chainId)
     const dep = new DeterministicDeployer(this.provider)
     const accountDeployer = await DeterministicDeployer.getAddress(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     // const accountDeployer = await new SimpleAccountFactory__factory(this.provider.getSigner()).deploy().then(d=>d.address)
@@ -117,16 +115,16 @@ async function main (): Promise<void> {
   let bundler: BundlerServer | undefined
   if (opts.selfBundler != null) {
     // todo: if node is geth, we need to fund our bundler's account:
-    const signer = provider.getSigner()
+    const signer = await provider.getSigner()
 
-    const signerBalance = await provider.getBalance(signer.getAddress())
+    const signerBalance = await provider.getBalance(await signer.getAddress())
     const account = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
     const bal = await provider.getBalance(account)
-    if (bal.lt(parseEther('1')) && signerBalance.gte(parseEther('10000'))) {
+    if (bal < parseEther('1') && signerBalance >= parseEther('10000')) {
       console.log('funding hardhat account', account)
       await signer.sendTransaction({
         to: account,
-        value: parseEther('1').sub(bal)
+        value: parseEther('1') - bal
       })
     }
 
@@ -138,7 +136,7 @@ async function main (): Promise<void> {
     await bundler.asyncStart()
   }
   if (opts.mnemonic != null) {
-    signer = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim()).connect(provider)
+    signer = Wallet.fromPhrase(fs.readFileSync(opts.mnemonic, 'ascii').trim()).connect(provider)
   } else {
     try {
       const accounts = await provider.listAccounts()
@@ -147,7 +145,7 @@ async function main (): Promise<void> {
         process.exit(1)
       }
       // for hardhat/node, use account[0]
-      signer = provider.getSigner()
+      signer = await provider.getSigner()
       // deployFactory = true
     } catch (e) {
       throw new Error('must specify --mnemonic')
@@ -165,7 +163,7 @@ async function main (): Promise<void> {
     return await provider.getCode(addr).then(code => code !== '0x')
   }
 
-  async function getBalance (addr: string): Promise<BigNumber> {
+  async function getBalance (addr: string): Promise<bigint> {
     return await provider.getBalance(addr)
   }
 
@@ -173,12 +171,12 @@ async function main (): Promise<void> {
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   const gasPrice = await provider.getGasPrice()
   // TODO: actual required val
-  const requiredBalance = gasPrice.mul(2e6)
-  if (bal.lt(requiredBalance.div(2))) {
+  const requiredBalance = gasPrice * getBigInt(2e6)
+  if (bal < requiredBalance / 2n) {
     console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({
       to: addr,
-      value: requiredBalance.sub(bal)
+      value: requiredBalance - bal
     }).then(async tx => await tx.wait())
   } else {
     console.log('not funding account. balance is enough')
@@ -196,5 +194,8 @@ async function main (): Promise<void> {
 }
 
 void main()
-  .catch(e => { console.log(e); process.exit(1) })
+  .catch(e => {
+    console.log(e)
+    process.exit(1)
+  })
   .then(() => process.exit(0))

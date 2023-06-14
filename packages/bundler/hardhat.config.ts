@@ -1,5 +1,5 @@
-import '@nomiclabs/hardhat-ethers'
-import '@nomicfoundation/hardhat-toolbox'
+import '@nomicfoundation/hardhat-ethers'
+import '@typechain/hardhat'
 import 'hardhat-deploy'
 
 import fs from 'fs'
@@ -31,7 +31,7 @@ function getInfuraNetwork (name: string): NetworkUserConfig {
 const config: HardhatUserConfig = {
   typechain: {
     outDir: 'src/types',
-    target: 'ethers-v5'
+    target: 'ethers-v6'
   },
   networks: {
     localhost: {

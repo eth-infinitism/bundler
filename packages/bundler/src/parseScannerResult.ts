@@ -2,8 +2,7 @@ import {
   EntryPoint,
   IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory
-} from '@account-abstraction/contracts'
-import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
+} from '@account-abstraction/utils/src/types'
 import { BundlerCollectorReturn } from './BundlerCollectorTracer'
 import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
@@ -11,7 +10,7 @@ import { inspect } from 'util'
 import Debug from 'debug'
 import { toBytes32 } from './modules/moduleUtils'
 import { ValidationResult } from './modules/ValidationManager'
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumberish, getBigInt } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
 import { StakeInfo, StorageMap, UserOperation, ValidationErrors } from './modules/Types'
 
@@ -187,7 +186,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   requireCond(
     callStack.find(call => call.to !== entryPointAddress &&
-      BigNumber.from(call.value ?? 0) !== BigNumber.from(0)) != null,
+      getBigInt(call.value ?? 0) !== getBigInt(0)) != null,
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
 
@@ -247,12 +246,12 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         if (k == null) {
           return false
         }
-        const slotN = BigNumber.from(slot)
+        const slotN = getBigInt(slot)
         // scan all slot entries to check of the given slot is within a structure, starting at that offset.
         // assume a maximum size on a (static) structure size.
         for (const k1 of k.keys()) {
-          const kn = BigNumber.from(k1)
-          if (slotN.gte(kn) && slotN.lt(kn.add(128))) {
+          const kn = getBigInt(k1)
+          if (slotN >= kn && slotN < (kn + 128n)) {
             return true
           }
         }
@@ -319,7 +318,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       if (entStakes == null) {
         throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
       }
-      requireCond(BigNumber.from(1).lt(entStakes.stake) && BigNumber.from(1).lt(entStakes.unstakeDelaySec),
+      requireCond(1n < entStakes.stake && 1n < entStakes.unstakeDelaySec,
         failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
 
       // TODO: check real minimum stake values

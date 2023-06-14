@@ -4,7 +4,7 @@
   ],
   "compilerOptions": {
     "outDir": "dist",
-    "target": "es2017",
+    "target": "es2020",
     "module": "commonjs",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

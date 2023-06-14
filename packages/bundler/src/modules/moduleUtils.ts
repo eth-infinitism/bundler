@@ -1,9 +1,7 @@
 // misc utilities for the various modules.
 
-import { BytesLike, ContractFactory } from 'ethers'
-import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
+import { BytesLike, ContractFactory, hexlify, Provider, Result, toQuantity, zeroPadBytes } from 'ethers'
 import { SlotMap, StorageMap } from './Types'
-import { Provider } from '@ethersproject/providers'
 
 // extract address from initCode or paymasterAndData
 export function getAddr (data?: BytesLike): string | undefined {
@@ -50,12 +48,12 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
 }
 
 export function toBytes32 (b: BytesLike | number): string {
-  return hexZeroPad(hexlify(b).toLowerCase(), 32)
+  return zeroPadBytes(toQuantity(b), 32)
 }
 
 /**
  * run the constructor of the given type as a script: it is expected to revert with the script's return values.
- * @param provider provider to use fo rthe call
+ * @param provider provider to use for the call
  * @param c - contract factory of the script class
  * @param ctrParams constructor parameters
  * @return an array of arguments of the error
@@ -63,9 +61,10 @@ export function toBytes32 (b: BytesLike | number): string {
  *     hashes = await runContractScript(provider, new GetUserOpHashes__factory(), [entryPoint.address, userOps]).then(ret => ret.userOpHashes)
  */
 export async function runContractScript<T extends ContractFactory> (provider: Provider, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
-  const tx = c.getDeployTransaction(...ctrParams)
+  const tx = await c.getDeployTransaction(...ctrParams)
   const ret = await provider.call(tx)
-  const parsed = ContractFactory.getInterface(c.interface).parseError(ret)
+
+  const parsed = c.interface.parseError(ret)
   if (parsed == null) throw new Error('unable to parse script (error) response: ' + ret)
   return parsed.args
 }

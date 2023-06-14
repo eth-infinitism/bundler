@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { requireCond, tostr } from '../utils'
-import { BigNumber } from 'ethers'
+import { AddressLike, getBigInt } from 'ethers'
 import { StakeInfo, ValidationErrors } from './Types'
 
 const debug = Debug('aa.rep')
@@ -43,7 +43,7 @@ export type ReputationDump = ReputationEntry[]
 export class ReputationManager {
   constructor (
     readonly params: ReputationParams,
-    readonly minStake: BigNumber,
+    readonly minStake: bigint,
     readonly minUnstakeDelay: number) {
   }
 
@@ -84,7 +84,8 @@ export class ReputationManager {
     params.forEach(item => this.blackList.add(item))
   }
 
-  _getOrCreate (addr: string): ReputationEntry {
+  _getOrCreate (addr1: AddressLike): ReputationEntry {
+    const addr = addr1.toString().toLowerCase()
     let entry = this.entries[addr]
     if (entry == null) {
       this.entries[addr] = entry = {
@@ -151,7 +152,7 @@ export class ReputationManager {
    * should be banned immediately, by increasing its opSeen counter
    * @param addr
    */
-  crashedHandleOps (addr: string | undefined): void {
+  crashedHandleOps (addr: AddressLike | undefined): void {
     if (addr == null) {
       return
     }
@@ -198,10 +199,10 @@ export class ReputationManager {
       `${title} ${info.addr} is banned`,
       ValidationErrors.Reputation, { [title]: info.addr })
 
-    requireCond(BigNumber.from(info.stake).gte(this.minStake),
+    requireCond(getBigInt(info.stake) >= this.minStake,
       `${title} ${info.addr} stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`,
       ValidationErrors.InsufficientStake)
-    requireCond(BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay),
+    requireCond(getBigInt(info.unstakeDelaySec) >= this.minUnstakeDelay,
       `${title} ${info.addr} unstake delay ${tostr(info.unstakeDelaySec)} is too low (min=${tostr(this.minUnstakeDelay)})`,
       ValidationErrors.InsufficientStake)
   }

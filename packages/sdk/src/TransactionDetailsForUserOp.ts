@@ -1,7 +1,7 @@
-import { BigNumberish } from 'ethers'
+import { AddressLike, BigNumberish } from 'ethers'
 
 export interface TransactionDetailsForUserOp {
-  target: string
+  target: AddressLike
   data: string
   value?: BigNumberish
   gasLimit?: BigNumberish

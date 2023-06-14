@@ -1,14 +1,15 @@
-import { ethers, BigNumber, BigNumberish } from 'ethers'
-import { Provider } from '@ethersproject/providers'
+import { BigNumberish, getBigInt, Provider, AddressLike, toNumber, resolveProperties } from 'ethers'
 import {
   EntryPoint, EntryPoint__factory,
+} from '@account-abstraction/utils/src/types'
+
+import {
   UserOperationStruct
-} from '@account-abstraction/contracts'
+} from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { resolveProperties } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
+import { AddressZero, getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface BaseApiParams {
@@ -60,8 +61,7 @@ export abstract class BaseAccountAPI {
     this.accountAddress = params.accountAddress
     this.paymasterAPI = params.paymasterAPI
 
-    // factory "connect" define the contract address. the contract "connect" defines the "from" address.
-    this.entryPointView = EntryPoint__factory.connect(params.entryPointAddress, params.provider).connect(ethers.constants.AddressZero)
+    this.entryPointView = EntryPoint__factory.connect(params.entryPointAddress, params.provider)
   }
 
   async init (): Promise<this> {
@@ -82,7 +82,7 @@ export abstract class BaseAccountAPI {
   /**
    * return current account's nonce.
    */
-  abstract getNonce (): Promise<BigNumber>
+  abstract getNonce (): Promise<bigint>
 
   /**
    * encode the call from entryPoint through our account to the target contract.
@@ -90,7 +90,7 @@ export abstract class BaseAccountAPI {
    * @param value
    * @param data
    */
-  abstract encodeExecute (target: string, value: BigNumberish, data: string): Promise<string>
+  abstract encodeExecute (target: AddressLike, value: BigNumberish, data: string): Promise<string>
 
   /**
    * sign a userOp's hash (userOpHash).
@@ -120,11 +120,11 @@ export abstract class BaseAccountAPI {
    * calculate the account address even before it is deployed
    */
   async getCounterFactualAddress (): Promise<string> {
-    const initCode = this.getAccountInitCode()
+    const initCode = await this.getAccountInitCode()
     // use entryPoint to query account address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
     try {
-      await this.entryPointView.callStatic.getSenderAddress(initCode)
+      await this.entryPointView.getSenderAddress.staticCall(initCode)
     } catch (e: any) {
       if (e.errorArgs == null) {
         throw e
@@ -169,13 +169,13 @@ export abstract class BaseAccountAPI {
     return packUserOp(userOp, false)
   }
 
-  async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
-    function parseNumber (a: any): BigNumber | null {
+  async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: bigint }> {
+    function parseNumber (a: any): bigint | null {
       if (a == null || a === '') return null
-      return BigNumber.from(a.toString())
+      return getBigInt(a.toString())
     }
 
-    const value = parseNumber(detailsForUserOp.value) ?? BigNumber.from(0)
+    const value = parseNumber(detailsForUserOp.value) ?? getBigInt(0)
     const callData = await this.encodeExecute(detailsForUserOp.target, value, detailsForUserOp.data)
 
     const callGasLimit = parseNumber(detailsForUserOp.gasLimit) ?? await this.provider.estimateGas({
@@ -197,7 +197,7 @@ export abstract class BaseAccountAPI {
    */
   async getUserOpHash (userOp: UserOperationStruct): Promise<string> {
     const op = await resolveProperties(userOp)
-    const chainId = await this.provider.getNetwork().then(net => net.chainId)
+    const chainId = await this.provider.getNetwork().then(net => toNumber(net.chainId))
     return getUserOpHash(op, this.entryPointAddress, chainId)
   }
 
@@ -216,11 +216,14 @@ export abstract class BaseAccountAPI {
     return this.senderAddress
   }
 
-  async estimateCreationGas (initCode?: string): Promise<BigNumberish> {
-    if (initCode == null || initCode === '0x') return 0
+  async estimateCreationGas (initCode?: string): Promise<bigint> {
+    if (initCode == null || initCode === '0x') return 0n
     const deployerAddress = initCode.substring(0, 42)
     const deployerCallData = '0x' + initCode.substring(42)
-    return await this.provider.estimateGas({ to: deployerAddress, data: deployerCallData })
+    return await this.provider.estimateGas({
+      to: deployerAddress,
+      data: deployerCallData
+    })
   }
 
   /**
@@ -237,8 +240,7 @@ export abstract class BaseAccountAPI {
     const initCode = await this.getInitCode()
 
     const initGas = await this.estimateCreationGas(initCode)
-    const verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
-      .add(initGas)
+    const verificationGasLimit = getBigInt(await this.getVerificationGasLimit()) + initGas
 
     let {
       maxFeePerGas,
@@ -289,7 +291,7 @@ export abstract class BaseAccountAPI {
    */
   async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
     const userOpHash = await this.getUserOpHash(userOp)
-    const signature = this.signUserOpHash(userOpHash)
+    const signature = await this.signUserOpHash(userOpHash)
     return {
       ...userOp,
       signature

@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { AddressLike, BigNumberish, getBigInt, getNumber } from 'ethers'
 import { getAddr } from './moduleUtils'
 import { requireCond } from '../utils'
 import { ReputationManager } from './ReputationManager'
@@ -53,7 +53,7 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
-      this.entryCount[userOp.sender] = (this.entryCount[userOp.sender] ?? 0) + 1
+      this.entryCount[userOp.sender.toString()] = (this.entryCount[userOp.sender.toString()] ?? 0) + 1
       this.checkSenderCountInMempool(userOp, senderInfo)
       this.mempool.push(entry)
     }
@@ -69,7 +69,7 @@ export class MempoolManager {
   // check if there are already too many entries in mempool for that sender.
   // (allow 4 entities if unstaked, or any number if staked)
   private checkSenderCountInMempool (userOp: UserOperation, senderInfo: StakeInfo): void {
-    if ((this.entryCount[userOp.sender] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+    if ((this.entryCount[userOp.sender.toString()] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
       // already enough entities with this sender in mempool.
       // check that it is staked
       this.reputationManager.checkStake('account', senderInfo)
@@ -77,14 +77,14 @@ export class MempoolManager {
   }
 
   private checkReplaceUserOp (oldEntry: MempoolEntry, entry: MempoolEntry): void {
-    const oldMaxPriorityFeePerGas = BigNumber.from(oldEntry.userOp.maxPriorityFeePerGas).toNumber()
-    const newMaxPriorityFeePerGas = BigNumber.from(entry.userOp.maxPriorityFeePerGas).toNumber()
-    const oldMaxFeePerGas = BigNumber.from(oldEntry.userOp.maxFeePerGas).toNumber()
-    const newMaxFeePerGas = BigNumber.from(entry.userOp.maxFeePerGas).toNumber()
+    const oldMaxPriorityFeePerGas = getBigInt(oldEntry.userOp.maxPriorityFeePerGas)
+    const newMaxPriorityFeePerGas = getBigInt(entry.userOp.maxPriorityFeePerGas)
+    const oldMaxFeePerGas = getBigInt(oldEntry.userOp.maxFeePerGas)
+    const newMaxFeePerGas = getBigInt(entry.userOp.maxFeePerGas)
     // the error is "invalid fields", even though it is detected only after validation
-    requireCond(newMaxPriorityFeePerGas >= oldMaxPriorityFeePerGas * 1.1,
+    requireCond(newMaxPriorityFeePerGas >= oldMaxPriorityFeePerGas * 11n / 10n,
       `Replacement UserOperation must have higher maxPriorityFeePerGas (old=${oldMaxPriorityFeePerGas} new=${newMaxPriorityFeePerGas}) `, ValidationErrors.InvalidFields)
-    requireCond(newMaxFeePerGas >= oldMaxFeePerGas * 1.1,
+    requireCond(newMaxFeePerGas >= oldMaxFeePerGas * 11n / 10n,
       `Replacement UserOperation must have higher maxFeePerGas (old=${oldMaxFeePerGas} new=${newMaxFeePerGas}) `, ValidationErrors.InvalidFields)
   }
 
@@ -93,14 +93,14 @@ export class MempoolManager {
 
     function cost (op: UserOperation): number {
       // TODO: need to consult basefee and maxFeePerGas
-      return BigNumber.from(op.maxPriorityFeePerGas).toNumber()
+      return getNumber(op.maxPriorityFeePerGas)
     }
 
     copy.sort((a, b) => cost(a.userOp) - cost(b.userOp))
     return copy
   }
 
-  _findBySenderNonce (sender: string, nonce: BigNumberish): number {
+  _findBySenderNonce (sender: AddressLike, nonce: BigNumberish): number {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
       if (curOp.sender === sender && curOp.nonce === nonce) {
@@ -135,12 +135,13 @@ export class MempoolManager {
       const userOp = this.mempool[index].userOp
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
-      const count = (this.entryCount[userOp.sender] ?? 0) - 1
+      let userOpSender = userOp.sender.toString()
+      const count = (this.entryCount[userOpSender] ?? 0) - 1
       if (count <= 0) {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete this.entryCount[userOp.sender]
+        delete this.entryCount[userOpSender]
       } else {
-        this.entryCount[userOp.sender] = count
+        this.entryCount[userOpSender] = count
       }
     }
   }

@@ -1,10 +1,10 @@
 import { expect } from 'chai'
 import { SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
 import { ethers } from 'hardhat'
-import { hexValue } from 'ethers/lib/utils'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
+import { JsonRpcProvider, Provider } from 'ethers'
 
-const deployer = new DeterministicDeployer(ethers.provider)
+const deployer = new DeterministicDeployer(ethers.provider as Provider as JsonRpcProvider)
 
 describe('#deterministicDeployer', () => {
   it('deploy deployer', async () => {
@@ -16,8 +16,8 @@ describe('#deterministicDeployer', () => {
     await deployer.deployFactory()
   })
   it('should deploy at given address', async () => {
-    const ctr = hexValue(new SampleRecipient__factory(ethers.provider.getSigner()).getDeployTransaction().data!)
-    DeterministicDeployer.init(ethers.provider)
+    const ctr = (await new SampleRecipient__factory(await ethers.provider.getSigner()).getDeployTransaction()).data!
+    DeterministicDeployer.init(ethers.provider as Provider as JsonRpcProvider)
     const addr = await DeterministicDeployer.getAddress(ctr)
     expect(await deployer.isContractDeployed(addr)).to.equal(false)
     await DeterministicDeployer.deploy(ctr)

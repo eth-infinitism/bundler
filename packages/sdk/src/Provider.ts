@@ -1,14 +1,12 @@
-import { JsonRpcProvider } from '@ethersproject/providers'
-
-import { EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
+import { EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/utils/src/ContractTypes'
 
 import { ClientConfig } from './ClientConfig'
 import { SimpleAccountAPI } from './SimpleAccountAPI'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { HttpRpcClient } from './HttpRpcClient'
 import { DeterministicDeployer } from './DeterministicDeployer'
-import { Signer } from '@ethersproject/abstract-signer'
 import Debug from 'debug'
+import { JsonRpcProvider, JsonRpcSigner, Provider, Signer, toNumber } from 'ethers'
 
 const debug = Debug('aa.wrapProvider')
 
@@ -19,23 +17,26 @@ const debug = Debug('aa.wrapProvider')
  * @param originalSigner use this signer as the owner. of this wallet. By default, use the provider's signer
  */
 export async function wrapProvider (
-  originalProvider: JsonRpcProvider,
+  originalProvider: Provider,
   config: ClientConfig,
-  originalSigner: Signer = originalProvider.getSigner()
+  originalSigner?: Signer
 ): Promise<ERC4337EthersProvider> {
+  if (originalSigner == null) {
+    originalSigner = await (originalProvider as JsonRpcProvider).getSigner()
+  }
   const entryPoint = EntryPoint__factory.connect(config.entryPointAddress, originalProvider)
   // Initial SimpleAccount instance is not deployed and exists just for the interface
   const detDeployer = new DeterministicDeployer(originalProvider)
-  const SimpleAccountFactory = await detDeployer.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
+  const SimpleAccountFactory = await detDeployer.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [await entryPoint.getAddress()])
   const smartAccountAPI = new SimpleAccountAPI({
     provider: originalProvider,
-    entryPointAddress: entryPoint.address,
+    entryPointAddress: await entryPoint.getAddress(),
     owner: originalSigner,
     factoryAddress: SimpleAccountFactory,
     paymasterAPI: config.paymasterAPI
   })
   debug('config=', config)
-  const chainId = await originalProvider.getNetwork().then(net => net.chainId)
+  const chainId = await originalProvider.getNetwork().then(net => toNumber(net.chainId))
   const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, chainId)
   return await new ERC4337EthersProvider(
     chainId,

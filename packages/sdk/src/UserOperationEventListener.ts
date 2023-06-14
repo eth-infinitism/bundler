@@ -1,12 +1,13 @@
-import { BigNumberish, Event } from 'ethers'
-import { TransactionReceipt } from '@ethersproject/providers'
-import { EntryPoint } from '@account-abstraction/contracts'
-import { defaultAbiCoder } from 'ethers/lib/utils'
+import { AddressLike, BigNumberish, EventLog, Log, TransactionReceipt } from 'ethers'
+import { EntryPoint } from '@account-abstraction/utils/src/types'
 import Debug from 'debug'
+import { AbiCoder } from 'ethers/lib.esm'
 
 const debug = Debug('aa.listener')
 
 const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
+
+const defaultAbiCoder = AbiCoder.defaultAbiCoder()
 
 /**
  * This class encapsulates Ethers.js listener function and necessary UserOperation details to
@@ -14,19 +15,19 @@ const DEFAULT_TRANSACTION_TIMEOUT: number = 10000
  */
 export class UserOperationEventListener {
   resolved: boolean = false
-  boundLisener: (this: any, ...param: any) => void
+  boundListener: (this: any, ...param: any) => void
 
   constructor (
-    readonly resolve: (t: TransactionReceipt) => void,
+    readonly resolve: (t: TransactionReceipt| PromiseLike<TransactionReceipt>) => void,
     readonly reject: (reason?: any) => void,
     readonly entryPoint: EntryPoint,
-    readonly sender: string,
+    readonly sender: AddressLike,
     readonly userOpHash: string,
     readonly nonce?: BigNumberish,
     readonly timeout?: number
   ) {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.boundLisener = this.listenerCallback.bind(this)
+    this.boundListener = this.listenerCallback.bind(this)
     setTimeout(() => {
       this.stop()
       this.reject(new Error('Timed out'))
@@ -43,18 +44,18 @@ export class UserOperationEventListener {
       if (res.length > 0) {
         void this.listenerCallback(res[0])
       } else {
-        this.entryPoint.once(filter, this.boundLisener)
+        this.entryPoint.once(filter, this.boundListener)
       }
     }, 100)
   }
 
   stop (): void {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.entryPoint.off('UserOperationEvent', this.boundLisener)
+    this.entryPoint.off('UserOperationEvent', this.boundListener)
   }
 
   async listenerCallback (this: any, ...param: any): Promise<void> {
-    const event = arguments[arguments.length - 1] as Event
+    const event = arguments[arguments.length - 1] as EventLog
     if (event.args == null) {
       console.error('got event without args', event)
       return
@@ -65,8 +66,10 @@ export class UserOperationEventListener {
       return
     }
 
-    const transactionReceipt = await event.getTransactionReceipt()
-    transactionReceipt.transactionHash = this.userOpHash
+    let transactionReceipt = await event.getTransactionReceipt()
+    const rcpt = transactionReceipt as any
+    rcpt.hash = this.userOpHash
+    //TODO: set also getter methods?
     debug('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
     // before returning the receipt, update the status from the event.
@@ -81,6 +84,8 @@ export class UserOperationEventListener {
 
   async extractFailureReason (receipt: TransactionReceipt): Promise<void> {
     debug('mark tx as failed')
+    //WTF: can we change readonly field:
+    // @ts-ignore
     receipt.status = 0
     const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.userOpHash, this.sender), receipt.blockHash)
     if (revertReasonEvents[0] != null) {

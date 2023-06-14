@@ -1,9 +1,7 @@
-import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
-import { BigNumber } from 'ethers'
-import { Deferrable } from '@ethersproject/properties'
-import { resolveProperties } from 'ethers/lib/utils'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 //
+
+import { JsonRpcProvider, TransactionRequest } from 'ethers'
 
 /**
  * a function returning a LogTracer.
@@ -15,10 +13,10 @@ import { resolveProperties } from 'ethers/lib/utils'
 type LogTracerFunc = () => LogTracer
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
-  const tx1 = await resolveProperties(tx)
+// @ts-ignore
+export async function debug_traceCall (provider: JsonRpcProvider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
   const traceOptions = tracer2string(options)
-  const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
+  const ret = await provider.send('debug_traceCall', [tx, 'latest', traceOptions]).catch(e => {
     console.log('ex=', e.message)
     console.log('tracer=', traceOptions.tracer?.toString().split('\n').map((line, index) => `${index + 1}: ${line}`).join('\n'))
     throw e
@@ -28,8 +26,9 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
 }
 
 // a hack for network that doesn't have traceCall: mine the transaction, and use debug_traceTransaction
-export async function execAndTrace (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
-  const hash = await provider.getSigner().sendUncheckedTransaction(tx)
+export async function execAndTrace (provider: JsonRpcProvider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
+  let signer = await provider.getSigner()
+  const hash = await signer.sendUncheckedTransaction(tx)
   return await debug_traceTransaction(provider, hash, options)
 }
 
@@ -113,7 +112,7 @@ export interface LogContext {
   gasUsed: number //  Number, amount of gas used in executing the transaction (excludes txdata costs)
   gasPrice: number // Number, gas price configured in the transaction being executed
   intrinsicGas: number // Number, intrinsic gas for the transaction being executed
-  value: BigNumber // big.Int, amount to be transferred in wei
+  value: bigint // big.Int, amount to be transferred in wei
   block: number // Number, block number
   output: Buffer // Buffer, value returned from EVM
   time: string // String, execution runtime
@@ -158,7 +157,7 @@ export interface LogCallFrame {
   // - returns a Number which has the amount of gas provided for the frame
   getGas: () => number
   // - returns a big.Int with the amount to be transferred only if available, otherwise undefined
-  getValue: () => BigNumber
+  getValue: () => bigint
 }
 
 export interface LogFrameResult {
@@ -187,7 +186,7 @@ export interface LogStack {
 export interface LogContract {
   getCaller: () => any // returns the address of the caller
   getAddress: () => string // returns the address of the current contract
-  getValue: () => BigNumber // returns the amount of value sent from caller to contract as a big.Int
+  getValue: () => bigint // returns the amount of value sent from caller to contract as a big.Int
   getInput: () => any // returns the input data passed to the contract
 }
 
@@ -207,7 +206,7 @@ export interface LogStep {
 }
 
 export interface LogDb {
-  getBalance: (address: string) => BigNumber // - returns a big.Int with the specified account’s balance
+  getBalance: (address: string) => bigint // - returns a big.Int with the specified account’s balance
   getNonce: (address: string) => number // returns a Number with the specified account’s nonce
   getCode: (address: string) => any // returns a byte slice with the code for the specified account
   getState: (address: string, hash: string) => any // returns the state value for the specified account and the specified hash

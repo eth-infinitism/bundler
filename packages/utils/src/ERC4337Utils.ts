@@ -1,8 +1,7 @@
-import { defaultAbiCoder, hexConcat, hexlify, keccak256, resolveProperties } from 'ethers/lib/utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
-import { ethers } from 'ethers'
+import { AbiCoder, concat, ethers, hexlify, keccak256, resolveProperties } from 'ethers'
 import Debug from 'debug'
+import { UserOperationStruct } from './ContractTypes'
 
 const debug = Debug('aa.utils')
 
@@ -13,7 +12,9 @@ if (UserOpType == null) {
   throw new Error(`unable to find method ${validateUserOpMethod} in EP ${entryPointAbi.filter(x => x.type === 'function').map(x => x.name).join(',')}`)
 }
 
-export const AddressZero = ethers.constants.AddressZero
+const defaultAbiCoder = AbiCoder.defaultAbiCoder()
+
+export const AddressZero = ethers.ZeroAddress
 
 // reverse "Deferrable" or "PromiseOrValue" fields
 export type NotPromise<T> = {
@@ -26,7 +27,7 @@ export type NotPromise<T> = {
  * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */
-export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = true): string {
+export function packUserOp (op: UserOperationStruct, forSignature = true): string {
   if (forSignature) {
     return defaultAbiCoder.encode(
       ['address', 'uint256', 'bytes32', 'bytes32',
@@ -56,7 +57,7 @@ export function packUserOp (op: NotPromise<UserOperationStruct>, forSignature = 
  * @param entryPoint
  * @param chainId
  */
-export function getUserOpHash (op: NotPromise<UserOperationStruct>, entryPoint: string, chainId: number): string {
+export function getUserOpHash (op: UserOperationStruct, entryPoint: string, chainId: number): string {
   const userOpHash = keccak256(packUserOp(op, true))
   const enc = defaultAbiCoder.encode(
     ['bytes32', 'address', 'uint256'],
@@ -112,7 +113,7 @@ export function rethrowError (e: any): any {
 
     if (decoded.opIndex != null) {
       // helper for chai: convert our FailedOp error into "Error(msg)"
-      const errorWithMsg = hexConcat([ErrorSig, defaultAbiCoder.encode(['string'], [decoded.message])])
+      const errorWithMsg = concat([ErrorSig, defaultAbiCoder.encode(['string'], [decoded.message])])
       // modify in-place the error object:
       parent.data = errorWithMsg
     }

@@ -1,9 +1,7 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
-import { Provider } from '@ethersproject/providers'
-import { Wallet, utils } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
+import { formatEther, parseEther, Provider, Wallet } from 'ethers'
 
 import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 
@@ -11,12 +9,13 @@ import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
 import { RpcError } from './utils'
-import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import { EntryPoint__factory, UserOperationStruct } from '../../utils/src/ContractTypes'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
 
 const debug = Debug('aa.rpc')
+
 export class BundlerServer {
   app: Express
   private readonly httpServer: Server
@@ -78,10 +77,10 @@ export class BundlerServer {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
     }
     const bal = await this.provider.getBalance(this.wallet.address)
-    console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
-    if (bal.eq(0)) {
+    console.log('signer', this.wallet.address, 'balance', formatEther(bal))
+    if (bal == 0n) {
       this.fatal('cannot run with zero balance')
-    } else if (bal.lt(parseEther(this.config.minBalance))) {
+    } else if (bal < parseEther(this.config.minBalance)) {
       console.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
     }
   }
@@ -102,11 +101,20 @@ export class BundlerServer {
       jsonrpc,
       id
     } = req.body
-    debug('>>', { jsonrpc, id, method, params })
+    debug('>>', {
+      jsonrpc,
+      id,
+      method,
+      params
+    })
     try {
       const result = deepHexlify(await this.handleMethod(method, params))
       console.log('sent', method, '-', result)
-      debug('<<', { jsonrpc, id, result })
+      debug('<<', {
+        jsonrpc,
+        id,
+        result
+      })
       res.send({
         jsonrpc,
         id,
@@ -119,7 +127,11 @@ export class BundlerServer {
         code: err.code
       }
       console.log('failed: ', method, 'error:', JSON.stringify(error))
-      debug('<<', { jsonrpc, id, error })
+      debug('<<', {
+        jsonrpc,
+        id,
+        error
+      })
 
       res.send({
         jsonrpc,

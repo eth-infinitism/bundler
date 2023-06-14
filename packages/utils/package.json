@@ -17,15 +17,15 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.6.0",
-    "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
     "@openzeppelin/contracts": "^4.7.3",
     "debug": "^4.3.4",
-    "ethers": "^5.7.0"
+    "ethers": "^6.5.1"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-    "@nomiclabs/hardhat-ethers": "^2.0.0",
-    "hardhat": "^2.11.0"
+    "@nomicfoundation/hardhat-ethers": "^3.0.2",
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@typechain/ethers-v6": "^0.4.0",
+    "hardhat": "^2.15.0",
+    "typescript": "^4.7.4"
   }
 }

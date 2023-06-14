@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { hexlify } from 'ethers/lib/utils'
+import { hexlify } from 'ethers'
 import { calcPreVerificationGas } from '../src/calcPreVerificationGas'
 
 describe('#calcPreVerificationGas', () => {

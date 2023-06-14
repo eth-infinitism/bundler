@@ -1,12 +1,12 @@
-// import '@nomiclabs/hardhat-ethers'
-import '@nomicfoundation/hardhat-toolbox'
+import '@typechain/hardhat'
+import '@nomicfoundation/hardhat-ethers'
 
 import { HardhatUserConfig } from 'hardhat/config'
 
 const config: HardhatUserConfig = {
   typechain: {
     outDir: 'src/types',
-    target: 'ethers-v5'
+    target: 'ethers-v6'
   },
   solidity: {
     version: '0.8.15',

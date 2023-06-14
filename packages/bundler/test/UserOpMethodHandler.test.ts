@@ -1,6 +1,4 @@
-import { BaseProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
-import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { BundlerConfig } from '../src/BundlerConfig'
 import {
@@ -8,7 +6,8 @@ import {
   EntryPoint__factory,
   SimpleAccountFactory__factory,
   UserOperationStruct
-} from '@account-abstraction/contracts'
+} from '@account-abstraction/utils/dist/src/ContractTypes'
+
 
 import { Signer, Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
