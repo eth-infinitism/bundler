@@ -1,32 +1,33 @@
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
-import { parseEther } from 'ethers/lib/utils'
+import { EntryPoint, EntryPoint__factory, UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { parseEther, Signer } from 'ethers'
 import { expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
-import { UserOperation } from '../src/modules/moduleUtils'
 import { AddressZero } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { ValidationManager } from '../src/modules/ValidationManager'
+import { EventsManager } from '../src/modules/EventsManager'
+import { provider } from './testUtils'
 
 describe('#BundlerManager', () => {
   let bm: BundleManager
 
   let entryPoint: EntryPoint
 
-  const provider = ethers.provider
-  const signer = provider.getSigner()
+  let signer: Signer
 
   before(async function () {
+    signer = await provider.getSigner()
     entryPoint = await new EntryPoint__factory(signer).deploy()
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
+      conditionalRpc: false,
       beneficiary: await signer.getAddress(),
-      entryPoint: entryPoint.address,
+      entryPoint: await entryPoint.getAddress(),
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',
@@ -44,11 +45,13 @@ describe('#BundlerManager', () => {
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
-    bm = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const eventMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    bm = new BundleManager(entryPoint, eventMgr,  mempoolMgr, validMgr, repMgr,
+      config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
 
   it('#getUserOpHashes', async () => {
-    const userOp: UserOperation = {
+    const userOp: UserOperationStruct = {
       sender: AddressZero,
       nonce: 1,
       paymasterAndData: '0x02',

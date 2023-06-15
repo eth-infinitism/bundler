@@ -1,6 +1,12 @@
 // misc utilities for the various modules.
 
-import { BytesLike, ContractFactory, hexlify, Provider, Result, toQuantity, zeroPadBytes } from 'ethers'
+import {
+  BytesLike,
+  ContractFactory,
+  hexlify,
+  Provider,
+  Result,
+} from 'ethers'
 import { SlotMap, StorageMap } from './Types'
 
 // extract address from initCode or paymasterAndData
@@ -47,22 +53,18 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
   return mergedStorageMap
 }
 
-export function toBytes32 (b: BytesLike | number): string {
-  return zeroPadBytes(toQuantity(b), 32)
-}
-
 /**
  * run the constructor of the given type as a script: it is expected to revert with the script's return values.
  * @param provider provider to use for the call
  * @param c - contract factory of the script class
  * @param ctrParams constructor parameters
  * @return an array of arguments of the error
- * example usasge:
+ * example usage:
  *     hashes = await runContractScript(provider, new GetUserOpHashes__factory(), [entryPoint.address, userOps]).then(ret => ret.userOpHashes)
  */
 export async function runContractScript<T extends ContractFactory> (provider: Provider, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
   const tx = await c.getDeployTransaction(...ctrParams)
-  const ret = await provider.call(tx)
+  const ret = await provider.call(tx).catch(e=>e.data)
 
   const parsed = c.interface.parseError(ret)
   if (parsed == null) throw new Error('unable to parse script (error) response: ' + ret)

@@ -1,7 +1,7 @@
 import { AddressLike, BigNumberish, EventLog, Log, TransactionReceipt } from 'ethers'
-import { EntryPoint } from '@account-abstraction/utils/src/types'
+import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
 import Debug from 'debug'
-import { AbiCoder } from 'ethers/lib.esm'
+import { AbiCoder } from 'ethers'
 
 const debug = Debug('aa.listener')
 

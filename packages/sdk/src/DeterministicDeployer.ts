@@ -5,7 +5,7 @@ import {
   hexlify,
   JsonRpcProvider,
   JsonRpcSigner, keccak256, Provider,
-  Signer,
+  Signer, toBeHex,
   toQuantity,
   TransactionRequest, zeroPadBytes
 } from 'ethers'
@@ -90,7 +90,7 @@ export class DeterministicDeployer {
 
   async getDeployTransaction (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<TransactionRequest> {
     await this.deployFactory()
-    const saltEncoded = zeroPadBytes(toQuantity(salt), 32)
+    const saltEncoded = toBeHex(salt, 32)
     const ctrEncoded = await DeterministicDeployer.getCtrCode(ctrCode, params)
     return {
       to: DeterministicDeployer.proxyAddress,
@@ -114,7 +114,7 @@ export class DeterministicDeployer {
   static async getDeterministicDeployAddress (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     // this method works only before the contract is already deployed:
     // return await this.provider.call(await this.getDeployTransaction(ctrCode, salt))
-    const saltEncoded = zeroPadBytes(toQuantity(salt), 32)
+    const saltEncoded = toBeHex(salt, 32)
 
     const ctrCode1 = await DeterministicDeployer.getCtrCode(ctrCode, params)
     return '0x' + keccak256(concat([

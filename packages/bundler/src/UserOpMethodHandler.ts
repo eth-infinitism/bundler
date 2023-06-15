@@ -1,7 +1,7 @@
 import { BigNumberish, getBigInt, hexlify, Log, Provider, Signer } from 'ethers'
 
 import { BundlerConfig } from './BundlerConfig'
-import { deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { deepHexlify, erc4337RuntimeVersion, parseEntryPointErrors } from '@account-abstraction/utils'
 import {
   UserOperationEventEvent,
   UserOperationStruct,
@@ -101,7 +101,7 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => e)
+    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => parseEntryPointErrors(e,this.entryPoint))
     if (errorResult.errorName === 'FailedOp') {
       throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
     }
@@ -253,8 +253,11 @@ export class UserOpMethodHandler {
     if (event == null) {
       return null
     }
-    const receipt = await event.getTransactionReceipt()
-    const logs = this._filterLogs(event, receipt.logs)
+    let receipt = await event.getTransactionReceipt()
+    let logs = this._filterLogs(event, receipt.logs)
+    //WTF: Why our deepHexlify see through too many inner members? it  should do the same object member scanning as JSON.stringify...
+    logs = JSON.parse(JSON.stringify(logs))
+    receipt = JSON.parse(JSON.stringify(receipt))
     return deepHexlify({
       userOpHash,
       sender: event.args.sender,

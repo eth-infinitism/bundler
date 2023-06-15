@@ -126,6 +126,10 @@ export abstract class BaseAccountAPI {
     try {
       await this.entryPointView.getSenderAddress.staticCall(initCode)
     } catch (e: any) {
+      if (e.errorArgs == null ) {
+        //WTF: why it doesn't parse error response?
+        e = {errorArgs: this.entryPointView.interface.parseError(e.data)?.args}
+      }
       if (e.errorArgs == null) {
         throw e
       }
@@ -278,11 +282,11 @@ export abstract class BaseAccountAPI {
       paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm)
     }
     partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
-    return {
+    return await resolveProperties({
       ...partialUserOp,
       preVerificationGas: this.getPreVerificationGas(partialUserOp),
       signature: ''
-    }
+    })
   }
 
   /**

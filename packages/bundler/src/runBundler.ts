@@ -2,7 +2,7 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { ethers, JsonRpcProvider, Wallet } from 'ethers'
+import { ethers, HDNodeWallet, JsonRpcProvider, toNumber, Wallet } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
@@ -14,7 +14,7 @@ import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
-import { parseEther } from 'ethers/lib/utils'
+import { parseEther } from 'ethers'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -28,7 +28,7 @@ const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 export let showStackTraces = false
 
 export async function connectContracts (
-  wallet: Wallet,
+  wallet: HDNodeWallet,
   entryPointAddress: string): Promise<{ entryPoint: EntryPoint }> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
   return {
@@ -84,7 +84,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     if (fs.existsSync(mnemonicFile)) {
       throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
     }
-    const newMnemonic = Wallet.createRandom().mnemonic.phrase
+    const newMnemonic = HDNodeWallet.createRandom().mnemonic?.phrase!
     fs.writeFileSync(mnemonicFile, newMnemonic)
     console.log('created mnemonic file', mnemonicFile)
     process.exit(1)
@@ -96,7 +96,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     chainId
   } = await provider.getNetwork()
 
-  if (chainId === 31337 || chainId === 1337) {
+  if (toNumber(chainId) === 31337 || toNumber(chainId) === 1337) {
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
     if (await provider.getBalance(wallet.getAddress()) === 0n) {
       console.log('=== testnet: fund signer')
@@ -128,7 +128,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, wallet)
   const methodHandler = new UserOpMethodHandler(
     execManager,
     provider,

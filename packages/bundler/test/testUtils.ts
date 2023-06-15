@@ -1,6 +1,8 @@
 import { HDNodeWallet, parseEther, Signer } from 'ethers'
 import { ethers } from 'hardhat'
 
+export const provider = ethers.provider
+
 // create an hdkey signer, and fund it, if needed.
 export async function createSigner (): Promise<Signer> {
   const provider = ethers.provider
@@ -27,7 +29,7 @@ export function resolveNames<T> (json: T, nameToAddress: { [name: string]: strin
     }), {})
   const s = JSON.stringify(json)
   const s1 = s
-    .replace(/[{]"type":"BigNumber","hex":"(.*?)"[}]/g, (_, hex) => BigNumber.from(hex).toString())
+    //.replace(/[{]"type":"BigNumber","hex":"(.*?)"[}]/g, (_, hex) => BigNumber.from(hex).toString())
     .replace(/(0x0*)([0-9a-fA-F]+)+/g, (_, prefix: string, hex: string) => {
       const hexToName = addressToNameMap[hex.toLowerCase()]
       if (hexToName == null) return `${prefix}${hex}` // not found in map: leave as-is

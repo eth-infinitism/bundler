@@ -63,7 +63,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
     readonly originalProvider: Provider,
     readonly httpRpcClient: HttpRpcClient,
     readonly entryPoint: EntryPoint,
-    readonly smartAccountAPI: BaseAccountAPI
+    readonly smartAccountAPI: BaseAccountAPI,
   ) {
     super('', {
       name: 'ERC-4337 Custom Network',
@@ -146,7 +146,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
       data: hexlify(userOp.callData), //TODO: extract calldata?
       value: 0n, //TODO: extract from callData ?
       chainId: getBigInt(this.chainId),
-      signature: Signature.from(''),
+      signature: Signature.from(hexlify(userOp.signature)),
       accessList: null
     }
 

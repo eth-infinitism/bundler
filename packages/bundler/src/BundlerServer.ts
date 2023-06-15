@@ -1,7 +1,7 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
-import { formatEther, parseEther, Provider, Wallet } from 'ethers'
+import { formatEther, HDNodeWallet, parseEther, Provider } from 'ethers'
 
 import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 
@@ -9,7 +9,7 @@ import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
 import { RpcError } from './utils'
-import { EntryPoint__factory, UserOperationStruct } from '../../utils/src/ContractTypes'
+import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
@@ -25,7 +25,7 @@ export class BundlerServer {
     readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
     readonly provider: Provider,
-    readonly wallet: Wallet
+    readonly wallet: HDNodeWallet
   ) {
     this.app = express()
     this.app.use(cors())

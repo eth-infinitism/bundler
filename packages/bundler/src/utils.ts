@@ -1,5 +1,4 @@
-import { BigNumberish } from 'ethers/lib/ethers'
-import { BigNumber } from 'ethers'
+import { BigNumberish, getBigInt, JsonRpcProvider } from 'ethers'
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
@@ -9,7 +8,7 @@ export class RpcError extends Error {
 }
 
 export function tostr (s: BigNumberish): string {
-  return BigNumber.from(s).toString()
+  return getBigInt(s).toString()
 }
 
 export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {

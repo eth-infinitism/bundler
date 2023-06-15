@@ -6,12 +6,12 @@ import {
   UserOperationStruct
 } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { HDNodeWallet, parseEther, Signer, Wallet } from 'ethers'
-import '@nomicfoundation/hardhat-chai-matchers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
 import { DeterministicDeployer, SimpleAccountAPI } from '../src'
 import { AddressZero, rethrowError } from '@account-abstraction/utils'
 import { expect } from 'chai'
+import '@nomicfoundation/hardhat-chai-matchers'
 
 const provider = ethers.provider
 
@@ -105,7 +105,7 @@ describe('SimpleAccountAPI', () => {
     })
     it('should parse revert with no description', async () => {
       // use wrong signature for contract..
-      const wrongContract = EntryPoint__factory.connect(await recipient.getAddress(), provider)
+      const wrongContract = EntryPoint__factory.connect(await recipient.getAddress(), signer)
       await expect(
         wrongContract.addStake(0)
       ).to.revertedWithoutReason()

@@ -1,5 +1,5 @@
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
-import { defaultAbiCoder, hexConcat, hexlify, keccak256, parseEther } from 'ethers/lib/utils'
+import { EntryPoint, EntryPoint__factory } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { hexlify, keccak256, parseEther } from 'ethers'
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import {
@@ -23,7 +23,6 @@ import { toBytes32 } from '../src/modules/moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
-// import { resolveNames } from './testUtils'
 import { UserOperation } from '../src/modules/Types'
 
 const cEmptyUserOp: UserOperation = {

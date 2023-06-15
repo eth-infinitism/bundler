@@ -2,7 +2,7 @@ import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { ReputationManager } from './ReputationManager'
 import { BigNumberish, BytesLike, ErrorDescription, getBigInt, JsonRpcProvider } from 'ethers'
 import { requireCond, RpcError } from '../utils'
-import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
+import { AddressZero, decodeErrorReason, parseEntryPointErrors } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
@@ -56,6 +56,8 @@ export class ValidationManager {
   }
 
   _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
+    errorResult = parseEntryPointErrors(errorResult, this.entryPoint)
+
     if (!errorResult?.errorName?.startsWith('ValidationResult')) {
       // parse it as FailedOp
       // if its FailedOp, then we have the paymaster param... otherwise its an Error(string)
@@ -89,9 +91,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-            ...info,
-            addr
-          }
+          ...info,
+          addr
+        }
     }
 
     return {

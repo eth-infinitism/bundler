@@ -38,6 +38,12 @@ export async function wrapProvider (
   debug('config=', config)
   const chainId = await originalProvider.getNetwork().then(net => toNumber(net.chainId))
   const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, chainId)
+  if (config.walletAddress == null) {
+    config = {
+      ...config,
+      walletAddress: await smartAccountAPI.getAccountAddress()
+    }
+  }
   return await new ERC4337EthersProvider(
     chainId,
     config,

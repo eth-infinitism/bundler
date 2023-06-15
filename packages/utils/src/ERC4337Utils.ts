@@ -1,7 +1,8 @@
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
-import { AbiCoder, concat, ethers, hexlify, keccak256, resolveProperties } from 'ethers'
+import { AbiCoder, concat, ethers, hexlify, keccak256, resolveProperties, toQuantity } from 'ethers'
 import Debug from 'debug'
-import { UserOperationStruct } from './ContractTypes'
+import { EntryPoint, UserOperationStruct } from './ContractTypes'
+import { BigNumberish, BytesLike, toBeHex, zeroPadBytes } from 'ethers/lib.esm'
 
 const debug = Debug('aa.utils')
 
@@ -15,11 +16,6 @@ if (UserOpType == null) {
 const defaultAbiCoder = AbiCoder.defaultAbiCoder()
 
 export const AddressZero = ethers.ZeroAddress
-
-// reverse "Deferrable" or "PromiseOrValue" fields
-export type NotPromise<T> = {
-  [P in keyof T]: Exclude<T[P], Promise<any>>
-}
 
 /**
  * pack the userOperation
@@ -129,19 +125,40 @@ export function deepHexlify (obj: any): any {
   if (typeof obj === 'function') {
     return undefined
   }
+  if (typeof obj == 'number' || typeof obj == 'bigint') {
+    return toQuantity(obj)
+  }
   if (obj == null || typeof obj === 'string' || typeof obj === 'boolean') {
     return obj
-  } else if (obj._isBigNumber != null || typeof obj !== 'object') {
+  }
+  if (obj._isBigNumber != null || typeof obj !== 'object') {
     return hexlify(obj).replace(/^0x0/, '0x')
   }
   if (Array.isArray(obj)) {
     return obj.map(member => deepHexlify(member))
   }
-  return Object.keys(obj)
-    .reduce((set, key) => ({
+  console.log('obj[[')
+  const ret = Object.keys(obj)
+    .reduce((set, key) => {
+      console.log('reduce key=',key)
+      return ({
       ...set,
       [key]: deepHexlify(obj[key])
-    }), {})
+    })}, {})
+  console.log(']]')
+  return ret
+}
+
+export function parseEntryPointErrors(error:any, entryPoint: EntryPoint): any {
+  if (error != null && error.errorName == null && error.data != null) {
+    //wtf: why should I parse the error?
+    const ret = entryPoint.interface.parseError(error.data)
+    error = {
+      errorName: ret?.name,
+      errorArgs: ret?.args
+    }
+  }
+  return error
 }
 
 // resolve all property and hexlify.
@@ -149,3 +166,12 @@ export function deepHexlify (obj: any): any {
 export async function resolveHexlify (a: any): Promise<any> {
   return deepHexlify(await resolveProperties(a))
 }
+
+// export function toBytes32 (b: BytesLike | BigNumberish): string {
+//   if (typeof b == 'object') {
+//     return zeroPadBytes(b,32)
+//   } else {
+//     return toBeHex(b, 32)
+//   }
+// }
+

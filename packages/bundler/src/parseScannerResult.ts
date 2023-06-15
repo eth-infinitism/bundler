@@ -7,7 +7,6 @@ import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
-import { toBytes32 } from './modules/moduleUtils'
 import { ValidationResult } from './modules/ValidationManager'
 import { AddressLike, BigNumberish, getBigInt, Interface, keccak256, zeroPadBytes } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
@@ -128,7 +127,7 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
     Object.values(stakeInfoEntities).forEach(info => {
       const addr = info?.addr?.toLowerCase()
       if (addr == null) return
-      const addrPadded = toBytes32(addr)
+      const addrPadded = zeroPadBytes(addr,32)
       if (entitySlots[addr] == null) {
         entitySlots[addr] = new Set<string>()
       }

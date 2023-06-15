@@ -4,8 +4,9 @@ import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
 import { UserOperationStruct } from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
 import { BaseAccountAPI } from './BaseAccountAPI'
-import { JsonRpcProvider, JsonRpcSigner, Provider, Signer, TransactionRequest, TransactionResponse } from 'ethers'
+import { JsonRpcSigner, Provider, Signer, TransactionRequest, TransactionResponse } from 'ethers'
 
+const debug = require( 'debug')('aa.signer')
 export class ERC4337EthersSigner extends JsonRpcSigner {
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
   constructor (
@@ -14,7 +15,8 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
     readonly erc4337provider: ERC4337EthersProvider,
     readonly httpRpcClient: HttpRpcClient,
     readonly smartAccountAPI: BaseAccountAPI) {
-    super(originalSigner.provider as JsonRpcProvider, '!') //wtf: what is "address?"
+    //accountAddress is "smartAccountAPI.getAccountAddress()", but we can't do async call here
+    super(erc4337provider, config.walletAddress!)
 
     //wtf: I think provider no longer means what we think it means: it is JsonRpcAPIProvider, not a real provider...
     // anyway, defineReadOnly is not found anymore..
@@ -23,6 +25,7 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
 
   // This one is called by Contract. It signs the request and passes in to Provider to be sent.
   async sendTransaction (transaction: TransactionRequest): Promise<TransactionResponse> {
+    debug( 'sendTransaction', transaction)
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     await this.verifyAllNecessaryFields(tx)
     const userOperation = await this.smartAccountAPI.createSignedUserOp({

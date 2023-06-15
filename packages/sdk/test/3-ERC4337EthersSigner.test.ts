@@ -7,6 +7,7 @@ import {
 import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+require("@nomicfoundation/hardhat-chai-matchers");
 
 const provider = ethers.provider
 
@@ -23,17 +24,27 @@ describe('ERC4337EthersSigner, Provider', function () {
       entryPointAddress: await entryPoint.getAddress(),
       bundlerUrl: ''
     }
-    const aasigner = Wallet.createRandom()
-    aaProvider = await wrapProvider(provider, config, aasigner)
+    const aaOwner = Wallet.createRandom()
+    aaProvider = await wrapProvider(provider, config, aaOwner)
 
+    const aasigner = await aaProvider.getSigner()
+    console.log('aasigner addr=', await aasigner.getAddress())
     const beneficiary = await signer.getAddress()
+
     // for testing: bypass sending through a bundler, and send directly to our entrypoint..
     aaProvider.httpRpcClient.sendUserOpToBundler = async (userOp) => {
       try {
         await entryPoint.handleOps([userOp], beneficiary)
       } catch (e: any) {
         // doesn't report error unless called with callStatic
+        console.log('userop=', userOp)
         await entryPoint.handleOps.staticCall([userOp], beneficiary).catch((e: any) => {
+
+          //wtf: why it doesn't parse errors anymore?
+          if ( e.errorArgs == null ){
+            const e1 = entryPoint.interface.parseError(e.data)
+            e = { errorName: e1?.name, errorArgs: e1?.args }
+          }
           // eslint-disable-next-line
           const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
           throw new Error(message)
@@ -41,7 +52,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       }
       return ''
     }
-    recipient = deployRecipient.connect(signer)
+    recipient = deployRecipient.connect(await aaProvider.getSigner())
   })
 
   it('should fail to send before funding', async () => {
@@ -54,12 +65,18 @@ describe('ERC4337EthersSigner, Provider', function () {
   })
 
   it('should use ERC-4337 Signer and Provider to send the UserOperation to the bundler', async function () {
-    const accountAddress = await signer.getAddress()
+    this.timeout(10000)
+    let accountSigner = await aaProvider.getSigner()
+    const accountAddress = await accountSigner.getAddress()
     await signer.sendTransaction({
       to: accountAddress,
-      value: parseEther('0.1')
-    })
-    const ret = await recipient.something('hello')
+      value: parseEther('1')
+    }).then(r=>r.wait())
+    console.log('account', accountAddress, 'bal=', await provider.getBalance(accountAddress))
+    const data = recipient.interface.encodeFunctionData('something', ['hello'])
+    const r = await accountSigner.sendTransaction({to:recipient.getAddress(), data})
+    console.log('ret=',r)
+    const ret = await recipient.something('hello', { gasLimit: 1e6} )
     await expect(ret).to.emit(recipient, 'Sender')
       .withArgs(anyValue, accountAddress, 'hello')
   })

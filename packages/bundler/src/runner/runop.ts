@@ -52,9 +52,10 @@ class Runner {
       if (deploymentSigner == null) {
         console.log(`AccountDeployer not deployed at ${accountDeployer}. run with --deployFactory`)
         process.exit(1)
+      } else {
+        const dep1 = new DeterministicDeployer(deploymentSigner.provider!, deploymentSigner)
+        await dep1.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
       }
-      const dep1 = new DeterministicDeployer(deploymentSigner.provider as any, deploymentSigner)
-      await dep1.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     }
     this.bundlerProvider = new HttpRpcClient(this.bundlerUrl, this.entryPointAddress, chainId)
     this.accountApi = new SimpleAccountAPI({
@@ -169,9 +170,9 @@ async function main (): Promise<void> {
 
   const bal = await getBalance(addr)
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
-  const gasPrice = await provider.getGasPrice()
+  const { gasPrice } = await provider.getFeeData()
   // TODO: actual required val
-  const requiredBalance = gasPrice * getBigInt(2e6)
+  const requiredBalance = gasPrice! * getBigInt(2e6)
   if (bal < requiredBalance / 2n) {
     console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({

@@ -3,7 +3,7 @@ import { EntryPoint, AccountDeployedEvent, UserOperationEventEvent, SignatureAgg
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { MempoolManager } from './MempoolManager'
-import { JsonRpcProvider } from 'ethers'
+import { Provider } from 'ethers'
 
 const debug = Debug('aa.events')
 
@@ -13,13 +13,13 @@ const debug = Debug('aa.events')
 export class EventsManager {
   lastBlock?: number
 
-  provider: JsonRpcProvider
+  provider: Provider
 
   constructor (
     readonly entryPoint: EntryPoint,
     readonly mempoolManager: MempoolManager,
     readonly reputationManager: ReputationManager) {
-    this.provider = entryPoint.runner as JsonRpcProvider
+    this.provider = entryPoint.runner?.provider!
   }
 
   /**
