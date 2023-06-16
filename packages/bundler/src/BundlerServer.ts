@@ -2,7 +2,7 @@ import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
 import { Provider } from '@ethersproject/providers'
-import { Wallet, utils } from 'ethers'
+import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
 import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
@@ -26,7 +26,7 @@ export class BundlerServer {
     readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
     readonly provider: Provider,
-    readonly wallet: Wallet
+    readonly wallet: Signer
   ) {
     this.app = express()
     this.app.use(cors())
@@ -77,8 +77,9 @@ export class BundlerServer {
     if (err?.errorName !== 'FailedOp') {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
     }
-    const bal = await this.provider.getBalance(this.wallet.address)
-    console.log('signer', this.wallet.address, 'balance', utils.formatEther(bal))
+    const signerAddress = await this.wallet.getAddress()
+    const bal = await this.provider.getBalance(signerAddress)
+    console.log('signer', signerAddress, 'balance', utils.formatEther(bal))
     if (bal.eq(0)) {
       this.fatal('cannot run with zero balance')
     } else if (bal.lt(parseEther(this.config.minBalance))) {
