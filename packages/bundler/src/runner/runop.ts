@@ -49,11 +49,11 @@ class Runner {
     const accountDeployer = await DeterministicDeployer.getAddress(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
     // const accountDeployer = await new SimpleAccountFactory__factory(this.provider.getSigner()).deploy().then(d=>d.address)
     if (!await dep.isContractDeployed(accountDeployer)) {
-      if (deploymentSigner == null) {
+      if (deploymentSigner?.provider == null) {
         console.log(`AccountDeployer not deployed at ${accountDeployer}. run with --deployFactory`)
         process.exit(1)
       } else {
-        const dep1 = new DeterministicDeployer(deploymentSigner.provider!, deploymentSigner)
+        const dep1 = new DeterministicDeployer(deploymentSigner.provider, deploymentSigner)
         await dep1.deterministicDeploy(new SimpleAccountFactory__factory(), 0, [this.entryPointAddress])
       }
     }
@@ -172,7 +172,7 @@ async function main (): Promise<void> {
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   const { gasPrice } = await provider.getFeeData()
   // TODO: actual required val
-  const requiredBalance = gasPrice! * getBigInt(2e6)
+  const requiredBalance = (gasPrice ?? 1n) * getBigInt(2e6)
   if (bal < requiredBalance / 2n) {
     console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({

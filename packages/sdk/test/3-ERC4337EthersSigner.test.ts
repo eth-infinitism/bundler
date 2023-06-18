@@ -7,7 +7,7 @@ import {
 import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-require("@nomicfoundation/hardhat-chai-matchers");
+require('@nomicfoundation/hardhat-chai-matchers')
 
 const provider = ethers.provider
 
@@ -39,9 +39,8 @@ describe('ERC4337EthersSigner, Provider', function () {
         // doesn't report error unless called with callStatic
         console.log('userop=', userOp)
         await entryPoint.handleOps.staticCall([userOp], beneficiary).catch((e: any) => {
-
-          //wtf: why it doesn't parse errors anymore?
-          if ( e.errorArgs == null ){
+          // wtf: why it doesn't parse errors anymore?
+          if (e.errorArgs == null) {
             const e1 = entryPoint.interface.parseError(e.data)
             e = { errorName: e1?.name, errorArgs: e1?.args }
           }
@@ -66,17 +65,17 @@ describe('ERC4337EthersSigner, Provider', function () {
 
   it('should use ERC-4337 Signer and Provider to send the UserOperation to the bundler', async function () {
     this.timeout(10000)
-    let accountSigner = await aaProvider.getSigner()
+    const accountSigner = await aaProvider.getSigner()
     const accountAddress = await accountSigner.getAddress()
     await signer.sendTransaction({
       to: accountAddress,
       value: parseEther('1')
-    }).then(r=>r.wait())
+    }).then(async r => await r.wait())
     console.log('account', accountAddress, 'bal=', await provider.getBalance(accountAddress))
     const data = recipient.interface.encodeFunctionData('something', ['hello'])
-    const r = await accountSigner.sendTransaction({to:recipient.getAddress(), data})
-    console.log('ret=',r)
-    const ret = await recipient.something('hello', { gasLimit: 1e6} )
+    const r = await accountSigner.sendTransaction({ to: recipient.getAddress(), data })
+    console.log('ret=', r)
+    const ret = await recipient.something('hello', { gasLimit: 1e6 })
     await expect(ret).to.emit(recipient, 'Sender')
       .withArgs(anyValue, accountAddress, 'hello')
   })

@@ -3,14 +3,15 @@ import { ethers } from 'hardhat'
 import { debug_traceCall } from '../src/GethTracer'
 import { expect } from 'chai'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
-import { BytesLike } from 'ethers'
+import { BytesLike, JsonRpcProvider, Provider, Signer, toQuantity } from 'ethers'
 
 const provider = ethers.provider
-const signer = provider.getSigner()
+let signer: Signer
 
 describe('#bundlerCollectorTracer', () => {
   let tester: TracerTest
   before(async function () {
+    signer = await provider.getSigner()
     const ver: string = await (provider as any).send('web3_clientVersion')
     if (ver.match('go1') == null) {
       console.warn('\t==WARNING: test requires debug_traceCall on Geth (go-ethereum) node. ver=' + ver)
@@ -18,7 +19,7 @@ describe('#bundlerCollectorTracer', () => {
       return
     }
     tester = await new TracerTest__factory(signer).deploy()
-    await tester.deployTransaction.wait()
+    void tester.waitForDeployment()
   })
 
   it('should count opcodes on depth>1', async () => {
@@ -36,9 +37,9 @@ describe('#bundlerCollectorTracer', () => {
   })
 
   async function traceCall (functionData: BytesLike): Promise<BundlerCollectorReturn> {
-    const ret: BundlerCollectorReturn = await debug_traceCall(provider, {
-      to: tester.address,
-      data: functionData
+    const ret: BundlerCollectorReturn = await debug_traceCall(provider as Provider as JsonRpcProvider, {
+      to: await tester.getAddress(),
+      data: toQuantity(functionData)
     }, {
       tracer: bundlerCollectorTracer
     })

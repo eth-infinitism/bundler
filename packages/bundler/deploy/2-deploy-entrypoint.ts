@@ -3,18 +3,19 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { ethers } from 'hardhat'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { EntryPoint__factory } from '@account-abstraction/utils/src/types'
+import { toNumber } from 'ethers'
 
 // deploy entrypoint - but only on debug network..
 const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const dep = new DeterministicDeployer(ethers.provider)
-  const epAddr = DeterministicDeployer.getAddress(EntryPoint__factory.bytecode)
+  const epAddr = await DeterministicDeployer.getAddress(EntryPoint__factory.bytecode)
   if (await dep.isContractDeployed(epAddr)) {
     console.log('EntryPoint already deployed at', epAddr)
     return
   }
 
   const net = await hre.ethers.provider.getNetwork()
-  if (net.chainId !== 1337 && net.chainId !== 31337) {
+  if (toNumber(net.chainId) !== 1337 && toNumber(net.chainId) !== 31337) {
     console.log('NOT deploying EntryPoint. use pre-deployed entrypoint')
     process.exit(1)
   }

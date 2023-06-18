@@ -2,7 +2,7 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { ethers, HDNodeWallet, JsonRpcProvider, toNumber, Wallet } from 'ethers'
+import { ethers, HDNodeWallet, toNumber, parseEther } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
@@ -14,7 +14,6 @@ import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
-import { parseEther } from 'ethers'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -84,12 +83,16 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     if (fs.existsSync(mnemonicFile)) {
       throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
     }
-    const newMnemonic = HDNodeWallet.createRandom().mnemonic?.phrase!
-    fs.writeFileSync(mnemonicFile, newMnemonic)
+    const newMnemonic = HDNodeWallet.createRandom().mnemonic?.phrase
+    fs.writeFileSync(mnemonicFile, newMnemonic ?? '')
     console.log('created mnemonic file', mnemonicFile)
     process.exit(1)
   }
-  const { config, provider, wallet } = await resolveConfiguration(programOpts)
+  const {
+    config,
+    provider,
+    wallet
+  } = await resolveConfiguration(programOpts)
 
   const {
     // name: chainName,
@@ -100,8 +103,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
     if (await provider.getBalance(wallet.getAddress()) === 0n) {
       console.log('=== testnet: fund signer')
-      const signer = await (provider as JsonRpcProvider).getSigner()
-      await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
+      const signer = await (provider).getSigner()
+      await signer.sendTransaction({
+        to: await wallet.getAddress(),
+        value: parseEther('1')
+      })
     }
   }
 

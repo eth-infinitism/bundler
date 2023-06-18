@@ -1,4 +1,4 @@
-import { BigNumberish, concat, getBigInt, getBytes } from 'ethers'
+import { BigNumberish, concat, getBigInt, getBytes, Signer } from 'ethers'
 import {
   SimpleAccount,
   SimpleAccount__factory, SimpleAccountFactory,
@@ -6,7 +6,6 @@ import {
 } from '@account-abstraction/utils/src/ContractTypes'
 
 import { BaseApiParams, BaseAccountAPI } from './BaseAccountAPI'
-import { Signer } from 'ethers'
 
 /**
  * constructor params, added no top of base params:

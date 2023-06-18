@@ -16,6 +16,7 @@ import { GetUserOpHashes__factory } from '../types'
 import { StorageMap, UserOperation } from './Types'
 import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
 import { EventsManager } from './EventsManager'
+import { toLowerAddr } from '@account-abstraction/utils'
 
 const debug = Debug('aa.exec.cron')
 
@@ -90,7 +91,7 @@ export class BundleManager {
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
-      tx.chainId = await this.provider.getNetwork().then(net=>net.chainId)
+      tx.chainId = await this.provider.getNetwork().then(net => net.chainId)
       const signedTx = await this.signer.signTransaction(tx)
       let ret: string
       if (this.conditionalRpc) {
@@ -136,7 +137,7 @@ export class BundleManager {
         this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
       } else {
         this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender.toString()} reason=${reasonStr}`)
+        console.warn(`Failed handleOps sender=${toLowerAddr(userOp.sender)} reason=${reasonStr}`)
       }
     }
   }
@@ -223,7 +224,7 @@ export class BundleManager {
       // If sender's account already exist: replace with its storage root hash
       if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
-        storageMap[entry.userOp.sender.toString().toLowerCase()] = storageHash
+        storageMap[entry.toLowerAddr(userOp.sender).toLowerCase()] = storageHash
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 

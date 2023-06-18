@@ -4,6 +4,7 @@ import { requireCond } from '../utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
+import { toLowerAddr } from '@account-abstraction/utils'
 
 const debug = Debug('aa.mempool')
 
@@ -53,7 +54,7 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
-      this.entryCount[userOp.sender.toString()] = (this.entryCount[userOp.sender.toString()] ?? 0) + 1
+      this.entryCount[toLowerAddr(userOp.sender)] = (this.entryCount[toLowerAddr(userOp.sender)] ?? 0) + 1
       this.checkSenderCountInMempool(userOp, senderInfo)
       this.mempool.push(entry)
     }
@@ -69,7 +70,7 @@ export class MempoolManager {
   // check if there are already too many entries in mempool for that sender.
   // (allow 4 entities if unstaked, or any number if staked)
   private checkSenderCountInMempool (userOp: UserOperation, senderInfo: StakeInfo): void {
-    if ((this.entryCount[userOp.sender.toString()] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+    if ((this.entryCount[toLowerAddr(userOp.sender)] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
       // already enough entities with this sender in mempool.
       // check that it is staked
       this.reputationManager.checkStake('account', senderInfo)
@@ -135,7 +136,7 @@ export class MempoolManager {
       const userOp = this.mempool[index].userOp
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
-      const userOpSender = userOp.sender.toString()
+      const userOpSender = toLowerAddr(userOp.sender)
       const count = (this.entryCount[userOpSender] ?? 0) - 1
       if (count <= 0) {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete

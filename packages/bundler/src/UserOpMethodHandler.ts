@@ -1,7 +1,7 @@
 import { BigNumberish, getBigInt, hexlify, Log, Provider, Signer } from 'ethers'
 
 import { BundlerConfig } from './BundlerConfig'
-import { deepHexlify, erc4337RuntimeVersion, parseEntryPointErrors } from '@account-abstraction/utils'
+import { deepHexlify, erc4337RuntimeVersion, parseEntryPointErrors, toLowerAddr } from '@account-abstraction/utils'
 import {
   UserOperationEventEvent,
   UserOperationStruct,
@@ -101,7 +101,7 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => parseEntryPointErrors(e,this.entryPoint))
+    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => parseEntryPointErrors(e, this.entryPoint))
     if (errorResult.errorName === 'FailedOp') {
       throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
     }
@@ -147,7 +147,7 @@ export class UserOpMethodHandler {
   async sendUserOperation (userOp: UserOperationStruct, entryPointInput: string): Promise<string> {
     await this._validateParameters(userOp, entryPointInput)
 
-    console.log(`UserOperation: Sender=${userOp.sender.toString()}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(
+    console.log(`UserOperation: Sender=${toLowerAddr(userOp.sender)}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(
       userOp.paymasterAndData)}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput)
     return await this.entryPoint.getUserOpHash(userOp)
@@ -255,7 +255,7 @@ export class UserOpMethodHandler {
     }
     let receipt = await event.getTransactionReceipt()
     let logs = this._filterLogs(event, receipt.logs)
-    //WTF: Why our deepHexlify see through too many inner members? it  should do the same object member scanning as JSON.stringify...
+    // WTF: Why our deepHexlify see through too many inner members? it  should do the same object member scanning as JSON.stringify...
     logs = JSON.parse(JSON.stringify(logs))
     receipt = JSON.parse(JSON.stringify(receipt))
     return deepHexlify({

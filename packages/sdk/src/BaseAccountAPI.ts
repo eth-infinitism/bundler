@@ -1,6 +1,6 @@
 import { BigNumberish, getBigInt, Provider, AddressLike, toNumber, resolveProperties } from 'ethers'
 import {
-  EntryPoint, EntryPoint__factory,
+  EntryPoint, EntryPoint__factory
 } from '@account-abstraction/utils/src/types'
 
 import {
@@ -126,9 +126,9 @@ export abstract class BaseAccountAPI {
     try {
       await this.entryPointView.getSenderAddress.staticCall(initCode)
     } catch (e: any) {
-      if (e.errorArgs == null ) {
-        //WTF: why it doesn't parse error response?
-        e = {errorArgs: this.entryPointView.interface.parseError(e.data)?.args}
+      if (e.errorArgs == null) {
+        // WTF: why it doesn't parse error response?
+        e = { errorArgs: this.entryPointView.interface.parseError(e.data)?.args }
       }
       if (e.errorArgs == null) {
         throw e

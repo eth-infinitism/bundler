@@ -1,7 +1,6 @@
-import { AddressLike, BigNumberish, EventLog, Log, TransactionReceipt } from 'ethers'
+import { AddressLike, BigNumberish, EventLog, Log, TransactionReceipt, AbiCoder } from 'ethers'
 import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
 import Debug from 'debug'
-import { AbiCoder } from 'ethers'
 
 const debug = Debug('aa.listener')
 
@@ -18,7 +17,7 @@ export class UserOperationEventListener {
   boundListener: (this: any, ...param: any) => void
 
   constructor (
-    readonly resolve: (t: TransactionReceipt| PromiseLike<TransactionReceipt>) => void,
+    readonly resolve: (t: TransactionReceipt | PromiseLike<TransactionReceipt>) => void,
     readonly reject: (reason?: any) => void,
     readonly entryPoint: EntryPoint,
     readonly sender: AddressLike,
@@ -44,14 +43,13 @@ export class UserOperationEventListener {
       if (res.length > 0) {
         void this.listenerCallback(res[0])
       } else {
-        this.entryPoint.once(filter, this.boundListener)
+        void this.entryPoint.once(filter, this.boundListener)
       }
     }, 100)
   }
 
   stop (): void {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.entryPoint.off('UserOperationEvent', this.boundListener)
+    void this.entryPoint.off('UserOperationEvent', this.boundListener)
   }
 
   async listenerCallback (this: any, ...param: any): Promise<void> {
@@ -66,10 +64,10 @@ export class UserOperationEventListener {
       return
     }
 
-    let transactionReceipt = await event.getTransactionReceipt()
+    const transactionReceipt = await event.getTransactionReceipt()
     const rcpt = transactionReceipt as any
     rcpt.hash = this.userOpHash
-    //TODO: set also getter methods?
+    // TODO: set also getter methods?
     debug('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
     // before returning the receipt, update the status from the event.
@@ -84,7 +82,7 @@ export class UserOperationEventListener {
 
   async extractFailureReason (receipt: TransactionReceipt): Promise<void> {
     debug('mark tx as failed')
-    //WTF: can we change readonly field:
+    // WTF: can we change readonly field:
     // @ts-ignore
     receipt.status = 0
     const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.userOpHash, this.sender), receipt.blockHash)

@@ -5,9 +5,10 @@ import {
   ContractFactory,
   hexlify,
   Provider,
-  Result,
+  Result
 } from 'ethers'
 import { SlotMap, StorageMap } from './Types'
+import { tostr } from '../utils'
 
 // extract address from initCode or paymasterAndData
 export function getAddr (data?: BytesLike): string | undefined {
@@ -64,9 +65,9 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
  */
 export async function runContractScript<T extends ContractFactory> (provider: Provider, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
   const tx = await c.getDeployTransaction(...ctrParams)
-  const ret = await provider.call(tx).catch(e=>e.data)
+  const ret = await provider.call(tx).catch(e => e.data)
 
   const parsed = c.interface.parseError(ret)
-  if (parsed == null) throw new Error('unable to parse script (error) response: ' + ret)
+  if (parsed == null) throw new Error(`unable to parse script (error) response: ${tostr(ret)}`)
   return parsed.args
 }

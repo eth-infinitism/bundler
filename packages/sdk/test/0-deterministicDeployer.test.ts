@@ -16,7 +16,7 @@ describe('#deterministicDeployer', () => {
     await deployer.deployFactory()
   })
   it('should deploy at given address', async () => {
-    const ctr = (await new SampleRecipient__factory(await ethers.provider.getSigner()).getDeployTransaction()).data!
+    const ctr = (await new SampleRecipient__factory(await ethers.provider.getSigner()).getDeployTransaction()).data
     DeterministicDeployer.init(ethers.provider as Provider as JsonRpcProvider)
     const addr = await DeterministicDeployer.getAddress(ctr)
     expect(await deployer.isContractDeployed(addr)).to.equal(false)

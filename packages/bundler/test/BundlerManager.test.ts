@@ -46,7 +46,7 @@ describe('#BundlerManager', () => {
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
     const eventMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
-    bm = new BundleManager(entryPoint, eventMgr,  mempoolMgr, validMgr, repMgr,
+    bm = new BundleManager(entryPoint, eventMgr, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
 

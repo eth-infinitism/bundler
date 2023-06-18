@@ -1,4 +1,9 @@
-import { EntryPoint, AccountDeployedEvent, UserOperationEventEvent, SignatureAggregatorChangedEvent } from '@account-abstraction/utils/dist/src/ContractTypes'
+import {
+  EntryPoint,
+  AccountDeployedEvent,
+  UserOperationEventEvent,
+  SignatureAggregatorChangedEvent
+} from '@account-abstraction/utils/dist/src/ContractTypes'
 
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'

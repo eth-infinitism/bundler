@@ -1,5 +1,9 @@
 {
+  "include": [
+    "./**/*.ts"
+  ],
   "compilerOptions": {
+    "outDir": "dist",
     "target": "es2020",
     "module": "commonjs",
     "esModuleInterop": true,
@@ -14,13 +18,6 @@
     "declaration": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "sourceMap": true,
-    "outDir": "dist",
-    "typeRoots": [
-      "./node_modules/@nomicfoundation/hardhat-ethers"
-    ]
-  },
-  "include": [
-    "src/**/*",
-  ],
+    "sourceMap": true
+  }
 }

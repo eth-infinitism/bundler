@@ -52,7 +52,6 @@ export class DeterministicDeployer {
   constructor (
     readonly provider: Provider,
     readonly _signer?: Signer) {
-
     if (_signer == null) {
       (provider as JsonRpcProvider).getSigner().then(s => this.signer = s)
     } else {

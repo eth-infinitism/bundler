@@ -9,15 +9,14 @@ import {
   , UserOperationEventEvent
 } from '@account-abstraction/utils/dist/src/ContractTypes'
 
-import { HDNodeWallet, parseEther, Provider, Signer, toNumber, Wallet } from 'ethers'
+import { HDNodeWallet, parseEther, Signer, toNumber, Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
-import { postExecutionDump } from '@account-abstraction/utils'
+import { postExecutionDump, resolveHexlify } from '@account-abstraction/utils'
 import {
   SampleRecipient,
   TestRulesAccount,
   TestRulesAccount__factory
 } from '../src/types'
-import { resolveHexlify } from '@account-abstraction/utils'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
@@ -44,7 +43,6 @@ describe('UserOpMethodHandler', function () {
   let sampleRecipient: SampleRecipient
 
   before(async function () {
-
     signer = await createSigner()
     entryPoint = await new EntryPoint__factory(signer).deploy()
     entryPointAddress = await entryPoint.getAddress()
@@ -338,17 +336,14 @@ describe('UserOpMethodHandler', function () {
       const eventNames = logs
         // .filter(l => l.address == entryPointAddress)
         .map(l => {
-          try {
-            return entryPoint.interface.parseLog({
+          return entryPoint.interface.parseLog({
+            topics: [...l.topics],
+            data: l.data
+          }) ??
+            acc.interface.parseLog({
               topics: [...l.topics],
               data: l.data
             })
-          } catch (e) {
-            return acc.interface.parseLog({
-              topics: [...l.topics],
-              data: l.data
-            })
-          }
         })
         .map(l => l?.name)
       expect(eventNames).to.eql([

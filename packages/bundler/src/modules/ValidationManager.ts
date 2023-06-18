@@ -46,7 +46,9 @@ export class ValidationManager {
     readonly entryPoint: EntryPoint,
     readonly reputationManager: ReputationManager,
     readonly unsafe: boolean) {
-    void entryPoint.getAddress().then(x => this.entryPointAddress = x.toLowerCase())
+    void entryPoint.getAddress().then(addr => {
+      this.entryPointAddress = addr.toLowerCase()
+    })
   }
 
   // standard eth_call to simulateValidation
@@ -91,9 +93,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-          ...info,
-          addr
-        }
+            ...info,
+            addr
+          }
     }
 
     return {
@@ -145,7 +147,7 @@ export class ValidationManager {
         throw new Error(errFullName)
       }
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
-        .replace(new RegExp(userOp.sender.toString().toLowerCase()), '{sender}')
+        .replace(new RegExp(toLowerAddr(userOp.sender).toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymasterAndData) ?? '--no-paymaster--'), '{paymaster}')
         .replace(new RegExp(getAddr(userOp.initCode) ?? '--no-initcode--'), '{factory}')
       )

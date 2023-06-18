@@ -23,8 +23,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.2",
-    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
-    "@typechain/ethers-v6": "^0.4.0",
+    "@typechain/hardhat": "^8.0.0",
     "hardhat": "^2.15.0",
     "typescript": "^4.7.4"
   }

@@ -2,6 +2,7 @@ import Debug from 'debug'
 import { requireCond, tostr } from '../utils'
 import { AddressLike, getBigInt } from 'ethers'
 import { StakeInfo, ValidationErrors } from './Types'
+import { toLowerAddr } from '@account-abstraction/utils'
 
 const debug = Debug('aa.rep')
 
@@ -85,7 +86,7 @@ export class ReputationManager {
   }
 
   _getOrCreate (addr1: AddressLike): ReputationEntry {
-    const addr = addr1.toString().toLowerCase()
+    const addr = toLowerAddr(addr1)
     let entry = this.entries[addr]
     if (entry == null) {
       this.entries[addr] = entry = {

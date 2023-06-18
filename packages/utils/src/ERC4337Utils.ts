@@ -1,5 +1,15 @@
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
-import { AbiCoder, concat, ethers, hexlify, keccak256, resolveProperties, toQuantity } from 'ethers'
+import {
+  AbiCoder,
+  AddressLike,
+  concat,
+  ethers,
+  hexlify,
+  keccak256,
+  resolveAddress,
+  resolveProperties,
+  toQuantity
+} from 'ethers'
 import Debug from 'debug'
 import { EntryPoint, UserOperationStruct } from './ContractTypes'
 import { BigNumberish, BytesLike, toBeHex, zeroPadBytes } from 'ethers/lib.esm'
@@ -137,19 +147,14 @@ export function deepHexlify (obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map(member => deepHexlify(member))
   }
-  console.log('obj[[')
-  const ret = Object.keys(obj)
-    .reduce((set, key) => {
-      console.log('reduce key=',key)
-      return ({
+  return Object.keys(obj)
+    .reduce((set, key) => ({
       ...set,
       [key]: deepHexlify(obj[key])
-    })}, {})
-  console.log(']]')
-  return ret
+    }), {})
 }
 
-export function parseEntryPointErrors(error:any, entryPoint: EntryPoint): any {
+export function parseEntryPointErrors (error: any, entryPoint: EntryPoint): any {
   if (error != null && error.errorName == null && error.data != null) {
     //wtf: why should I parse the error?
     const ret = entryPoint.interface.parseError(error.data)
@@ -175,3 +180,10 @@ export async function resolveHexlify (a: any): Promise<any> {
 //   }
 // }
 
+export function toLowerAddr(addr: AddressLike): string {
+  if ( typeof addr != 'string') {
+    //AddressLike supports "resolvable", which we don't use.
+    throw new Error('unsupported address type')
+  }
+  return addr.toLowerCase()
+}

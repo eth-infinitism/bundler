@@ -127,7 +127,7 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
     Object.values(stakeInfoEntities).forEach(info => {
       const addr = info?.addr?.toLowerCase()
       if (addr == null) return
-      const addrPadded = zeroPadBytes(addr,32)
+      const addrPadded = zeroPadBytes(addr, 32)
       if (entitySlots[addr] == null) {
         entitySlots[addr] = new Set<string>()
       }
@@ -186,7 +186,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
 
-  const sender = userOp.sender.toString().toLowerCase()
+  const sender = (userOp.sender as string).toLowerCase()
+
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {

@@ -27,7 +27,7 @@ describe('SimpleAccountAPI', () => {
   let entryPointAddress: string
 
   before('init', async () => {
-    signer =  await provider.getSigner()
+    signer = await provider.getSigner()
     entryPoint = await new EntryPoint__factory(await signer).deploy()
     beneficiary = await signer.getAddress()
 

@@ -3,14 +3,13 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { isGeth } from '../src/utils'
-import { parseEther } from 'ethers'
+import { parseEther, Signer, Wallet } from 'ethers'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager, SendBundleReturn } from '../src/modules/BundleManager'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { EntryPoint, EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
-import { Signer, Wallet } from 'ethers'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { expect } from 'chai'
 import { provider, createSigner } from './testUtils'
@@ -25,8 +24,8 @@ describe('#DebugMethodHandler', () => {
   let signer: Signer
   const accountSigner = Wallet.createRandom()
 
-  before(async () => {
-
+  before(async function () {
+    this.timeout(10000)
     signer = await createSigner()
 
     entryPoint = await new EntryPoint__factory(signer).deploy()
@@ -73,7 +72,7 @@ describe('#DebugMethodHandler', () => {
 
     smartAccountAPI = new SimpleAccountAPI({
       provider,
-      entryPointAddress: entryPointAddress,
+      entryPointAddress,
       owner: accountSigner,
       factoryAddress: accountDeployerAddress
     })
@@ -98,6 +97,6 @@ describe('#DebugMethodHandler', () => {
     } = await debugMethodHandler.sendBundleNow() as SendBundleReturn
     expect(userOpHashes).eql([userOpHash])
     const txRcpt = await provider.getTransactionReceipt(transactionHash)
-    expect(txRcpt.to).to.eq(entryPointAddress)
+    expect(txRcpt?.to).to.eq(entryPointAddress)
   })
 })

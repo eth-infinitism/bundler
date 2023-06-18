@@ -35,7 +35,6 @@ class ERC4337TransactionResponse extends TransactionResponse {
   }
 
   async wait (_confirms?: number, _timeout?: number): Promise<TransactionReceipt | null> {
-
     const waitForUserOp = async (): Promise<TransactionReceipt> => await new Promise((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, this.userOp.sender, this.userOpHash, this.userOp.nonce
@@ -63,7 +62,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
     readonly originalProvider: Provider,
     readonly httpRpcClient: HttpRpcClient,
     readonly entryPoint: EntryPoint,
-    readonly smartAccountAPI: BaseAccountAPI,
+    readonly smartAccountAPI: BaseAccountAPI
   ) {
     super('', {
       name: 'ERC-4337 Custom Network',
@@ -136,15 +135,15 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
       hash: userOpHash,
       index: 0,
       type: 0,
-      to: userOp.sender.toString(), //todo: extract target from callData?
-      from: userOp.sender.toString(),
+      to: toLowerAddr(userOp.sender), // todo: extract target from callData?
+      from: toLowerAddr(userOp.sender),
       nonce: toNumber(userOp.nonce),
       gasLimit: getBigInt(userOp.callGasLimit),
       gasPrice: getBigInt(userOp.maxFeePerGas),
       maxPriorityFeePerGas: getBigInt(userOp.maxPriorityFeePerGas),
       maxFeePerGas: getBigInt(userOp.maxFeePerGas),
-      data: hexlify(userOp.callData), //TODO: extract calldata?
-      value: 0n, //TODO: extract from callData ?
+      data: hexlify(userOp.callData), // TODO: extract calldata?
+      value: 0n, // TODO: extract from callData ?
       chainId: getBigInt(this.chainId),
       signature: Signature.from(hexlify(userOp.signature)),
       accessList: null
