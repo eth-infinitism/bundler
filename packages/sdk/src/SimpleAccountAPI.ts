@@ -67,7 +67,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
       }
     }
     return concat([
-      this.factoryAddress!,
+      this.factoryAddress ?? '',
       this.factory.interface.encodeFunctionData('createAccount', [await this.owner.getAddress(), this.index])
     ])
   }

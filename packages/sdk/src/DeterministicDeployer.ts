@@ -6,8 +6,7 @@ import {
   JsonRpcProvider,
   JsonRpcSigner, keccak256, Provider,
   Signer, toBeHex,
-  toQuantity,
-  TransactionRequest, zeroPadBytes
+  TransactionRequest
 } from 'ethers'
 
 /**
@@ -47,13 +46,16 @@ export class DeterministicDeployer {
   static deploymentGasPrice = 100e9
   static deploymentGasLimit = 100000
 
-  private signer?: Signer
+  // treat it as assigned.
+  private signer: Signer = null as any
 
   constructor (
     readonly provider: Provider,
     readonly _signer?: Signer) {
     if (_signer == null) {
-      (provider as JsonRpcProvider).getSigner().then(s => this.signer = s)
+      void (provider as JsonRpcProvider).getSigner().then(s => {
+        this.signer = s
+      })
     } else {
       this.signer = _signer
     }
@@ -127,7 +129,7 @@ export class DeterministicDeployer {
   async deterministicDeploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     const addr = await DeterministicDeployer.getDeterministicDeployAddress(ctrCode, salt, params)
     if (!await this.isContractDeployed(addr)) {
-      await this.signer!.sendTransaction(
+      await this.signer.sendTransaction(
         await this.getDeployTransaction(ctrCode, salt, params))
     }
     return addr

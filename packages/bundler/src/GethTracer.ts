@@ -13,7 +13,6 @@ import { JsonRpcProvider, TransactionRequest } from 'ethers'
 type LogTracerFunc = () => LogTracer
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-// @ts-ignore
 export async function debug_traceCall (provider: JsonRpcProvider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
   const traceOptions = tracer2string(options)
   const ret = await provider.send('debug_traceCall', [tx, 'latest', traceOptions]).catch(e => {

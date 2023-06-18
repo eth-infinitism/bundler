@@ -1,12 +1,15 @@
-
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
-import { UserOperationStruct } from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
+import {
+  UserOperationStruct
+} from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import { JsonRpcSigner, Provider, Signer, TransactionRequest, TransactionResponse } from 'ethers'
+import Debug from 'debug'
 
-const debug = require('debug')('aa.signer')
+const debug = Debug('aa.signer')
+
 export class ERC4337EthersSigner extends JsonRpcSigner {
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
   constructor (
@@ -15,8 +18,7 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
     readonly erc4337provider: ERC4337EthersProvider,
     readonly httpRpcClient: HttpRpcClient,
     readonly smartAccountAPI: BaseAccountAPI) {
-    // accountAddress is "smartAccountAPI.getAccountAddress()", but we can't do async call here
-    super(erc4337provider, config.walletAddress!)
+    super(erc4337provider, config.walletAddress ?? '')
 
     // wtf: I think provider no longer means what we think it means: it is JsonRpcAPIProvider, not a real provider...
     // anyway, defineReadOnly is not found anymore..
@@ -28,11 +30,12 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
     debug('sendTransaction', transaction)
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     await this.verifyAllNecessaryFields(tx)
+    // IDE requires "!" to mark non-null, but eslint rejects it. both are happy with "?? ''"
     const userOperation = await this.smartAccountAPI.createSignedUserOp({
       target: tx.to ?? '',
       data: tx.data?.toString() ?? '',
-      value: tx.value!,
-      gasLimit: tx.gasLimit!
+      value: tx.value ?? 0n,
+      gasLimit: tx.gasLimit ?? 0n
     })
     const transactionResponse = await this.erc4337provider.constructUserOpTransactionResponse(userOperation)
     try {

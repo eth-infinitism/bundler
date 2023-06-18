@@ -6,7 +6,7 @@ import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { HttpRpcClient } from './HttpRpcClient'
 import { DeterministicDeployer } from './DeterministicDeployer'
 import Debug from 'debug'
-import { JsonRpcProvider, JsonRpcSigner, Provider, Signer, toNumber } from 'ethers'
+import { JsonRpcProvider, Provider, Signer, toNumber } from 'ethers'
 
 const debug = Debug('aa.wrapProvider')
 

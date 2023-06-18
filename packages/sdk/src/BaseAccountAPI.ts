@@ -125,7 +125,8 @@ export abstract class BaseAccountAPI {
     // this method attempts to be generic
     try {
       await this.entryPointView.getSenderAddress.staticCall(initCode)
-    } catch (e: any) {
+    } catch (e1: any) {
+      let e = e1
       if (e.errorArgs == null) {
         // WTF: why it doesn't parse error response?
         e = { errorArgs: this.entryPointView.interface.parseError(e.data)?.args }

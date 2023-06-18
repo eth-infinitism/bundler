@@ -14,7 +14,7 @@ import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint, UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
-import { getUserOpHash } from '@account-abstraction/utils'
+import { getUserOpHash, toLowerAddr } from '@account-abstraction/utils'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import Debug from 'debug'
 

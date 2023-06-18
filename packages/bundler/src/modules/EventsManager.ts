@@ -24,7 +24,7 @@ export class EventsManager {
     readonly entryPoint: EntryPoint,
     readonly mempoolManager: MempoolManager,
     readonly reputationManager: ReputationManager) {
-    this.provider = entryPoint.runner?.provider!
+    this.provider = entryPoint.runner?.provider as any
   }
 
   /**
