@@ -8,7 +8,7 @@ import { inspect } from 'util'
 
 import Debug from 'debug'
 import { ValidationResult } from './modules/ValidationManager'
-import { AddressLike, BigNumberish, getBigInt, Interface, keccak256, zeroPadBytes, zeroPadValue } from 'ethers'
+import { BigNumberish, getBigInt, Interface, keccak256, zeroPadValue } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
 import { StakeInfo, StorageMap, ValidationErrors } from './modules/Types'
 
@@ -183,7 +183,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   requireCond(
     callStack.find(
       call => call.to !== entryPointAddress &&
-      (call.value ?? 0) != 0) == null,
+      (call.value ?? 0) !== 0) == null,
     'May not use CALL with value',
     ValidationErrors.OpcodeValidation)
 

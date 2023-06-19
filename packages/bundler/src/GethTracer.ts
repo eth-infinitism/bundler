@@ -17,15 +17,14 @@ type LogTracerFunc = () => LogTracer
 export async function debug_traceCall (provider: Provider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
   const traceOptions = tracer2string(options)
   // traceOptions.tracer = "{ }"
-  function getProviderSendFunction(objs: any[]): (method:string, params: any[]) => Promise<any> {
-    for (let obj of objs) {
-      if (obj!=null && typeof obj.send == 'function')
-        return obj.send.bind(obj)
+  function getProviderSendFunction (objs: any[]): (method: string, params: any[]) => Promise<any> {
+    for (const obj of objs) {
+      if (obj != null && typeof obj.send === 'function') { return obj.send.bind(obj) }
     }
-    throw new Error( 'no "send()" function in provider')
+    throw new Error('no "send()" function in provider')
   }
   const p = provider as any
-  let sendFunction = getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
+  const sendFunction = getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
 
   const ret = await sendFunction('debug_traceCall', [deepHexlify(tx), 'latest', traceOptions]).catch(e => {
     console.log('ex=', e.message, traceOptions)
