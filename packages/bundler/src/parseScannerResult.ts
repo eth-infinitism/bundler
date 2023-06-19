@@ -1,16 +1,16 @@
 import {
   IEntryPoint__factory,
-  IPaymaster__factory, SenderCreator__factory
-} from '@account-abstraction/utils/src/types'
+  IPaymaster__factory, SenderCreator__factory, UserOperation
+} from '@account-abstraction/utils/src/ContractTypes'
 import { BundlerCollectorReturn } from './BundlerCollectorTracer'
 import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
 
 import Debug from 'debug'
 import { ValidationResult } from './modules/ValidationManager'
-import { AddressLike, BigNumberish, getBigInt, Interface, keccak256, zeroPadBytes } from 'ethers'
+import { AddressLike, BigNumberish, getBigInt, Interface, keccak256, zeroPadBytes, zeroPadValue } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
-import { StakeInfo, StorageMap, UserOperation, ValidationErrors } from './modules/Types'
+import { StakeInfo, StorageMap, ValidationErrors } from './modules/Types'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -52,7 +52,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
 
   function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
     try {
-      return x()
+      return x() ?? def
     } catch {
       return def
     }
@@ -127,7 +127,7 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
     Object.values(stakeInfoEntities).forEach(info => {
       const addr = info?.addr?.toLowerCase()
       if (addr == null) return
-      const addrPadded = zeroPadBytes(addr, 32)
+      const addrPadded = zeroPadValue(addr, 32)
       if (entitySlots[addr] == null) {
         entitySlots[addr] = new Set<string>()
       }
@@ -158,7 +158,7 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
-export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPointAddress: AddressLike): [string[], StorageMap] {
+export function parseScannerResult (userOp: UserOperation, tracerResults: BundlerCollectorReturn, validationResult: ValidationResult, entryPointAddress: string): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -181,9 +181,10 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   )
 
   requireCond(
-    callStack.find(call => call.to !== entryPointAddress &&
-      getBigInt(call.value ?? 0) !== getBigInt(0)) != null,
-    'May not may CALL with value',
+    callStack.find(
+      call => call.to !== entryPointAddress &&
+      (call.value ?? 0) != 0) == null,
+    'May not use CALL with value',
     ValidationErrors.OpcodeValidation)
 
   const sender = (userOp.sender as string).toLowerCase()
@@ -235,7 +236,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       // @param addr - the address we try to check for association with
       // @param reverseKeccak - a mapping we built for keccak values that contained the address
       function associatedWith (slot: string, addr: string, entitySlots: { [addr: string]: Set<string> }): boolean {
-        const addrPadded = zeroPadBytes(addr, 32).toLowerCase()
+        const addrPadded = zeroPadValue(addr, 32).toLowerCase()
         if (slot === addrPadded) {
           return true
         }

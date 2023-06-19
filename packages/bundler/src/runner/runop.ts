@@ -6,7 +6,7 @@
  */
 
 import { formatEther, getBigInt, JsonRpcProvider, keccak256, parseEther, Signer, toNumber, Wallet } from 'ethers'
-import { SimpleAccountFactory__factory } from '@account-abstraction/utils/src/types'
+import { SimpleAccountFactory__factory } from '@account-abstraction/utils/src/ContractTypes'
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import fs from 'fs'

@@ -3,7 +3,7 @@ import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
 import {
   UserOperationStruct
-} from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
+} from '@account-abstraction/utils/src/ContractTypes'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import { JsonRpcSigner, Provider, Signer, TransactionRequest, TransactionResponse } from 'ethers'
 import Debug from 'debug'

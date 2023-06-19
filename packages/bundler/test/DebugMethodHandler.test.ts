@@ -8,7 +8,11 @@ import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager, SendBundleReturn } from '../src/modules/BundleManager'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
-import { EntryPoint, EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/utils/dist/src/ContractTypes'
+import {
+  EntryPoint,
+  EntryPoint__factory,
+  SimpleAccountFactory__factory
+} from '@account-abstraction/utils/dist/src/ContractTypes'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { expect } from 'chai'
@@ -67,7 +71,6 @@ describe('#DebugMethodHandler', () => {
 
     debugMethodHandler = new DebugMethodHandler(execManager, eventsManager, repMgr, mempoolMgr)
 
-    DeterministicDeployer.init(provider)
     const accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPointAddress])
 
     smartAccountAPI = new SimpleAccountAPI({

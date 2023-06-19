@@ -1,4 +1,4 @@
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/utils/dist/src/ContractTypes'
+    import { EntryPoint, EntryPoint__factory, UserOperation } from '@account-abstraction/utils/dist/src/ContractTypes'
 import {
   AbiCoder,
   BigNumberish,
@@ -8,7 +8,7 @@ import {
   keccak256,
   parseEther, Provider,
   Signer,
-  toBeHex, zeroPadBytes
+  toBeHex, zeroPadValue
 } from 'ethers'
 import { expect } from 'chai'
 import {
@@ -31,7 +31,6 @@ import { ReputationManager } from '../src/modules/ReputationManager'
 import { AddressZero, decodeErrorReason, toLowerAddr } from '@account-abstraction/utils'
 import { isGeth } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
-import { UserOperation } from '../src/modules/Types'
 import { provider } from './testUtils'
 
 const defaultAbiCoder = AbiCoder.defaultAbiCoder()
@@ -52,7 +51,7 @@ const cEmptyUserOp: UserOperation = {
 
 function toBytes32 (value: BigNumberish | BytesLike): string {
   if (isBytesLike(value)) {
-    return zeroPadBytes(value, 32)
+    return zeroPadValue(value, 32)
   } else {
     return toBeHex(value, 32)
   }
@@ -257,7 +256,7 @@ describe('#ValidationManager', () => {
       // console.log('resolved=', resolveNames(ret, names, true))
       const account = await toLowerAddr(ret.userOp.sender)
       expect(ret.storageMap[account]).to.eql({
-        [toBytes32(1)]: toBytes32(await testcoin.getAddress())
+        [toBytes32(1)]: zeroPadValue(await testcoin.getAddress(), 32)
       })
     })
 

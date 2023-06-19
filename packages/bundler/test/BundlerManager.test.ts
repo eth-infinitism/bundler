@@ -1,4 +1,4 @@
-import { EntryPoint, EntryPoint__factory, UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { EntryPoint, EntryPoint__factory, UserOperation } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { parseEther, Signer } from 'ethers'
 import { expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
@@ -51,7 +51,7 @@ describe('#BundlerManager', () => {
   })
 
   it('#getUserOpHashes', async () => {
-    const userOp: UserOperationStruct = {
+    const userOp: UserOperation = {
       sender: AddressZero,
       nonce: 1,
       paymasterAndData: '0x02',

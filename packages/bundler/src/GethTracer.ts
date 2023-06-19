@@ -1,7 +1,8 @@
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 //
 
-import { JsonRpcProvider, TransactionRequest } from 'ethers'
+import { JsonRpcProvider, Provider, TransactionRequest } from 'ethers'
+import { deepHexlify } from '@account-abstraction/utils'
 
 /**
  * a function returning a LogTracer.
@@ -13,10 +14,21 @@ import { JsonRpcProvider, TransactionRequest } from 'ethers'
 type LogTracerFunc = () => LogTracer
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export async function debug_traceCall (provider: JsonRpcProvider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
+export async function debug_traceCall (provider: Provider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
   const traceOptions = tracer2string(options)
-  const ret = await provider.send('debug_traceCall', [tx, 'latest', traceOptions]).catch(e => {
-    console.log('ex=', e.message)
+  // traceOptions.tracer = "{ }"
+  function getProviderSendFunction(objs: any[]): (method:string, params: any[]) => Promise<any> {
+    for (let obj of objs) {
+      if (obj!=null && typeof obj.send == 'function')
+        return obj.send.bind(obj)
+    }
+    throw new Error( 'no "send()" function in provider')
+  }
+  const p = provider as any
+  let sendFunction = getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
+
+  const ret = await sendFunction('debug_traceCall', [deepHexlify(tx), 'latest', traceOptions]).catch(e => {
+    console.log('ex=', e.message, traceOptions)
     console.log('tracer=', traceOptions.tracer?.toString().split('\n').map((line, index) => `${index + 1}: ${line}`).join('\n'))
     throw e
   })

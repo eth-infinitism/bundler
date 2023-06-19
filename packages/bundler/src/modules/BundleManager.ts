@@ -1,4 +1,4 @@
-import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { EntryPoint, UserOperation } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import {
@@ -13,7 +13,7 @@ import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
-import { StorageMap, UserOperation } from './Types'
+import { StorageMap } from './Types'
 import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
 import { EventsManager } from './EventsManager'
 import { toLowerAddr } from '@account-abstraction/utils'
@@ -224,7 +224,7 @@ export class BundleManager {
       // If sender's account already exist: replace with its storage root hash
       if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
-        storageMap[entry.toLowerAddr(userOp.sender).toLowerCase()] = storageHash
+        storageMap[toLowerAddr(entry.userOp.sender).toLowerCase()] = storageHash
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 

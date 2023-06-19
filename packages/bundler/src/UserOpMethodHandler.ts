@@ -4,15 +4,15 @@ import { BundlerConfig } from './BundlerConfig'
 import { deepHexlify, erc4337RuntimeVersion, parseEntryPointErrors, toLowerAddr } from '@account-abstraction/utils'
 import {
   UserOperationEventEvent,
-  UserOperationStruct,
-  EntryPoint
+  EntryPoint,
+  UserOperation
 } from '@account-abstraction/utils/dist/src/ContractTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond, RpcError, tostr } from './utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { getAddr } from './modules/moduleUtils'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { ExecutionErrors, UserOperation, ValidationErrors } from './modules/Types'
+import { ExecutionErrors, ValidationErrors } from './modules/Types'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -58,7 +58,7 @@ export class UserOpMethodHandler {
     return [this.config.entryPoint]
   }
 
-  async _validateParameters (userOp1: UserOperationStruct, entryPointInput: string, requireSignature = true, requireGasParams = true): Promise<void> {
+  async _validateParameters (userOp1: UserOperation, entryPointInput: string, requireSignature = true, requireGasParams = true): Promise<void> {
     requireCond(entryPointInput != null, 'No entryPoint param', -32602)
 
     if (entryPointInput?.toString().toLowerCase() !== this.config.entryPoint.toLowerCase()) {
@@ -87,7 +87,7 @@ export class UserOpMethodHandler {
    * @param userOp1
    * @param entryPointInput
    */
-  async estimateUserOperationGas (userOp1: UserOperationStruct, entryPointInput: string): Promise<EstimateUserOpGasResult> {
+  async estimateUserOperationGas (userOp1: UserOperation, entryPointInput: string): Promise<EstimateUserOpGasResult> {
     const userOp = {
       ...userOp1,
       // default values for missing fields.
@@ -144,7 +144,7 @@ export class UserOpMethodHandler {
     }
   }
 
-  async sendUserOperation (userOp: UserOperationStruct, entryPointInput: string): Promise<string> {
+  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
     await this._validateParameters(userOp, entryPointInput)
 
     console.log(`UserOperation: Sender=${toLowerAddr(userOp.sender)}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${getAddr(

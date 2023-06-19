@@ -4,9 +4,8 @@ import { BundlerConfig } from '../src/BundlerConfig'
 import {
   EntryPoint,
   EntryPoint__factory,
-  SimpleAccountFactory__factory,
-  UserOperationStruct
-  , UserOperationEventEvent
+  SimpleAccountFactory__factory, UserOperation,
+  UserOperationEventEvent
 } from '@account-abstraction/utils/dist/src/ContractTypes'
 
 import { HDNodeWallet, parseEther, Signer, toNumber, Wallet } from 'ethers'
@@ -43,11 +42,11 @@ describe('UserOpMethodHandler', function () {
   let sampleRecipient: SampleRecipient
 
   before(async function () {
+    DeterministicDeployer.init(provider)
     signer = await createSigner()
     entryPoint = await new EntryPoint__factory(signer).deploy()
     entryPointAddress = await entryPoint.getAddress()
 
-    DeterministicDeployer.init(provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPointAddress])
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
@@ -122,7 +121,7 @@ describe('UserOpMethodHandler', function () {
   })
 
   describe('sendUserOperation', function () {
-    let userOperation: UserOperationStruct
+    let userOperation: UserOperation
     let accountAddress: string
 
     let accountDeployerAddress: string
@@ -167,7 +166,7 @@ describe('UserOpMethodHandler', function () {
         'BeforeExecution',
         'UserOperationEvent'
       ])
-      const [senderEvent] = await sampleRecipient.queryFilter(sampleRecipient.filters.Sender(), transactionReceipt.blockHash)
+      const [senderEvent] = await sampleRecipient.queryFilter(sampleRecipient.filters.Sender(), transactionReceipt.blockNumber)
       const userOperationEvent = logs[3]
 
       assert.equal(userOperationEvent?.args.success, true)
@@ -292,7 +291,7 @@ describe('UserOpMethodHandler', function () {
       acc = await new TestRulesAccount__factory(signer).deploy()
       const callData = acc.interface.encodeFunctionData('execSendMessage')
 
-      const op: UserOperationStruct = {
+      const op: UserOperation = {
         sender: await acc.getAddress(),
         initCode: '0x',
         nonce: 0,

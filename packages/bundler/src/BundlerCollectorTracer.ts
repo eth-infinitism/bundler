@@ -3,6 +3,9 @@
 // should NOT "require" anything, or use logs.
 // see LogTrace for valid types (but alas, this one must be javascript, not typescript..
 
+// this file is parsed as javascript...
+/* eslint-disable */
+
 import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from './GethTracer'
 
 // functions available in a context of geth tracer
@@ -134,7 +137,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
     // increment the "key" in the list. if the key is not defined yet, then set it to "1"
     countSlot (list: { [key: string]: number | undefined }, key: any) {
-      list[key] = (list[key] ?? 0) + 1
+      list[key] = (list[key] || 0) + 1
     },
     step (log: LogStep, db: LogDb): any {
       const opcode = log.op.toString()
@@ -164,7 +167,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const idx = opcode.startsWith('EXT') ? 0 : 1
         const addr = toAddress(log.stack.peek(idx).toString(16))
         const addrHex = toHex(addr)
-        if ((this.currentLevel.contractSize[addrHex] ?? 0) === 0 && !isPrecompiled(addr)) {
+        if ((this.currentLevel.contractSize[addrHex] || 0) === 0 && !isPrecompiled(addr)) {
           this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
         }
       }

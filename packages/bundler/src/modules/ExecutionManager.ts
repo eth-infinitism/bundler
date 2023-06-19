@@ -5,7 +5,7 @@ import { BundleManager, SendBundleReturn } from './BundleManager'
 import Debug from 'debug'
 import { ValidationManager } from './ValidationManager'
 import { Mutex } from 'async-mutex'
-import { UserOperation } from './Types'
+import { UserOperation } from '@account-abstraction/utils/src/ContractTypes'
 
 const debug = Debug('aa.exec')
 

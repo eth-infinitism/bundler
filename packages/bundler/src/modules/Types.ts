@@ -1,5 +1,4 @@
 import { BigNumberish } from 'ethers'
-import { UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -30,8 +29,6 @@ export interface ReferencedCodeHashes {
   // keccak over the code of all referenced addresses
   hash: string
 }
-
-export type UserOperation = UserOperationStruct
 
 export interface SlotMap {
   [slot: string]: string

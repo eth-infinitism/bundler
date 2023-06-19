@@ -1,11 +1,8 @@
 import { BigNumberish, getBigInt, Provider, AddressLike, toNumber, resolveProperties } from 'ethers'
 import {
-  EntryPoint, EntryPoint__factory
-} from '@account-abstraction/utils/src/types'
-
-import {
-  UserOperationStruct
-} from '@account-abstraction/utils/src/types/@account-abstraction/contracts/core/EntryPoint'
+  EntryPoint, EntryPoint__factory,
+  UserOperation
+} from '@account-abstraction/utils/src/ContractTypes'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { PaymasterAPI } from './PaymasterAPI'
@@ -162,7 +159,7 @@ export abstract class BaseAccountAPI {
    * should cover cost of putting calldata on-chain, and some overhead.
    * actual overhead depends on the expected bundle size
    */
-  async getPreVerificationGas (userOp: Partial<UserOperationStruct>): Promise<number> {
+  async getPreVerificationGas (userOp: Partial<UserOperation>): Promise<number> {
     const p = await resolveProperties(userOp)
     return calcPreVerificationGas(p, this.overheads)
   }
@@ -170,7 +167,7 @@ export abstract class BaseAccountAPI {
   /**
    * ABI-encode a user operation. used for calldata cost estimation
    */
-  packUserOp (userOp: UserOperationStruct): string {
+  packUserOp (userOp: UserOperation): string {
     return packUserOp(userOp, false)
   }
 
@@ -200,7 +197,7 @@ export abstract class BaseAccountAPI {
    * This value matches entryPoint.getUserOpHash (calculated off-chain, to avoid a view call)
    * @param userOp userOperation, (signature field ignored)
    */
-  async getUserOpHash (userOp: UserOperationStruct): Promise<string> {
+  async getUserOpHash (userOp: UserOperation): Promise<string> {
     const op = await resolveProperties(userOp)
     const chainId = await this.provider.getNetwork().then(net => toNumber(net.chainId))
     return getUserOpHash(op, this.entryPointAddress, chainId)
@@ -237,7 +234,7 @@ export abstract class BaseAccountAPI {
    * - if gas or nonce are missing, read them from the chain (note that we can't fill gaslimit before the account is created)
    * @param info
    */
-  async createUnsignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
+  async createUnsignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperation> {
     const {
       callData,
       callGasLimit
@@ -294,7 +291,7 @@ export abstract class BaseAccountAPI {
    * Sign the filled userOp.
    * @param userOp the UserOperation to sign (with signature field ignored)
    */
-  async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
+  async signUserOp (userOp: UserOperation): Promise<UserOperation> {
     const userOpHash = await this.getUserOpHash(userOp)
     const signature = await this.signUserOpHash(userOpHash)
     return {
@@ -307,7 +304,7 @@ export abstract class BaseAccountAPI {
    * helper method: create and sign a user operation.
    * @param info transaction details for the userOp
    */
-  async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
+  async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperation> {
     return await this.signUserOp(await this.createUnsignedUserOp(info))
   }
 

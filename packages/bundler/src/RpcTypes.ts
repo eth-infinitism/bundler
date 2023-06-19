@@ -1,5 +1,5 @@
 import { BigNumberish, TransactionReceipt } from 'ethers'
-import { UserOperation } from './modules/Types'
+import { UserOperation } from '@account-abstraction/utils/dist/src/ContractTypes'
 
 /**
  * RPC calls return types

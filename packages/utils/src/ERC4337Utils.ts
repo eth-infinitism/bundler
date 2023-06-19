@@ -6,13 +6,11 @@ import {
   ethers,
   hexlify,
   keccak256,
-  resolveAddress,
   resolveProperties,
   toQuantity
 } from 'ethers'
 import Debug from 'debug'
-import { EntryPoint, UserOperationStruct } from './ContractTypes'
-import { BigNumberish, BytesLike, toBeHex, zeroPadBytes } from 'ethers/lib.esm'
+import { EntryPoint, UserOperation } from './ContractTypes'
 
 const debug = Debug('aa.utils')
 
@@ -33,7 +31,7 @@ export const AddressZero = ethers.ZeroAddress
  * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */
-export function packUserOp (op: UserOperationStruct, forSignature = true): string {
+export function packUserOp (op: UserOperation, forSignature = true): string {
   if (forSignature) {
     return defaultAbiCoder.encode(
       ['address', 'uint256', 'bytes32', 'bytes32',
@@ -63,7 +61,7 @@ export function packUserOp (op: UserOperationStruct, forSignature = true): strin
  * @param entryPoint
  * @param chainId
  */
-export function getUserOpHash (op: UserOperationStruct, entryPoint: string, chainId: number): string {
+export function getUserOpHash (op: UserOperation, entryPoint: string, chainId: number): string {
   const userOpHash = keccak256(packUserOp(op, true))
   const enc = defaultAbiCoder.encode(
     ['bytes32', 'address', 'uint256'],
@@ -135,7 +133,7 @@ export function deepHexlify (obj: any): any {
   if (typeof obj === 'function') {
     return undefined
   }
-  if (typeof obj == 'number' || typeof obj == 'bigint') {
+  if (typeof obj === 'number' || typeof obj === 'bigint') {
     return toQuantity(obj)
   }
   if (obj == null || typeof obj === 'string' || typeof obj === 'boolean') {
@@ -156,7 +154,7 @@ export function deepHexlify (obj: any): any {
 
 export function parseEntryPointErrors (error: any, entryPoint: EntryPoint): any {
   if (error != null && error.errorName == null && error.data != null) {
-    //wtf: why should I parse the error?
+    // wtf: why should I parse the error?
     const ret = entryPoint.interface.parseError(error.data)
     error = {
       errorName: ret?.name,
@@ -172,17 +170,9 @@ export async function resolveHexlify (a: any): Promise<any> {
   return deepHexlify(await resolveProperties(a))
 }
 
-// export function toBytes32 (b: BytesLike | BigNumberish): string {
-//   if (typeof b == 'object') {
-//     return zeroPadBytes(b,32)
-//   } else {
-//     return toBeHex(b, 32)
-//   }
-// }
-
-export function toLowerAddr(addr: AddressLike): string {
-  if ( typeof addr != 'string') {
-    //AddressLike supports "resolvable", which we don't use.
+export function toLowerAddr (addr: AddressLike): string {
+  if (typeof addr !== 'string') {
+    // AddressLike supports "resolvable", which we don't use.
     throw new Error('unsupported address type')
   }
   return addr.toLowerCase()
