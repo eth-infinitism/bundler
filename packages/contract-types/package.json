@@ -1,5 +1,5 @@
 {
-  "name": "@account-abstraction/utils",
+  "name": "@account-abstraction/contract-types",
   "version": "0.6.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
@@ -11,20 +11,18 @@
   "scripts": {
     "clear": "rm -rf dist artifacts cache src/types",
     "hardhat-compile": "hardhat compile",
-    "lint-fix": "eslint -f unix . --fix",
-    "watch-tsc": "tsc -w --preserveWatchOutput",
     "tsc": "tsc"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.6.0",
-    "@account-abstraction/contract-types": "^0.6.0",
-    "@openzeppelin/contracts": "^4.7.3",
-    "debug": "^4.3.4",
-    "ethers": "^6.5.1"
+    "@account-abstraction/contracts": "^0.6.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.2",
+    "@typechain/ethers-v6": "^0.4.0",
+    "@typechain/hardhat": "^8.0.0",
+    "ethers": "^6.5.1",
     "hardhat": "^2.15.0",
+    "typechain": "^8.2.0",
     "typescript": "^4.7.4"
   }
 }

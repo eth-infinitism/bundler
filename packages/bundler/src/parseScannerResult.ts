@@ -1,7 +1,7 @@
 import {
   IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory, UserOperation
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 import { BundlerCollectorReturn } from './BundlerCollectorTracer'
 import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'

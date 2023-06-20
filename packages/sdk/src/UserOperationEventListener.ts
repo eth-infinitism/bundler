@@ -1,10 +1,7 @@
 import { AddressLike, BigNumberish, EventLog, TransactionReceipt, AbiCoder } from 'ethers'
-import { EntryPoint } from '@account-abstraction/utils/src/ContractTypes'
+import { EntryPoint, UserOperationEventEvent } from '@account-abstraction/contract-types'
 import Debug from 'debug'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
-import {
-  UserOperationEventEvent
-} from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/core/EntryPoint'
 import { TransactionReceiptParams } from 'ethers/src.ts/providers/formatting'
 
 const debug = Debug('aa.listener')

@@ -1,4 +1,4 @@
-import { EntryPoint, EntryPoint__factory, UserOperation } from '@account-abstraction/utils/src/ContractTypes'
+import { EntryPoint, EntryPoint__factory, UserOperation } from '@account-abstraction/contract-types'
 import {
   AbiCoder,
   BigNumberish,

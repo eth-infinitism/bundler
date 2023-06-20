@@ -5,7 +5,7 @@ import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { ReferencedCodeHashes, StakeInfo, ValidationErrors } from './Types'
 import { toLowerAddr } from '@account-abstraction/utils'
-import { UserOperation } from '@account-abstraction/utils/src/ContractTypes'
+import { UserOperation } from '@account-abstraction/contract-types'
 
 const debug = Debug('aa.mempool')
 

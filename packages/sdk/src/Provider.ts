@@ -1,4 +1,4 @@
-import { EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/utils/src/ContractTypes'
+import { EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contract-types'
 
 import { ClientConfig } from './ClientConfig'
 import { SimpleAccountAPI } from './SimpleAccountAPI'

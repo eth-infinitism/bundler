@@ -2,7 +2,7 @@ import { BigNumberish, getBigInt, Provider, AddressLike, toNumber, resolveProper
 import {
   EntryPoint, EntryPoint__factory,
   UserOperation
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { PaymasterAPI } from './PaymasterAPI'

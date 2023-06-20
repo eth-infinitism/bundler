@@ -4,7 +4,7 @@ import {
   SimpleAccountFactory__factory,
   SampleRecipient, SampleRecipient__factory,
   UserOperationStruct
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 import { HDNodeWallet, parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'

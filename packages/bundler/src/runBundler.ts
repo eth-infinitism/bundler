@@ -6,7 +6,7 @@ import { ethers, HDNodeWallet, toNumber, parseEther } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/utils/src/ContractTypes'
+import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contract-types'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'

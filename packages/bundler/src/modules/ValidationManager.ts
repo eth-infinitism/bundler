@@ -1,4 +1,4 @@
-import { EntryPoint, UserOperation } from '@account-abstraction/utils/src/ContractTypes'
+import { EntryPoint, UserOperation } from '@account-abstraction/contract-types'
 import { ReputationManager } from './ReputationManager'
 import { BigNumberish, BytesLike, ErrorDescription, getBigInt, JsonRpcProvider } from 'ethers'
 import { requireCond, RpcError } from '../utils'

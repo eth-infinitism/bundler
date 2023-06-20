@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
+import { SampleRecipient__factory } from '@account-abstraction/contract-types'
 import { ethers } from 'hardhat'
 import { DeterministicDeployer } from '../src/DeterministicDeployer'
 import { JsonRpcProvider, Provider } from 'ethers'

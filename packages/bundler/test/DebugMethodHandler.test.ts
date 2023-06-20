@@ -12,7 +12,7 @@ import {
   EntryPoint,
   EntryPoint__factory,
   SimpleAccountFactory__factory
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { resolveHexlify } from '@account-abstraction/utils'
 import { expect } from 'chai'

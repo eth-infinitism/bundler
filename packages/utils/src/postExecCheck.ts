@@ -1,4 +1,4 @@
-import { EntryPoint, UserOperationStruct } from './types/@account-abstraction/contracts/core/EntryPoint'
+import { EntryPoint, UserOperationStruct } from '@account-abstraction/contract-types'
 import Debug from 'debug'
 import { resolveProperties, toNumber } from 'ethers'
 

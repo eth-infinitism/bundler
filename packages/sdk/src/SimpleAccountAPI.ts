@@ -3,7 +3,7 @@ import {
   SimpleAccount,
   SimpleAccount__factory, SimpleAccountFactory,
   SimpleAccountFactory__factory
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 
 import { BaseApiParams, BaseAccountAPI } from './BaseAccountAPI'
 

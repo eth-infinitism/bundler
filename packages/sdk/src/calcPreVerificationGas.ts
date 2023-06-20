@@ -1,4 +1,4 @@
-import { UserOperationStruct } from '@account-abstraction/utils/src/ContractTypes'
+import { UserOperationStruct } from '@account-abstraction/contract-types'
 import { packUserOp } from '@account-abstraction/utils'
 import { getBytes, hexlify } from 'ethers'
 

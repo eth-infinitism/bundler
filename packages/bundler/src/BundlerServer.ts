@@ -9,7 +9,7 @@ import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
 import { RpcError } from './utils'
-import { EntryPoint__factory, UserOperation } from '@account-abstraction/utils/src/ContractTypes'
+import { EntryPoint__factory, UserOperation } from '@account-abstraction/contract-types'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'

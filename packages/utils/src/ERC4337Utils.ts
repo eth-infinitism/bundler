@@ -10,7 +10,7 @@ import {
   toQuantity
 } from 'ethers'
 import Debug from 'debug'
-import { EntryPoint, UserOperation } from './ContractTypes'
+import { EntryPoint, UserOperation } from '@account-abstraction/contract-types'
 
 const debug = Debug('aa.utils')
 

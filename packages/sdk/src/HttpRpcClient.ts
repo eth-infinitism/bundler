@@ -1,5 +1,5 @@
 import { ethers, JsonRpcProvider, resolveProperties } from 'ethers'
-import { UserOperationStruct } from '@account-abstraction/utils/src/ContractTypes'
+import { UserOperationStruct } from '@account-abstraction/contract-types'
 import Debug from 'debug'
 import { deepHexlify } from '@account-abstraction/utils'
 

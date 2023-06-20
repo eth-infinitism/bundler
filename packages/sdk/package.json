@@ -18,6 +18,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
+    "@account-abstraction/contract-types": "^0.6.0",
     "@account-abstraction/utils": "^0.6.0",
     "@types/debug": "^4.1.7",
     "debug": "^4.3.4",

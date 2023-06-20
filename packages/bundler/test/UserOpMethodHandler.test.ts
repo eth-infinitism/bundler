@@ -6,7 +6,7 @@ import {
   EntryPoint__factory,
   SimpleAccountFactory__factory, UserOperation,
   UserOperationEventEvent
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 
 import { HDNodeWallet, parseEther, Signer, toNumber, Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'

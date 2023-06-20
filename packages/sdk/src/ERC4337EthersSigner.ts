@@ -3,7 +3,7 @@ import { ClientConfig } from './ClientConfig'
 import { HttpRpcClient } from './HttpRpcClient'
 import {
   UserOperationStruct
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import {
   AbstractSigner,

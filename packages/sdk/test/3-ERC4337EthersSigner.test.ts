@@ -3,7 +3,7 @@ import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
 import {
   SampleRecipient, SampleRecipient__factory,
   EntryPoint, EntryPoint__factory
-} from '@account-abstraction/utils/src/ContractTypes'
+} from '@account-abstraction/contract-types'
 import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'

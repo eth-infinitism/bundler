@@ -1,4 +1,4 @@
-import { UserOperation } from '@account-abstraction/utils/src/ContractTypes'
+import { UserOperation } from '@account-abstraction/contract-types'
 
 /**
  * an API to external a UserOperation with paymaster info
