@@ -183,7 +183,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   requireCond(
     callStack.find(
       call => call.to !== entryPointAddress &&
-      (call.value ?? 0) !== 0) == null,
+        (call.value ?? 0).toString() !== '0') == null,
     'May not use CALL with value',
     ValidationErrors.OpcodeValidation)
 

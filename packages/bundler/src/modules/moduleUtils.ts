@@ -65,7 +65,7 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
  */
 export async function runContractScript<T extends ContractFactory> (provider: Provider, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
   const tx = await c.getDeployTransaction(...ctrParams)
-  const ret = await provider.call(tx).catch(e => e.data)
+  const ret = await provider.call(tx).catch(e => e.data.data ?? e.data)
 
   const parsed = c.interface.parseError(ret)
   if (parsed == null) throw new Error(`unable to parse script (error) response: ${tostr(ret)}`)
