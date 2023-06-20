@@ -13,18 +13,23 @@ import { deepHexlify } from '@account-abstraction/utils'
  */
 type LogTracerFunc = () => LogTracer
 
+function getProviderSendFunction (provider: Provider): (method: string, params: any[]) => Promise<any> {
+  const p = provider as any
+  return _getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
+}
+
+function _getProviderSendFunction (objs: any[]): (method: string, params: any[]) => Promise<any> {
+  for (const obj of objs) {
+    if (obj != null && typeof obj.send === 'function') { return obj.send.bind(obj) }
+  }
+  throw new Error('no "send()" function in provider')
+}
+
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceCall (provider: Provider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
   const traceOptions = tracer2string(options)
   // traceOptions.tracer = "{ }"
-  function getProviderSendFunction (objs: any[]): (method: string, params: any[]) => Promise<any> {
-    for (const obj of objs) {
-      if (obj != null && typeof obj.send === 'function') { return obj.send.bind(obj) }
-    }
-    throw new Error('no "send()" function in provider')
-  }
-  const p = provider as any
-  const sendFunction = getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
+  const sendFunction = getProviderSendFunction(provider)
 
   const ret = await sendFunction('debug_traceCall', [deepHexlify(tx), 'latest', traceOptions]).catch(e => {
     console.log('ex=', e.message, traceOptions)
@@ -35,16 +40,10 @@ export async function debug_traceCall (provider: Provider, tx: TransactionReques
   return ret
 }
 
-// a hack for network that doesn't have traceCall: mine the transaction, and use debug_traceTransaction
-export async function execAndTrace (provider: Provider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
-  const signer = await provider.getSigner()
-  const hash = await signer.sendUncheckedTransaction(tx)
-  return await debug_traceTransaction(provider, hash, options)
-}
-
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceTransaction (provider: Provider, hash: string, options: TraceOptions): Promise<TraceResult | any> {
-  const ret = await provider.send('debug_traceTransaction', [hash, tracer2string(options)])
+  const sendFunction = getProviderSendFunction(provider)
+  const ret = await sendFunction('debug_traceTransaction', [hash, tracer2string(options)])
   // const tx = await provider.getTransaction(hash)
   // return applyTracer(tx, ret, options)
   return ret

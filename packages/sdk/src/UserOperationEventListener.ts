@@ -1,11 +1,10 @@
 import { AddressLike, BigNumberish, EventLog, TransactionReceipt, AbiCoder } from 'ethers'
-import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { EntryPoint } from '@account-abstraction/utils/src/ContractTypes'
 import Debug from 'debug'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import {
   UserOperationEventEvent
 } from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/core/EntryPoint'
-import { applyProviderWrappers } from 'hardhat/internal/core/providers/construction'
 import { TransactionReceiptParams } from 'ethers/src.ts/providers/formatting'
 
 const debug = Debug('aa.listener')
@@ -46,7 +45,6 @@ export class UserOperationEventListener {
   }
 
   start (): void {
-
     debug('UserOperationEventListener.start')
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     // listener takes time... first query directly:
@@ -82,13 +80,13 @@ export class UserOperationEventListener {
 
     const transactionReceipt = await event.getTransactionReceipt()
 
-    let rcpt = new TransactionReceipt({
+    const rcpt = new TransactionReceipt({
       ...transactionReceipt as TransactionReceiptParams,
-      logs: transactionReceipt.logs,  //defined as "#logs" in TransactionReceipt, and thus "..." above doesn't collect its value
-      hash: this.userOpHash,
+      logs: transactionReceipt.logs, // defined as "#logs" in TransactionReceipt, and thus "..." above doesn't collect its value
+      hash: this.userOpHash
       //   transactionHash: transactionReceipt.hash
     }, this.erc4373Provider)
-    rcpt.confirmations = () => Promise.resolve(1)
+    rcpt.confirmations = async () => await Promise.resolve(1)
     // TODO: set also getter methods?
     debug('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
@@ -96,7 +94,7 @@ export class UserOperationEventListener {
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     this.stop()
     debug('resolving rcpt')
-    if (!event.args.success) {
+    if (!(event.args.success as boolean)) {
       await this.extractFailureReason(rcpt)
     } else {
       this.resolve(rcpt)

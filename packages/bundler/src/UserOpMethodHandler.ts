@@ -6,7 +6,7 @@ import {
   UserOperationEventEvent,
   EntryPoint,
   UserOperation
-} from '@account-abstraction/utils/dist/src/ContractTypes'
+} from '@account-abstraction/utils/src/ContractTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { requireCond, RpcError, tostr } from './utils'
 import { ExecutionManager } from './modules/ExecutionManager'

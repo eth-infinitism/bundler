@@ -1,4 +1,4 @@
-import { EntryPoint, EntryPoint__factory, UserOperation } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { EntryPoint, EntryPoint__factory, UserOperation } from '@account-abstraction/utils/src/ContractTypes'
 import { parseEther, Signer } from 'ethers'
 import { expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'

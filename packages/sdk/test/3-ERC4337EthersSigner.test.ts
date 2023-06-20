@@ -3,7 +3,7 @@ import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
 import {
   SampleRecipient, SampleRecipient__factory,
   EntryPoint, EntryPoint__factory
-} from '@account-abstraction/utils/dist/src/ContractTypes'
+} from '@account-abstraction/utils/src/ContractTypes'
 import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
@@ -23,7 +23,7 @@ describe('ERC4337EthersSigner, Provider', function () {
     entryPoint = await new EntryPoint__factory(signer).deploy()
     const config: ClientConfig = {
       entryPointAddress: await entryPoint.getAddress(),
-      bundlerUrl: '',
+      bundlerUrl: ''
     }
     const aaOwner = Wallet.createRandom()
     aaProvider = await wrapProvider(provider, config, aaOwner)
@@ -37,7 +37,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       } catch (e: any) {
         // doesn't report error unless called with callStatic
         await entryPoint.handleOps.staticCall([userOp], beneficiary).catch((e1: any) => {
-          e = parseEntryPointErrors(e1, entryPoint)
+          const e = parseEntryPointErrors(e1, entryPoint)
           // eslint-disable-next-line
           const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
           throw new Error(message)

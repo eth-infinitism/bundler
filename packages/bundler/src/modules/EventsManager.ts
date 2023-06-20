@@ -3,7 +3,7 @@ import {
   AccountDeployedEvent,
   UserOperationEventEvent,
   SignatureAggregatorChangedEvent
-} from '@account-abstraction/utils/dist/src/ContractTypes'
+} from '@account-abstraction/utils/src/ContractTypes'
 
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'

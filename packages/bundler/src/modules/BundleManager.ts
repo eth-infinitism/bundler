@@ -1,4 +1,4 @@
-import { EntryPoint, UserOperation } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { EntryPoint, UserOperation } from '@account-abstraction/utils/src/ContractTypes'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 import {

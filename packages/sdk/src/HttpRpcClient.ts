@@ -1,5 +1,5 @@
 import { ethers, JsonRpcProvider, resolveProperties } from 'ethers'
-import { UserOperationStruct } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { UserOperationStruct } from '@account-abstraction/utils/src/ContractTypes'
 import Debug from 'debug'
 import { deepHexlify } from '@account-abstraction/utils'
 
@@ -13,9 +13,9 @@ export class HttpRpcClient {
   constructor (
     readonly bundlerUrl: string,
     readonly entryPointAddress: string,
-    readonly chainId: number,
+    readonly chainId: number
   ) {
-    if ( bundlerUrl=='') {
+    if (bundlerUrl === '') {
       this.userOpJsonRpcProvider = null as any
       this.initializing = null as any
       return

@@ -3,7 +3,7 @@ import { BundlerReputationParams, ReputationManager } from './ReputationManager'
 import { MempoolManager } from './MempoolManager'
 import { BundleManager } from './BundleManager'
 import { ValidationManager } from './ValidationManager'
-import { EntryPoint__factory } from '@account-abstraction/utils/dist/src/ContractTypes'
+import { EntryPoint__factory } from '@account-abstraction/utils/src/ContractTypes'
 
 import { parseEther, Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'

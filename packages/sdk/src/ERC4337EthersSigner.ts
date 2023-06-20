@@ -7,20 +7,15 @@ import {
 import { BaseAccountAPI } from './BaseAccountAPI'
 import {
   AbstractSigner,
-  JsonRpcSigner,
   Provider,
   Signer,
   TransactionRequest,
   TransactionResponse,
   TypedDataDomain, TypedDataField
 } from 'ethers'
-import Debug from 'debug'
 import { BlockTag } from 'ethers/src.ts/providers/provider'
 
-const debug = Debug('aa.signer')
-
 export class ERC4337EthersSigner extends AbstractSigner {
-
   private address?: string
 
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
@@ -59,13 +54,13 @@ export class ERC4337EthersSigner extends AbstractSigner {
     return transactionResponse
   }
 
-  signTypedData (domain: TypedDataDomain, types: Record<string, Array<TypedDataField>>, value: Record<string, any>): Promise<string> {
+  async signTypedData (domain: TypedDataDomain, types: Record<string, TypedDataField[]>, value: Record<string, any>): Promise<string> {
     throw new Error('not implemented')
   }
 
-  async getNonce(blockTag?: BlockTag): Promise<number> {
-    const nonce =  this.smartAccountAPI.getNonce()
-    //TODO: getNonce's API return a "number". we can't fit this range. assume caller can handle bitint..
+  async getNonce (blockTag?: BlockTag): Promise<number> {
+    const nonce = this.smartAccountAPI.getNonce()
+    // TODO: getNonce's API return a "number". we can't fit this range. assume caller can handle bitint..
     return nonce as any
   }
 
