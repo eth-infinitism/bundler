@@ -5,12 +5,24 @@ import {
   UserOperationStruct
 } from '@account-abstraction/utils/src/ContractTypes'
 import { BaseAccountAPI } from './BaseAccountAPI'
-import { JsonRpcSigner, Provider, Signer, TransactionRequest, TransactionResponse } from 'ethers'
+import {
+  AbstractSigner,
+  JsonRpcSigner,
+  Provider,
+  Signer,
+  TransactionRequest,
+  TransactionResponse,
+  TypedDataDomain, TypedDataField
+} from 'ethers'
 import Debug from 'debug'
+import { BlockTag } from 'ethers/src.ts/providers/provider'
 
 const debug = Debug('aa.signer')
 
-export class ERC4337EthersSigner extends JsonRpcSigner {
+export class ERC4337EthersSigner extends AbstractSigner {
+
+  private address?: string
+
   // TODO: we have 'erc4337provider', remove shared dependencies or avoid two-way reference
   constructor (
     readonly config: ClientConfig,
@@ -18,7 +30,7 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
     readonly erc4337provider: ERC4337EthersProvider,
     readonly httpRpcClient: HttpRpcClient,
     readonly smartAccountAPI: BaseAccountAPI) {
-    super(erc4337provider, config.walletAddress ?? '')
+    super(erc4337provider)
 
     // wtf: I think provider no longer means what we think it means: it is JsonRpcAPIProvider, not a real provider...
     // anyway, defineReadOnly is not found anymore..
@@ -27,7 +39,6 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
 
   // This one is called by Contract. It signs the request and passes in to Provider to be sent.
   async sendTransaction (transaction: TransactionRequest): Promise<TransactionResponse> {
-    debug('sendTransaction', transaction)
     const tx: TransactionRequest = await this.populateTransaction(transaction)
     await this.verifyAllNecessaryFields(tx)
     // IDE requires "!" to mark non-null, but eslint rejects it. both are happy with "?? ''"
@@ -46,6 +57,16 @@ export class ERC4337EthersSigner extends JsonRpcSigner {
     }
     // TODO: handle errors - transaction that is "rejected" by bundler is _not likely_ to ever resolve its "wait()"
     return transactionResponse
+  }
+
+  signTypedData (domain: TypedDataDomain, types: Record<string, Array<TypedDataField>>, value: Record<string, any>): Promise<string> {
+    throw new Error('not implemented')
+  }
+
+  async getNonce(blockTag?: BlockTag): Promise<number> {
+    const nonce =  this.smartAccountAPI.getNonce()
+    //TODO: getNonce's API return a "number". we can't fit this range. assume caller can handle bitint..
+    return nonce as any
   }
 
   unwrapError (errorIn: any): Error {

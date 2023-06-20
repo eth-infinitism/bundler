@@ -1,12 +1,10 @@
 import {
   getBigInt, hexlify,
-  JsonRpcProvider,
-  JsonRpcSigner,
   Network,
   Signature,
   TransactionReceipt,
   TransactionResponse,
-  TransactionResponseParams, Signer, Provider, toNumber
+  TransactionResponseParams, Signer, Provider, toNumber, AbstractProvider
 } from 'ethers'
 
 import { ClientConfig } from './ClientConfig'
@@ -17,6 +15,8 @@ import { EntryPoint, UserOperationStruct } from '@account-abstraction/utils/dist
 import { getUserOpHash, toLowerAddr } from '@account-abstraction/utils'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import Debug from 'debug'
+import { assert } from 'ethers/src.ts/utils'
+import { PerformActionRequest } from 'ethers/src.ts/providers/abstract-provider'
 
 const debug = Debug('aa.provider')
 
@@ -24,11 +24,12 @@ class ERC4337TransactionResponse extends TransactionResponse {
   userOpHash: string
 
   constructor (
+    readonly erc4337Provider: ERC4337EthersProvider,
     readonly txParams: TransactionResponseParams,
     readonly entryPoint: EntryPoint,
     readonly userOp: UserOperationStruct,
     readonly smartAccountAPI: BaseAccountAPI,
-    provider: JsonRpcProvider
+    provider: ERC4337EthersProvider
   ) {
     super(txParams, provider)
     this.userOpHash = txParams.hash
@@ -36,8 +37,8 @@ class ERC4337TransactionResponse extends TransactionResponse {
 
   async wait (_confirms?: number, _timeout?: number): Promise<TransactionReceipt | null> {
     const waitForUserOp = async (): Promise<TransactionReceipt> => await new Promise((resolve, reject) => {
-      new UserOperationEventListener(
-        resolve, reject, this.entryPoint, this.userOp.sender, this.userOpHash, this.userOp.nonce
+      new UserOperationEventListener(this.erc4337Provider,
+        resolve, reject, this.userOp.sender, this.userOpHash, this.userOp.nonce
       ).start()
     })
 
@@ -50,7 +51,8 @@ class ERC4337TransactionResponse extends TransactionResponse {
   }
 }
 
-export class ERC4337EthersProvider extends JsonRpcProvider {
+export class ERC4337EthersProvider extends AbstractProvider {
+
   initializedBlockNumber!: number
 
   readonly signer: ERC4337EthersSigner
@@ -64,11 +66,21 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
     readonly entryPoint: EntryPoint,
     readonly smartAccountAPI: BaseAccountAPI
   ) {
-    super('', {
-      name: 'ERC-4337 Custom Network',
-      chainId
-    })
+    super(chainId)
     this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient, smartAccountAPI)
+  }
+
+  _detectNetwork (): Promise<Network> {
+    return this.originalProvider.getNetwork()
+  }
+
+  async _perform (req: PerformActionRequest): Promise<any> {
+    const keys = Object.keys(req).slice(1)
+    let params = keys.map(key => (req as any)[key])
+    debug('>> perform', req.method, 'keys=', keys, 'params=', params)
+    let ret = await (this.originalProvider as any)[req.method](...params)
+    return ret
+    // throw Error(req.method)
   }
 
   /**
@@ -83,7 +95,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
     return this
   }
 
-  async getSigner (address?: number | string): Promise<JsonRpcSigner> {
+  getSigner (): ERC4337EthersSigner {
     return this.signer
   }
 
@@ -94,7 +106,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
       // there is nobody out there to use it for ERC-4337 methods yet, we have nothing to override in fact.
       throw new Error('Should not get here. Investigate.')
     }
-    return await (this.originalProvider.provider as JsonRpcProvider).send(method, params)
+    return await (this.originalProvider.provider as any).send(method, params)
   }
 
   async getTransaction (transactionHash: string): Promise<null | TransactionResponse> {
@@ -103,11 +115,11 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
   }
 
   async getTransactionReceipt (transactionHash: string): Promise<null | TransactionReceipt> {
-    const userOpHash = await transactionHash
+    const userOpHash = transactionHash
     const sender = await this.getSenderAccountAddress()
     return await new Promise<TransactionReceipt>((resolve, reject) => {
-      new UserOperationEventListener(
-        resolve, reject, this.entryPoint, sender, userOpHash
+      new UserOperationEventListener(this,
+        resolve, reject, sender, userOpHash
       ).start()
     })
   }
@@ -120,7 +132,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
     const sender = await this.getSenderAccountAddress()
 
     return await new Promise<TransactionReceipt>((resolve, reject) => {
-      const listener = new UserOperationEventListener(resolve, reject, this.entryPoint, sender, transactionHash, undefined, timeout)
+      const listener = new UserOperationEventListener(this, resolve, reject, sender, transactionHash, undefined, timeout)
       listener.start()
     })
   }
@@ -149,7 +161,7 @@ export class ERC4337EthersProvider extends JsonRpcProvider {
       accessList: null
     }
 
-    return new ERC4337TransactionResponse(txParams, this.entryPoint, userOp, this.smartAccountAPI, this.provider)
+    return new ERC4337TransactionResponse(this, txParams, this.entryPoint, userOp, this.smartAccountAPI, this.provider)
   }
 
   async detectNetwork (): Promise<Network> {

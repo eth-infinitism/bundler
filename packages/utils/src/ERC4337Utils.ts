@@ -155,7 +155,7 @@ export function deepHexlify (obj: any): any {
 export function parseEntryPointErrors (error: any, entryPoint: EntryPoint): any {
   if (error != null && error.errorName == null && error.data != null) {
     // wtf: why should I parse the error?
-    const ret = entryPoint.interface.parseError(error.data)
+    const ret = entryPoint.interface.parseError(error.data.data ?? error.data)
     error = {
       errorName: ret?.name,
       errorArgs: ret?.args

@@ -1,6 +1,12 @@
 import { AddressLike, BigNumberish, EventLog, TransactionReceipt, AbiCoder } from 'ethers'
 import { EntryPoint } from '@account-abstraction/utils/dist/src/ContractTypes'
 import Debug from 'debug'
+import { ERC4337EthersProvider } from './ERC4337EthersProvider'
+import {
+  UserOperationEventEvent
+} from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/core/EntryPoint'
+import { applyProviderWrappers } from 'hardhat/internal/core/providers/construction'
+import { TransactionReceiptParams } from 'ethers/src.ts/providers/formatting'
 
 const debug = Debug('aa.listener')
 
@@ -16,15 +22,21 @@ export class UserOperationEventListener {
   resolved: boolean = false
   boundListener: (this: any, ...param: any) => void
 
+  entryPoint: EntryPoint
+  userOpEventFilter: UserOperationEventEvent.Filter
+
   constructor (
+    readonly erc4337Provider: ERC4337EthersProvider,
     readonly resolve: (t: TransactionReceipt | PromiseLike<TransactionReceipt>) => void,
     readonly reject: (reason?: any) => void,
-    readonly entryPoint: EntryPoint,
     readonly sender: AddressLike,
     readonly userOpHash: string,
     readonly nonce?: BigNumberish,
     readonly timeout?: number
   ) {
+    this.entryPoint = erc4337Provider.entryPoint
+    this.userOpEventFilter = this.entryPoint.filters.UserOperationEvent(this.userOpHash)
+
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.boundListener = this.listenerCallback.bind(this)
     setTimeout(() => {
@@ -34,21 +46,24 @@ export class UserOperationEventListener {
   }
 
   start (): void {
+
+    debug('UserOperationEventListener.start')
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const filter = this.entryPoint.filters.UserOperationEvent(this.userOpHash)
     // listener takes time... first query directly:
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     setTimeout(async () => {
-      const res = await this.entryPoint.queryFilter(filter, 'latest')
+      const res = await this.entryPoint.queryFilter(this.userOpEventFilter, 'latest')
       if (res.length > 0) {
         void this.listenerCallback(res[0])
       } else {
-        void this.entryPoint.once(filter, this.boundListener)
+        void this.entryPoint.once(this.userOpEventFilter, this.boundListener)
       }
     }, 100)
   }
 
   stop (): void {
+    debug('UserOperationEventListener.stop')
+
     void this.entryPoint.off('UserOperationEvent', this.boundListener)
   }
 
@@ -58,6 +73,7 @@ export class UserOperationEventListener {
       console.error('got event without args', event)
       return
     }
+    debug('UserOperationEventListener.listenerCallback', event.eventName, event.args, event.transactionHash)
     // TODO: can this happen? we register to event by userOpHash..
     if (event.args.userOpHash !== this.userOpHash) {
       console.log(`== event with wrong userOpHash: sender/nonce: event.${event.args.sender as string}@${event.args.nonce.toString() as string}!= userOp.${this.sender as string}@${parseInt(this.nonce?.toString())}`)
@@ -65,18 +81,26 @@ export class UserOperationEventListener {
     }
 
     const transactionReceipt = await event.getTransactionReceipt()
-    const rcpt = transactionReceipt as any
-    rcpt.hash = this.userOpHash
+
+    let rcpt = new TransactionReceipt({
+      ...transactionReceipt as TransactionReceiptParams,
+      logs: transactionReceipt.logs,  //defined as "#logs" in TransactionReceipt, and thus "..." above doesn't collect its value
+      hash: this.userOpHash,
+      //   transactionHash: transactionReceipt.hash
+    }, this.erc4373Provider)
+    rcpt.confirmations = () => Promise.resolve(1)
     // TODO: set also getter methods?
     debug('got event with status=', event.args.success, 'gasUsed=', transactionReceipt.gasUsed)
 
     // before returning the receipt, update the status from the event.
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    if (!event.args.success) {
-      await this.extractFailureReason(transactionReceipt)
-    }
     this.stop()
-    this.resolve(transactionReceipt)
+    debug('resolving rcpt')
+    if (!event.args.success) {
+      await this.extractFailureReason(rcpt)
+    } else {
+      this.resolve(rcpt)
+    }
     this.resolved = true
   }
 
@@ -84,17 +108,23 @@ export class UserOperationEventListener {
     debug('mark tx as failed')
     // WTF: can we change readonly field:
     // @ts-ignore
-    receipt.status = 0
+    receipt = new TransactionReceipt({
+      ...receipt as TransactionReceiptParams,
+      logs: receipt.logs,
+      hash: this.userOpHash,
+      status: 0
+      //   transactionHash: transactionReceipt.hash
+    }, this.erc4337Provider)
     const revertReasonEvents = await this.entryPoint.queryFilter(this.entryPoint.filters.UserOperationRevertReason(this.userOpHash, this.sender), receipt.blockHash)
+    let message = 'UserOp reverted'
     if (revertReasonEvents[0] != null) {
-      let message = revertReasonEvents[0].args.revertReason
+      message = revertReasonEvents[0].args.revertReason
       if (message.startsWith('0x08c379a0')) {
         // Error(string)
         message = defaultAbiCoder.decode(['string'], '0x' + message.substring(10)).toString()
       }
-      debug(`rejecting with reason: ${message}`)
-      this.reject(new Error(`UserOp failed with reason: ${message}`)
-      )
     }
+    debug(`rejecting with reason: ${message}`)
+    this.reject(new Error(`UserOp failed with reason: ${message}`))
   }
 }

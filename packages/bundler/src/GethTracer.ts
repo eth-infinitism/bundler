@@ -1,7 +1,7 @@
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 //
 
-import { JsonRpcProvider, Provider, TransactionRequest } from 'ethers'
+import { Provider, TransactionRequest } from 'ethers'
 import { deepHexlify } from '@account-abstraction/utils'
 
 /**
@@ -36,14 +36,14 @@ export async function debug_traceCall (provider: Provider, tx: TransactionReques
 }
 
 // a hack for network that doesn't have traceCall: mine the transaction, and use debug_traceTransaction
-export async function execAndTrace (provider: JsonRpcProvider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
+export async function execAndTrace (provider: Provider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {
   const signer = await provider.getSigner()
   const hash = await signer.sendUncheckedTransaction(tx)
   return await debug_traceTransaction(provider, hash, options)
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export async function debug_traceTransaction (provider: JsonRpcProvider, hash: string, options: TraceOptions): Promise<TraceResult | any> {
+export async function debug_traceTransaction (provider: Provider, hash: string, options: TraceOptions): Promise<TraceResult | any> {
   const ret = await provider.send('debug_traceTransaction', [hash, tracer2string(options)])
   // const tx = await provider.getTransaction(hash)
   // return applyTracer(tx, ret, options)

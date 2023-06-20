@@ -106,7 +106,6 @@ export class BundleManager {
         debug('eth_sendRawTransaction ret=', ret)
       }
       // TODO: parse ret, and revert if needed.
-      debug('ret=', ret)
       debug('sent handleOps with', userOps.length, 'ops. removing from mempool')
       // hashes are needed for debug rpc only.
       const hashes = await this.getUserOpHashes(userOps)
