@@ -11,6 +11,7 @@
   "scripts": {
     "clear": "rm -rf dist artifacts cache src/types",
     "hardhat-compile": "hardhat compile",
+    "watch-tsc": "tsc -w --preserveWatchOutput",
     "tsc": "tsc"
   },
   "dependencies": {

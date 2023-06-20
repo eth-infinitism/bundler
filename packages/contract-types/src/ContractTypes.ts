@@ -1,5 +1,4 @@
 
-import { UserOperationStruct } from './types/@account-abstraction/contracts/core/EntryPoint'
 
 export * from './types'
 // export event and structure types, not exported by "*" above:
@@ -8,5 +7,7 @@ export {
   UserOperationEventEvent,
   SignatureAggregatorChangedEvent,
   UserOperationStruct
-} from './types/@account-abstraction/contracts/core/EntryPoint'
+} from './types/EntryPoint'
+
+import { UserOperationStruct } from './types/EntryPoint'
 export type UserOperation = UserOperationStruct

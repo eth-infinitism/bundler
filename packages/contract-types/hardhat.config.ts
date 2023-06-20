@@ -6,6 +6,7 @@ import { HardhatUserConfig } from 'hardhat/config'
 const config: HardhatUserConfig = {
   typechain: {
     outDir: 'src/types',
+    externalArtifacts: ['../../node_modules/@account-abstraction/contracts/artifacts/*'],
     target: 'ethers-v6'
   },
   solidity: {

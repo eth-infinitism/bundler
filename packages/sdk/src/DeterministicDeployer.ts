@@ -46,19 +46,16 @@ export class DeterministicDeployer {
   static deploymentGasPrice = 100e9
   static deploymentGasLimit = 100000
 
-  // treat it as assigned.
-  private signer: Signer = null as any
-
   constructor (
     readonly provider: Provider,
-    readonly _signer?: Signer) {
-    if (_signer == null) {
-      void (provider as JsonRpcProvider).getSigner().then(s => {
-        this.signer = s
-      })
-    } else {
-      this.signer = _signer
+    private _signer?: Signer) {
+  }
+
+  async getSigner(): Promise<Signer> {
+    if ( this._signer ==null ) {
+      this._signer =  await (this.provider as JsonRpcProvider).getSigner()
     }
+    return this._signer
   }
 
   async isContractDeployed (address: string): Promise<boolean> {
@@ -76,7 +73,7 @@ export class DeterministicDeployer {
     const bal = await this.provider.getBalance(DeterministicDeployer.deploymentSignerAddress)
     const neededBalance = getBigInt(DeterministicDeployer.deploymentGasLimit) * getBigInt(DeterministicDeployer.deploymentGasPrice)
     if (bal < neededBalance) {
-      const signer = this.signer ?? await (this.provider as JsonRpcProvider).getSigner()
+      const signer = await this.getSigner()
       await signer.sendTransaction({
         to: DeterministicDeployer.deploymentSignerAddress,
         value: neededBalance,
@@ -129,7 +126,8 @@ export class DeterministicDeployer {
   async deterministicDeploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     const addr = await DeterministicDeployer.getDeterministicDeployAddress(ctrCode, salt, params)
     if (!await this.isContractDeployed(addr)) {
-      await this.signer.sendTransaction(
+      let signer = await this.getSigner()
+      await signer.sendTransaction(
         await this.getDeployTransaction(ctrCode, salt, params))
     }
     return addr
