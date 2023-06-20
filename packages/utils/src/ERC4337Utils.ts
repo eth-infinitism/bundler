@@ -1,4 +1,3 @@
-import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 import {
   AbiCoder,
   AddressLike,
@@ -13,13 +12,6 @@ import Debug from 'debug'
 import { EntryPoint, UserOperation } from '@account-abstraction/contract-types'
 
 const debug = Debug('aa.utils')
-
-// UserOperation is the first parameter of validateUseOp
-const validateUserOpMethod = 'simulateValidation'
-const UserOpType = entryPointAbi.find(entry => entry.name === validateUserOpMethod)?.inputs[0]
-if (UserOpType == null) {
-  throw new Error(`unable to find method ${validateUserOpMethod} in EP ${entryPointAbi.filter(x => x.type === 'function').map(x => x.name).join(',')}`)
-}
 
 const defaultAbiCoder = AbiCoder.defaultAbiCoder()
 

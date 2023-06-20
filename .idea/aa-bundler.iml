@@ -12,6 +12,8 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/utils/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/bundler/src/types" />
       <excludeFolder url="file://$MODULE_DIR$/packages/bundler/deployments" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/contract-types/src/types" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/contract-types/dist/src/types" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
