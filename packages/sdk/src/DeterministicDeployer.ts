@@ -51,9 +51,9 @@ export class DeterministicDeployer {
     private _signer?: Signer) {
   }
 
-  async getSigner(): Promise<Signer> {
-    if ( this._signer ==null ) {
-      this._signer =  await (this.provider as JsonRpcProvider).getSigner()
+  async getSigner (): Promise<Signer> {
+    if (this._signer == null) {
+      this._signer = await (this.provider as JsonRpcProvider).getSigner()
     }
     return this._signer
   }
@@ -126,7 +126,7 @@ export class DeterministicDeployer {
   async deterministicDeploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
     const addr = await DeterministicDeployer.getDeterministicDeployAddress(ctrCode, salt, params)
     if (!await this.isContractDeployed(addr)) {
-      let signer = await this.getSigner()
+      const signer = await this.getSigner()
       await signer.sendTransaction(
         await this.getDeployTransaction(ctrCode, salt, params))
     }

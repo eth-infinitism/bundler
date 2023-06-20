@@ -2,14 +2,13 @@ import {
   EntryPoint,
   EntryPoint__factory,
   SimpleAccountFactory__factory,
-  SampleRecipient, SampleRecipient__factory,
   UserOperationStruct
 } from '@account-abstraction/contract-types'
 import { HDNodeWallet, parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
 import { DeterministicDeployer, SimpleAccountAPI } from '../src'
-import { AddressZero, rethrowError } from '@account-abstraction/utils'
+import { AddressZero, rethrowError, SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils'
 import { expect } from 'chai'
 import '@nomicfoundation/hardhat-chai-matchers'
 
