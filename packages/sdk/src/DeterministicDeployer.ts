@@ -78,9 +78,10 @@ export class DeterministicDeployer {
         to: DeterministicDeployer.deploymentSignerAddress,
         value: neededBalance,
         gasLimit: DeterministicDeployer.deploymentGasLimit
-      })
+      }).then(async ret => await ret.wait())
     }
-    await (this.provider as JsonRpcProvider).send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
+
+    await this.provider.broadcastTransaction(DeterministicDeployer.deploymentTransaction).then(async ret => await ret.wait())
     if (!await this.isContractDeployed(DeterministicDeployer.proxyAddress)) {
       throw new Error('raw TX didn\'t deploy deployer!')
     }
@@ -128,7 +129,7 @@ export class DeterministicDeployer {
     if (!await this.isContractDeployed(addr)) {
       const signer = await this.getSigner()
       await signer.sendTransaction(
-        await this.getDeployTransaction(ctrCode, salt, params))
+        await this.getDeployTransaction(ctrCode, salt, params)).then(async ret => await ret.wait())
     }
     return addr
   }
