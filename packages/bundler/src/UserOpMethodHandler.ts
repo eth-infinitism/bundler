@@ -1,7 +1,7 @@
 import { BigNumberish, getBigInt, hexlify, Log, Provider, Signer } from 'ethers'
 
 import { BundlerConfig } from './BundlerConfig'
-import { deepHexlify, erc4337RuntimeVersion, parseEntryPointErrors, toLowerAddr } from '@account-abstraction/utils'
+import { deepHexlify, erc4337RuntimeVersion, parseEntryPointError, toLowerAddr } from '@account-abstraction/utils'
 import {
   UserOperationEventEvent,
   EntryPoint,
@@ -101,7 +101,7 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => parseEntryPointErrors(e, this.entryPoint))
+    const errorResult = await this.entryPoint.simulateValidation.staticCall(userOp).catch(e => parseEntryPointError(e, this.entryPoint))
     if (errorResult.errorName === 'FailedOp') {
       throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
     }

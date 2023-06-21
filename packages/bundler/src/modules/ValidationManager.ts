@@ -2,7 +2,7 @@ import { EntryPoint, UserOperation } from '@account-abstraction/contract-types'
 import { ReputationManager } from './ReputationManager'
 import { BigNumberish, BytesLike, ErrorDescription, getBigInt, Provider } from 'ethers'
 import { requireCond, RpcError } from '../utils'
-import { AddressZero, decodeErrorReason, parseEntryPointErrors, toLowerAddr } from '@account-abstraction/utils'
+import { AddressZero, decodeErrorReason, parseEntryPointError, toLowerAddr } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
@@ -58,7 +58,7 @@ export class ValidationManager {
   }
 
   _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
-    errorResult = parseEntryPointErrors(errorResult, this.entryPoint)
+    errorResult = parseEntryPointError(errorResult, this.entryPoint)
 
     if (!errorResult?.errorName?.startsWith('ValidationResult')) {
       // parse it as FailedOp

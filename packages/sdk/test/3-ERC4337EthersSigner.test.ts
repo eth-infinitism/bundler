@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import {
-  parseEntryPointErrors,
+  parseEntryPointError,
   SampleRecipient,
   SampleRecipient__factory
 } from '@account-abstraction/utils'
@@ -39,7 +39,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       try {
         await entryPoint.handleOps([userOp], beneficiary)
       } catch (e1: any) {
-        const e = parseEntryPointErrors(e1, entryPoint)
+        const e = parseEntryPointError(e1, entryPoint)
         // eslint-disable-next-line
         const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
         throw new Error(message)

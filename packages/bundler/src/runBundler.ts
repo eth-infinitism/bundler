@@ -100,7 +100,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       await signer.sendTransaction({
         to: await wallet.getAddress(),
         value: parseEther('1')
-      })
+      }).then(ret => ret.wait())
     }
   }
 

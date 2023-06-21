@@ -6,7 +6,7 @@ import {
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getUserOpHash, packUserOp, parseEntryPointErrors } from '@account-abstraction/utils'
+import { getUserOpHash, packUserOp, parseEntryPointError } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface BaseApiParams {
@@ -123,7 +123,7 @@ export abstract class BaseAccountAPI {
     try {
       await this.entryPointView.getSenderAddress.staticCall(initCode)
     } catch (e1: any) {
-      const e = parseEntryPointErrors(e1, this.entryPointView)
+      const e = parseEntryPointError(e1, this.entryPointView)
       if (e.errorArgs == null) {
         throw e
       }
