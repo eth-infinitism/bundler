@@ -22,7 +22,7 @@
     "@account-abstraction/utils": "^0.6.0",
     "@types/debug": "^4.1.7",
     "debug": "^4.3.4",
-    "ethers": "^6.5.1"
+    "ethers": "6.6.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.1",

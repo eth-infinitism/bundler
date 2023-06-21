@@ -19,7 +19,7 @@
     "@account-abstraction/contract-types": "^0.6.0",
     "@openzeppelin/contracts": "^4.7.3",
     "debug": "^4.3.4",
-    "ethers": "^6.5.1"
+    "ethers": "6.6.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.2",

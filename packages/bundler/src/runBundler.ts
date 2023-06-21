@@ -2,7 +2,7 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { HDNodeWallet, toNumber, parseEther } from 'ethers'
+import { HDNodeWallet, toNumber, parseEther, JsonRpcProvider } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
@@ -96,7 +96,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
     if (await provider.getBalance(wallet.getAddress()) === 0n) {
       console.log('=== testnet: fund signer')
-      const signer = await (provider).getSigner()
+      const signer = await (provider as JsonRpcProvider).getSigner()
       await signer.sendTransaction({
         to: await wallet.getAddress(),
         value: parseEther('1')

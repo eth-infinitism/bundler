@@ -6,7 +6,13 @@ import {
 import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { parseEntryPointErrors, SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  parseEntryPointErrors,
+  SampleRecipient,
+  SampleRecipient__factory
+} from '@account-abstraction/utils'
+
 require('@nomicfoundation/hardhat-chai-matchers')
 
 const provider = ethers.provider
@@ -33,14 +39,11 @@ describe('ERC4337EthersSigner, Provider', function () {
     aaProvider.httpRpcClient.sendUserOpToBundler = async (userOp) => {
       try {
         await entryPoint.handleOps([userOp], beneficiary)
-      } catch (e: any) {
-        // doesn't report error unless called with callStatic
-        await entryPoint.handleOps.staticCall([userOp], beneficiary).catch((e1: any) => {
-          const e = parseEntryPointErrors(e1, entryPoint)
-          // eslint-disable-next-line
-          const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
-          throw new Error(message)
-        })
+      } catch (e1: any) {
+        const e = parseEntryPointErrors(e1, entryPoint)
+        // eslint-disable-next-line
+        const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
+        throw new Error(message)
       }
       return ''
     }

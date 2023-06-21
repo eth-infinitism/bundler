@@ -2,7 +2,7 @@ import ow from 'ow'
 import fs from 'fs'
 
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
-import { HDNodeWallet, JsonRpcProvider, Wallet } from 'ethers'
+import { HDNodeWallet, JsonRpcProvider, Provider, Wallet } from 'ethers'
 
 function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
@@ -32,7 +32,7 @@ export function getNetworkProvider (url: string): JsonRpcProvider {
   return new JsonRpcProvider(url)
 }
 
-export async function resolveConfiguration (programOpts: any): Promise<{ config: BundlerConfig, provider: JsonRpcProvider, wallet: HDNodeWallet }> {
+export async function resolveConfiguration (programOpts: any): Promise<{ config: BundlerConfig, provider: Provider, wallet: HDNodeWallet }> {
   const commandLineParams = getCommandLineParams(programOpts)
   let fileConfig: Partial<BundlerConfig> = {}
   const configFileName = programOpts.config
@@ -42,7 +42,7 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
   const config = mergeConfigs(bundlerConfigDefault, fileConfig, commandLineParams)
   console.log('Merged configuration:', JSON.stringify(config))
 
-  const provider: JsonRpcProvider = config.network === 'hardhat'
+  const provider: Provider = config.network === 'hardhat'
     // eslint-disable-next-line
     ? require('hardhat').ethers.provider
     : getNetworkProvider(config.network)
@@ -55,5 +55,9 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
   } catch (e: any) {
     throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
   }
-  return { config, provider, wallet }
+  return {
+    config,
+    provider,
+    wallet
+  }
 }

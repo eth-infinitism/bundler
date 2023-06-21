@@ -1,8 +1,8 @@
-// from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
-//
-
 import { Provider, TransactionRequest } from 'ethers'
 import { deepHexlify } from '@account-abstraction/utils'
+
+// from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
+//
 
 /**
  * a function returning a LogTracer.
