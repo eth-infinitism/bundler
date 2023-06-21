@@ -26,7 +26,8 @@ module.exports = {
     'dist/'
   ],
   rules: {
-    'no-console': 'off'
+    'no-console': 'off',
+    '@typescript-eslint/no-non-null-assertion': 'off'
   },
   overrides: [
     {
@@ -37,7 +38,6 @@ module.exports = {
         'no-unused-expressions': 'off',
         // chai assertions trigger this rule
         '@typescript-eslint/no-unused-expressions': 'off',
-        '@typescript-eslint/no-non-null-assertion': 'off'
       }
     },
     {

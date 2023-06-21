@@ -33,7 +33,7 @@ describe('#BundlerManager', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await isGeth(provider as any),
+      unsafe: !await isGeth(provider),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,

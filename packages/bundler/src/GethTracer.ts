@@ -1,5 +1,6 @@
 import { Provider, TransactionRequest } from 'ethers'
 import { deepHexlify } from '@account-abstraction/utils'
+import { getProviderSendFunction } from './utils'
 
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 //
@@ -12,18 +13,6 @@ import { deepHexlify } from '@account-abstraction/utils'
  * (its OK if original function was in typescript: we extract its value as javascript
  */
 type LogTracerFunc = () => LogTracer
-
-function getProviderSendFunction (provider: Provider): (method: string, params: any[]) => Promise<any> {
-  const p = provider as any
-  return _getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
-}
-
-function _getProviderSendFunction (objs: any[]): (method: string, params: any[]) => Promise<any> {
-  for (const obj of objs) {
-    if (obj != null && typeof obj.send === 'function') { return obj.send.bind(obj) }
-  }
-  throw new Error('no "send()" function in provider')
-}
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceCall (provider: Provider, tx: TransactionRequest, options: TraceOptions): Promise<TraceResult | any> {

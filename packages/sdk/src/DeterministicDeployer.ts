@@ -4,7 +4,7 @@ import {
   getBigInt,
   hexlify,
   JsonRpcProvider,
-  JsonRpcSigner, keccak256, Provider,
+  keccak256, Provider,
   Signer, toBeHex,
   TransactionRequest
 } from 'ethers'
@@ -135,8 +135,8 @@ export class DeterministicDeployer {
 
   private static _instance?: DeterministicDeployer
 
-  static init (provider: Provider, signer?: JsonRpcSigner): void {
-    this._instance = new DeterministicDeployer(provider as JsonRpcProvider, signer)
+  static init (provider: Provider, signer?: Signer): void {
+    this._instance = new DeterministicDeployer(provider, signer)
   }
 
   static get instance (): DeterministicDeployer {

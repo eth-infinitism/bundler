@@ -3,7 +3,8 @@ import { ethers } from 'hardhat'
 import { debug_traceCall } from '../src/GethTracer'
 import { expect } from 'chai'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
-import { BytesLike, JsonRpcProvider, Provider, Signer, toQuantity } from 'ethers'
+import { BytesLike, Signer, toQuantity } from 'ethers'
+import { getProviderSendFunction } from '../src/utils'
 
 const provider = ethers.provider
 let signer: Signer
@@ -12,7 +13,7 @@ describe('#bundlerCollectorTracer', () => {
   let tester: TracerTest
   before(async function () {
     signer = await provider.getSigner()
-    const ver: string = await (provider as any).send('web3_clientVersion')
+    const ver: string = await getProviderSendFunction(provider)('web3_clientVersion', [])
     if (ver.match('go1') == null) {
       console.warn('\t==WARNING: test requires debug_traceCall on Geth (go-ethereum) node. ver=' + ver)
       this.skip()
@@ -37,7 +38,7 @@ describe('#bundlerCollectorTracer', () => {
   })
 
   async function traceCall (functionData: BytesLike): Promise<BundlerCollectorReturn> {
-    const ret: BundlerCollectorReturn = await debug_traceCall(provider as Provider as JsonRpcProvider, {
+    const ret: BundlerCollectorReturn = await debug_traceCall(provider, {
       to: await tester.getAddress(),
       data: toQuantity(functionData)
     }, {

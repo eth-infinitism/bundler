@@ -93,7 +93,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   } = await provider.getNetwork()
 
   if (toNumber(chainId) === 31337 || toNumber(chainId) === 1337) {
-    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+    await new DeterministicDeployer(provider).deterministicDeploy(EntryPoint__factory.bytecode)
     if (await provider.getBalance(wallet.getAddress()) === 0n) {
       console.log('=== testnet: fund signer')
       const signer = await (provider as JsonRpcProvider).getSigner()
@@ -104,11 +104,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
   }
 
-  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional')) {
+  if (config.conditionalRpc && !await supportsRpcMethod(provider, 'eth_sendRawTransactionConditional')) {
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await isGeth(provider as any)) {
+  if (!config.unsafe && !await isGeth(provider)) {
     console.error('FATAL: full validation requires GETH. for local UNSAFE mode: use --unsafe')
     process.exit(1)
   }

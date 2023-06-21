@@ -4,9 +4,9 @@ import {
   BigNumberish,
   BytesLike,
   concat,
-  hexlify, isBytesLike, JsonRpcProvider,
+  hexlify, isBytesLike,
   keccak256,
-  parseEther, Provider,
+  parseEther,
   Signer,
   toBeHex, zeroPadValue
 } from 'ethers'
@@ -151,7 +151,7 @@ describe('#ValidationManager', () => {
     },
     parseEther('0'), 0)
 
-    const _isGeth = await isGeth(provider as Provider as JsonRpcProvider)
+    const _isGeth = await isGeth(provider)
 
     if (!_isGeth) {
       console.log('WARNING: opcode banning tests can only run with geth (require debug_traceCall)')

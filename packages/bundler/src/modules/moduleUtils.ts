@@ -2,9 +2,8 @@
 
 import {
   BytesLike,
-  ContractFactory,
+  ContractFactory, ContractRunner,
   hexlify,
-  Provider,
   Result
 } from 'ethers'
 import { SlotMap, StorageMap } from './Types'
@@ -63,9 +62,9 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
  * example usage:
  *     hashes = await runContractScript(provider, new GetUserOpHashes__factory(), [entryPoint.address, userOps]).then(ret => ret.userOpHashes)
  */
-export async function runContractScript<T extends ContractFactory> (provider: Provider, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
+export async function runContractScript<T extends ContractFactory> (provider: ContractRunner, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
   const tx = await c.getDeployTransaction(...ctrParams)
-  const ret = await provider.call(tx).catch(e => e.data.data ?? e.data)
+  const ret = await provider.call!(tx).catch(e => e.data.data ?? e.data)
 
   const parsed = c.interface.parseError(ret)
   if (parsed == null) throw new Error(`unable to parse script (error) response: ${tostr(ret)}`)

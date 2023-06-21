@@ -1,4 +1,4 @@
-import { BigNumberish, getBigInt, JsonRpcProvider } from 'ethers'
+import { BigNumberish, getBigInt, Provider } from 'ethers'
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
@@ -51,16 +51,28 @@ export async function waitFor<T> (func: () => T | undefined, timeout = 10000, in
   }
 }
 
-export async function supportsRpcMethod (provider: JsonRpcProvider, method: string): Promise<boolean> {
-  const ret = await provider.send(method, []).catch(e => e)
+export function getProviderSendFunction (provider: Provider): (method: string, params: any[]) => Promise<any> {
+  const p = provider as any
+  return _getProviderSendFunction([p, p.provider, p.provider?._hardhatProvider])
+}
+
+function _getProviderSendFunction (objs: any[]): (method: string, params: any[]) => Promise<any> {
+  for (const obj of objs) {
+    if (obj != null && typeof obj.send === 'function') { return obj.send.bind(obj) }
+  }
+  throw new Error('no "send()" function in provider')
+}
+
+export async function supportsRpcMethod (provider: Provider, method: string): Promise<boolean> {
+  const ret = await getProviderSendFunction(provider)(method, []).catch(e => e)
   const code = ret.error?.code ?? ret.code
   return code === -32602 // wrong params (meaning, method exists)
 }
 
-export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
-  const p = provider.send as any
-  if (p._clientVersion == null) {
-    p._clientVersion = await provider.send('web3_clientVersion', [])
+export async function isGeth (provider: Provider): Promise<boolean> {
+  const sendFunction = getProviderSendFunction(provider) as any
+  if (sendFunction._clientVersion == null) {
+    sendFunction._clientVersion = await sendFunction('web3_clientVersion', [])
   }
 
   // check if we have traceCall

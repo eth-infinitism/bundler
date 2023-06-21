@@ -27,7 +27,7 @@ describe('SimpleAccountAPI', () => {
 
   before('init', async () => {
     signer = await provider.getSigner()
-    entryPoint = await new EntryPoint__factory(await signer).deploy()
+    entryPoint = await new EntryPoint__factory(signer).deploy()
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()

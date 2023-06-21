@@ -9,6 +9,7 @@ import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { MempoolManager } from './MempoolManager'
 import { Provider } from 'ethers'
+import assert from 'assert'
 
 const debug = Debug('aa.events')
 
@@ -24,7 +25,8 @@ export class EventsManager {
     readonly entryPoint: EntryPoint,
     readonly mempoolManager: MempoolManager,
     readonly reputationManager: ReputationManager) {
-    this.provider = entryPoint.runner?.provider as any
+    assert(entryPoint.runner?.provider != null)
+    this.provider = entryPoint.runner?.provider
   }
 
   /**

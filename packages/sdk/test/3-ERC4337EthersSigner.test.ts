@@ -7,7 +7,6 @@ import { expect } from 'chai'
 import { parseEther, Signer, Wallet } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import {
-  AddressZero,
   parseEntryPointErrors,
   SampleRecipient,
   SampleRecipient__factory
@@ -66,8 +65,7 @@ describe('ERC4337EthersSigner, Provider', function () {
       to: accountAddress,
       value: parseEther('0.1')
     })
-    console.log('account', accountAddress, 'bal=', await provider.getBalance(accountAddress))
-    const ret = await recipient.something('hello', { gasLimit: 1e6 })
+    const ret = await recipient.something('hello')
     await expect(ret).to.emit(recipient, 'Sender')
       .withArgs(anyValue, accountAddress, 'hello')
   })

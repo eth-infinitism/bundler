@@ -6,8 +6,8 @@ import {
   BigNumberish,
   ErrorDescription,
   getBigInt,
-  JsonRpcProvider,
-  JsonRpcSigner
+  Provider,
+  Signer
 } from 'ethers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
@@ -17,6 +17,8 @@ import { StorageMap } from './Types'
 import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
 import { EventsManager } from './EventsManager'
 import { toLowerAddr } from '@account-abstraction/utils'
+import { getProviderSendFunction } from '../utils'
+import assert from 'assert'
 
 const debug = Debug('aa.exec.cron')
 
@@ -26,9 +28,10 @@ export interface SendBundleReturn {
 }
 
 export class BundleManager {
-  provider: JsonRpcProvider
-  signer: JsonRpcSigner
-  mutex = new Mutex()
+  readonly provider: Provider
+  readonly providerSendFunc: (method: string, params: any[]) => Promise<any>
+  readonly signer: Signer
+  readonly mutex = new Mutex()
 
   constructor (
     readonly entryPoint: EntryPoint,
@@ -44,8 +47,10 @@ export class BundleManager {
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
     readonly mergeToAccountRootHash: boolean = false
   ) {
-    this.signer = entryPoint.runner as JsonRpcSigner
-    this.provider = entryPoint.runner?.provider as JsonRpcProvider
+    this.signer = entryPoint.runner as Signer
+    assert(this.signer.provider != null)
+    this.provider = this.signer.provider
+    this.providerSendFunc = getProviderSendFunction(this.provider)
   }
 
   /**
@@ -96,13 +101,13 @@ export class BundleManager {
       let ret: string
       if (this.conditionalRpc) {
         debug('eth_sendRawTransactionConditional', storageMap)
-        ret = await this.provider.send('eth_sendRawTransactionConditional', [
+        ret = await this.providerSendFunc('eth_sendRawTransactionConditional', [
           signedTx, { knownAccounts: storageMap }
         ])
         debug('eth_sendRawTransactionConditional ret=', ret)
       } else {
         // ret = await this.signer.sendTransaction(tx)
-        ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+        ret = await this.providerSendFunc('eth_sendRawTransaction', [signedTx])
         debug('eth_sendRawTransaction ret=', ret)
       }
       // TODO: parse ret, and revert if needed.
@@ -222,7 +227,7 @@ export class BundleManager {
 
       // If sender's account already exist: replace with its storage root hash
       if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
-        const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
+        const { storageHash } = await this.providerSendFunc('eth_getProof', [entry.userOp.sender, [], 'latest'])
         storageMap[toLowerAddr(entry.userOp.sender).toLowerCase()] = storageHash
       }
       mergeStorageMap(storageMap, validationResult.storageMap)

@@ -1,6 +1,6 @@
 import { EntryPoint, UserOperation } from '@account-abstraction/contract-types'
 import { ReputationManager } from './ReputationManager'
-import { BigNumberish, BytesLike, ErrorDescription, getBigInt, JsonRpcProvider } from 'ethers'
+import { BigNumberish, BytesLike, ErrorDescription, getBigInt, Provider } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { AddressZero, decodeErrorReason, parseEntryPointErrors, toLowerAddr } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
@@ -111,7 +111,7 @@ export class ValidationManager {
   }
 
   async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
-    const provider = this.entryPoint.runner as JsonRpcProvider
+    const provider = this.entryPoint.runner as Provider
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
     const simulationGas = getBigInt(userOp.preVerificationGas) + getBigInt(userOp.verificationGasLimit)
@@ -226,7 +226,7 @@ export class ValidationManager {
 
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
     const { hash } = await runContractScript(
-      this.entryPoint.runner as JsonRpcProvider,
+      this.entryPoint.runner!,
       new GetCodeHashes__factory(),
       [addresses]
     )
