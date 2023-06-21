@@ -29,7 +29,6 @@ export function resolveNames<T> (json: T, nameToAddress: { [name: string]: strin
     }), {})
   const s = JSON.stringify(json)
   const s1 = s
-    // .replace(/[{]"type":"BigNumber","hex":"(.*?)"[}]/g, (_, hex) => BigNumber.from(hex).toString())
     .replace(/(0x0*)([0-9a-fA-F]+)+/g, (_, prefix: string, hex: string) => {
       const hexToName = addressToNameMap[hex.toLowerCase()]
       if (hexToName == null) return `${prefix}${hex}` // not found in map: leave as-is

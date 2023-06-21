@@ -2,7 +2,7 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { ethers, HDNodeWallet, toNumber, parseEther } from 'ethers'
+import { HDNodeWallet, toNumber, parseEther } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
@@ -14,13 +14,6 @@ import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { isGeth, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
-
-// this is done so that console.log outputs BigNumber as hex string instead of unreadable object
-export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
-// @ts-ignore
-ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
-  return `BigNumber ${parseInt(this._hex)}`
-}
 
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
