@@ -4,7 +4,7 @@ import {
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/contracts'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
-import { BundlerCollectorReturn } from './BundlerCollectorTracer'
+import { BundlerCollectorReturn, TopLevelCallInfo } from './BundlerCollectorTracer'
 import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
 
@@ -170,7 +170,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  if (Object.values(tracerResults.numberLevels).length < 2) {
+  if (Object.values(tracerResults.topLevelCalls).length < 1) {
     // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
     // console.log('debug=', result.debug)
     throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
@@ -200,11 +200,26 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     paymaster: validationResult.paymasterInfo
   }
 
+  //method-signature for entity calls.
+  const topLevelMethodSigs: {[key:string]: string} = {
+    'factory': '0x570e1a36', //createSender
+    'account': '0x3a871cdd', //validateUserOp'
+    'paymaster': '0xf465c77e' //validatePaymasterUserOp
+  }
+
+
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
-  Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes], index) => {
+  Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
     const entityAddr = entStakes?.addr ?? ''
-    const currentNumLevel = tracerResults.numberLevels[index]
+    const currentNumLevel = tracerResults.topLevelCalls.find(info=>info.topLevelMethodSig === topLevelMethodSigs[entityTitle])
+    if ( currentNumLevel==null ) {
+      if ( entityTitle==='account') {
+        //should never happen... only factory, paymaster are optional.
+        throw new Error( 'missing trace into validateUserOp')
+      }
+      return
+    }
     const opcodes = currentNumLevel.opcodes
     const access = currentNumLevel.access
 
@@ -330,9 +345,9 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
-  const addresses = tracerResults.numberLevels.flatMap(level => Object.keys(level.contractSize))
+  const addresses = tracerResults.topLevelCalls.flatMap(level => Object.keys(level.contractSize))
   const storageMap: StorageMap = {}
-  tracerResults.numberLevels.forEach(level => {
+  tracerResults.topLevelCalls.forEach(level => {
     Object.keys(level.access).forEach(addr => {
       storageMap[addr] = storageMap[addr] ?? level.access[addr].reads
     })

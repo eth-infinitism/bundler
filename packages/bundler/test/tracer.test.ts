@@ -25,12 +25,13 @@ describe('#bundlerCollectorTracer', () => {
     const ret = await traceExecSelf(tester.interface.encodeFunctionData('callTimeStamp'), false, true)
     const execEvent = tester.interface.decodeEventLog('ExecSelfResult', ret.logs[0].data, ret.logs[0].topics)
     expect(execEvent.success).to.equal(true)
-    expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.equal(1)
+    expect(ret.topLevelCalls[0].opcodes.TIMESTAMP).to.equal(1)
   })
 
   it('should not count opcodes on depth==1', async () => {
     const ret = await traceCall(tester.interface.encodeFunctionData('callTimeStamp'))
-    expect(ret.numberLevels[0].opcodes.TIMESTAMP).to.be.undefined
+    console.log('ret=', JSON.stringify(ret,null,2))
+    expect(ret.topLevelCalls[0]?.opcodes.TIMESTAMP).to.be.undefined
     // verify no error..
     expect(ret.debug.toString()).to.not.match(/REVERT/)
   })
@@ -79,7 +80,7 @@ describe('#bundlerCollectorTracer', () => {
 
   it('should report direct use of GAS opcode', async () => {
     const ret = await traceExecSelf(tester.interface.encodeFunctionData('testCallGas'), false)
-    expect(ret.numberLevels['0'].opcodes.GAS).to.eq(1)
+    expect(ret.topLevelCalls['0'].opcodes.GAS).to.eq(1)
   })
 
   it('should ignore gas used as part of "call"', async () => {
@@ -87,6 +88,6 @@ describe('#bundlerCollectorTracer', () => {
     const doNothing = tester.interface.encodeFunctionData('doNothing')
     const callDoNothing = tester.interface.encodeFunctionData('execSelf', [doNothing, false])
     const ret = await traceExecSelf(callDoNothing, false)
-    expect(ret.numberLevels['0'].opcodes.GAS).to.be.undefined
+    expect(ret.topLevelCalls['0'].opcodes.GAS).to.be.undefined
   })
 })
