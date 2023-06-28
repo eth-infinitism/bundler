@@ -162,7 +162,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (log.getDepth() === 1) {
-        if (opcode === 'CALL' || opcode == 'STATICCALL') {
+        if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
           const addr = toAddress(log.stack.peek(1).toString(16))
           const topLevelTargetAddress = toHex(addr)

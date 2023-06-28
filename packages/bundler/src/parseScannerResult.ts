@@ -4,7 +4,7 @@ import {
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/contracts'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
-import { BundlerCollectorReturn, TopLevelCallInfo } from './BundlerCollectorTracer'
+import { BundlerCollectorReturn } from './BundlerCollectorTracer'
 import { mapOf, requireCond } from './utils'
 import { inspect } from 'util'
 
@@ -200,23 +200,22 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     paymaster: validationResult.paymasterInfo
   }
 
-  //method-signature for entity calls.
-  const topLevelMethodSigs: {[key:string]: string} = {
-    'factory': '0x570e1a36', //createSender
-    'account': '0x3a871cdd', //validateUserOp'
-    'paymaster': '0xf465c77e' //validatePaymasterUserOp
+  // method-signature for entity calls.
+  const topLevelMethodSigs: {[key: string]: string} = {
+    factory: '0x570e1a36', // createSender
+    account: '0x3a871cdd', // validateUserOp'
+    paymaster: '0xf465c77e' // validatePaymasterUserOp
   }
-
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
   Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
     const entityAddr = entStakes?.addr ?? ''
-    const currentNumLevel = tracerResults.topLevelCalls.find(info=>info.topLevelMethodSig === topLevelMethodSigs[entityTitle])
-    if ( currentNumLevel==null ) {
-      if ( entityTitle==='account') {
-        //should never happen... only factory, paymaster are optional.
-        throw new Error( 'missing trace into validateUserOp')
+    const currentNumLevel = tracerResults.topLevelCalls.find(info => info.topLevelMethodSig === topLevelMethodSigs[entityTitle])
+    if (currentNumLevel == null) {
+      if (entityTitle === 'account') {
+        // should never happen... only factory, paymaster are optional.
+        throw new Error('missing trace into validateUserOp')
       }
       return
     }
