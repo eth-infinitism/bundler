@@ -93,13 +93,7 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
   return {
     topLevelCalls: [],
-    currentLevel: {
-      topLevelMethodSig: 'nomethod',
-      topLevelTargetAddress: 'noaddress',
-      opcodes: {},
-      access: {},
-      contractSize: {}
-    },
+    currentLevel: null as any,
     keccak: [],
     calls: [],
     logs: [],
@@ -168,7 +162,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (log.getDepth() === 1) {
-        if (opcode === 'CALL') {
+        if (opcode === 'CALL' || opcode == 'STATICCALL') {
           // stack.peek(0) - gas
           const addr = toAddress(log.stack.peek(1).toString(16))
           const topLevelTargetAddress = toHex(addr)
