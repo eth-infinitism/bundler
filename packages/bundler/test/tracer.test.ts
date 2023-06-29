@@ -23,7 +23,7 @@ describe('#bundlerCollectorTracer', () => {
 
   it('should count opcodes on depth>1', async () => {
     const ret = await traceExecSelf(tester.interface.encodeFunctionData('callTimeStamp'), false, true)
-    const logs = ret.callsFromEntryPoint.flatMap(level=>level.logs)
+    const logs = ret.callsFromEntryPoint.flatMap(level => level.logs)
     const execEvent = tester.interface.decodeEventLog('ExecSelfResult', logs[0].data, logs[0].topics)
     expect(execEvent.success).to.equal(true)
     expect(ret.callsFromEntryPoint[0].opcodes.TIMESTAMP).to.equal(1)
@@ -61,7 +61,7 @@ describe('#bundlerCollectorTracer', () => {
     it('should revert', async () => {
       const ret = await traceExecSelf('0xdead', true, true)
       expect(ret.debug.toString()).to.match(/execution reverted/)
-      const logs = ret.callsFromEntryPoint.flatMap(level=>level.logs)
+      const logs = ret.callsFromEntryPoint.flatMap(level => level.logs)
       expect(logs.length).to.equal(1)
       const log = tester.interface.decodeEventLog('ExecSelfResult', logs[0].data, logs[0].topics)
       expect(log.success).to.equal(false)
@@ -71,7 +71,7 @@ describe('#bundlerCollectorTracer', () => {
       const innerCall = tester.interface.encodeFunctionData('doNothing')
       const execInner = tester.interface.encodeFunctionData('execSelf', [innerCall, false])
       const ret = await traceExecSelf(execInner, true, true)
-      const logs = ret.callsFromEntryPoint.flatMap(level=>level.logs)
+      const logs = ret.callsFromEntryPoint.flatMap(level => level.logs)
       expect(logs.length).to.equal(2)
       logs.forEach(log => {
         const logParams = tester.interface.decodeEventLog('ExecSelfResult', log.data, log.topics)

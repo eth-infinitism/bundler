@@ -63,7 +63,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
 
   const out: CallEntry[] = []
   const stack: any[] = []
-  const calls = tracerResults.callsFromEntryPoint.flatMap(level=>level.calls)
+  const calls = tracerResults.callsFromEntryPoint.flatMap(level => level.calls)
   calls
     .filter(x => !x.type.startsWith('depth'))
     .forEach(c => {
