@@ -75,6 +75,8 @@ export interface LogInfo {
  */
 interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
   lastOp: string
+  stopCollectingTopic: string
+  stopCollecting: boolean
   currentLevel: TopLevelCallInfo
   topLevelCallCounter: number
   countSlot: (list: { [key: string]: number | undefined }, key: any) => void
@@ -99,6 +101,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     logs: [],
     debug: [],
     lastOp: '',
+    // event sent after all validations are done: keccak("BeforeExecution()")
+    stopCollectingTopic: 'bb47ee3e183a558b1a2ff0874b079f3fc5478b7454eacf2bfc5af2ff5878f972',
+    stopCollecting: false,
     topLevelCallCounter: 0,
 
     fault (log: LogStep, db: LogDb): void {
@@ -116,6 +121,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
+      if (this.stopCollecting) {
+        return
+      }
       // this.debug.push('enter gas=', frame.getGas(), ' type=', frame.getType(), ' to=', toHex(frame.getTo()), ' in=', toHex(frame.getInput()).slice(0, 500))
       this.calls.push({
         type: frame.getType(),
@@ -127,6 +135,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       })
     },
     exit (frame: LogFrameResult): void {
+      if (this.stopCollecting) {
+        return
+      }
       this.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
@@ -139,6 +150,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       list[key] = (list[key] ?? 0) + 1
     },
     step (log: LogStep, db: LogDb): any {
+      if (this.stopCollecting) {
+        return
+      }
       const opcode = log.op.toString()
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth() + '-' + log.getGas() + '-' + log.getCost())
       if (log.getGas() < log.getCost()) {
@@ -180,6 +194,12 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             contractSize: {}
           }
           this.topLevelCallCounter++
+        } else if (opcode === 'LOG1') {
+          // ignore log data ofs, len
+          const topic = log.stack.peek(2).toString(16)
+          if (topic === this.stopCollectingTopic) {
+            this.stopCollecting = true
+          }
         }
         this.lastOp = ''
         return
@@ -192,6 +212,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const addrHex = toHex(addr)
         if ((this.currentLevel.contractSize[addrHex] ?? 0) === 0 && !isPrecompiled(addr)) {
           this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
+          if (this.currentLevel.contractSize[addrHex] === 0) {
+            this.debug.push(`empty addr: ${opcode} ${addrHex}`)
+          }
         }
       }
 
