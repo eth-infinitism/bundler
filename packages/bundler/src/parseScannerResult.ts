@@ -339,7 +339,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       // TODO: check real minimum stake values
     }
 
-    requireCond(Object.keys(currentNumLevel.contractSize).find(addr => currentNumLevel.contractSize[addr] <= 2) == null,
+    // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
+    requireCond(Object.keys(currentNumLevel.contractSize).find(addr => addr !== sender && currentNumLevel.contractSize[addr] <= 2) == null,
       `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`, ValidationErrors.OpcodeValidation)
   })
 
