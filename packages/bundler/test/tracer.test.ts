@@ -94,7 +94,6 @@ describe('#bundlerCollectorTracer', () => {
     // the method calls "callTimeStamp" 3 times, but should stop tracing after 2 times..
     const callStopTracing = tester.interface.encodeFunctionData('testStopTracing')
     const ret = await traceCall(callStopTracing)
-    console.log(ret.debug)
     expect(ret.topLevelCalls.length).to.eql(2)
   })
 })
