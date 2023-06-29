@@ -203,7 +203,7 @@ export class BundleManager {
           storageAddress.toLowerCase() !== entry.userOp.sender.toLowerCase() &&
           knownSenders.includes(storageAddress.toLowerCase())
         ) {
-          console.log('UserOperation read a storage of a different sender entity')
+          console.debug(`UserOperation from ${entry.userOp.sender} sender accessed a storage of another known sender ${storageAddress}`)
           // eslint-disable-next-line no-labels
           continue mainLoop
         }
