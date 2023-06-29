@@ -3,6 +3,7 @@ import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
 import { resolveProperties } from 'ethers/lib/utils'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
+// https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
 //
 
 /**
@@ -88,6 +89,7 @@ export interface TraceOptions {
 // the result type of debug_traceCall and debug_traceTransaction
 export interface TraceResult {
   gas: number
+  failed: boolean
   returnValue: string
   structLogs: [TraceResultEntry]
 }
@@ -116,6 +118,7 @@ export interface LogContext {
   value: BigNumber // big.Int, amount to be transferred in wei
   block: number // Number, block number
   output: Buffer // Buffer, value returned from EVM
+  error: string // undocumented: "execution reverted", if "output" is revert data.
   time: string // String, execution runtime
 
   // And these fields are only available for tracing mined transactions (i.e. not available when doing debug_traceCall):

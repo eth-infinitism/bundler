@@ -7,7 +7,7 @@ import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
-import { debug_traceCall } from '../GethTracer'
+import { debug_traceCall, TraceResult } from '../GethTracer'
 import Debug from 'debug'
 import { GetCodeHashes__factory } from '../types'
 import { ReferencedCodeHashes, StakeInfo, StorageMap, UserOperation, ValidationErrors } from './Types'
@@ -117,11 +117,10 @@ export class ValidationManager {
       gasLimit: simulationGas
     }, { tracer: bundlerCollectorTracer })
 
-    const lastResult = tracerResult.calls.slice(-1)[0]
-    if (lastResult.type !== 'REVERT') {
+    if (!tracerResult.failed) {
       throw new Error('Invalid response. simulateCall must revert')
     }
-    const data = (lastResult as ExitInfo).data
+    const data = tracerResult.returnValue
     // Hack to handle SELFDESTRUCT until we fix entrypoint
     if (data === '0x') {
       return [data as any, tracerResult]

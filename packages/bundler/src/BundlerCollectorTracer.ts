@@ -20,6 +20,11 @@ declare function isPrecompiled (addr: any): boolean
  * keccak, calls and logs are collected globally, since the levels are unimportant for them.
  */
 export interface BundlerCollectorReturn {
+
+  gas: number
+  failed: boolean
+  returnValue: string
+
   /**
    * storage and opcode info, collected on top-level calls from EntryPoint
    */
@@ -95,6 +100,9 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
  */
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
   return {
+    gas: 0,
+    failed: false,
+    returnValue: '',
     callsFromEntryPoint: [],
     currentLevel: null as any,
     keccak: [],
@@ -113,6 +121,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
     result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
+        gas: ctx.gasUsed,
+        failed: ctx.error != null,
+        returnValue: toHex(ctx.output),
         callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,
         logs: this.logs,
