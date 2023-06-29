@@ -34,8 +34,6 @@ export interface BundlerCollectorReturn {
    * values passed into KECCAK opcode
    */
   keccak: string[]
-  calls: Array<ExitInfo | MethodInfo>
-  logs: LogInfo[]
   debug: any[]
 }
 
@@ -57,6 +55,8 @@ export interface ExitInfo {
 export interface TopLevelCallInfo {
   topLevelMethodSig: string
   topLevelTargetAddress: string
+  calls: Array<ExitInfo | MethodInfo>
+  logs: LogInfo[]
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: number }
@@ -106,8 +106,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     callsFromEntryPoint: [],
     currentLevel: null as any,
     keccak: [],
-    calls: [],
-    logs: [],
     debug: [],
     lastOp: '',
     // event sent after all validations are done: keccak("BeforeExecution()")
@@ -126,8 +124,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         returnValue: toHex(ctx.output),
         callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,
-        logs: this.logs,
-        calls: this.calls,
         debug: this.debug // for internal debugging.
       }
     },
@@ -137,7 +133,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         return
       }
       // this.debug.push('enter gas=', frame.getGas(), ' type=', frame.getType(), ' to=', toHex(frame.getTo()), ' in=', toHex(frame.getInput()).slice(0, 500))
-      this.calls.push({
+      this.currentLevel.calls.push({
         type: frame.getType(),
         from: toHex(frame.getFrom()),
         to: toHex(frame.getTo()),
@@ -150,7 +146,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (this.stopCollecting) {
         return
       }
-      this.calls.push({
+      this.currentLevel.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
         data: toHex(frame.getOutput()).slice(0, 4000)
@@ -171,22 +167,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         this.currentLevel.oog = true
       }
 
-      if (opcode === 'REVERT' || opcode === 'RETURN') {
-        if (log.getDepth() === 1) {
-          // exit() is not called on top-level return/revent, so we reconstruct it
-          // from opcode
-          const ofs = parseInt(log.stack.peek(0).toString())
-          const len = parseInt(log.stack.peek(1).toString())
-          const data = toHex(log.memory.slice(ofs, ofs + len)).slice(0, 4000)
-          // this.debug.push(opcode + ' ' + data)
-          this.calls.push({
-            type: opcode,
-            gasUsed: 0,
-            data
-          })
-        }
-      }
-
       if (log.getDepth() === 1) {
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
@@ -200,6 +180,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
             topLevelMethodSig,
             topLevelTargetAddress,
+            calls: [],
+            logs: [],
             access: {},
             opcodes: {},
             contractSize: {}
@@ -282,7 +264,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           topics.push('0x' + log.stack.peek(2 + i).toString(16))
         }
         const data = toHex(log.memory.slice(ofs, ofs + len))
-        this.logs.push({
+        this.currentLevel.logs.push({
           topics,
           data
         })

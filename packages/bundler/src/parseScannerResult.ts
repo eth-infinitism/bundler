@@ -63,7 +63,8 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
 
   const out: CallEntry[] = []
   const stack: any[] = []
-  tracerResults.calls
+  const calls = tracerResults.callsFromEntryPoint.flatMap(level=>level.calls)
+  calls
     .filter(x => !x.type.startsWith('depth'))
     .forEach(c => {
       if (c.type.match(/REVERT|RETURN/) != null) {
