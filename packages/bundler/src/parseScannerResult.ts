@@ -1,5 +1,5 @@
 import {
-  EntryPoint,
+  EntryPoint, IAccount__factory,
   IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/contracts'
@@ -153,6 +153,13 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
   return entitySlots
 }
 
+// method-signature for calls from entryPoint
+const callsFromEntryPointMethodSigs: {[key: string]: string} = {
+  factory: SenderCreator__factory.createInterface().getSighash('createSender'),
+  account: IAccount__factory.createInterface().getSighash('validateUserOp'),
+  paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
+}
+
 /**
  * parse collected simulation traces and revert if they break our rules
  * @param userOp the userOperation that was used in this simulation
@@ -170,10 +177,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  if (Object.values(tracerResults.topLevelCalls).length < 1) {
-    // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
-    // console.log('debug=', result.debug)
-    throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
+  if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
+    throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
   const callStack = parseCallStack(tracerResults)
 
@@ -200,18 +205,11 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     paymaster: validationResult.paymasterInfo
   }
 
-  // method-signature for entity calls.
-  const topLevelMethodSigs: {[key: string]: string} = {
-    factory: '0x570e1a36', // createSender
-    account: '0x3a871cdd', // validateUserOp'
-    paymaster: '0xf465c77e' // validatePaymasterUserOp
-  }
-
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
   Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
     const entityAddr = entStakes?.addr ?? ''
-    const currentNumLevel = tracerResults.topLevelCalls.find(info => info.topLevelMethodSig === topLevelMethodSigs[entityTitle])
+    const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelMethodSig === callsFromEntryPointMethodSigs[entityTitle])
     if (currentNumLevel == null) {
       if (entityTitle === 'account') {
         // should never happen... only factory, paymaster are optional.
@@ -345,9 +343,9 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
-  const addresses = tracerResults.topLevelCalls.flatMap(level => Object.keys(level.contractSize))
+  const addresses = tracerResults.callsFromEntryPoint.flatMap(level => Object.keys(level.contractSize))
   const storageMap: StorageMap = {}
-  tracerResults.topLevelCalls.forEach(level => {
+  tracerResults.callsFromEntryPoint.forEach(level => {
     Object.keys(level.access).forEach(addr => {
       storageMap[addr] = storageMap[addr] ?? level.access[addr].reads
     })

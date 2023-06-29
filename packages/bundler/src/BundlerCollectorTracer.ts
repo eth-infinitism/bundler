@@ -23,7 +23,8 @@ export interface BundlerCollectorReturn {
   /**
    * storage and opcode info, collected on top-level calls from EntryPoint
    */
-  topLevelCalls: TopLevelCallInfo[]
+  callsFromEntryPoint: TopLevelCallInfo[]
+
   /**
    * values passed into KECCAK opcode
    */
@@ -94,7 +95,7 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
  */
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
   return {
-    topLevelCalls: [],
+    callsFromEntryPoint: [],
     currentLevel: null as any,
     keccak: [],
     calls: [],
@@ -112,7 +113,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
     result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
-        topLevelCalls: this.topLevelCalls,
+        callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,
         logs: this.logs,
         calls: this.calls,
@@ -182,11 +183,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           const topLevelTargetAddress = toHex(addr)
           // stack.peek(2) - value
           const ofs = parseInt(log.stack.peek(3).toString())
-          let len = parseInt(log.stack.peek(4).toString())
-          if (len > 4) len = 4
-          const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + len))
+          // stack.peek(4) - len
+          const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
 
-          this.currentLevel = this.topLevelCalls[this.topLevelCallCounter] = {
+          this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
             topLevelMethodSig,
             topLevelTargetAddress,
             access: {},
@@ -212,9 +212,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const addrHex = toHex(addr)
         if ((this.currentLevel.contractSize[addrHex] ?? 0) === 0 && !isPrecompiled(addr)) {
           this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
-          if (this.currentLevel.contractSize[addrHex] === 0) {
-            this.debug.push(`empty addr: ${opcode} ${addrHex}`)
-          }
         }
       }
 
