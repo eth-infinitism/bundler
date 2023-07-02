@@ -55,6 +55,7 @@ export interface ExitInfo {
 export interface TopLevelCallInfo {
   topLevelMethodSig: string
   topLevelTargetAddress: string
+  output: string
   calls: Array<ExitInfo | MethodInfo>
   logs: LogInfo[]
   opcodes: { [opcode: string]: number }
@@ -83,6 +84,9 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
   lastOp: string
   stopCollectingTopic: string
   stopCollecting: boolean
+  depth: number
+  lastDepth: number
+  lastOutput: string
   currentLevel: TopLevelCallInfo
   topLevelCallCounter: number
   countSlot: (list: { [key: string]: number | undefined }, key: any) => void
@@ -108,6 +112,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     keccak: [],
     debug: [],
     lastOp: '',
+    lastOutput: '',
+    lastDepth: 0,
+    depth: 0,
     // event sent after all validations are done: keccak("BeforeExecution()")
     stopCollectingTopic: 'bb47ee3e183a558b1a2ff0874b079f3fc5478b7454eacf2bfc5af2ff5878f972',
     stopCollecting: false,
@@ -119,7 +126,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
     result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
-        gas: ctx.gasUsed,
+        gas: ctx.intrinsicGas + ctx.gasUsed,
         failed: ctx.error != null,
         returnValue: toHex(ctx.output),
         callsFromEntryPoint: this.callsFromEntryPoint,
@@ -146,10 +153,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (this.stopCollecting) {
         return
       }
+      this.lastOutput = toHex(frame.getOutput()).slice(0, 4000)
       this.currentLevel.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
-        data: toHex(frame.getOutput()).slice(0, 4000)
+        data: this.lastOutput
       })
     },
 
@@ -166,8 +174,14 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (log.getGas() < log.getCost()) {
         this.currentLevel.oog = true
       }
+      this.lastDepth = this.depth
+      this.depth = log.getDepth()
 
-      if (log.getDepth() === 1) {
+      if (this.depth === 1) {
+        // save the output of last depth-2 call
+        if (this.lastDepth === 2) {
+          this.currentLevel.output = this.lastOutput
+        }
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
           const addr = toAddress(log.stack.peek(1).toString(16))
@@ -180,6 +194,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
             topLevelMethodSig,
             topLevelTargetAddress,
+            output: '',
             calls: [],
             logs: [],
             access: {},

@@ -4,7 +4,7 @@ import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { parseScannerResult } from '../parseScannerResult'
+import { parseSimulationTraceResults } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
@@ -181,7 +181,7 @@ export class ValidationManager {
       let tracerResult: BundlerCollectorReturn
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = parseSimulationTraceResults(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)

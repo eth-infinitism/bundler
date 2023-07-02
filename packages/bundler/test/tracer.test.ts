@@ -4,6 +4,8 @@ import { debug_traceCall } from '../src/GethTracer'
 import { expect } from 'chai'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
 import { BytesLike } from 'ethers'
+import { keccak256 } from 'ethers/lib/utils'
+import { toNumber } from '@nomicfoundation/hardhat-network-helpers/dist/src/utils'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
@@ -34,6 +36,34 @@ describe('#bundlerCollectorTracer', () => {
     expect(ret.callsFromEntryPoint[0]?.opcodes.TIMESTAMP).to.be.undefined
     // verify no error..
     expect(ret.debug.toString()).to.not.match(/REVERT/)
+  })
+
+  it('traceCall should return return-value', async () => {
+    const data = '0x1234'
+    const ret = await traceCall(tester.interface.encodeFunctionData('testKeccak', [data]))
+    expect(ret.returnValue).to.eq(keccak256(data))
+  })
+
+  it('callsFromEntryPoint should contain return called methods return values', async () => {
+    const data = '0xdeadface'
+    const callTestKeccak = tester.interface.encodeFunctionData('testKeccak', [data])
+    const ret = await traceCall(tester.interface.encodeFunctionData('execSelf', [callTestKeccak, false]))
+    expect(ret.callsFromEntryPoint[0].output).to.eql(keccak256(data))
+  })
+
+  it('traceCall should return used gas', async () => {
+    const data = '0xdeadface'
+    const callTestKeccak = tester.interface.encodeFunctionData('testKeccak', [data])
+    const gas = toNumber(await tester.estimateGas.execSelf(callTestKeccak, false))
+    const ret = await traceCall(tester.interface.encodeFunctionData('execSelf', [callTestKeccak, false]))
+    expect(ret.gas).to.eql(gas)
+
+    // test on different size/gas usage
+    const data10 = '0xdeadface'.padEnd(1000, 'ff00')
+    const callTestKeccak10 = tester.interface.encodeFunctionData('testKeccak', [data10])
+    const gas10 = toNumber(await tester.estimateGas.execSelf(callTestKeccak10, false))
+    const ret10 = await traceCall(tester.interface.encodeFunctionData('execSelf', [callTestKeccak10, false]))
+    expect(ret10.gas).to.eql(gas10)
   })
 
   async function traceCall (functionData: BytesLike): Promise<BundlerCollectorReturn> {

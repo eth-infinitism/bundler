@@ -55,11 +55,11 @@ export function toBytes32 (b: BytesLike | number): string {
 
 /**
  * run the constructor of the given type as a script: it is expected to revert with the script's return values.
- * @param provider provider to use fo rthe call
+ * @param provider provider to use for the call
  * @param c - contract factory of the script class
  * @param ctrParams constructor parameters
  * @return an array of arguments of the error
- * example usasge:
+ * example usage:
  *     hashes = await runContractScript(provider, new GetUserOpHashes__factory(), [entryPoint.address, userOps]).then(ret => ret.userOpHashes)
  */
 export async function runContractScript<T extends ContractFactory> (provider: Provider, c: T, ctrParams: Parameters<T['getDeployTransaction']>): Promise<Result> {
