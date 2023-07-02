@@ -384,8 +384,8 @@ function checkEntityInfo (entryPointAddress: string, userOp: UserOperation, enti
 
   if (entityTitle === 'paymaster') {
     // validatePaymasterUserOp returns (bytes,uint)
-    // context is empty if it returns exactly 64 bytes
-    const hasContext = currentNumLevel.output.length > 130
+    // on empty context this is (structlen=0x40, byteslen=0x0, int-data), that is, exactly 32*3 = 96 bytes or 194 hex bytes
+    const hasContext = currentNumLevel.output.length > 194
     requireCondAndStake(hasContext, entStakes,
       'unstaked paymaster must not return context')
   }
