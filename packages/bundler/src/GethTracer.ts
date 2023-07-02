@@ -2,6 +2,7 @@ import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
 import { resolveProperties } from 'ethers/lib/utils'
+import { resolveHexlify } from '@account-abstraction/utils'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 // https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
 //
@@ -17,7 +18,7 @@ type LogTracerFunc = () => LogTracer
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
-  const tx1 = await resolveProperties(tx)
+  const tx1 = await resolveHexlify(tx)
   const traceOptions = tracer2string(options)
   const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
     console.log('ex=', e.message)

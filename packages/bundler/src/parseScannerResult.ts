@@ -14,6 +14,7 @@ import { ValidationResult } from './modules/ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { TestOpcodesAccountFactory__factory, TestOpcodesAccount__factory, TestStorageAccount__factory } from './types'
 import { StakeInfo, StorageMap, UserOperation, ValidationErrors } from './modules/Types'
+import assert from 'assert'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -25,6 +26,12 @@ interface CallEntry {
   revert?: any // parsed output from REVERT
   return?: any // parsed method output.
   value?: BigNumberish
+}
+
+export interface ParsedTracerResults {
+  storageMap: StorageMap
+  addresses: string[]
+  gasUsed: number
 }
 
 /**
@@ -113,7 +120,9 @@ function parseCallStack (calls: Array<ExitInfo | MethodInfo>): CallEntry[] {
   return out
 }
 
-interface EntitySlots { [addr: string]: Set<string> }
+interface EntitySlots {
+  [addr: string]: Set<string>
+}
 
 /**
  * slots associated with each entity.
@@ -151,7 +160,7 @@ function parseEntitySlots (stakeInfoEntities: Array<StakeInfo | undefined>, kecc
 }
 
 // method-signature for calls from entryPoint
-const callMethodSig = {
+export const callMethodSig = {
   factory: SenderCreator__factory.createInterface().getSighash('createSender'),
   account: IAccount__factory.createInterface().getSighash('validateUserOp'),
   paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
@@ -159,31 +168,40 @@ const callMethodSig = {
 
 /**
  * validate the after creating a full handleOps bundle, the UserOps are still working within their sandbox.
- * @param userOp the userOperation that was used in this simulation
+ * @param userOps the userOperation that was used in this simulation
  * @param tracerResults the tracer return value
- * @param validationResult output from simulateValidation
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
-export function parseHandleOpsTraceResult (userOps: UserOperation[], tracerResults: BundlerCollectorReturn, entryPoint: EntryPoint): [string[], StorageMap] {
+export function parseHandleOpsTraceResult (userOps: UserOperation[], tracerResults: BundlerCollectorReturn, entryPoint: EntryPoint): ParsedTracerResults {
   let count = 0
 
   let storageMap: StorageMap = {}
   const addresses = new Set<string>()
   for (const userOp of userOps) {
     const callInfo: TopLevelCallInfo[] = []
-    if (userOp.initCode != null) {
-      callInfo.push(tracerResults.callsFromEntryPoint[++count])
+    if (userOp.initCode.length > 2) {
+      callInfo.push(tracerResults.callsFromEntryPoint[count++])
     }
-    callInfo.push(tracerResults.callsFromEntryPoint[++count])
-    if (userOp.paymasterAndData != null) {
-      callInfo.push(tracerResults.callsFromEntryPoint[++count])
+    const callToValidateUserOp = tracerResults.callsFromEntryPoint[count++]
+    assert(callToValidateUserOp.topLevelMethodSig === callMethodSig.account,
+      'Invalid methodSig: expected validateUserOp, not ' + callToValidateUserOp.topLevelMethodSig)
+    callInfo.push(callToValidateUserOp)
+    if (userOp.paymasterAndData.length > 2) {
+      const callToValidatePaymasterUserOp = tracerResults.callsFromEntryPoint[count++]
+      assert(callToValidatePaymasterUserOp.topLevelMethodSig === callMethodSig.paymaster,
+        'Invalid methodSig: expected validatePaymasterUserOp, not ' + callToValidatePaymasterUserOp.topLevelMethodSig)
+      callInfo.push(callToValidatePaymasterUserOp)
     }
     const [addrs, storage] = parseScannerResult1(userOp, callInfo, tracerResults.keccak, null, entryPoint)
     storageMap = mergeStorageMap(storageMap, storage)
     addrs.forEach(addr => addresses.add(addr))
   }
-  return [[...addresses.keys()], storageMap]
+  return {
+    storageMap,
+    addresses: [...addresses.keys()],
+    gasUsed: tracerResults.gas
+  }
 }
 
 /**

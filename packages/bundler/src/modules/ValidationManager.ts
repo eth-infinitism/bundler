@@ -4,7 +4,7 @@ import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { parseSimulationTraceResults } from '../parseScannerResult'
+import { ParsedTracerResults, parseHandleOpsTraceResult, parseSimulationTraceResults } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer } from '../BundlerCollectorTracer'
 import { debug_traceCall } from '../GethTracer'
@@ -276,5 +276,23 @@ export class ValidationManager {
     requireCond(userOp.preVerificationGas >= calcPreVerificationGas1,
       `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
       ValidationErrors.InvalidFields)
+  }
+
+  /**
+   * validate no UserOp reverted in a bundle, and none attempted to detect the sandbox and revert on-chain
+   *
+   * @param userOps
+   * @param traceRet output of tracing "handleOps"
+   * @return - gas, addresses, storagemap
+   */
+  validateBundle (userOps: UserOperation[], traceRet: BundlerCollectorReturn): ParsedTracerResults {
+    if (traceRet.failed) {
+      const parsedFailedOp = this.entryPoint.interface.parseError(traceRet.returnValue)
+      if (parsedFailedOp != null) {
+        // no need to process: parsed by the caller to blame the userop
+        throw new RpcError('FailedOp', 0, traceRet.returnValue)
+      }
+    }
+    return parseHandleOpsTraceResult(userOps, traceRet, this.entryPoint)
   }
 }

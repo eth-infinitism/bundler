@@ -11,6 +11,8 @@ import { StorageMap, UserOperation } from './Types'
 import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import { debug_traceCall } from '../GethTracer'
+import { BundlerCollectorReturn, bundlerCollectorTracer } from '../BundlerCollectorTracer'
 
 const debug = Debug('aa.exec.cron')
 
@@ -75,16 +77,22 @@ export class BundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
+  async sendBundle (userOps: UserOperation[], beneficiary: string, outerStorageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
       const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
         type: 2,
         nonce: await this.signer.getTransactionCount(),
-        gasLimit: 10e6,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
+
+      const gasEst = await this.provider.estimateGas(tx)
+      const traceRet: BundlerCollectorReturn = await debug_traceCall(this.provider, tx, { tracer: bundlerCollectorTracer })
+      const { storageMap } = this.validationManager.validateBundle(userOps, traceRet)
+
+      // TODO: gas returned by the traceCall is actual used gas, but after refunds. need higher gas limit to sending
+      tx.gasLimit = BigNumber.from(gasEst)
       tx.chainId = this.provider._network.chainId
       const signedTx = await this.signer.signTransaction(tx)
       let ret: string
