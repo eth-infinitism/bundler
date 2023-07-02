@@ -94,18 +94,18 @@ export class UserOpMethodHandler {
 
   /**
    * eth_estimateUserOperationGas RPC api.
-   * @param userOp1
+   * @param userOp1 input userOp (may have gas fields missing, so they can be estimated)
    * @param entryPointInput
    */
   async estimateUserOperationGas (userOp1: UserOperationStruct, entryPointInput: string): Promise<EstimateUserOpGasResult> {
     const userOp = {
-      ...await resolveProperties(userOp1),
       // default values for missing fields.
       paymasterAndData: '0x',
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
       preVerificationGas: 0,
-      verificationGasLimit: 10e6
+      verificationGasLimit: 10e6,
+      ...await resolveProperties(userOp1) as any
     }
 
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate

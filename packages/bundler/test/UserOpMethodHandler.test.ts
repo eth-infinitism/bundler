@@ -111,13 +111,22 @@ describe('UserOpMethodHandler', function () {
       })
     })
     it('estimateUserOperationGas should estimate even without eth', async () => {
+      // fail without gas
       const op = await smartAccountAPI.createSignedUserOp({
         target,
         data: '0xdeadface'
       })
-      const ret = await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address)
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('AA21 didn\'t pay prefund')
+      // should estimate with gasprice=0
+      const op1 = await smartAccountAPI.createSignedUserOp({
+        maxFeePerGas: 0,
+        target,
+        data: '0xdeadface'
+      })
+      const ret = await methodHandler.estimateUserOperationGas(await resolveHexlify(op1), entryPoint.address)
       // verification gas should be high - it creates this wallet
-      expect(ret.verificationGas).to.be.closeTo(300000, 100000)
+      expect(ret
+        .verificationGas).to.be.closeTo(300000, 100000)
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)
