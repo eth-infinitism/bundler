@@ -124,10 +124,8 @@ describe('#BundlerManager', () => {
 
       await wallet1.sudoSetBalance(wallet1.address, parseEther('1'))
       await wallet1.sudoSetBalance(wallet2.address, parseEther('1'))
+      await wallet1.sudoSetAnotherWallet(wallet1.address)
       await wallet2.sudoSetAnotherWallet(wallet1.address)
-
-      const calldata1 = wallet2.address
-      const calldata2 = '0x'
 
       const cEmptyUserOp: UserOperation = {
         sender: AddressZero,
@@ -144,13 +142,11 @@ describe('#BundlerManager', () => {
       }
       const userOp1: UserOperation = {
         ...cEmptyUserOp,
-        sender: wallet1.address,
-        callData: calldata1
+        sender: wallet1.address
       }
       const userOp2: UserOperation = {
         ...cEmptyUserOp,
-        sender: wallet2.address,
-        callData: calldata2
+        sender: wallet2.address
       }
       await methodHandler.sendUserOperation(userOp1, entryPoint.address)
       await methodHandler.sendUserOperation(userOp2, entryPoint.address)
