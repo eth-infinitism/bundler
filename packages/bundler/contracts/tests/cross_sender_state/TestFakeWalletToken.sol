@@ -29,12 +29,16 @@ contract TestFakeWalletToken is IAccount {
         anotherWallet = _anotherWallet;
     }
 
-    function validateUserOp(UserOperation calldata, bytes32, uint256)
+    function validateUserOp(UserOperation calldata userOp, bytes32, uint256)
     public override returns (uint256 validationData) {
-        // the second UserOperation will hit this only if included in a bundle with the first one
-        require(anotherWallet.balanceOf(address(this)) > 0, "no balance");
-        // the first UserOperation sets the second sender's "associated" balance to 0
-        balances[address(anotherWallet)] = 0;
+        if (userOp.callData.length == 20) {
+            // the first UserOperation sets the second sender's "associated" balance to 0
+            address senderToDrain = address(bytes20(userOp.callData[:20]));
+            balances[senderToDrain] = 0;
+        } else {
+            // the second UserOperation will hit this only if included in a bundle with the first one
+            require(anotherWallet.balanceOf(address(this)) > 0, "no balance");
+        }
         return 0;
     }
 
