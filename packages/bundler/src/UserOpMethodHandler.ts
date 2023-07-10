@@ -26,7 +26,7 @@ export interface EstimateUserOpGasResult {
   /**
    * gas used for validation of this UserOperation, including account creation
    */
-  verificationGas: BigNumberish
+  verificationGasLimit: BigNumberish
 
   /**
    * (possibly future timestamp) after which this UserOperation is valid
@@ -144,10 +144,10 @@ export class UserOpMethodHandler {
       validAfter = undefined
     }
     const preVerificationGas = calcPreVerificationGas(userOp)
-    const verificationGas = BigNumber.from(preOpGas).toNumber()
+    const verificationGasLimit = BigNumber.from(preOpGas).toNumber()
     return {
       preVerificationGas,
-      verificationGas,
+      verificationGasLimit,
       validAfter,
       validUntil,
       callGasLimit
