@@ -35,6 +35,8 @@ export class BundleManager {
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
+    // true to use debug_traceCall instead of estimateGas
+    readonly useTraceCall: boolean,
     // use eth_sendRawTransactionConditional with storage map
     readonly conditionalRpc: boolean,
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
@@ -87,9 +89,15 @@ export class BundleManager {
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
 
+      let storageMap: StorageMap
       const gasEst = await this.provider.estimateGas(tx)
-      const traceRet: BundlerCollectorReturn = await debug_traceCall(this.provider, tx, { tracer: bundlerCollectorTracer })
-      const { storageMap } = this.validationManager.validateBundle(userOps, traceRet)
+      if (this.useTraceCall) {
+        const traceRet: BundlerCollectorReturn = await debug_traceCall(this.provider, tx, { tracer: bundlerCollectorTracer })
+        storageMap = this.validationManager.validateBundle(userOps, traceRet).storageMap
+        // todo: understand why traceRet.gas is not accurate.
+      } else {
+        storageMap = {}
+      }
 
       // TODO: gas returned by the traceCall is actual used gas, but after refunds. need higher gas limit to sending
       tx.gasLimit = BigNumber.from(gasEst)

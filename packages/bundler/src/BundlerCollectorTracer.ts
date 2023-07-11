@@ -126,7 +126,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
     result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
-        gas: ctx.intrinsicGas + ctx.gasUsed,
+        gas: (ctx.intrinsicGas ?? 0) + ctx.gasUsed,
         failed: ctx.error != null,
         returnValue: toHex(ctx.output),
         callsFromEntryPoint: this.callsFromEntryPoint,

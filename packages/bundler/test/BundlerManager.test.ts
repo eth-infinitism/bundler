@@ -49,7 +49,10 @@ describe('#BundlerManager', () => {
     const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
-    bm = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    const useTraceCall = !config.unsafe
+    bm = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr, config.beneficiary,
+      parseEther(config.minBalance), config.maxBundleGas, useTraceCall, false)
   })
 
   it('#getUserOpHashes', async () => {
