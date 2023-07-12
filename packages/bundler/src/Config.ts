@@ -44,12 +44,12 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
   console.log('Merged configuration:', JSON.stringify(config))
 
   if (config.network === 'hardhat') {
+    // eslint-disable-next-line
     const provider: JsonRpcProvider = require('hardhat').ethers.provider
     return { config, provider, wallet: provider.getSigner() }
   }
-  
-  const provider: BaseProvider = getNetworkProvider(config.network)
 
+  const provider: BaseProvider = getNetworkProvider(config.network)
   let mnemonic: string
   let wallet: Wallet
   try {
