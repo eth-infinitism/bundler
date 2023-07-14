@@ -96,22 +96,45 @@ export class BundlerServer {
   }
 
   async rpc (req: Request, res: Response): Promise<void> {
+    let resContent: any
+    if (Array.isArray(req.body)) {
+      resContent = []
+      for (const reqItem of req.body) {
+        resContent.push(await this.handleRpc(reqItem))
+      }
+    } else {
+      resContent = await this.handleRpc(req.body)
+    }
+
+    try {
+      res.send(resContent)
+    } catch (err: any) {
+      const error = {
+        message: err.message,
+        data: err.data,
+        code: err.code
+      }
+      console.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
+    }
+  }
+
+  async handleRpc (reqItem: any): Promise<any> {
     const {
       method,
       params,
       jsonrpc,
       id
-    } = req.body
+    } = reqItem
     debug('>>', { jsonrpc, id, method, params })
     try {
       const result = deepHexlify(await this.handleMethod(method, params))
       console.log('sent', method, '-', result)
       debug('<<', { jsonrpc, id, result })
-      res.send({
+      return {
         jsonrpc,
         id,
         result
-      })
+      }
     } catch (err: any) {
       const error = {
         message: err.message,
@@ -120,12 +143,11 @@ export class BundlerServer {
       }
       console.log('failed: ', method, 'error:', JSON.stringify(error))
       debug('<<', { jsonrpc, id, error })
-
-      res.send({
+      return {
         jsonrpc,
         id,
         error
-      })
+      }
     }
   }
 
