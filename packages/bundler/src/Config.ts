@@ -3,7 +3,9 @@ import fs from 'fs'
 
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { Wallet } from 'ethers'
+import * as dotenv from 'dotenv'
 import { BaseProvider, JsonRpcProvider } from '@ethersproject/providers'
+dotenv.config()
 
 function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
@@ -48,13 +50,11 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
     ? require('hardhat').ethers.provider
     : getNetworkProvider(config.network)
 
-  let mnemonic: string
   let wallet: Wallet
   try {
-    mnemonic = fs.readFileSync(config.mnemonic, 'ascii').trim()
-    wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+    wallet = new Wallet(process.env.SIGNER_PRIVATE_KEY as string).connect(provider)
   } catch (e: any) {
-    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
+    throw new Error(`Unable to read SIGNER_PRIVATE_KEY from env: ${e.message as string}`)
   }
   return { config, provider, wallet }
 }

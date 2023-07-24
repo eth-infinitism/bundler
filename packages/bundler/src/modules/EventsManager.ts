@@ -1,6 +1,6 @@
 import { AccountDeployedEvent, UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { ReputationManager } from './ReputationManager'
-import { EntryPoint } from '@account-abstraction/contracts'
+import { EntryPoint } from '@account-abstraction/sdk'
 import Debug from 'debug'
 import { SignatureAggregatorChangedEvent } from '@account-abstraction/contracts/types/EntryPoint'
 import { TypedEvent } from '@account-abstraction/contracts/dist/types/common'

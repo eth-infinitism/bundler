@@ -1,9 +1,8 @@
-import { EntryPoint } from '@account-abstraction/contracts'
+import { EntryPoint, calcPreVerificationGas } from '@account-abstraction/sdk'
 import { ReputationManager } from './ReputationManager'
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { requireCond, RpcError } from '../utils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { parseScannerResult } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
@@ -91,7 +90,6 @@ export class ValidationManager {
             addr
           }
     }
-
     return {
       returnInfo,
       senderInfo: {

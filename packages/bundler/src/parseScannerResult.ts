@@ -1,8 +1,4 @@
-import {
-  EntryPoint, IAccount__factory,
-  IEntryPoint__factory,
-  IPaymaster__factory, SenderCreator__factory
-} from '@account-abstraction/contracts'
+import { EntryPoint, VerifyingPaymaster__factory as IPaymaster__factory, SmartWalletV3__factory as IAccount__factory, SenderCreator__factory } from '@account-abstraction/sdk'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { BundlerCollectorReturn } from './BundlerCollectorTracer'
 import { mapOf, requireCond } from './utils'
@@ -39,9 +35,10 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
     ...TestOpcodesAccount__factory.abi,
     ...TestOpcodesAccountFactory__factory.abi,
     ...TestStorageAccount__factory.abi,
-    ...SenderCreator__factory.abi,
-    ...IEntryPoint__factory.abi,
-    ...IPaymaster__factory.abi
+    ...SenderCreator__factory.abi
+    // TODO(uncomment the follow code)
+    // ...IEntryPoint__factory.abi,
+    // ...IPaymaster__factory.abi
   ].reduce((set, entry) => {
     const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
     // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))

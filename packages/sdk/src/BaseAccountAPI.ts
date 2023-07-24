@@ -7,7 +7,7 @@ import {
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { resolveProperties } from 'ethers/lib/utils'
-import { PaymasterAPI } from './PaymasterAPI'
+import { PaymasterAPI, PaymasterOption } from './PaymasterAPI'
 import { getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
@@ -229,7 +229,7 @@ export abstract class BaseAccountAPI {
    * - if gas or nonce are missing, read them from the chain (note that we can't fill gaslimit before the account is created)
    * @param info
    */
-  async createUnsignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
+  async createUnsignedUserOp (info: TransactionDetailsForUserOp, paymasterOption?: PaymasterOption): Promise<UserOperationStruct> {
     const {
       callData,
       callGasLimit
@@ -265,20 +265,20 @@ export abstract class BaseAccountAPI {
       maxPriorityFeePerGas,
       paymasterAndData: '0x'
     }
+    partialUserOp.preVerificationGas = await this.getPreVerificationGas(partialUserOp) + 10000
 
     let paymasterAndData: string | undefined
-    if (this.paymasterAPI != null) {
+    if (this.paymasterAPI != null && paymasterOption != null) {
       // fill (partial) preVerificationGas (all except the cost of the generated paymasterAndData)
       const userOpForPm = {
         ...partialUserOp,
-        preVerificationGas: await this.getPreVerificationGas(partialUserOp)
+        signature: '0x'
       }
-      paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm)
+      paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm, paymasterOption)
     }
     partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
     return {
       ...partialUserOp,
-      preVerificationGas: this.getPreVerificationGas(partialUserOp),
       signature: ''
     }
   }
@@ -300,8 +300,8 @@ export abstract class BaseAccountAPI {
    * helper method: create and sign a user operation.
    * @param info transaction details for the userOp
    */
-  async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
-    return await this.signUserOp(await this.createUnsignedUserOp(info))
+  async createSignedUserOp (info: TransactionDetailsForUserOp, paymasterOption?: PaymasterOption): Promise<UserOperationStruct> {
+    return await this.signUserOp(await this.createUnsignedUserOp(info, paymasterOption))
   }
 
   /**
@@ -311,7 +311,7 @@ export abstract class BaseAccountAPI {
    * @param interval time to wait between polls.
    * @return the transactionHash this userOp was mined, or null if not found.
    */
-  async getUserOpReceipt (userOpHash: string, timeout = 30000, interval = 5000): Promise<string | null> {
+  async getUserOpReceipt (userOpHash: string, timeout = 60000, interval = 5000): Promise<string | null> {
     const endtime = Date.now() + timeout
     while (Date.now() < endtime) {
       const events = await this.entryPointView.queryFilter(this.entryPointView.filters.UserOperationEvent(userOpHash))

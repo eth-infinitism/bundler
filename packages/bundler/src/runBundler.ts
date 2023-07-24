@@ -1,5 +1,3 @@
-import fs from 'fs'
-
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
 import { ethers, Wallet } from 'ethers'
@@ -64,7 +62,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--gasFactor <number>')
     .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
     .option('--network <string>', 'network name or url')
-    .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
@@ -72,24 +69,12 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
-    .option('--createMnemonic <file>', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
 
   console.log('command-line arguments: ', program.opts())
 
-  if (programOpts.createMnemonic != null) {
-    const mnemonicFile: string = programOpts.createMnemonic
-    console.log('Creating mnemonic in file', mnemonicFile)
-    if (fs.existsSync(mnemonicFile)) {
-      throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
-    }
-    const newMnemonic = Wallet.createRandom().mnemonic.phrase
-    fs.writeFileSync(mnemonicFile, newMnemonic)
-    console.log('created mnemonic file', mnemonicFile)
-    process.exit(1)
-  }
   const { config, provider, wallet } = await resolveConfiguration(programOpts)
 
   const {

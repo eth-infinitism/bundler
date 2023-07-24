@@ -6,7 +6,6 @@ export interface BundlerConfig {
   entryPoint: string
   gasFactor: string
   minBalance: string
-  mnemonic: string
   network: string
   port: string
   unsafe: boolean
@@ -27,7 +26,6 @@ export const BundlerConfigShape = {
   entryPoint: ow.string,
   gasFactor: ow.string,
   minBalance: ow.string,
-  mnemonic: ow.string,
   network: ow.string,
   port: ow.string,
   unsafe: ow.boolean,
