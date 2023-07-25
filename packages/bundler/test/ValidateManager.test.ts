@@ -21,7 +21,7 @@ import { ValidateUserOpResult, ValidationManager } from '../src/modules/Validati
 import { ReputationManager } from '../src/modules/ReputationManager'
 import { toBytes32 } from '../src/modules/moduleUtils'
 import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
-import { isGeth } from '../src/utils'
+import { supportsDebugTraceCall } from '../src/utils'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
 // import { resolveNames } from './testUtils'
 import { UserOperation } from '../src/modules/Types'
@@ -133,10 +133,10 @@ describe('#ValidationManager', () => {
       banSlack: 1
     },
     parseEther('0'), 0)
-    const unsafe = !await isGeth(provider)
+    const unsafe = !await supportsDebugTraceCall(provider)
     vm = new ValidationManager(entryPoint, reputationManager, unsafe)
 
-    if (!await isGeth(ethers.provider)) {
+    if (!await supportsDebugTraceCall(ethers.provider)) {
       console.log('WARNING: opcode banning tests can only run with geth')
       this.skip()
     }

@@ -3,7 +3,7 @@ import { parseEther } from 'ethers/lib/utils'
 import { assert, expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { AddressZero, getUserOpHash } from '@account-abstraction/utils'
-import { isGeth } from '../src/utils'
+import { supportsDebugTraceCall } from '../src/utils'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
@@ -37,7 +37,7 @@ describe('#BundlerManager', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await isGeth(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
@@ -87,7 +87,7 @@ describe('#BundlerManager', () => {
         mnemonic: '',
         network: '',
         port: '3000',
-        unsafe: !await isGeth(provider as any),
+        unsafe: !await supportsDebugTraceCall(provider as any),
         conditionalRpc: false,
         autoBundleInterval: 0,
         autoBundleMempoolSize: 0,
@@ -114,7 +114,7 @@ describe('#BundlerManager', () => {
     })
 
     it('should not include a UserOp that accesses the storage of a different known sender', async function () {
-      if (!await isGeth(ethers.provider)) {
+      if (!await supportsDebugTraceCall(ethers.provider)) {
         console.log('WARNING: opcode banning tests can only run with geth')
         this.skip()
       }
