@@ -11,7 +11,7 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
-import { isGeth, supportsRpcMethod } from './utils'
+import { supportsDebugTraceCall, supportsRpcMethod } from './utils'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { JsonRpcProvider } from '@ethersproject/providers'
@@ -106,12 +106,12 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
   }
 
-  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional')) {
+  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional', [{}, {}])) {
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await isGeth(provider as any)) {
-    console.error('FATAL: full validation requires GETH. for local UNSAFE mode: use --unsafe')
+  if (!config.unsafe && !await supportsDebugTraceCall(provider as any)) {
+    console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
     process.exit(1)
   }
 
