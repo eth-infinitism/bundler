@@ -26,7 +26,7 @@ import { BundlerReputationParams, ReputationManager } from '../src/modules/Reput
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { isGeth, waitFor } from '../src/utils'
+import { supportsDebugTraceCall, waitFor } from '../src/utils'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
@@ -65,7 +65,7 @@ describe('UserOpMethodHandler', function () {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await isGeth(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
@@ -125,8 +125,7 @@ describe('UserOpMethodHandler', function () {
       })
       const ret = await methodHandler.estimateUserOperationGas(await resolveHexlify(op1), entryPoint.address)
       // verification gas should be high - it creates this wallet
-      expect(ret
-        .verificationGas).to.be.closeTo(300000, 100000)
+      expect(ret.verificationGasLimit).to.be.closeTo(300000, 100000)
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)

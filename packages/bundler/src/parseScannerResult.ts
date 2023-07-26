@@ -1,5 +1,5 @@
 import {
-  EntryPoint,
+  EntryPoint, IAccount__factory,
   IEntryPoint__factory,
   IPaymaster__factory, SenderCreator__factory
 } from '@account-abstraction/contracts'
@@ -153,6 +153,13 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
   return entitySlots
 }
 
+// method-signature for calls from entryPoint
+const callsFromEntryPointMethodSigs: {[key: string]: string} = {
+  factory: SenderCreator__factory.createInterface().getSighash('createSender'),
+  account: IAccount__factory.createInterface().getSighash('validateUserOp'),
+  paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
+}
+
 /**
  * parse collected simulation traces and revert if they break our rules
  * @param userOp the userOperation that was used in this simulation
@@ -170,10 +177,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  if (Object.values(tracerResults.numberLevels).length < 2) {
-    // console.log('calls=', result.calls.map(x=>JSON.stringify(x)).join('\n'))
-    // console.log('debug=', result.debug)
-    throw new Error('Unexpected traceCall result: no NUMBER opcodes, and not REVERT')
+  if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
+    throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
   const callStack = parseCallStack(tracerResults)
 
@@ -202,9 +207,16 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
-  Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes], index) => {
+  Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
     const entityAddr = entStakes?.addr ?? ''
-    const currentNumLevel = tracerResults.numberLevels[index]
+    const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelMethodSig === callsFromEntryPointMethodSigs[entityTitle])
+    if (currentNumLevel == null) {
+      if (entityTitle === 'account') {
+        // should never happen... only factory, paymaster are optional.
+        throw new Error('missing trace into validateUserOp')
+      }
+      return
+    }
     const opcodes = currentNumLevel.opcodes
     const access = currentNumLevel.access
 
@@ -325,14 +337,15 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       // TODO: check real minimum stake values
     }
 
-    requireCond(Object.keys(currentNumLevel.contractSize).find(addr => currentNumLevel.contractSize[addr] <= 2) == null,
+    // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
+    requireCond(Object.keys(currentNumLevel.contractSize).find(addr => addr !== sender && currentNumLevel.contractSize[addr] <= 2) == null,
       `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`, ValidationErrors.OpcodeValidation)
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
-  const addresses = tracerResults.numberLevels.flatMap(level => Object.keys(level.contractSize))
+  const addresses = tracerResults.callsFromEntryPoint.flatMap(level => Object.keys(level.contractSize))
   const storageMap: StorageMap = {}
-  tracerResults.numberLevels.forEach(level => {
+  tracerResults.callsFromEntryPoint.forEach(level => {
     Object.keys(level.access).forEach(addr => {
       storageMap[addr] = storageMap[addr] ?? level.access[addr].reads
     })

@@ -2,7 +2,7 @@ import { DebugMethodHandler } from '../src/DebugMethodHandler'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { BundlerConfig } from '../src/BundlerConfig'
-import { isGeth } from '../src/utils'
+import { supportsDebugTraceCall } from '../src/utils'
 import { parseEther } from 'ethers/lib/utils'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager } from '../src/modules/ValidationManager'
@@ -41,7 +41,7 @@ describe('#DebugMethodHandler', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await isGeth(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,

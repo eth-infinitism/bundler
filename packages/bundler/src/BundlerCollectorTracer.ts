@@ -21,9 +21,10 @@ declare function isPrecompiled (addr: any): boolean
  */
 export interface BundlerCollectorReturn {
   /**
-   * storage and opcode info, collected between "NUMBER" opcode calls (which is used as our "level marker")
+   * storage and opcode info, collected on top-level calls from EntryPoint
    */
-  numberLevels: NumberLevelInfo[]
+  callsFromEntryPoint: TopLevelCallInfo[]
+
   /**
    * values passed into KECCAK opcode
    */
@@ -48,7 +49,9 @@ export interface ExitInfo {
   data: string
 }
 
-export interface NumberLevelInfo {
+export interface TopLevelCallInfo {
+  topLevelMethodSig: string
+  topLevelTargetAddress: string
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: number }
@@ -73,8 +76,10 @@ export interface LogInfo {
  */
 interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
   lastOp: string
-  currentLevel: NumberLevelInfo
-  numberCounter: number
+  stopCollectingTopic: string
+  stopCollecting: boolean
+  currentLevel: TopLevelCallInfo
+  topLevelCallCounter: number
   countSlot: (list: { [key: string]: number | undefined }, key: any) => void
 }
 
@@ -90,14 +95,17 @@ interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
  */
 export function bundlerCollectorTracer (): BundlerCollectorTracer {
   return {
-    numberLevels: [],
+    callsFromEntryPoint: [],
     currentLevel: null as any,
     keccak: [],
     calls: [],
     logs: [],
     debug: [],
     lastOp: '',
-    numberCounter: 0,
+    // event sent after all validations are done: keccak("BeforeExecution()")
+    stopCollectingTopic: 'bb47ee3e183a558b1a2ff0874b079f3fc5478b7454eacf2bfc5af2ff5878f972',
+    stopCollecting: false,
+    topLevelCallCounter: 0,
 
     fault (log: LogStep, db: LogDb): void {
       this.debug.push('fault depth=', log.getDepth(), ' gas=', log.getGas(), ' cost=', log.getCost(), ' err=', log.getError())
@@ -105,7 +113,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
     result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
       return {
-        numberLevels: this.numberLevels,
+        callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,
         logs: this.logs,
         calls: this.calls,
@@ -114,6 +122,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     },
 
     enter (frame: LogCallFrame): void {
+      if (this.stopCollecting) {
+        return
+      }
       // this.debug.push('enter gas=', frame.getGas(), ' type=', frame.getType(), ' to=', toHex(frame.getTo()), ' in=', toHex(frame.getInput()).slice(0, 500))
       this.calls.push({
         type: frame.getType(),
@@ -125,6 +136,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       })
     },
     exit (frame: LogFrameResult): void {
+      if (this.stopCollecting) {
+        return
+      }
       this.calls.push({
         type: frame.getError() != null ? 'REVERT' : 'RETURN',
         gasUsed: frame.getGasUsed(),
@@ -137,6 +151,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       list[key] = (list[key] ?? 0) + 1
     },
     step (log: LogStep, db: LogDb): any {
+      if (this.stopCollecting) {
+        return
+      }
       const opcode = log.op.toString()
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth() + '-' + log.getGas() + '-' + log.getCost())
       if (log.getGas() < log.getCost()) {
@@ -159,6 +176,35 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         }
       }
 
+      if (log.getDepth() === 1) {
+        if (opcode === 'CALL' || opcode === 'STATICCALL') {
+          // stack.peek(0) - gas
+          const addr = toAddress(log.stack.peek(1).toString(16))
+          const topLevelTargetAddress = toHex(addr)
+          // stack.peek(2) - value
+          const ofs = parseInt(log.stack.peek(3).toString())
+          // stack.peek(4) - len
+          const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
+
+          this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
+            topLevelMethodSig,
+            topLevelTargetAddress,
+            access: {},
+            opcodes: {},
+            contractSize: {}
+          }
+          this.topLevelCallCounter++
+        } else if (opcode === 'LOG1') {
+          // ignore log data ofs, len
+          const topic = log.stack.peek(2).toString(16)
+          if (topic === this.stopCollectingTopic) {
+            this.stopCollecting = true
+          }
+        }
+        this.lastOp = ''
+        return
+      }
+
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
         // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length())
         const idx = opcode.startsWith('EXT') ? 0 : 1
@@ -167,20 +213,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         if ((this.currentLevel.contractSize[addrHex] ?? 0) === 0 && !isPrecompiled(addr)) {
           this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
         }
-      }
-
-      if (log.getDepth() === 1) {
-        // NUMBER opcode at top level split levels
-        if (opcode === 'NUMBER') this.numberCounter++
-        if (this.numberLevels[this.numberCounter] == null) {
-          this.currentLevel = this.numberLevels[this.numberCounter] = {
-            access: {},
-            opcodes: {},
-            contractSize: {}
-          }
-        }
-        this.lastOp = ''
-        return
       }
 
       if (this.lastOp === 'GAS' && !opcode.includes('CALL')) {
@@ -200,7 +232,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const slotHex = toHex(slot)
         const addr = log.contract.getAddress()
         const addrHex = toHex(addr)
-        let access = this.currentLevel.access[addrHex] as any
+        let access = this.currentLevel.access[addrHex]
         if (access == null) {
           access = {
             reads: {},

@@ -155,9 +155,16 @@ export class BundleManager {
     // each sender is allowed only once per bundle
     const senders = new Set<string>()
 
+    // all entities that are known to be valid senders in the mempool
+    const knownSenders = entries.map(it => {
+      return it.userOp.sender.toLowerCase()
+    })
+
     const storageMap: StorageMap = {}
     let totalGas = BigNumber.from(0)
     debug('got mempool of ', entries.length)
+    // eslint-disable-next-line no-labels
+    mainLoop:
     for (const entry of entries) {
       const paymaster = getAddr(entry.userOp.paymasterAndData)
       const factory = getAddr(entry.userOp.initCode)
@@ -190,6 +197,18 @@ export class BundleManager {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
+
+      for (const storageAddress of Object.keys(validationResult.storageMap)) {
+        if (
+          storageAddress.toLowerCase() !== entry.userOp.sender.toLowerCase() &&
+          knownSenders.includes(storageAddress.toLowerCase())
+        ) {
+          console.debug(`UserOperation from ${entry.userOp.sender} sender accessed a storage of another known sender ${storageAddress}`)
+          // eslint-disable-next-line no-labels
+          continue mainLoop
+        }
+      }
+
       // todo: we take UserOp's callGasLimit, even though it will probably require less (but we don't
       // attempt to estimate it to check)
       // which means we could "cram" more UserOps into a bundle.
