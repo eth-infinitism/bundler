@@ -1,7 +1,6 @@
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
-import { resolveProperties } from 'ethers/lib/utils'
 import { resolveHexlify } from '@account-abstraction/utils'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 // https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
