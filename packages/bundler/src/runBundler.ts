@@ -2,7 +2,7 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import { erc4337RuntimeVersion } from '@account-abstraction/utils'
-import { ethers, Wallet } from 'ethers'
+import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
@@ -29,7 +29,7 @@ const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 export let showStackTraces = false
 
 export async function connectContracts (
-  wallet: Wallet,
+  wallet: Signer,
   entryPointAddress: string): Promise<{ entryPoint: EntryPoint }> {
   const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
   return {
