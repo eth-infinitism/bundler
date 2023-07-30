@@ -1,7 +1,11 @@
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
+import Debug from 'debug'
 import { resolveHexlify } from '@account-abstraction/utils'
+
+const debug = Debug('aa.tracer')
+
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 // https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
 //
@@ -20,8 +24,8 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
   const tx1 = await resolveHexlify(tx)
   const traceOptions = tracer2string(options)
   const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
-    console.log('ex=', e.message)
-    console.log('tracer=', traceOptions.tracer?.toString().split('\n').map((line, index) => `${index + 1}: ${line}`).join('\n'))
+    debug('ex=', e.error)
+    debug('tracer=', traceOptions.tracer?.toString().split('\n').map((line, index) => `${index + 1}: ${line}`).join('\n'))
     throw e
   })
   // return applyTracer(ret, options)

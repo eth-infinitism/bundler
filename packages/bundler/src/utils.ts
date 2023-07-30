@@ -1,6 +1,9 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 import { BigNumber } from 'ethers'
+import { debug_traceCall } from './GethTracer'
+import { bundlerCollectorTracer } from './BundlerCollectorTracer'
+import { AddressZero } from '@account-abstraction/utils'
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
@@ -25,7 +28,9 @@ export function requireCond (cond: boolean, msg: string, code?: number, data: an
  * @param mapper mapper from key to property value
  * @param filter if exists, must return true to add keys
  */
-export function mapOf<T> (keys: Iterable<string>, mapper: (key: string) => T, filter?: (key: string) => boolean): { [key: string]: T } {
+export function mapOf<T> (keys: Iterable<string>, mapper: (key: string) => T, filter?: (key: string) => boolean): {
+  [key: string]: T
+} {
   const ret: { [key: string]: T } = {}
   for (const key of keys) {
     if (filter == null || filter(key)) {
@@ -53,21 +58,21 @@ export async function waitFor<T> (func: () => T | undefined, timeout = 10000, in
   }
 }
 
-export async function supportsRpcMethod (provider: JsonRpcProvider, method: string): Promise<boolean> {
-  const ret = await provider.send(method, []).catch(e => e)
+export async function supportsRpcMethod (provider: JsonRpcProvider, method: string, params: any[]): Promise<boolean> {
+  const ret = await provider.send(method, params).catch(e => e)
   const code = ret.error?.code ?? ret.code
   return code === -32602 // wrong params (meaning, method exists)
 }
 
-export async function isGeth (provider: JsonRpcProvider): Promise<boolean> {
+export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
     p._clientVersion = await provider.send('web3_clientVersion', [])
   }
 
-  // check if we have traceCall
-  // its GETH if it has debug_traceCall method.
-  return await supportsRpcMethod(provider, 'debug_traceCall')
-  // debug('client version', p._clientVersion)
-  // return p._clientVersion?.match('go1') != null
+  // make sure we can trace a call.
+  const ret = await debug_traceCall(provider,
+    { from: AddressZero, to: AddressZero, data: '0x' },
+    { tracer: bundlerCollectorTracer }).catch(e => e)
+  return ret.callsFromEntryPoint != null
 }
