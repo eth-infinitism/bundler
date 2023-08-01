@@ -208,7 +208,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
   Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
-    const entityAddr = entStakes?.addr ?? ''
+    const entityAddr = (entStakes?.addr ?? '').toLowerCase()
     const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelMethodSig === callsFromEntryPointMethodSigs[entityTitle])
     if (currentNumLevel == null) {
       if (entityTitle === 'account') {
@@ -286,8 +286,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
           if (userOp.initCode.length > 2) {
-            // allowed, by only if factory is staked:
-            if (!isStaked(stakeInfoEntities.factory)) {
+            // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
+            if (!(entityAddr === sender && isStaked(stakeInfoEntities.factory))) {
               requireStakeSlot = slot
             }
           }
