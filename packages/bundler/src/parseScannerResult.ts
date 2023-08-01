@@ -286,7 +286,10 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
           if (userOp.initCode.length > 2) {
-            requireStakeSlot = slot
+            // allowed, by only if factory is staked:
+            if (!isStaked(stakeInfoEntities.factory)) {
+              requireStakeSlot = slot
+            }
           }
         } else if (associatedWith(slot, entityAddr, entitySlots)) {
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
@@ -323,15 +326,20 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         'unstaked paymaster must not return context')
     }
 
+    // check if the given entity is staked
+    function isStaked (entStake?: StakeInfo): boolean {
+      return entStake != null && BigNumber.from(1).lte(entStake.stake) && BigNumber.from(1).lte(entStake.unstakeDelaySec)
+    }
+
     // helper method: if condition is true, then entity must be staked.
     function requireCondAndStake (cond: boolean, entStake: StakeInfo | undefined, failureMessage: string): void {
       if (!cond) {
         return
       }
-      if (entStakes == null) {
+      if (entStake == null) {
         throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
       }
-      requireCond(BigNumber.from(1).lt(entStakes.stake) && BigNumber.from(1).lt(entStakes.unstakeDelaySec),
+      requireCond(isStaked(entStake),
         failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
 
       // TODO: check real minimum stake values
