@@ -199,7 +199,7 @@ export class ValidationManager {
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
 
-    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil + 30 > Date.now() / 1000,
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > Date.now() / 1000 + 30,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 

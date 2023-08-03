@@ -214,20 +214,22 @@ describe('#ValidationManager', () => {
   })
 
   describe('time-range', () => {
-    let timeRangeFactory: TestTimeRangeAccountFactory
+    let testTimeRangeAccountFactory: TestTimeRangeAccountFactory
     before(async () => {
-      timeRangeFactory = await new TestTimeRangeAccountFactory__factory(ethersSigner).deploy()
+      testTimeRangeAccountFactory = await new TestTimeRangeAccountFactory__factory(ethersSigner).deploy()
     })
 
     it('should accept request with future validUntil', async () => {
-      const userOp = await createTestUserOp('', undefined, undefined, timeRangeFactory.address)
+      const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
+      // TestTimeRangeAccount returns "maxPrio" field as "validUntil" value
       userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 60
       await vm.validateUserOp(userOp)
     })
     it('should reject request with short validUntil', async () => {
-      const userOp = await createTestUserOp('', undefined, undefined, timeRangeFactory.address)
-      userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 28
-      await vm.validateUserOp(userOp)
+      const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
+      // TestTimeRangeAccount returns "maxPrio" field as "validUntil" value
+      userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 25
+      await expect(vm.validateUserOp(userOp)).to.rejectedWith('expires too soon')
     })
   })
 
