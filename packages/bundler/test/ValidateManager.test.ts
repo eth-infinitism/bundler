@@ -10,6 +10,8 @@ import {
   TestRulesAccount,
   TestRulesAccount__factory,
   TestRulesAccountFactory__factory,
+  TestTimeRangeAccountFactory,
+  TestTimeRangeAccountFactory__factory,
   TestStorageAccount__factory,
   TestStorageAccountFactory,
   TestStorageAccountFactory__factory,
@@ -208,6 +210,24 @@ describe('#ValidationManager', () => {
       expect(await testExistingUserOp('struct-1')
         .catch(e => e.message)
       ).match(/account has forbidden read/)
+    })
+  })
+
+  describe('time-range', () => {
+    let timeRangeFactory: TestTimeRangeAccountFactory
+    before(async () => {
+      timeRangeFactory = await new TestTimeRangeAccountFactory__factory(ethersSigner).deploy()
+    })
+
+    it('should accept request with future validUntil', async () => {
+      const userOp = await createTestUserOp('', undefined, undefined, timeRangeFactory.address)
+      userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 60
+      await vm.validateUserOp(userOp)
+    })
+    it('should reject request with short validUntil', async () => {
+      const userOp = await createTestUserOp('', undefined, undefined, timeRangeFactory.address)
+      userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 28
+      await vm.validateUserOp(userOp)
     })
   })
 

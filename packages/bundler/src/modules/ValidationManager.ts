@@ -23,7 +23,7 @@ export interface ValidationResult {
     preOpGas: BigNumberish
     prefund: BigNumberish
     sigFailed: boolean
-    deadline: number
+    validUntil: number
   }
 
   senderInfo: StakeInfo
@@ -199,7 +199,7 @@ export class ValidationManager {
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
 
-    requireCond(res.returnInfo.deadline == null || res.returnInfo.deadline + 30 < Date.now() / 1000,
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil + 30 > Date.now() / 1000,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
