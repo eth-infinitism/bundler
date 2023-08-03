@@ -15,6 +15,9 @@ import { getAddr, runContractScript } from './moduleUtils'
 
 const debug = Debug('aa.mgr.validate')
 
+// how much time into the future a UserOperation must be valid in order to be accepted
+const VALID_UNTIL_FUTURE_SECONDS = 30
+
 /**
  * result from successful simulateValidation
  */
@@ -199,7 +202,7 @@ export class ValidationManager {
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
 
-    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > Date.now() / 1000 + 30,
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > Date.now() / 1000 + VALID_UNTIL_FUTURE_SECONDS,
       'expires too soon',
       ValidationErrors.ExpiresShortly)
 
