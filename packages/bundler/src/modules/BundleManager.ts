@@ -92,7 +92,7 @@ export class BundleManager {
         debug('eth_sendRawTransactionConditional', storageMap)
         console.log('eth_sendRawTransactionConditional 1111', storageMap);
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
-          signedTx, { knownAccounts: storageMap }
+          signedTx, JSON.stringify({ knownAccounts: storageMap })
         ])
         console.log('signedTx:', signedTx);
         console.log('Type of signedTx:', typeof signedTx);
