@@ -93,7 +93,7 @@ export class BundleManager {
         const min = '0x' + currentBlockNumber.toString(16);
         const max = '0x' + (currentBlockNumber + 100).toString(16);
         debug('eth_sendRawTransactionConditional', storageMap)
-        console.log('eth_sendRawTransactionConditional 1111', storageMap);
+        console.log('eth_sendRawTransactionConditional 1111', storageMap, 'block number 22212123', currentBlockNumber);
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, {
             knownAccounts: storageMap,
