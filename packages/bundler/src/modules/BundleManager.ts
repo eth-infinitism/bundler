@@ -94,7 +94,7 @@ export class BundleManager {
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, {
             knownAccounts: storageMap,
-            blockNumberMin: '0x01'
+            blockNumberMin: '0x1'
           }
         ])
         console.log('signedTx:', signedTx);
