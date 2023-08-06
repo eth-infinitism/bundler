@@ -106,7 +106,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
   }
 
-  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional', ['0x', {}])) {
+  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional', [{}, {}])) {
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }

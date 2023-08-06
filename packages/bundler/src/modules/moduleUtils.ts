@@ -49,8 +49,8 @@ export function mergeStorageMap(mergedStorageMap: StorageMap, validationStorageM
         });
       }
     }
-  });
-  return mergedStorageMap;
+  })
+  return mergedStorageMap
 }
 
 export function toBytes32 (b: BytesLike | number): string {
