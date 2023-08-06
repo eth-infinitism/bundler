@@ -89,12 +89,16 @@ export class BundleManager {
       const signedTx = await this.signer.signTransaction(tx)
       let ret: string
       if (this.conditionalRpc) {
+        const currentBlockNumber = await this.provider.getBlockNumber();
+        const min = currentBlockNumber;
+        const max = currentBlockNumber + 100;
         debug('eth_sendRawTransactionConditional', storageMap)
         console.log('eth_sendRawTransactionConditional 1111', storageMap);
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, {
             knownAccounts: storageMap,
-            blockNumberMin: '0x100'
+            blockNumberMin: min,
+            blockNumberMax: max
           }
         ])
         console.log('signedTx:', signedTx);
