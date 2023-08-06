@@ -93,7 +93,6 @@ export class BundleManager {
         const min = '0x' + currentBlockNumber.toString(16);
         const max = '0x' + (currentBlockNumber + 100).toString(16);
         debug('eth_sendRawTransactionConditional', storageMap)
-        console.log('eth_sendRawTransactionConditional 1111', storageMap, 'block number 22212123', currentBlockNumber);
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, {
             knownAccounts: storageMap,
@@ -101,16 +100,10 @@ export class BundleManager {
             blockNumberMax: max
           }
         ])
-        console.log('signedTx:', signedTx);
-        console.log('Type of signedTx:', typeof signedTx);
-        console.log('eth_sendRawTransactionConditional ret=', ret);
         debug('eth_sendRawTransactionConditional ret=', ret)
       } else {
         // ret = await this.signer.sendTransaction(tx)
         ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
-        console.log('signedTx:', signedTx);
-        console.log('Type of signedTx:', typeof signedTx);
-        console.log('eth_sendRawTransactionConditional ret=', ret);
         debug('eth_sendRawTransaction ret=', ret)
       }
       // TODO: parse ret, and revert if needed.
