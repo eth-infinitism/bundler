@@ -42,6 +42,11 @@ export interface SlotMap {
  * map of storage
  * for each address, either a root hash, or a map of slot:value
  */
+export interface KnownAccount {
+  StorageRoot?: string;
+  StorageSlots?: SlotMap;
+}
+
 export interface StorageMap {
-  [address: string]: string | SlotMap
+  [address: string]: KnownAccount;
 }

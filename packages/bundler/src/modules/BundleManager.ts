@@ -92,9 +92,7 @@ export class BundleManager {
         debug('eth_sendRawTransactionConditional', storageMap)
         console.log('eth_sendRawTransactionConditional 1111', storageMap);
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
-          signedTx, JSON.stringify({ 
-            knownAccounts: storageMap
-           })
+          signedTx, {knownAccounts: storageMap}
         ])
         console.log('signedTx:', signedTx);
         console.log('Type of signedTx:', typeof signedTx);
@@ -246,7 +244,9 @@ export class BundleManager {
       // If sender's account already exist: replace with its storage root hash
       if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
-        storageMap[entry.userOp.sender.toLowerCase()] = storageHash
+        storageMap[entry.userOp.sender.toLowerCase()] = {
+          StorageRoot: storageHash
+        };
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
