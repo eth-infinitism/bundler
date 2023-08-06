@@ -90,8 +90,8 @@ export class BundleManager {
       let ret: string
       if (this.conditionalRpc) {
         const currentBlockNumber = await this.provider.getBlockNumber();
-        const min = currentBlockNumber;
-        const max = currentBlockNumber + 100;
+        const min = '0x' + currentBlockNumber.toString(16);
+        const max = '0x' + (currentBlockNumber + 100).toString(16);
         debug('eth_sendRawTransactionConditional', storageMap)
         console.log('eth_sendRawTransactionConditional 1111', storageMap);
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
