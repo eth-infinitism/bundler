@@ -101,6 +101,8 @@ export class BundleManager {
       } else {
         // ret = await this.signer.sendTransaction(tx)
         ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+        console.log('Type of signedTx:', typeof signedTx);
+        console.log('eth_sendRawTransactionConditional ret=', ret);
         debug('eth_sendRawTransaction ret=', ret)
       }
       // TODO: parse ret, and revert if needed.
