@@ -6,14 +6,17 @@ import {_packValidationData} from "@account-abstraction/contracts/core/Helpers.s
 
 /**
  * test for time-range.
- * simply use maxFeePerGas params as "validUntil"
+ * - use maxPriorityFeePerGas params as "validUntil"
+ * - use preVerificationGas as "validFrom"
  */
 contract TestTimeRangeAccount is IAccount {
 
     function validateUserOp(UserOperation calldata userOp, bytes32, uint256)
     external virtual override returns (uint256) {
 
-        return _packValidationData(false, uint48(userOp.maxPriorityFeePerGas), 0);
+        uint48 validAfter = uint48(userOp.preVerificationGas);
+        uint48 validUntil = uint48(userOp.maxPriorityFeePerGas);
+        return _packValidationData(false, validUntil, validAfter);
     }
 }
 

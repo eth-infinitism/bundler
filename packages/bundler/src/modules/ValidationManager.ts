@@ -26,6 +26,7 @@ export interface ValidationResult {
     preOpGas: BigNumberish
     prefund: BigNumberish
     sigFailed: boolean
+    validAfter: number
     validUntil: number
   }
 
@@ -202,9 +203,19 @@ export class ValidationManager {
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
 
-    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > Date.now() / 1000 + VALID_UNTIL_FUTURE_SECONDS,
+    const now = Math.floor(Date.now() / 1000)
+    requireCond(res.returnInfo.validAfter <= now,
+      'time-range in the future time',
+      ValidationErrors.NotInTimeRange)
+
+    console.log('until', res.returnInfo.validUntil, 'now=', now)
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil >= now,
+      'already expired',
+      ValidationErrors.NotInTimeRange)
+
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > now + VALID_UNTIL_FUTURE_SECONDS,
       'expires too soon',
-      ValidationErrors.ExpiresShortly)
+      ValidationErrors.NotInTimeRange)
 
     if (res.aggregatorInfo != null) {
       this.reputationManager.checkStake('aggregator', res.aggregatorInfo)

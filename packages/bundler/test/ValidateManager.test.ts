@@ -215,21 +215,46 @@ describe('#ValidationManager', () => {
 
   describe('time-range', () => {
     let testTimeRangeAccountFactory: TestTimeRangeAccountFactory
+
+    // note: parameters are "js time", not "unix time"
+    async function testTimeRangeUserOp (validAfterMs: number, validUntilMs: number): Promise<void> {
+      const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
+      userOp.preVerificationGas = Math.floor(validAfterMs / 1000)
+      userOp.maxPriorityFeePerGas = Math.floor(validUntilMs / 1000)
+      console.log('=== validAfter: ', userOp.preVerificationGas, 'validuntil', userOp.maxPriorityFeePerGas)
+      await vm.validateUserOp(userOp)
+    }
+
     before(async () => {
       testTimeRangeAccountFactory = await new TestTimeRangeAccountFactory__factory(ethersSigner).deploy()
     })
 
     it('should accept request with future validUntil', async () => {
-      const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
-      // TestTimeRangeAccount returns "maxPrio" field as "validUntil" value
-      userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 60
-      await vm.validateUserOp(userOp)
+      await testTimeRangeUserOp(0, Date.now() + 60000)
     })
+    it('should accept request with past validAfter', async () => {
+      await testTimeRangeUserOp(10000, 0)
+    })
+    it('should accept request with valid range validAfter..validTo', async () => {
+      await testTimeRangeUserOp(10000, Date.now() + 60000)
+    })
+
+    it('should reject request with past validUntil', async () => {
+      await expect(
+        testTimeRangeUserOp(0, Date.now() - 1000)
+      ).to.be.rejectedWith('already expired')
+    })
+
     it('should reject request with short validUntil', async () => {
-      const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
-      // TestTimeRangeAccount returns "maxPrio" field as "validUntil" value
-      userOp.maxPriorityFeePerGas = Math.floor(Date.now() / 1000) + 25
-      await expect(vm.validateUserOp(userOp)).to.rejectedWith('expires too soon')
+      await expect(
+        testTimeRangeUserOp(0, Date.now() + 25000)
+      ).to.be.rejectedWith('expires too soon')
+    })
+
+    it('should reject request with future validAfter', async () => {
+      await expect(
+        testTimeRangeUserOp(Date.now() * 2, 0)
+      ).to.be.rejectedWith('future ')
     })
   })
 
