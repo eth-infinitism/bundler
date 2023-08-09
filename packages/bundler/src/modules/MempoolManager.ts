@@ -157,5 +157,6 @@ export class MempoolManager {
    */
   clearState (): void {
     this.mempool = []
+    this.entryCount = {}
   }
 }
