@@ -191,8 +191,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   )
 
   requireCond(
-    callStack.find(call => call.to !== entryPointAddress &&
-      BigNumber.from(call.value ?? 0) !== BigNumber.from(0)) != null,
+    callStack.find(call => call.to !== entryPointAddress && !BigNumber.from(call.value ?? 0).eq(0)) != null,
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
 
