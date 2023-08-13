@@ -98,6 +98,7 @@ function parseCallStack (tracerResults: BundlerCollectorReturn): CallEntry[] {
               to: top.to,
               from: top.from,
               type: top.type,
+              value: top.value,
               method: method.name ?? method,
               return: ret
             })
@@ -190,9 +191,12 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     ValidationErrors.OpcodeValidation
   )
 
+  const illegalNonZeroValueCall = callStack.find(
+    call =>
+      call.to !== entryPointAddress &&
+      !BigNumber.from(call.value ?? 0).eq(0))
   requireCond(
-    callStack.find(call => call.to !== entryPointAddress &&
-      BigNumber.from(call.value ?? 0) !== BigNumber.from(0)) != null,
+    illegalNonZeroValueCall == null,
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
 
