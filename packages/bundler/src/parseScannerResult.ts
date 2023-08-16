@@ -349,9 +349,18 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       // TODO: check real minimum stake values
     }
 
-    // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
-    requireCond(Object.keys(currentNumLevel.contractSize).find(addr => addr !== sender && currentNumLevel.contractSize[addr] <= 2) == null,
-      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`, ValidationErrors.OpcodeValidation)
+    let illegalZeroCodeAccess
+    for (const addr of Object.keys(currentNumLevel.contractSize)) {
+      const zeroCodeAccessOpcode = currentNumLevel.contractSize[addr].find(it => it.contractSize <= 2)
+      // TODO: decide if we allow accessing zero-code sender before deployment!
+      if (/* addr !== sender&& */zeroCodeAccessOpcode != null) {
+        illegalZeroCodeAccess = zeroCodeAccessOpcode
+        break
+      }
+    }
+    requireCond(
+      illegalZeroCodeAccess == null,
+      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)} with opcode ${illegalZeroCodeAccess?.opcode}`, ValidationErrors.OpcodeValidation)
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
