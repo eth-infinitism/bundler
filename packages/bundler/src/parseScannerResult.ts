@@ -352,8 +352,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     let illegalZeroCodeAccess
     for (const addr of Object.keys(currentNumLevel.contractSize)) {
       const zeroCodeAccessOpcode = currentNumLevel.contractSize[addr].find(it => it.contractSize <= 2)
-      // TODO: decide if we allow accessing zero-code sender before deployment!
-      if (/* addr !== sender&& */zeroCodeAccessOpcode != null) {
+      if (addr !== sender && zeroCodeAccessOpcode != null) {
         illegalZeroCodeAccess = zeroCodeAccessOpcode
         break
       }
