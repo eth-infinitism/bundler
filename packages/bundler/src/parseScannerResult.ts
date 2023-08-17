@@ -352,9 +352,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess
     for (const addr of Object.keys(currentNumLevel.contractSize)) {
-      const zeroCodeAccessOpcode = currentNumLevel.contractSize[addr].find(it => it.contractSize <= 2)
-      if (addr !== sender && zeroCodeAccessOpcode != null) {
-        illegalZeroCodeAccess = zeroCodeAccessOpcode
+      if (addr !== sender && currentNumLevel.contractSize[addr].contractSize <= 2) {
+        illegalZeroCodeAccess = currentNumLevel.contractSize[addr]
         break
       }
     }

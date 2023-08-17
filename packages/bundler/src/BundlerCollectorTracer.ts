@@ -54,7 +54,7 @@ export interface TopLevelCallInfo {
   topLevelTargetAddress: string
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
-  contractSize: { [addr: string]: ContractSizeInfo[] }
+  contractSize: { [addr: string]: ContractSizeInfo }
   oog?: boolean
 }
 
@@ -219,12 +219,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const addr = toAddress(log.stack.peek(idx).toString(16))
         const addrHex = toHex(addr)
         // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length() + ' addr=' + addrHex)
-        if (!isPrecompiled(addr)) {
-          this.currentLevel.contractSize[addrHex] = this.currentLevel.contractSize[addrHex] ?? []
-          this.currentLevel.contractSize[addrHex].push({
+        if (this.currentLevel.contractSize[addrHex] == null && !isPrecompiled(addr)) {
+          this.currentLevel.contractSize[addrHex] = {
             contractSize: db.getCode(addr).length,
             opcode
-          })
+          }
         }
       }
 
