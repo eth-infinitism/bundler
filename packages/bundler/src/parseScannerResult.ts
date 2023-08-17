@@ -360,7 +360,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     }
     requireCond(
       illegalZeroCodeAccess == null,
-      `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address} with opcode ${illegalZeroCodeAccess?.opcode}`, ValidationErrors.OpcodeValidation)
+      `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`, ValidationErrors.OpcodeValidation)
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
