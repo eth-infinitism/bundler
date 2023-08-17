@@ -55,6 +55,7 @@ export interface TopLevelCallInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: ContractSizeInfo }
+  extCodeAccessInfo: { [addr: string]: string }
   oog?: boolean
 }
 
@@ -200,6 +201,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             topLevelTargetAddress,
             access: {},
             opcodes: {},
+            extCodeAccessInfo: {},
             contractSize: {}
           }
           this.topLevelCallCounter++
@@ -212,6 +214,14 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         }
         this.lastOp = ''
         return
+      }
+
+      // store all addresses touched by EXTCODE* opcodes
+      if (opcode.match(/^(EXT.*)$/) != null) {
+        const addr = toAddress(log.stack.peek(0).toString(16))
+        const addrHex = toHex(addr)
+        // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
+        this.currentLevel.extCodeAccessInfo[addrHex] = opcode
       }
 
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
