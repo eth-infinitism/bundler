@@ -350,16 +350,17 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     }
 
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
-    let illegalZeroCodeAccess
+    let illegalZeroCodeAccess: any
     for (const addr of Object.keys(currentNumLevel.contractSize)) {
       if (addr !== sender && currentNumLevel.contractSize[addr].contractSize <= 2) {
         illegalZeroCodeAccess = currentNumLevel.contractSize[addr]
+        illegalZeroCodeAccess.address = addr
         break
       }
     }
     requireCond(
       illegalZeroCodeAccess == null,
-      `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)} with opcode ${illegalZeroCodeAccess?.opcode}`, ValidationErrors.OpcodeValidation)
+      `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address} with opcode ${illegalZeroCodeAccess?.opcode}`, ValidationErrors.OpcodeValidation)
   })
 
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
