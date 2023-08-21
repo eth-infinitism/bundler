@@ -173,7 +173,7 @@ async function main (): Promise<void> {
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   const gasPrice = await provider.getGasPrice()
   // TODO: actual required val
-  const requiredBalance = gasPrice.mul(2e6)
+  const requiredBalance = gasPrice.mul(4e6)
   if (bal.lt(requiredBalance.div(2))) {
     console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({
