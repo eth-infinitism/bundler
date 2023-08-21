@@ -213,8 +213,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       // override 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
-      const isPrecompiled: (address: any) => boolean = function (address) {
-        const addressInt = parseInt(address)
+      const isPrecompiled: (address: any) => boolean = (address) => {
+        const addrHex = toHex(address)
+        const addressInt = parseInt(addrHex)
+        this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
         return addressInt > 0 && addressInt < 10
       }
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
