@@ -12,8 +12,6 @@ declare function toWord (a: any): string
 
 declare function toAddress (a: any): string
 
-declare function isPrecompiled (addr: any): boolean
-
 /**
  * return type of our BundlerCollectorTracer.
  * collect access and opcodes, split into "levels" based on NUMBER opcode
@@ -214,12 +212,19 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         return
       }
 
+      // not using 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
+      const isAllowedPrecompiled: (address: any) => boolean = (address) => {
+        const addrHex = toHex(address)
+        const addressInt = parseInt(addrHex)
+        // this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
+        return addressInt > 0 && addressInt < 10
+      }
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
         const idx = opcode.startsWith('EXT') ? 0 : 1
         const addr = toAddress(log.stack.peek(idx).toString(16))
         const addrHex = toHex(addr)
         // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length() + ' addr=' + addrHex)
-        if (this.currentLevel.contractSize[addrHex] == null && !isPrecompiled(addr)) {
+        if (this.currentLevel.contractSize[addrHex] == null && !isAllowedPrecompiled(addr)) {
           this.currentLevel.contractSize[addrHex] = {
             contractSize: db.getCode(addr).length,
             opcode
