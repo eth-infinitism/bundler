@@ -53,7 +53,7 @@ export interface TopLevelCallInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: ContractSizeInfo }
-  extCodeAccessInfo: { [addr: string]: string }
+  extCodeAccessInfo: { [addr: string]: { opcode: string, pc: number } | undefined }
   oog?: boolean
 }
 
@@ -84,6 +84,7 @@ export interface LogInfo {
  */
 interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
   lastOp: string
+  lastThreeOpcodes: string[]
   stopCollectingTopic: string
   stopCollecting: boolean
   currentLevel: TopLevelCallInfo
@@ -110,6 +111,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     logs: [],
     debug: [],
     lastOp: '',
+    lastThreeOpcodes: [],
     // event sent after all validations are done: keccak("BeforeExecution()")
     stopCollectingTopic: 'bb47ee3e183a558b1a2ff0874b079f3fc5478b7454eacf2bfc5af2ff5878f972',
     stopCollecting: false,
@@ -163,12 +165,18 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         return
       }
       const opcode = log.op.toString()
+
+      this.lastThreeOpcodes.push(opcode)
+      if (this.lastThreeOpcodes.length > 3) {
+        this.lastThreeOpcodes.shift()
+      }
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth() + '-' + log.getGas() + '-' + log.getCost())
       if (log.getGas() < log.getCost()) {
         this.currentLevel.oog = true
       }
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
+        this.lastThreeOpcodes = []
         if (log.getDepth() === 1) {
           // exit() is not called on top-level return/revent, so we reconstruct it
           // from opcode
@@ -219,7 +227,19 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const addr = toAddress(log.stack.peek(0).toString(16))
         const addrHex = toHex(addr)
         // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
-        this.currentLevel.extCodeAccessInfo[addrHex] = opcode
+        this.currentLevel.extCodeAccessInfo[addrHex] = { opcode, pc: log.getPC() }
+      }
+      if (opcode === 'ISZERO' &&
+        this.lastThreeOpcodes[this.lastThreeOpcodes.length - 2] === 'EXTCODESIZE'
+      ) {
+        Object.keys(this.currentLevel.extCodeAccessInfo).forEach(
+          key => {
+            if (this.currentLevel.extCodeAccessInfo[key]?.pc === log.getPC() - 1) {
+              this.debug.push(`DETECTED: EXTCODESIZE+ISZERO ${JSON.stringify(this.lastThreeOpcodes)} for ${key}`)
+              this.currentLevel.extCodeAccessInfo[key] = undefined
+            }
+          }
+        )
       }
 
       // not using 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
