@@ -53,7 +53,7 @@ export interface TopLevelCallInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: ContractSizeInfo }
-  extCodeAccessInfo: { [addr: string]: { opcode: string } | undefined }
+  extCodeAccessInfo: { [addr: string]: string }
   oog?: boolean
 }
 
@@ -238,10 +238,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (lastOpInfo?.opcode?.match(/^(EXT.*)$/) != null) {
         const addr = toAddress(lastOpInfo.stackTop3[0].toString(16))
         const addrHex = toHex(addr)
+        const last3opcodesString = this.lastThreeOpcodes.reduce((a, b) => a + b.opcode + ' ', '')
         // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
-        if (opcode !== 'ISZERO') {
+        if (last3opcodesString.match(/^(\w+) EXTCODESIZE ISZERO $/) == null) {
+          this.currentLevel.extCodeAccessInfo[addrHex] = opcode
           // this.debug.push(`potentially illegal EXTCODESIZE without ISZERO for ${addrHex}`)
-          this.currentLevel.extCodeAccessInfo[addrHex] = { opcode }
         } else {
           // this.debug.push(`safe EXTCODESIZE with ISZERO for ${addrHex}`)
         }
