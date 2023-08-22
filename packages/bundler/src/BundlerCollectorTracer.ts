@@ -216,7 +216,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       const isAllowedPrecompiled: (address: any) => boolean = (address) => {
         const addrHex = toHex(address)
         const addressInt = parseInt(addrHex)
-        this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
+        // this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
         return addressInt > 0 && addressInt < 10
       }
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
