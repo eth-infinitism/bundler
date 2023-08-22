@@ -14,7 +14,7 @@
   },
   "scripts": {
     "bundler": "yarn --cwd packages/bundler bundler",
-    "runop": "yarn --cwd packages/bundler runop --deployFactory",
+    "runop": "yarn --cwd packages/bundler runop",
     "runop-goerli": "yarn runop --network goerli --unsafe",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
     "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck",
