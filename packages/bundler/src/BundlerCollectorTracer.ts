@@ -53,7 +53,7 @@ export interface TopLevelCallInfo {
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
   contractSize: { [addr: string]: ContractSizeInfo }
-  extCodeAccessInfo: { [addr: string]: { opcode: string, pc: number } | undefined }
+  extCodeAccessInfo: { [addr: string]: { opcode: string } | undefined }
   oog?: boolean
 }
 
@@ -78,13 +78,18 @@ export interface LogInfo {
   data: string
 }
 
+interface RelevantStepData {
+  opcode: string
+  stackTop3: any[]
+}
+
 /**
  * type-safe local storage of our collector. contains all return-value properties.
  * (also defines all "trace-local" variables and functions)
  */
 interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
   lastOp: string
-  lastThreeOpcodes: string[]
+  lastThreeOpcodes: RelevantStepData[]
   stopCollectingTopic: string
   stopCollecting: boolean
   currentLevel: TopLevelCallInfo
@@ -166,7 +171,12 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
       const opcode = log.op.toString()
 
-      this.lastThreeOpcodes.push(opcode)
+      const stackSize = log.stack.length()
+      const stackTop3 = []
+      for (let i = 0; i < 3 && i < stackSize; i++) {
+        stackTop3.push(log.stack.peek(i))
+      }
+      this.lastThreeOpcodes.push({ opcode, stackTop3 })
       if (this.lastThreeOpcodes.length > 3) {
         this.lastThreeOpcodes.shift()
       }
@@ -176,7 +186,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (opcode === 'REVERT' || opcode === 'RETURN') {
-        this.lastThreeOpcodes = []
         if (log.getDepth() === 1) {
           // exit() is not called on top-level return/revent, so we reconstruct it
           // from opcode
@@ -190,6 +199,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             data
           })
         }
+        // NOTE: flushing all history after RETURN
+        this.lastThreeOpcodes = []
       }
 
       if (log.getDepth() === 1) {
@@ -222,24 +233,18 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         return
       }
 
+      const lastOpInfo = this.lastThreeOpcodes[this.lastThreeOpcodes.length - 2]
       // store all addresses touched by EXTCODE* opcodes
-      if (opcode.match(/^(EXT.*)$/) != null) {
-        const addr = toAddress(log.stack.peek(0).toString(16))
+      if (lastOpInfo?.opcode?.match(/^(EXT.*)$/) != null) {
+        const addr = toAddress(lastOpInfo.stackTop3[0].toString(16))
         const addrHex = toHex(addr)
         // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
-        this.currentLevel.extCodeAccessInfo[addrHex] = { opcode, pc: log.getPC() }
-      }
-      if (opcode === 'ISZERO' &&
-        this.lastThreeOpcodes[this.lastThreeOpcodes.length - 2] === 'EXTCODESIZE'
-      ) {
-        Object.keys(this.currentLevel.extCodeAccessInfo).forEach(
-          key => {
-            if (this.currentLevel.extCodeAccessInfo[key]?.pc === log.getPC() - 1) {
-              this.debug.push(`DETECTED: EXTCODESIZE+ISZERO ${JSON.stringify(this.lastThreeOpcodes)} for ${key}`)
-              this.currentLevel.extCodeAccessInfo[key] = undefined
-            }
-          }
-        )
+        if (opcode !== 'ISZERO') {
+          // this.debug.push(`potentially illegal EXTCODESIZE without ISZERO for ${addrHex}`)
+          this.currentLevel.extCodeAccessInfo[addrHex] = { opcode }
+        } else {
+          // this.debug.push(`safe EXTCODESIZE with ISZERO for ${addrHex}`)
+        }
       }
 
       // not using 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
