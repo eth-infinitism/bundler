@@ -212,8 +212,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         return
       }
 
-      // override 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
-      const isPrecompiled: (address: any) => boolean = (address) => {
+      // not using 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
+      const isAllowedPrecompiled: (address: any) => boolean = (address) => {
         const addrHex = toHex(address)
         const addressInt = parseInt(addrHex)
         this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
@@ -224,7 +224,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const addr = toAddress(log.stack.peek(idx).toString(16))
         const addrHex = toHex(addr)
         // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length() + ' addr=' + addrHex)
-        if (this.currentLevel.contractSize[addrHex] == null && !isPrecompiled(addr)) {
+        if (this.currentLevel.contractSize[addrHex] == null && !isAllowedPrecompiled(addr)) {
           this.currentLevel.contractSize[addrHex] = {
             contractSize: db.getCode(addr).length,
             opcode
