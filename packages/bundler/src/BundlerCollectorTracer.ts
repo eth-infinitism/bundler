@@ -238,9 +238,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (lastOpInfo?.opcode?.match(/^(EXT.*)$/) != null) {
         const addr = toAddress(lastOpInfo.stackTop3[0].toString(16))
         const addrHex = toHex(addr)
-        const last3opcodesString = this.lastThreeOpcodes.reduce((a, b) => a + b.opcode + ' ', '')
+        const last3opcodesString = this.lastThreeOpcodes.map(x => x.opcode).join(' ')
         // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
-        if (last3opcodesString.match(/^(\w+) EXTCODESIZE ISZERO $/) == null) {
+        if (last3opcodesString.match(/^(\w+) EXTCODESIZE ISZERO$/) == null) {
           this.currentLevel.extCodeAccessInfo[addrHex] = opcode
           // this.debug.push(`potentially illegal EXTCODESIZE without ISZERO for ${addrHex}`)
         } else {
