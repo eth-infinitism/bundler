@@ -15,6 +15,9 @@ import { getAddr, runContractScript } from './moduleUtils'
 
 const debug = Debug('aa.mgr.validate')
 
+// how much time into the future a UserOperation must be valid in order to be accepted
+const VALID_UNTIL_FUTURE_SECONDS = 30
+
 /**
  * result from successful simulateValidation
  */
@@ -23,7 +26,8 @@ export interface ValidationResult {
     preOpGas: BigNumberish
     prefund: BigNumberish
     sigFailed: boolean
-    deadline: number
+    validAfter: number
+    validUntil: number
   }
 
   senderInfo: StakeInfo
@@ -198,9 +202,19 @@ export class ValidationManager {
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
 
-    requireCond(res.returnInfo.deadline == null || res.returnInfo.deadline + 30 < Date.now() / 1000,
+    const now = Math.floor(Date.now() / 1000)
+    requireCond(res.returnInfo.validAfter <= now,
+      'time-range in the future time',
+      ValidationErrors.NotInTimeRange)
+
+    console.log('until', res.returnInfo.validUntil, 'now=', now)
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil >= now,
+      'already expired',
+      ValidationErrors.NotInTimeRange)
+
+    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > now + VALID_UNTIL_FUTURE_SECONDS,
       'expires too soon',
-      ValidationErrors.ExpiresShortly)
+      ValidationErrors.NotInTimeRange)
 
     if (res.aggregatorInfo != null) {
       this.reputationManager.checkStake('aggregator', res.aggregatorInfo)

@@ -105,6 +105,7 @@ function parseCallStack (calls: Array<ExitInfo | MethodInfo>): CallEntry[] {
               to: top.to,
               from: top.from,
               type: top.type,
+              value: top.value,
               method: method.name ?? method,
               return: ret
             })
@@ -238,9 +239,12 @@ export function parseScannerResult1 (userOp: UserOperation, callsFromEntryPoint:
     ValidationErrors.OpcodeValidation
   )
 
+  const illegalNonZeroValueCall = callStack.find(
+    call =>
+      call.to !== entryPointAddress &&
+      !BigNumber.from(call.value ?? 0).eq(0))
   requireCond(
-    callStack.find(call => call.to !== entryPointAddress &&
-      BigNumber.from(call.value ?? 0) !== BigNumber.from(0)) != null,
+    illegalNonZeroValueCall == null,
     'May not may CALL with value',
     ValidationErrors.OpcodeValidation)
 
@@ -252,7 +256,7 @@ export function parseScannerResult1 (userOp: UserOperation, callsFromEntryPoint:
 
   checkEntityInfo(entryPointAddress, userOp, entitySlots, 'account', validationResult?.senderInfo,
     callsFromEntryPoint.find(calls => calls.topLevelMethodSig === callMethodSig.account),
-    keccakInputs)
+    keccakInputs, validationResult?.factoryInfo)
 
   checkEntityInfo(entryPointAddress, userOp, entitySlots, 'paymaster', validationResult?.paymasterInfo,
     callsFromEntryPoint.find(calls => calls.topLevelMethodSig === callMethodSig.paymaster),
@@ -269,12 +273,25 @@ export function parseScannerResult1 (userOp: UserOperation, callsFromEntryPoint:
   return [addresses, storageMap]
 }
 
+/**
+ * check specific entity info
+ * @param entryPointAddress
+ * @param userOp
+ * @param entitySlots
+ * @param entityTitle
+ * @param entStakes stakes of the entity under test
+ * @param currentNumLevel
+ * @param keccakInputs
+ * @param factoryInfo (relevant only of current entity is account)
+ */
+// check specific entity
+// entStakes - the entity to test
 function checkEntityInfo (entryPointAddress: string, userOp: UserOperation, entitySlots: EntitySlots,
   entityTitle: string, entStakes: StakeInfo | undefined,
-  currentNumLevel: TopLevelCallInfo | undefined, keccakInputs: string[]): void {
+  currentNumLevel: TopLevelCallInfo | undefined, keccakInputs: string[], factoryInfo?: StakeInfo): void {
   const sender = userOp.sender.toLowerCase()
 
-  const entityAddr = entStakes?.addr ?? ''
+  const entityAddr = (entStakes?.addr ?? '').toLowerCase()
   if (currentNumLevel == null) {
     if (entityTitle === 'account') {
       // should never happen... only factory, paymaster are optional.
@@ -352,7 +369,10 @@ function checkEntityInfo (entryPointAddress: string, userOp: UserOperation, enti
       // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
       if (associatedWith(slot, sender, entitySlots)) {
         if (userOp.initCode.length > 2) {
-          requireStakeSlot = slot
+          // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
+          if (!(entityAddr === sender && isStaked(factoryInfo))) {
+            requireStakeSlot = slot
+          }
         }
       } else if (associatedWith(slot, entityAddr, entitySlots)) {
         // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
@@ -390,21 +410,46 @@ function checkEntityInfo (entryPointAddress: string, userOp: UserOperation, enti
       'unstaked paymaster must not return context')
   }
 
+  // check if the given entity is staked
+  function isStaked (entStake?: StakeInfo): boolean {
+    return entStake != null && BigNumber.from(1).lte(entStake.stake) && BigNumber.from(1).lte(entStake.unstakeDelaySec)
+  }
+
   // helper method: if condition is true, then entity must be staked.
   function requireCondAndStake (cond: boolean, entStake: StakeInfo | undefined, failureMessage: string): void {
     if (!cond) {
       return
     }
-    if (entStakes == null) {
+    if (entStake == null) {
       throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
     }
-    requireCond(BigNumber.from(1).lt(entStakes.stake) && BigNumber.from(1).lt(entStakes.unstakeDelaySec),
+    requireCond(isStaked(entStake),
       failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
 
     // TODO: check real minimum stake values
   }
 
   // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
-  requireCond(Object.keys(currentNumLevel.contractSize).find(addr => addr !== sender && currentNumLevel.contractSize[addr] <= 2) == null,
-    `${entityTitle} accesses un-deployed contract ${JSON.stringify(currentNumLevel.contractSize)}`, ValidationErrors.OpcodeValidation)
+  let illegalZeroCodeAccess: any
+  for (const addr of Object.keys(currentNumLevel.contractSize)) {
+    if (addr !== sender && currentNumLevel.contractSize[addr].contractSize <= 2) {
+      illegalZeroCodeAccess = currentNumLevel.contractSize[addr]
+      illegalZeroCodeAccess.address = addr
+      break
+    }
+  }
+  requireCond(
+    illegalZeroCodeAccess == null,
+      `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`, ValidationErrors.OpcodeValidation)
+
+  let illegalEntryPointCodeAccess
+  for (const addr of Object.keys(currentNumLevel.extCodeAccessInfo)) {
+    if (addr === entryPointAddress) {
+      illegalEntryPointCodeAccess = currentNumLevel.extCodeAccessInfo[addr]
+      break
+    }
+  }
+  requireCond(
+    illegalEntryPointCodeAccess == null,
+      `${entityTitle} accesses EntryPoint contract address ${entryPointAddress} with opcode ${illegalEntryPointCodeAccess}`, ValidationErrors.OpcodeValidation)
 }

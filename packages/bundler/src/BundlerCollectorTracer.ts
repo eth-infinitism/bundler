@@ -12,8 +12,6 @@ declare function toWord (a: any): string
 
 declare function toAddress (a: any): string
 
-declare function isPrecompiled (addr: any): boolean
-
 /**
  * return type of our BundlerCollectorTracer.
  * collect access and opcodes, split into "levels" based on NUMBER opcode
@@ -60,8 +58,18 @@ export interface TopLevelCallInfo {
   logs: LogInfo[]
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
-  contractSize: { [addr: string]: number }
+  contractSize: { [addr: string]: ContractSizeInfo }
+  extCodeAccessInfo: { [addr: string]: string }
   oog?: boolean
+}
+
+/**
+ * It is illegal to access contracts with no code in validation even if it gets deployed later.
+ * This means we need to store the {@link contractSize} of accessed addresses at the time of access.
+ */
+export interface ContractSizeInfo {
+  opcode: string
+  contractSize: number
 }
 
 export interface AccessInfo {
@@ -199,6 +207,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
             logs: [],
             access: {},
             opcodes: {},
+            extCodeAccessInfo: {},
             contractSize: {}
           }
           this.topLevelCallCounter++
@@ -213,13 +222,31 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         return
       }
 
+      // store all addresses touched by EXTCODE* opcodes
+      if (opcode.match(/^(EXT.*)$/) != null) {
+        const addr = toAddress(log.stack.peek(0).toString(16))
+        const addrHex = toHex(addr)
+        // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
+        this.currentLevel.extCodeAccessInfo[addrHex] = opcode
+      }
+
+      // not using 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
+      const isAllowedPrecompiled: (address: any) => boolean = (address) => {
+        const addrHex = toHex(address)
+        const addressInt = parseInt(addrHex)
+        // this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
+        return addressInt > 0 && addressInt < 10
+      }
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
-        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length())
         const idx = opcode.startsWith('EXT') ? 0 : 1
         const addr = toAddress(log.stack.peek(idx).toString(16))
         const addrHex = toHex(addr)
-        if ((this.currentLevel.contractSize[addrHex] ?? 0) === 0 && !isPrecompiled(addr)) {
-          this.currentLevel.contractSize[addrHex] = db.getCode(addr).length
+        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length() + ' addr=' + addrHex)
+        if (this.currentLevel.contractSize[addrHex] == null && !isAllowedPrecompiled(addr)) {
+          this.currentLevel.contractSize[addrHex] = {
+            contractSize: db.getCode(addr).length,
+            opcode
+          }
         }
       }
 
