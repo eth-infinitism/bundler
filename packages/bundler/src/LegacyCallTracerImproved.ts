@@ -18,16 +18,17 @@
 // the internal calls made by a transaction, along with any useful information.
 
 // functions available in a context of geth tracer
+import { LogTracer } from './GethTracer'
+
 declare function toHex (a: any): string
 
-// TODO: does this exist?
 declare function bigInt (a: any): any
 
 declare function toAddress (a: any): string
 
 declare function isPrecompiled (addr: any): boolean
 
-export function legacyCallTracerImproved (): any {
+export function legacyCallTracerImproved (): LogTracer & { callstack: any, descended: any } {
   return {
     // callstack is the current recursive call stack of the EVM execution.
     callstack: [{}],
@@ -39,23 +40,24 @@ export function legacyCallTracerImproved (): any {
     // step is invoked for every opcode that the VM executes.
     step: function (log: any, db: any) {
       // Capture any errors immediately
-      var error = log.getError()
+      const error = log.getError()
       if (error !== undefined) {
         this.fault(log, db)
         return
       }
       // We only care about system opcodes, faster if we pre-check once
-      var syscall = (log.op.toNumber() & 0xf0) == 0xf0
+      const syscall = (log.op.toNumber() & 0xf0) == 0xf0
+      let op: string | undefined
       if (syscall) {
-        var op = log.op.toString()
+        op = log.op.toString()
       }
       // If a new contract is being created, add to the call stack
       if (syscall && (op == 'CREATE' || op == 'CREATE2')) {
-        var inOff = log.stack.peek(1).valueOf()
-        var inEnd = inOff + log.stack.peek(2).valueOf()
+        const inOff = log.stack.peek(1).valueOf()
+        const inEnd = inOff + log.stack.peek(2).valueOf()
 
         // Assemble the internal call report and store for completion
-        var call = {
+        const call = {
           type: op,
           from: toHex(log.contract.getAddress()),
           input: toHex(log.memory.slice(inOff, inEnd)),
@@ -67,9 +69,9 @@ export function legacyCallTracerImproved (): any {
         this.descended = true
         return
       }
-      // If a contract is being self destructed, gather that as a subcall too
+      // If a contract is being self-destructed, gather that as a subcall too
       if (syscall && op == 'SELFDESTRUCT') {
-        var left = this.callstack.length
+        const left = this.callstack.length
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
         }
@@ -86,14 +88,14 @@ export function legacyCallTracerImproved (): any {
       // If a new method invocation is being done, add to the call stack
       if (syscall && (op == 'CALL' || op == 'CALLCODE' || op == 'DELEGATECALL' || op == 'STATICCALL')) {
         // Skip any pre-compile invocations, those are just fancy opcodes
-        var to = toAddress(log.stack.peek(1).toString(16))
+        const to = toAddress(log.stack.peek(1).toString(16))
         if (isPrecompiled(to)) {
           return
         }
-        var off = (op == 'DELEGATECALL' || op == 'STATICCALL' ? 0 : 1)
+        const off = (op == 'DELEGATECALL' || op == 'STATICCALL' ? 0 : 1)
 
-        var inOff = log.stack.peek(2 + off).valueOf()
-        var inEnd = inOff + log.stack.peek(3 + off).valueOf()
+        const inOff = log.stack.peek(2 + off).valueOf()
+        const inEnd = inOff + log.stack.peek(3 + off).valueOf()
 
         // Assemble the internal call report and store for completion
         const call: any = {
@@ -141,7 +143,7 @@ export function legacyCallTracerImproved (): any {
           delete call.gasIn
           delete call.gasCost
 
-          var ret = log.stack.peek(0)
+          const ret = log.stack.peek(0)
           if (!ret.equals(0)) {
             call.to = toHex(toAddress(ret.toString(16)))
             call.output = toHex(db.getCode(toAddress(ret.toString(16))))
@@ -153,7 +155,7 @@ export function legacyCallTracerImproved (): any {
           if (call.gas !== undefined) {
             call.gasUsed = '0x' + bigInt(call.gasIn - call.gasCost + call.gas - log.getGas()).toString(16)
           }
-          var ret = log.stack.peek(0)
+          const ret = log.stack.peek(0)
           if (!ret.equals(0)) {
             call.output = toHex(log.memory.slice(call.outOff, call.outOff + call.outLen))
           } else if (call.error === undefined) {
@@ -168,7 +170,7 @@ export function legacyCallTracerImproved (): any {
           call.gas = '0x' + bigInt(call.gas).toString(16)
         }
         // Inject the call into the previous one
-        var left = this.callstack.length
+        const left = this.callstack.length
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
         }
@@ -183,7 +185,7 @@ export function legacyCallTracerImproved (): any {
         return
       }
       // Pop off the just failed call
-      var call = this.callstack.pop()
+      const call = this.callstack.pop()
       call.error = log.getError()
 
       // Consume all available gas and clean any leftovers
@@ -197,7 +199,7 @@ export function legacyCallTracerImproved (): any {
       delete call.outLen
 
       // Flatten the failed call into its parent
-      var left = this.callstack.length
+      const left = this.callstack.length
       if (left > 0) {
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
@@ -212,7 +214,7 @@ export function legacyCallTracerImproved (): any {
     // result is invoked when all the opcodes have been iterated over and returns
     // the final result of the tracing.
     result: function (ctx: any, db: any) {
-      var result: any = {
+      const result: any = {
         type: ctx.type,
         from: toHex(ctx.from),
         to: toHex(ctx.to),
