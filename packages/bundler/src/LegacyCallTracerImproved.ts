@@ -27,7 +27,7 @@ declare function toAddress (a: any): string
 
 declare function isPrecompiled (addr: any): boolean
 
-function bundlerCollectorTracer (): any {
+export function legacyCallTracerImproved (): any {
   return {
     // callstack is the current recursive call stack of the EVM execution.
     callstack: [{}],
@@ -233,36 +233,7 @@ function bundlerCollectorTracer (): any {
       if (result.error !== undefined && (result.error !== 'execution reverted' || result.output === '0x')) {
         delete result.output
       }
-      return this.finalize(result)
-    },
-
-    // finalize recreates a call object using the final desired field oder for json
-    // serialization. This is a nicety feature to pass meaningfully ordered results
-    // to users who don't interpret it, just display it.
-    finalize: function (call: any) {
-      const sorted: any = {
-        type: call.type,
-        from: call.from,
-        to: call.to,
-        value: call.value,
-        gas: call.gas,
-        gasUsed: call.gasUsed,
-        input: call.input,
-        output: call.output,
-        error: call.error,
-        calls: call.calls,
-      }
-      for (let key in sorted) {
-        if (sorted[key] === undefined) {
-          delete sorted[key]
-        }
-      }
-      if (sorted.calls !== undefined) {
-        for (var i = 0; i < sorted.calls.length; i++) {
-          sorted.calls[i] = this.finalize(sorted.calls[i])
-        }
-      }
-      return sorted
+      return result
     }
   }
 }
