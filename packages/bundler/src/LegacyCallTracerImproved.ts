@@ -28,9 +28,40 @@ declare function toAddress (a: any): string
 
 declare function isPrecompiled (addr: any): boolean
 
-export function legacyCallTracerImproved (): LogTracer & { callstack: any, descended: any } {
+interface Call {
+  opcodeCount?: any
+  outLen: any
+  outOff: any
+  output: string
+  gas: any | undefined
+  gasUsed: string
+  error: string | undefined
+  calls: Call[] | undefined
+  type: string
+  from: string
+  to: string
+  input: string
+  gasIn: any
+  gasCost: any
+  value: string
+}
+
+export function legacyCallTracerImproved (): LogTracer & {
+  countOpcode: any
+  pastOpcodes: any[]
+  getPastOpcode: any
+  countSlot: (list: { [key: string]: number | undefined }, key: any) => void
+  callstack: Call[],
+  descended: any
+} {
+
   return {
+
+    pastOpcodes: [],
+
     // callstack is the current recursive call stack of the EVM execution.
+    // TODO: this empty element initialization is required to catch the first CALL* - rewrite
+    // @ts-ignore
     callstack: [{}],
 
     // descended tracks whether we've just descended from an outer transaction into
@@ -47,7 +78,7 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
       }
       // We only care about system opcodes, faster if we pre-check once
       const syscall = (log.op.toNumber() & 0xf0) == 0xf0
-      let op: string | undefined
+      let op: string | undefined = undefined
       if (syscall) {
         op = log.op.toString()
       }
@@ -57,9 +88,17 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
         const inEnd = inOff + log.stack.peek(2).valueOf()
 
         // Assemble the internal call report and store for completion
-        const call = {
+        const call: Call = {
+          outLen: 'n/a',
+          outOff: 'n/a',
+          output: 'n/a',
+          gas: undefined,
+          gasUsed: 'n/a',
+          error: undefined,
+          calls: undefined,
           type: op,
           from: toHex(log.contract.getAddress()),
+          to: 'n/a',
           input: toHex(log.memory.slice(inOff, inEnd)),
           gasIn: log.getGas(),
           gasCost: log.getCost(),
@@ -75,7 +114,15 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
         }
-        this.callstack[left - 1].calls.push({
+        this.callstack[left - 1].calls!.push({
+          outLen: 'n/a',
+          outOff: 'n/a',
+          output: 'n/a',
+          gas: undefined,
+          gasUsed: 'n/a',
+          error: undefined,
+          calls: undefined,
+          input: 'n/a',
           type: op,
           from: toHex(log.contract.getAddress()),
           to: toHex(toAddress(log.stack.peek(0).toString(16))),
@@ -98,7 +145,13 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
         const inEnd = inOff + log.stack.peek(3 + off).valueOf()
 
         // Assemble the internal call report and store for completion
-        const call: any = {
+        const call: Call = {
+          value: 'n/a',
+          output: 'n/a',
+          gas: undefined,
+          gasUsed: 'n/a',
+          error: undefined,
+          calls: undefined,
           type: op,
           from: toHex(log.contract.getAddress()),
           to: toHex(to),
@@ -136,6 +189,9 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
       if (log.getDepth() == this.callstack.length - 1) {
         // Pop off the last call and get the execution results
         const call = this.callstack.pop()
+        if (call == null) {
+          throw new Error('call cannot be null here')
+        }
 
         if (call.type == 'CREATE' || call.type == 'CREATE2') {
           // If the call was a CREATE, retrieve the contract address and output code
@@ -174,7 +230,7 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
         }
-        this.callstack[left - 1].calls.push(call)
+        this.callstack[left - 1].calls!.push(call)
       }
     },
 
@@ -186,6 +242,10 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
       }
       // Pop off the just failed call
       const call = this.callstack.pop()
+      if (call == null) {
+        throw new Error('call cannot be null here')
+      }
+
       call.error = log.getError()
 
       // Consume all available gas and clean any leftovers
@@ -204,7 +264,7 @@ export function legacyCallTracerImproved (): LogTracer & { callstack: any, desce
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
         }
-        this.callstack[left - 1].calls.push(call)
+        this.callstack[left - 1].calls!.push(call)
         return
       }
       // Last call failed too, leave it in the stack
