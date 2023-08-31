@@ -51,10 +51,10 @@ export class DebugMethodHandler {
   }
 
   setReputation (param: any): ReputationDump {
-    if (param.reputation == null) {
-      throw new Error('expected structure { reputation: {addr:{opsSeen:1, opsIncluded:2} }')
+    if (param.reputations == null) {
+      throw new Error('expected structure { reputations: [{address: address, opsSeen:1, opsIncluded:2, status: "ok"}] }')
     }
-    return this.repManager.setReputation(param)
+    return this.repManager.setReputation(param.reputations)
   }
 
   dumpReputation (): ReputationDump {

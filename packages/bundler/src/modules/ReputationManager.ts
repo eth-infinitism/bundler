@@ -178,7 +178,8 @@ export class ReputationManager {
       this.entries[rep.address] = {
         address: rep.address,
         opsSeen: rep.opsSeen,
-        opsIncluded: rep.opsIncluded
+        opsIncluded: rep.opsIncluded,
+        status: rep.status
       }
     })
     return this.dump()
