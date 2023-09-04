@@ -18,7 +18,8 @@
 // the internal calls made by a transaction, along with any useful information.
 
 // functions available in a context of geth tracer
-import { LogTracer } from './GethTracer'
+import { LogDb, LogStep, LogTracer } from './GethTracer'
+import { AccessDetails } from './BundlerCollectorTracer'
 
 declare function toHex (a: any): string
 
@@ -28,32 +29,64 @@ declare function toAddress (a: any): string
 
 declare function isPrecompiled (addr: any): boolean
 
-interface Call {
-  opcodeCount?: any
+interface ERC4337CollectedInfo {
+  opcodeCount: { [opcode: string]: number }
+  accessedSlots: { [address: string]: AccessDetails }
+}
+
+interface CallDetails {
+  erc4337: ERC4337CollectedInfo
   outLen: any
   outOff: any
   output: string
   gas: any | undefined
   gasUsed: string
   error: string | undefined
-  calls: Call[] | undefined
+  calls: CallDetails[] | undefined
   type: string
   from: string
   to: string
   input: string
   gasIn: any
   gasCost: any
-  value: string
+  value?: string
 }
 
-export function legacyCallTracerImproved (): LogTracer & {
-  countOpcode: any
-  pastOpcodes: any[]
-  getPastOpcode: any
+interface TracingResult {
+  type: string
+  from: string
+  to: string
+  value: string
+  gas: string
+  gasUsed: string
+  input: string
+  output?: string
+  error?: any
+  calls?: CallDetails[]
+}
+
+interface ILegacyCallTracer {
+  /* utility functions */
+  countOpcode: (opcode: string, call: CallDetails) => void
+  getPastOpcode: (back: number) => string
   countSlot: (list: { [key: string]: number | undefined }, key: any) => void
-  callstack: Call[],
+
+  /* start new frame from opcode */
+  newCall: (op: string, log: LogStep) => CallDetails
+  newCreate: (op: string, log: LogStep) => CallDetails
+  newSelfDestruct: (op: string, log: LogStep, value: string) => CallDetails
+
+  /* handle frame completion */
+  postCall: (call: CallDetails, log: LogStep, db: LogDb) => void
+  postCreate: (call: CallDetails, log: LogStep, db: LogDb) => void
+
+  /* temporary members */
+  pastOpcodes: any[]
+  callstack: CallDetails[],
   descended: any
-} {
+}
+
+export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
 
   return {
 
@@ -68,42 +101,174 @@ export function legacyCallTracerImproved (): LogTracer & {
     // an inner call.
     descended: false,
 
+    // 0 to get current, -1 to get last, -2 to get one before it
+    getPastOpcode (back: number): string {
+      const index = this.pastOpcodes.length - Math.abs(back)
+      if (index < 0) {
+        throw new Error('past opcode access stack underflow')
+      }
+      return this.pastOpcodes[index]
+    },
+
+    // increment the "key" in the list. if the key is not defined yet, then set it to "1"
+    countSlot (list: { [key: string]: number | undefined }, key: any) {
+      list[key] = (list[key] ?? 0) + 1
+    },
+
+    countOpcode (opcode: string, call: CallDetails) {
+      if (this.getPastOpcode(-1) === 'GAS' && !opcode.includes('CALL')) {
+        // count "GAS" opcode only if not followed by "CALL"
+        this.countSlot(call.erc4337.opcodeCount, 'GAS')
+      }
+      if (opcode !== 'GAS') {
+        // ignore "unimportant" opcodes:
+        if (opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/) == null) {
+          this.countSlot(call.erc4337.opcodeCount, opcode)
+        }
+      }
+    },
+
+    newCall (
+      op: string,
+      log: LogStep
+    ): CallDetails {
+      const off = (op == 'DELEGATECALL' || op == 'STATICCALL' ? 0 : 1)
+
+      let value = undefined
+      if (op != 'DELEGATECALL' && op != 'STATICCALL') {
+        value = '0x' + log.stack.peek(2).toString(16)
+      }
+
+      const inOff = log.stack.peek(2 + off).valueOf()
+      const inEnd = inOff + log.stack.peek(3 + off).valueOf()
+      const to = toHex(toAddress(log.stack.peek(1).toString(16)))
+      let from = toHex(log.contract.getAddress())
+      let input = toHex(log.memory.slice(inOff, inEnd))
+
+      return {
+        erc4337: { opcodeCount: {}, accessedSlots: {} },
+        type: op,
+        from,
+        to,
+        input,
+        value,
+        output: 'n/a',
+        gas: undefined,
+        gasUsed: 'n/a',
+        error: undefined,
+        calls: undefined,
+        gasIn: log.getGas(),
+        gasCost: log.getCost(),
+        outOff: log.stack.peek(4 + off).valueOf(),
+        outLen: log.stack.peek(5 + off).valueOf()
+      }
+    },
+
+    newCreate (
+      op: string,
+      log: LogStep
+    ) {
+      const value = '0x' + log.stack.peek(0).toString(16)
+      const inOff = log.stack.peek(1).valueOf()
+      const inEnd = inOff + log.stack.peek(2).valueOf()
+      let input = toHex(log.memory.slice(inOff, inEnd))
+      let from = toHex(log.contract.getAddress())
+      return {
+        erc4337: { opcodeCount: {}, accessedSlots: {} },
+        type: op,
+        from,
+        to: 'n/a',
+        value,
+        input,
+        gasIn: log.getGas(),
+        gasCost: log.getCost(),
+        outLen: 'n/a',
+        outOff: 'n/a',
+        output: 'n/a',
+        gas: undefined,
+        gasUsed: 'n/a',
+        error: undefined,
+        calls: undefined
+      }
+    },
+
+    newSelfDestruct (op: string, log: LogStep, value: string): CallDetails {
+      return {
+        erc4337: { opcodeCount: {}, accessedSlots: {} },
+        outLen: 'n/a',
+        outOff: 'n/a',
+        output: 'n/a',
+        gas: undefined,
+        gasUsed: 'n/a',
+        error: undefined,
+        calls: undefined,
+        input: 'n/a',
+        type: op,
+        from: toHex(log.contract.getAddress()),
+        to: toHex(toAddress(log.stack.peek(0).toString(16))),
+        gasIn: log.getGas(),
+        gasCost: log.getCost(),
+        value
+      }
+    },
+
+    /**
+     * If the call was a contract call, retrieve the gas usage and output
+     */
+    postCall (call: CallDetails, log: LogStep, db: LogDb) {
+      if (call.gas !== undefined) {
+        call.gasUsed = '0x' + bigInt(call.gasIn - call.gasCost + call.gas - log.getGas()).toString(16)
+      }
+      const ret = log.stack.peek(0)
+      if (!ret.equals(0)) {
+        call.output = toHex(log.memory.slice(call.outOff, call.outOff + call.outLen))
+      } else if (call.error === undefined) {
+        call.error = 'internal failure' // TODO(karalabe): surface these faults somehow
+      }
+      delete call.gasIn
+      delete call.gasCost
+      delete call.outOff
+      delete call.outLen
+    },
+
+    /**
+     * If the call was a CREATE, retrieve the contract address and output code
+     */
+    postCreate (call: CallDetails, log: LogStep, db: LogDb) {
+      call.gasUsed = '0x' + bigInt(call.gasIn - call.gasCost - log.getGas()).toString(16)
+      delete call.gasIn
+      delete call.gasCost
+
+      const ret = log.stack.peek(0)
+      if (!ret.equals(0)) {
+        call.to = toHex(toAddress(ret.toString(16)))
+        call.output = toHex(db.getCode(toAddress(ret.toString(16))))
+      } else if (call.error === undefined) {
+        call.error = 'internal failure' // TODO(karalabe): surface these faults somehow
+      }
+    },
+
     // step is invoked for every opcode that the VM executes.
-    step: function (log: any, db: any) {
+    step: function (log: LogStep, db: LogDb) {
       // Capture any errors immediately
       const error = log.getError()
       if (error !== undefined) {
         this.fault(log, db)
         return
       }
-      // We only care about system opcodes, faster if we pre-check once
       const syscall = (log.op.toNumber() & 0xf0) == 0xf0
-      let op: string | undefined = undefined
-      if (syscall) {
-        op = log.op.toString()
+      // if (syscall) {
+      const op = log.op.toString()
+      this.pastOpcodes.push(op)
+      const lastCall = this.callstack[this.callstack.length - 1]
+      if (lastCall != null && lastCall.erc4337 != null) { // this magic {} element in 'callstack'...
+        this.countOpcode(op, lastCall)
       }
+
       // If a new contract is being created, add to the call stack
       if (syscall && (op == 'CREATE' || op == 'CREATE2')) {
-        const inOff = log.stack.peek(1).valueOf()
-        const inEnd = inOff + log.stack.peek(2).valueOf()
-
         // Assemble the internal call report and store for completion
-        const call: Call = {
-          outLen: 'n/a',
-          outOff: 'n/a',
-          output: 'n/a',
-          gas: undefined,
-          gasUsed: 'n/a',
-          error: undefined,
-          calls: undefined,
-          type: op,
-          from: toHex(log.contract.getAddress()),
-          to: 'n/a',
-          input: toHex(log.memory.slice(inOff, inEnd)),
-          gasIn: log.getGas(),
-          gasCost: log.getCost(),
-          value: '0x' + log.stack.peek(0).toString(16)
-        }
+        const call = this.newCreate(op, log)
         this.callstack.push(call)
         this.descended = true
         return
@@ -114,56 +279,15 @@ export function legacyCallTracerImproved (): LogTracer & {
         if (this.callstack[left - 1].calls === undefined) {
           this.callstack[left - 1].calls = []
         }
-        this.callstack[left - 1].calls!.push({
-          outLen: 'n/a',
-          outOff: 'n/a',
-          output: 'n/a',
-          gas: undefined,
-          gasUsed: 'n/a',
-          error: undefined,
-          calls: undefined,
-          input: 'n/a',
-          type: op,
-          from: toHex(log.contract.getAddress()),
-          to: toHex(toAddress(log.stack.peek(0).toString(16))),
-          gasIn: log.getGas(),
-          gasCost: log.getCost(),
-          value: '0x' + db.getBalance(log.contract.getAddress()).toString(16)
-        })
+        const value = '0x' + db.getBalance(log.contract.getAddress()).toHexString()
+        const call = this.newSelfDestruct(op, log, value)
+        this.callstack[left - 1].calls!.push(call)
         return
       }
       // If a new method invocation is being done, add to the call stack
       if (syscall && (op == 'CALL' || op == 'CALLCODE' || op == 'DELEGATECALL' || op == 'STATICCALL')) {
-        // Skip any pre-compile invocations, those are just fancy opcodes
-        const to = toAddress(log.stack.peek(1).toString(16))
-        if (isPrecompiled(to)) {
-          return
-        }
-        const off = (op == 'DELEGATECALL' || op == 'STATICCALL' ? 0 : 1)
-
-        const inOff = log.stack.peek(2 + off).valueOf()
-        const inEnd = inOff + log.stack.peek(3 + off).valueOf()
-
         // Assemble the internal call report and store for completion
-        const call: Call = {
-          value: 'n/a',
-          output: 'n/a',
-          gas: undefined,
-          gasUsed: 'n/a',
-          error: undefined,
-          calls: undefined,
-          type: op,
-          from: toHex(log.contract.getAddress()),
-          to: toHex(to),
-          input: toHex(log.memory.slice(inOff, inEnd)),
-          gasIn: log.getGas(),
-          gasCost: log.getCost(),
-          outOff: log.stack.peek(4 + off).valueOf(),
-          outLen: log.stack.peek(5 + off).valueOf()
-        }
-        if (op != 'DELEGATECALL' && op != 'STATICCALL') {
-          call.value = '0x' + log.stack.peek(2).toString(16)
-        }
+        const call = this.newCall(op, log)
         this.callstack.push(call)
         this.descended = true
         return
@@ -194,33 +318,9 @@ export function legacyCallTracerImproved (): LogTracer & {
         }
 
         if (call.type == 'CREATE' || call.type == 'CREATE2') {
-          // If the call was a CREATE, retrieve the contract address and output code
-          call.gasUsed = '0x' + bigInt(call.gasIn - call.gasCost - log.getGas()).toString(16)
-          delete call.gasIn
-          delete call.gasCost
-
-          const ret = log.stack.peek(0)
-          if (!ret.equals(0)) {
-            call.to = toHex(toAddress(ret.toString(16)))
-            call.output = toHex(db.getCode(toAddress(ret.toString(16))))
-          } else if (call.error === undefined) {
-            call.error = 'internal failure' // TODO(karalabe): surface these faults somehow
-          }
+          this.postCreate(call, log, db)
         } else {
-          // If the call was a contract call, retrieve the gas usage and output
-          if (call.gas !== undefined) {
-            call.gasUsed = '0x' + bigInt(call.gasIn - call.gasCost + call.gas - log.getGas()).toString(16)
-          }
-          const ret = log.stack.peek(0)
-          if (!ret.equals(0)) {
-            call.output = toHex(log.memory.slice(call.outOff, call.outOff + call.outLen))
-          } else if (call.error === undefined) {
-            call.error = 'internal failure' // TODO(karalabe): surface these faults somehow
-          }
-          delete call.gasIn
-          delete call.gasCost
-          delete call.outOff
-          delete call.outLen
+          this.postCall(call, log, db)
         }
         if (call.gas !== undefined) {
           call.gas = '0x' + bigInt(call.gas).toString(16)
@@ -274,7 +374,7 @@ export function legacyCallTracerImproved (): LogTracer & {
     // result is invoked when all the opcodes have been iterated over and returns
     // the final result of the tracing.
     result: function (ctx: any, db: any) {
-      const result: any = {
+      const result: TracingResult = {
         type: ctx.type,
         from: toHex(ctx.from),
         to: toHex(ctx.to),

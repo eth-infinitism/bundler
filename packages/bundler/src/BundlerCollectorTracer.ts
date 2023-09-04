@@ -51,7 +51,7 @@ export interface TopLevelCallInfo {
   topLevelMethodSig: string
   topLevelTargetAddress: string
   opcodes: { [opcode: string]: number }
-  access: { [address: string]: AccessInfo }
+  access: { [address: string]: AccessDetails }
   contractSize: { [addr: string]: ContractSizeInfo }
   extCodeAccessInfo: { [addr: string]: string }
   oog?: boolean
@@ -66,7 +66,7 @@ export interface ContractSizeInfo {
   contractSize: number
 }
 
-export interface AccessInfo {
+export interface AccessDetails {
   // slot value, just prior this operation
   reads: { [slot: string]: string }
   // count of writes.
