@@ -70,21 +70,26 @@ interface ILegacyCallTracer {
   countOpcode: (opcode: string, call: CallDetails) => void
   getPastOpcode: (back: number) => string
   countSlot: (list: { [key: string]: number | undefined }, key: any) => void
+  shiftUp: () => void
 
   /* start new frame from opcode */
-  newCall: (op: string, log: LogStep) => CallDetails
-  newCreate: (op: string, log: LogStep) => CallDetails
-  newSelfDestruct: (op: string, log: LogStep, value: string) => CallDetails
+  newCall: (op: string, log: LogStep) => void
+  newCreate: (op: string, log: LogStep) => void
+  newSelfDestruct: (op: string, log: LogStep, value: string) => void
 
   /* handle frame completion */
   postCall: (call: CallDetails, log: LogStep, db: LogDb) => void
   postCreate: (call: CallDetails, log: LogStep, db: LogDb) => void
+
+  postDescend: (log: LogStep) => void
 
   /* temporary members */
   pastOpcodes: any[]
   callstack: CallDetails[],
   descended: any
 }
+
+const TOP_LEVEL_CALL = {}
 
 export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
 
@@ -93,9 +98,10 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
     pastOpcodes: [],
 
     // callstack is the current recursive call stack of the EVM execution.
-    // TODO: this empty element initialization is required to catch the first CALL* - rewrite
+    // the empty element represents the top-level execution context
+    // we don't know its true parameters before 'result' is called
     // @ts-ignore
-    callstack: [{}],
+    callstack: [TOP_LEVEL_CALL],
 
     // descended tracks whether we've just descended from an outer transaction into
     // an inner call.
@@ -128,10 +134,24 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
       }
     },
 
-    newCall (
-      op: string,
-      log: LogStep
-    ): CallDetails {
+    /**
+     * Inject the last call into the previous one.
+     * The 'last' element of call stack is temporary there for convenience only.
+     */
+    shiftUp: function (): void {
+      const call = this.callstack.pop()!
+      const left = this.callstack.length
+      if (this.callstack[left - 1].calls === undefined) {
+        this.callstack[left - 1].calls = []
+      }
+      this.callstack[left - 1].calls!.push(call)
+    },
+
+    /**
+     * If a new method invocation is being done, add to the call stack.
+     * Assemble the internal call report and store for completion.
+     */
+    newCall (op: string, log: LogStep): void {
       const off = (op == 'DELEGATECALL' || op == 'STATICCALL' ? 0 : 1)
 
       let value = undefined
@@ -145,7 +165,7 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
       let from = toHex(log.contract.getAddress())
       let input = toHex(log.memory.slice(inOff, inEnd))
 
-      return {
+      const call: CallDetails = {
         erc4337: { opcodeCount: {}, accessedSlots: {} },
         type: op,
         from,
@@ -162,18 +182,21 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
         outOff: log.stack.peek(4 + off).valueOf(),
         outLen: log.stack.peek(5 + off).valueOf()
       }
+      this.callstack.push(call)
+      this.descended = true
     },
 
-    newCreate (
-      op: string,
-      log: LogStep
-    ) {
+    /**
+     * If a new contract is being created, add to the call stack.
+     * Assemble the internal call report and store for completion.
+     */
+    newCreate (op: string, log: LogStep): void {
       const value = '0x' + log.stack.peek(0).toString(16)
       const inOff = log.stack.peek(1).valueOf()
       const inEnd = inOff + log.stack.peek(2).valueOf()
       let input = toHex(log.memory.slice(inOff, inEnd))
       let from = toHex(log.contract.getAddress())
-      return {
+      const call: CallDetails = {
         erc4337: { opcodeCount: {}, accessedSlots: {} },
         type: op,
         from,
@@ -190,10 +213,15 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
         error: undefined,
         calls: undefined
       }
+      this.callstack.push(call)
+      this.descended = true
     },
 
-    newSelfDestruct (op: string, log: LogStep, value: string): CallDetails {
-      return {
+    /**
+     * If a contract is being self-destructed, gather that as a subcall too.
+     */
+    newSelfDestruct (op: string, log: LogStep, value: string): void {
+      const call: CallDetails = {
         erc4337: { opcodeCount: {}, accessedSlots: {} },
         outLen: 'n/a',
         outOff: 'n/a',
@@ -210,6 +238,10 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
         gasCost: log.getCost(),
         value
       }
+
+      // note that SELFDESTRUCT transfers ether but does not create a new call context
+      this.callstack.push(call)
+      this.shiftUp()
     },
 
     /**
@@ -248,6 +280,20 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
       }
     },
 
+    /**
+     * If we've just descended into an inner call, retrieve it's true allowance. We
+     * need to extract if from within the call as there may be funky gas dynamics
+     * with regard to requested and actually given gas (2300 stipend, 63/64 rule).
+     */
+    postDescend: function (log: LogStep) {
+      if (this.descended) {
+        if (log.getDepth() >= this.callstack.length) {
+          this.callstack[this.callstack.length - 1].gas = log.getGas()
+        }
+        this.descended = false
+      }
+    },
+
     // step is invoked for every opcode that the VM executes.
     step: function (log: LogStep, db: LogDb) {
       // Capture any errors immediately
@@ -257,7 +303,6 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
         return
       }
       const syscall = (log.op.toNumber() & 0xf0) == 0xf0
-      // if (syscall) {
       const op = log.op.toString()
       this.pastOpcodes.push(op)
       const lastCall = this.callstack[this.callstack.length - 1]
@@ -265,54 +310,31 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
         this.countOpcode(op, lastCall)
       }
 
-      // If a new contract is being created, add to the call stack
-      if (syscall && (op == 'CREATE' || op == 'CREATE2')) {
-        // Assemble the internal call report and store for completion
-        const call = this.newCreate(op, log)
-        this.callstack.push(call)
-        this.descended = true
-        return
-      }
-      // If a contract is being self-destructed, gather that as a subcall too
-      if (syscall && op == 'SELFDESTRUCT') {
-        const left = this.callstack.length
-        if (this.callstack[left - 1].calls === undefined) {
-          this.callstack[left - 1].calls = []
-        }
-        const value = '0x' + db.getBalance(log.contract.getAddress()).toHexString()
-        const call = this.newSelfDestruct(op, log, value)
-        this.callstack[left - 1].calls!.push(call)
-        return
-      }
-      // If a new method invocation is being done, add to the call stack
       if (syscall && (op == 'CALL' || op == 'CALLCODE' || op == 'DELEGATECALL' || op == 'STATICCALL')) {
-        // Assemble the internal call report and store for completion
-        const call = this.newCall(op, log)
-        this.callstack.push(call)
-        this.descended = true
+        this.newCall(op, log)
         return
       }
-      // If we've just descended into an inner call, retrieve it's true allowance. We
-      // need to extract if from within the call as there may be funky gas dynamics
-      // with regard to requested and actually given gas (2300 stipend, 63/64 rule).
-      if (this.descended) {
-        if (log.getDepth() >= this.callstack.length) {
-          this.callstack[this.callstack.length - 1].gas = log.getGas()
-        } else {
-          // TODO(karalabe): The call was made to a plain account. We currently don't
-          // have access to the true gas amount inside the call and so any amount will
-          // mostly be wrong since it depends on a lot of input args. Skip gas for now.
-        }
-        this.descended = false
+
+      if (syscall && (op == 'CREATE' || op == 'CREATE2')) {
+        this.newCreate(op, log)
+        return
       }
+
+      if (syscall && op == 'SELFDESTRUCT') {
+        const value = '0x' + db.getBalance(log.contract.getAddress()).toHexString()
+        this.newSelfDestruct(op, log, value)
+        return
+      }
+
+      this.postDescend(log)
+
       // If an existing call is returning, pop off the call stack
       if (syscall && op == 'REVERT') {
         this.callstack[this.callstack.length - 1].error = 'execution reverted'
         return
       }
       if (log.getDepth() == this.callstack.length - 1) {
-        // Pop off the last call and get the execution results
-        const call = this.callstack.pop()
+        const call = this.callstack[this.callstack.length - 1]
         if (call == null) {
           throw new Error('call cannot be null here')
         }
@@ -322,15 +344,7 @@ export function legacyCallTracerImproved (): LogTracer & ILegacyCallTracer {
         } else {
           this.postCall(call, log, db)
         }
-        if (call.gas !== undefined) {
-          call.gas = '0x' + bigInt(call.gas).toString(16)
-        }
-        // Inject the call into the previous one
-        const left = this.callstack.length
-        if (this.callstack[left - 1].calls === undefined) {
-          this.callstack[left - 1].calls = []
-        }
-        this.callstack[left - 1].calls!.push(call)
+        this.shiftUp()
       }
     },
 
