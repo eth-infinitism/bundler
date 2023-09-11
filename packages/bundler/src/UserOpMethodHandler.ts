@@ -137,10 +137,10 @@ export class UserOpMethodHandler {
     })
     validAfter = BigNumber.from(validAfter)
     validUntil = BigNumber.from(validUntil)
-    if (validUntil === BigNumber.from(0)) {
+    if ((validUntil as BigNumber).eq(0)) {
       validUntil = undefined
     }
-    if (validAfter === BigNumber.from(0)) {
+    if ((validAfter as BigNumber).eq(0)) {
       validAfter = undefined
     }
     const preVerificationGas = calcPreVerificationGas(userOp)
