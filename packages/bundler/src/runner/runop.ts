@@ -113,7 +113,7 @@ async function main (): Promise<void> {
   const opts = program.parse().opts()
   const provider = getNetworkProvider(opts.network)
   let signer: Signer
-  const deployFactory: boolean = opts.deployFactory
+  let deployFactory: boolean = opts.deployFactory
   let bundler: BundlerServer | undefined
   if (opts.selfBundler != null) {
     // todo: if node is geth, we need to fund our bundler's account:
@@ -148,7 +148,10 @@ async function main (): Promise<void> {
       }
       // for hardhat/node, use account[0]
       signer = provider.getSigner()
-      // deployFactory = true
+      const network = await provider.getNetwork()
+      if (network.chainId === 1337 || network.chainId === 31337) {
+        deployFactory = true
+      }
     } catch (e) {
       throw new Error('must specify --mnemonic')
     }
@@ -173,7 +176,7 @@ async function main (): Promise<void> {
   console.log('account address', addr, 'deployed=', await isDeployed(addr), 'bal=', formatEther(bal))
   const gasPrice = await provider.getGasPrice()
   // TODO: actual required val
-  const requiredBalance = gasPrice.mul(2e6)
+  const requiredBalance = gasPrice.mul(4e6)
   if (bal.lt(requiredBalance.div(2))) {
     console.log('funding account to', requiredBalance.toString())
     await signer.sendTransaction({
