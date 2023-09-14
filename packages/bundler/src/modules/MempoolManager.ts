@@ -18,7 +18,7 @@ export interface MempoolEntry {
 
 type MempoolDump = UserOperation[]
 
-const MAX_MEMPOOL_USEROPS_PER_SENDER = 4
+const SAME_SENDER_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
   private mempool: MempoolEntry[] = []
@@ -69,7 +69,8 @@ export class MempoolManager {
   // check if there are already too many entries in mempool for that sender.
   // (allow 4 entities if unstaked, or any number if staked)
   private checkSenderCountInMempool (userOp: UserOperation, senderInfo: StakeInfo): void {
-    if ((this.entryCount[userOp.sender] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+    // [STO-050]
+    if ((this.entryCount[userOp.sender] ?? 0) > SAME_SENDER_MEMPOOL_COUNT) {
       // already enough entities with this sender in mempool.
       // check that it is staked
       this.reputationManager.checkStake('account', senderInfo)

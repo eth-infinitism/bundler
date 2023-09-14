@@ -1,3 +1,7 @@
+// This file contains references to validation rules, in the format [xxx-###]
+// where xxx is OP/STO/COD/EP/SREP/EREP/UREP/ALT, and ### is a number
+// the validation rules are defined in erc-aa-validation.md
+
 import {
   EntryPoint, IAccount__factory,
   IEntryPoint__factory,
@@ -175,6 +179,8 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
 
   const entryPointAddress = entryPoint.address.toLowerCase()
 
+  // opcodes from [OP-011]
+  // [OP-032]
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
@@ -183,14 +189,17 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   }
   const callStack = parseCallStack(tracerResults)
 
+  // [OP-052], [OP-053]
   const callInfoEntryPoint = callStack.find(call =>
     call.to === entryPointAddress && call.from !== entryPointAddress &&
     (call.method !== '0x' && call.method !== 'depositTo'))
+  // [OP-054]
   requireCond(callInfoEntryPoint == null,
     `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
     ValidationErrors.OpcodeValidation
   )
 
+  // [OP-061]
   const illegalNonZeroValueCall = callStack.find(
     call =>
       call.to !== entryPointAddress &&
@@ -224,11 +233,15 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
     const opcodes = currentNumLevel.opcodes
     const access = currentNumLevel.access
 
+    // [OP-020]
     requireCond(!(currentNumLevel.oog ?? false),
       `${entityTitle} internally reverts on oog`, ValidationErrors.OpcodeValidation)
+
+    // opcodes from [OP-011]
     Object.keys(opcodes).forEach(opcode =>
       requireCond(!bannedOpCodes.has(opcode), `${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
     )
+    // [OP-031]
     if (entityTitle === 'factory') {
       requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entityTitle} with too many CREATE2`, ValidationErrors.OpcodeValidation)
     } else {
@@ -242,8 +255,10 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
       // testing read/write access on contract "addr"
       if (addr === sender) {
         // allowed to access sender's storage
+        // [STO-010]
         return
       }
+
       if (addr === entryPointAddress) {
         // ignore storage access on entryPoint (balance/deposit of entities.
         // we block them on method calls: only allowed to deposit, never to read
@@ -291,14 +306,17 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         if (associatedWith(slot, sender, entitySlots)) {
           if (userOp.initCode.length > 2) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
+            // [STO-022], [STO-021]
             if (!(entityAddr === sender && isStaked(stakeInfoEntities.factory))) {
               requireStakeSlot = slot
             }
           }
         } else if (associatedWith(slot, entityAddr, entitySlots)) {
+          // [STO-032]
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
         } else if (addr === entityAddr) {
+          // [STO-031]
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
         } else {
@@ -323,6 +341,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         `unstaked ${entityTitle} accessed ${nameAddr(addr, entityTitle)} slot ${requireStakeSlot}`)
     })
 
+    // [EREP-050]
     if (entityTitle === 'paymaster') {
       const validatePaymasterUserOp = callStack.find(call => call.method === 'validatePaymasterUserOp' && call.to === entityAddr)
       const context = validatePaymasterUserOp?.return?.context
@@ -358,6 +377,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
         break
       }
     }
+    // [OP-041]
     requireCond(
       illegalZeroCodeAccess == null,
       `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`, ValidationErrors.OpcodeValidation)
