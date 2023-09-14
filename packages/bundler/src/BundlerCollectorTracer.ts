@@ -199,7 +199,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       if (log.getGas() < log.getCost()) {
         this.currentLevel.oog = true
       }
-      if (this.depth != this.lastDepth ) {
+      if (this.depth !== this.lastDepth) {
         // NOTE: flushing all history after RETURN/REVERT
         this.lastThreeOpcodes = []
       }
