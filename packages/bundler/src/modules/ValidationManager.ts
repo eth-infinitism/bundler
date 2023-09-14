@@ -207,7 +207,7 @@ export class ValidationManager {
       'time-range in the future time',
       ValidationErrors.NotInTimeRange)
 
-    console.log('until', res.returnInfo.validUntil, 'now=', now)
+    // console.log('until', res.returnInfo.validUntil, 'now=', now)
     requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil >= now,
       'already expired',
       ValidationErrors.NotInTimeRange)

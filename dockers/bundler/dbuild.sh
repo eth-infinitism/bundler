@@ -4,7 +4,7 @@ cd `cd \`dirname $0\`;pwd`
 #need to preprocess first to have the Version.js
 test -z $NOBUILD && yarn preprocess
 
-test -z "$VERSION" && VERSION=`jq -r .version ../../packages/utils/package.json`
+test -z "$VERSION" && VERSION=`jq -r .version ../../packages/bundler/package.json`
 echo version=$VERSION
 
 IMAGE=accountabstraction/bundler
