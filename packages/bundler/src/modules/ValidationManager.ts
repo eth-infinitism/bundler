@@ -172,6 +172,7 @@ export class ValidationManager {
   async validateUserOp (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
     if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
       const { hash: codeHashes } = await this.getCodeHashes(previousCodeHashes.addresses)
+      // [COD-010]
       requireCond(codeHashes === previousCodeHashes.hash,
         'modified code after first validation',
         ValidationErrors.OpcodeValidation)
