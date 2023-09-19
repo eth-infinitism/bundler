@@ -119,7 +119,7 @@ export class ValidationManager {
       to: this.entryPoint.address,
       data: simulateCall,
       gasLimit: simulationGas
-    }, { tracer: bundlerCollectorTracer })
+    }, { tracer: bundlerCollectorTracer, timeout: '10s' })
 
     const lastResult = tracerResult.calls.slice(-1)[0]
     if (lastResult.type !== 'REVERT') {

@@ -73,7 +73,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promis
   // make sure we can trace a call.
   const ret = await debug_traceCall(provider,
     { from: AddressZero, to: AddressZero, data: '0x' },
-    { tracer: bundlerCollectorTracer }).catch(e => e)
+    { tracer: bundlerCollectorTracer, timeout: '10s' }).catch(e => e)
   return ret.logs != null
   // debug('client version', p._clientVersion)
   // return p._clientVersion?.match('go1') != null
