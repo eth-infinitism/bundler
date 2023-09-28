@@ -1,6 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr } from './moduleUtils'
-import { requireCond } from '../utils'
+import { requireCond, RpcError } from '../utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
@@ -57,10 +57,16 @@ export class MempoolManager {
       this.checkSenderCountInMempool(userOp, senderInfo)
       this.mempool.push(entry)
     }
-    this.updateSeenStatus(aggregator, userOp)
+    this.updateSeenStatus(aggregator, userOp, senderInfo)
   }
 
-  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation): void {
+  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation, senderInfo: StakeInfo): void {
+    try {
+      this.reputationManager.checkStake('account', senderInfo)
+      this.reputationManager.updateSeenStatus(userOp.sender)
+    } catch (e: any) {
+      if (!(e instanceof RpcError)) throw e
+    }
     this.reputationManager.updateSeenStatus(aggregator)
     this.reputationManager.updateSeenStatus(getAddr(userOp.paymasterAndData))
     this.reputationManager.updateSeenStatus(getAddr(userOp.initCode))
