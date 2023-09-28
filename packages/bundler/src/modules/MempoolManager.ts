@@ -145,19 +145,6 @@ export class MempoolManager {
         this.reputationManager.checkStake('aggregator', aggregatorInfo)
       }
     }
-
-    // const paymaster = getAddr(userOp.paymasterAndData)
-    // const factory = getAddr(userOp.initCode)
-  }
-
-  // check if there are already too many entries in mempool for that sender.
-  // (allow 4 entities if unstaked, or any number if staked)
-  private checkSenderCountInMempool (userOp: UserOperation, senderInfo: StakeInfo): void {
-    if ((this.entryCount(userOp.sender) ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
-      // already enough entities with this sender in mempool.
-      // check that it is staked
-      this.reputationManager.checkStake('account', senderInfo)
-    }
   }
 
   private checkReplaceUserOp (oldEntry: MempoolEntry, entry: MempoolEntry): void {
