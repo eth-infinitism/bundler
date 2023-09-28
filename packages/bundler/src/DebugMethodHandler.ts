@@ -51,9 +51,6 @@ export class DebugMethodHandler {
   }
 
   setReputation (param: any): ReputationDump {
-    if (param.reputation == null) {
-      throw new Error('expected structure { reputation: {addr:{opsSeen:1, opsIncluded:2} }')
-    }
     return this.repManager.setReputation(param)
   }
 

@@ -21,7 +21,7 @@ export interface ReputationParams {
 
 export const BundlerReputationParams: ReputationParams = {
   minInclusionDenominator: 10,
-  throttlingSlack: 10,
+  throttlingSlack: 5,
   banSlack: 10
 }
 
@@ -58,7 +58,9 @@ export class ReputationManager {
    * debug: dump reputation map (with updated "status" for each entry)
    */
   dump (): ReputationDump {
-    return Object.values(this.entries)
+    const reputationDump = Object.values(this.entries)
+    console.log(`Reputations dump:\n${JSON.stringify(reputationDump)}`)
+    return reputationDump
   }
 
   /**
@@ -85,6 +87,7 @@ export class ReputationManager {
   }
 
   _getOrCreate (addr: string): ReputationEntry {
+    addr = addr.toLowerCase()
     let entry = this.entries[addr]
     if (entry == null) {
       this.entries[addr] = entry = {
@@ -126,6 +129,7 @@ export class ReputationManager {
 
   // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
   getStatus (addr?: string): ReputationStatus {
+    addr = addr?.toLowerCase()
     if (addr == null || this.whitelist.has(addr)) {
       return ReputationStatus.OK
     }
@@ -175,13 +179,34 @@ export class ReputationManager {
    */
   setReputation (reputations: ReputationDump): ReputationDump {
     reputations.forEach(rep => {
-      this.entries[rep.address] = {
+      this.entries[rep.address.toLowerCase()] = {
         address: rep.address,
         opsSeen: rep.opsSeen,
         opsIncluded: rep.opsIncluded
       }
     })
     return this.dump()
+  }
+
+
+  /**
+   * check the given address (account/paymaster/deployer/aggregator) is banned
+   * unlike {@link checkStake} does not check whitelist or stake
+   */
+  checkBanned (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info: StakeInfo): void {
+    requireCond(this.getStatus(info.addr) !== ReputationStatus.BANNED,
+      `${title} ${info.addr} is banned`,
+      ValidationErrors.Reputation, { [title]: info.addr })
+  }
+
+  /**
+   * check the given address (account/paymaster/deployer/aggregator) is throttled
+   * unlike {@link checkStake} does not check whitelist or stake
+   */
+  checkThrottled (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info: StakeInfo): void {
+    requireCond(this.getStatus(info.addr) !== ReputationStatus.THROTTLED,
+      `${title} ${info.addr} is throttled`,
+      ValidationErrors.Reputation, { [title]: info.addr })
   }
 
   /**

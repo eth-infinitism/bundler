@@ -1,7 +1,7 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr } from './moduleUtils'
 import { requireCond } from '../utils'
-import { ReputationManager } from './ReputationManager'
+import { ReputationManager, ReputationStatus } from './ReputationManager'
 import Debug from 'debug'
 import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
 
@@ -37,13 +37,22 @@ export class MempoolManager {
   // add userOp into the mempool, after initial validation.
   // replace existing, if any (and if new gas is higher)
   // revets if unable to add UserOp to mempool (too many UserOps with this sender)
-  addUserOp (userOp: UserOperation, userOpHash: string, prefund: BigNumberish, senderInfo: StakeInfo, referencedContracts: ReferencedCodeHashes, aggregator?: string): void {
+  addUserOp (
+    userOp: UserOperation,
+    userOpHash: string,
+    prefund: BigNumberish,
+    referencedContracts: ReferencedCodeHashes,
+    senderInfo: StakeInfo,
+    paymasterInfo?: StakeInfo,
+    factoryInfo?: StakeInfo,
+    aggregatorInfo?: StakeInfo
+  ): void {
     const entry: MempoolEntry = {
       userOp,
       userOpHash,
       prefund,
       referencedContracts,
-      aggregator
+      aggregator: aggregatorInfo?.addr
     }
     const index = this._findBySenderNonce(userOp.sender, userOp.nonce)
     if (index !== -1) {
@@ -54,16 +63,55 @@ export class MempoolManager {
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
       this.entryCount[userOp.sender] = (this.entryCount[userOp.sender] ?? 0) + 1
-      this.checkSenderCountInMempool(userOp, senderInfo)
+      // this.checkSenderCountInMempool(userOp, senderInfo)
+      this.checkReputationStatus(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.mempool.push(entry)
     }
-    this.updateSeenStatus(aggregator, userOp)
+    this.updateSeenStatus(aggregatorInfo?.addr, userOp)
   }
 
   private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation): void {
     this.reputationManager.updateSeenStatus(aggregator)
     this.reputationManager.updateSeenStatus(getAddr(userOp.paymasterAndData))
     this.reputationManager.updateSeenStatus(getAddr(userOp.initCode))
+  }
+
+
+  // TODO: de-duplicate code
+  // TODO 2: use configuration parameters instead of hard-coded constants
+  private checkReputationStatus (
+    senderInfo: StakeInfo,
+    paymasterInfo?: StakeInfo,
+    factoryInfo?: StakeInfo,
+    aggregatorInfo?: StakeInfo): void {
+    this.reputationManager.checkBanned('account', senderInfo)
+    if ((this.entryCount[senderInfo.addr] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+      this.reputationManager.checkThrottled('account', senderInfo)
+    }
+
+    if (paymasterInfo != null) {
+      this.reputationManager.checkBanned('paymaster', paymasterInfo)
+      if ((this.entryCount[paymasterInfo.addr] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+        this.reputationManager.checkThrottled('paymaster', paymasterInfo)
+      }
+    }
+
+    if (factoryInfo != null) {
+      this.reputationManager.checkBanned('deployer', factoryInfo)
+      if ((this.entryCount[factoryInfo.addr] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+        this.reputationManager.checkThrottled('deployer', factoryInfo)
+      }
+    }
+
+    if (aggregatorInfo != null) {
+      this.reputationManager.checkBanned('aggregator', aggregatorInfo)
+      if ((this.entryCount[aggregatorInfo.addr] ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
+        this.reputationManager.checkThrottled('aggregator', aggregatorInfo)
+      }
+    }
+
+    // const paymaster = getAddr(userOp.paymasterAndData)
+    // const factory = getAddr(userOp.initCode)
   }
 
   // check if there are already too many entries in mempool for that sender.
