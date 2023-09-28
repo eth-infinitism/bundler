@@ -188,7 +188,6 @@ export class ReputationManager {
     return this.dump()
   }
 
-
   /**
    * check the given address (account/paymaster/deployer/aggregator) is banned
    * unlike {@link checkStake} does not check whitelist or stake
@@ -224,10 +223,31 @@ export class ReputationManager {
       ValidationErrors.Reputation, { [title]: info.addr })
 
     requireCond(BigNumber.from(info.stake).gte(this.minStake),
-      `${title} ${info.addr} stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`,
+      `${title} ${info.addr} ${tostr(info.stake) == '0' ? 'is unstaked' : `stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`}`,
       ValidationErrors.InsufficientStake)
     requireCond(BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay),
       `${title} ${info.addr} unstake delay ${tostr(info.unstakeDelaySec)} is too low (min=${tostr(this.minUnstakeDelay)})`,
       ValidationErrors.InsufficientStake)
+  }
+
+  /**
+   * Note to self: You want better function names? Write better specs.
+   * @param entity - the address of a non-sender unstaked entity.
+   * @returns maxMempoolCount - the number of UserOperations this entity is allowed to have in the mempool.
+   */
+  calculateMaxAllowedMempoolUserOpsUnstakedEntityNotSender (entity: string) {
+    entity = entity.toLowerCase()
+    const SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT = 10
+    const entry = this.entries[entity]
+    if (entry == null) {
+      return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT
+    }
+    const INCLUSION_RATE_FACTOR = 10
+    let inclusionRate = entry.opsIncluded / entry.opsSeen
+    if (entry.opsSeen == 0) {
+      // prevent NaN of Infinity in tests
+      inclusionRate = 0
+    }
+    return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT + Math.floor(inclusionRate * INCLUSION_RATE_FACTOR) + (Math.min(entry.opsIncluded, 10000))
   }
 }
