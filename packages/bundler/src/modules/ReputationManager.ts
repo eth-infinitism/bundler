@@ -21,8 +21,8 @@ export interface ReputationParams {
 
 export const BundlerReputationParams: ReputationParams = {
   minInclusionDenominator: 10,
-  throttlingSlack: 10,
-  banSlack: 50
+  throttlingSlack: 5,
+  banSlack: 10
 }
 
 export const NonBundlerReputationParams: ReputationParams = {
@@ -86,6 +86,7 @@ export class ReputationManager {
   }
 
   _getOrCreate (addr: string): ReputationEntry {
+    addr = addr.toLowerCase()
     let entry = this.entries[addr]
     if (entry == null) {
       this.entries[addr] = entry = {
@@ -127,6 +128,7 @@ export class ReputationManager {
 
   // https://github.com/eth-infinitism/account-abstraction/blob/develop/eip/EIPS/eip-4337.md#reputation-scoring-and-throttlingbanning-for-paymasters
   getStatus (addr?: string): ReputationStatus {
+    addr = addr?.toLowerCase()
     if (addr == null || this.whitelist.has(addr)) {
       return ReputationStatus.OK
     }
@@ -176,13 +178,33 @@ export class ReputationManager {
    */
   setReputation (reputations: ReputationDump): ReputationDump {
     reputations.forEach(rep => {
-      this.entries[rep.address] = {
+      this.entries[rep.address.toLowerCase()] = {
         address: rep.address,
         opsSeen: rep.opsSeen,
         opsIncluded: rep.opsIncluded
       }
     })
     return this.dump()
+  }
+
+  /**
+   * check the given address (account/paymaster/deployer/aggregator) is banned
+   * unlike {@link checkStake} does not check whitelist or stake
+   */
+  checkBanned (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info: StakeInfo): void {
+    requireCond(this.getStatus(info.addr) !== ReputationStatus.BANNED,
+      `${title} ${info.addr} is banned`,
+      ValidationErrors.Reputation, { [title]: info.addr })
+  }
+
+  /**
+   * check the given address (account/paymaster/deployer/aggregator) is throttled
+   * unlike {@link checkStake} does not check whitelist or stake
+   */
+  checkThrottled (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info: StakeInfo): void {
+    requireCond(this.getStatus(info.addr) !== ReputationStatus.THROTTLED,
+      `${title} ${info.addr} is throttled`,
+      ValidationErrors.Reputation, { [title]: info.addr })
   }
 
   /**
@@ -200,10 +222,30 @@ export class ReputationManager {
       ValidationErrors.Reputation, { [title]: info.addr })
 
     requireCond(BigNumber.from(info.stake).gte(this.minStake),
-      `${title} ${info.addr} stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`,
+      `${title} ${info.addr} ${tostr(info.stake) === '0' ? 'is unstaked' : `stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`}`,
       ValidationErrors.InsufficientStake)
     requireCond(BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay),
       `${title} ${info.addr} unstake delay ${tostr(info.unstakeDelaySec)} is too low (min=${tostr(this.minUnstakeDelay)})`,
       ValidationErrors.InsufficientStake)
+  }
+
+  /**
+   * @param entity - the address of a non-sender unstaked entity.
+   * @returns maxMempoolCount - the number of UserOperations this entity is allowed to have in the mempool.
+   */
+  calculateMaxAllowedMempoolOpsUnstaked (entity: string): number {
+    entity = entity.toLowerCase()
+    const SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT = 10
+    const entry = this.entries[entity]
+    if (entry == null) {
+      return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT
+    }
+    const INCLUSION_RATE_FACTOR = 10
+    let inclusionRate = entry.opsIncluded / entry.opsSeen
+    if (entry.opsSeen === 0) {
+      // prevent NaN of Infinity in tests
+      inclusionRate = 0
+    }
+    return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT + Math.floor(inclusionRate * INCLUSION_RATE_FACTOR) + (Math.min(entry.opsIncluded, 10000))
   }
 }
