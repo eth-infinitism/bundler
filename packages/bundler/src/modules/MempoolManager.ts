@@ -86,7 +86,7 @@ export class MempoolManager {
         this.setEntryCount(factory, (this.entryCount(factory) ?? 0) + 1)
       }
       // this.checkSenderCountInMempool(userOp, senderInfo)
-      this.checkReputationStatus(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.mempool.push(entry)
     }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp)
@@ -100,50 +100,38 @@ export class MempoolManager {
 
   // TODO: de-duplicate code
   // TODO 2: use configuration parameters instead of hard-coded constants
-  private checkReputationStatus (
+  private checkReputation (
     senderInfo: StakeInfo,
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.reputationManager.checkBanned('account', senderInfo)
-    const entryCount = this.entryCount(senderInfo.addr) ?? 0
-    if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
-      this.reputationManager.checkThrottled('account', senderInfo)
-    }
-    if (entryCount > MAX_MEMPOOL_USEROPS_PER_SENDER) {
-      // account must have stake to send more than 4 transactions in the mempool
-      this.reputationManager.checkStake('account', paymasterInfo)
-    }
+    this.checkReputationStatus('account', senderInfo)
 
     if (paymasterInfo != null) {
-      const maxTxMempoolAllowedPaymaster = this.reputationManager.calculateMaxAllowedMempoolUserOpsUnstakedEntityNotSender(paymasterInfo.addr)
-      this.reputationManager.checkBanned('paymaster', paymasterInfo)
-      const entryCount = this.entryCount(paymasterInfo.addr) ?? 0
-      if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT){
-        this.reputationManager.checkThrottled('paymaster', paymasterInfo)
-      }
-      if (entryCount > maxTxMempoolAllowedPaymaster) {
-        this.reputationManager.checkStake('paymaster', paymasterInfo)
-      }
+      this.checkReputationStatus('paymaster', paymasterInfo)
     }
 
     if (factoryInfo != null) {
-      const maxTxMempoolAllowedPaymaster = this.reputationManager.calculateMaxAllowedMempoolUserOpsUnstakedEntityNotSender(factoryInfo.addr)
-      this.reputationManager.checkBanned('deployer', factoryInfo)
-      const entryCount = this.entryCount(factoryInfo.addr) ?? 0
-      if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT){
-        this.reputationManager.checkThrottled('deployer', factoryInfo)
-      }
-      if ((this.entryCount(factoryInfo.addr) ?? 0) > maxTxMempoolAllowedPaymaster) {
-        this.reputationManager.checkStake('deployer', factoryInfo)
-      }
+      this.checkReputationStatus('deployer', factoryInfo)
     }
 
     if (aggregatorInfo != null) {
-      this.reputationManager.checkBanned('aggregator', aggregatorInfo)
-      if ((this.entryCount(aggregatorInfo.addr) ?? 0) > MAX_MEMPOOL_USEROPS_PER_SENDER) {
-        this.reputationManager.checkStake('aggregator', aggregatorInfo)
-      }
+      this.checkReputationStatus('deployer', aggregatorInfo)
+    }
+  }
+
+  private checkReputationStatus (
+    title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
+    stakeInfo: StakeInfo
+  ): void{
+    const maxTxMempoolAllowedPaymaster = this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(stakeInfo.addr)
+    this.reputationManager.checkBanned(title, stakeInfo)
+    const entryCount = this.entryCount(stakeInfo.addr) ?? 0
+    if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT){
+      this.reputationManager.checkThrottled(title, stakeInfo)
+    }
+    if (entryCount > maxTxMempoolAllowedPaymaster) {
+      this.reputationManager.checkStake(title, stakeInfo)
     }
   }
 

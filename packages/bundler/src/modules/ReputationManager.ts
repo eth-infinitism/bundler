@@ -231,11 +231,10 @@ export class ReputationManager {
   }
 
   /**
-   * Note to self: You want better function names? Write better specs.
    * @param entity - the address of a non-sender unstaked entity.
    * @returns maxMempoolCount - the number of UserOperations this entity is allowed to have in the mempool.
    */
-  calculateMaxAllowedMempoolUserOpsUnstakedEntityNotSender (entity: string) {
+  calculateMaxAllowedMempoolOpsUnstaked (entity: string) {
     entity = entity.toLowerCase()
     const SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT = 10
     const entry = this.entries[entity]
