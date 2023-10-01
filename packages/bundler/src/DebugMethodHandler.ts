@@ -50,11 +50,19 @@ export class DebugMethodHandler {
     return this.mempoolMgr.dump()
   }
 
+  clearMempool (): void {
+    this.mempoolMgr.clearState()
+  }
+
   setReputation (param: any): ReputationDump {
     return this.repManager.setReputation(param)
   }
 
   dumpReputation (): ReputationDump {
     return this.repManager.dump()
+  }
+
+  clearReputation (): void {
+    this.repManager.clearState()
   }
 }
