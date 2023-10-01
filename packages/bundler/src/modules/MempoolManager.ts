@@ -31,22 +31,21 @@ export class MempoolManager {
     return this._entryCount[address.toLowerCase()]
   }
 
-  incrementEntryCount (address?: string) {
+  incrementEntryCount (address?: string): void {
     address = address?.toLowerCase()
     if (address == null) {
       return
     }
     this._entryCount[address] = (this._entryCount[address] ?? 0) + 1
-    return this._entryCount[address]
   }
 
-  decrementEntryCount (address?: string) {
+  decrementEntryCount (address?: string): void {
     address = address?.toLowerCase()
     if (address == null || this._entryCount[address] == null) {
       return
     }
     this._entryCount[address] = (this._entryCount[address] ?? 0) - 1
-    if (this._entryCount[address] ?? 0 <= 0) {
+    if ((this._entryCount[address] ?? 0) <= 0) {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete this._entryCount[address]
     }
