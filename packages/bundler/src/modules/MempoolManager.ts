@@ -1,7 +1,7 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr } from './moduleUtils'
 import { requireCond } from '../utils'
-import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
 
@@ -31,12 +31,24 @@ export class MempoolManager {
     return this._entryCount[address.toLowerCase()]
   }
 
-  // todo: replace with 'increment' and 'decrement' functions
-  setEntryCount (address: string, count: number): void {
-    this._entryCount[address.toLowerCase()] = count
-    if (count <= 0) {
+  incrementEntryCount (address?: string) {
+    address = address?.toLowerCase()
+    if (address == null) {
+      return
+    }
+    this._entryCount[address] = (this._entryCount[address] ?? 0) + 1
+    return this._entryCount[address]
+  }
+
+  decrementEntryCount (address?: string) {
+    address = address?.toLowerCase()
+    if (address == null || this._entryCount[address] == null) {
+      return
+    }
+    this._entryCount[address] = (this._entryCount[address] ?? 0) - 1
+    if (this._entryCount[address] ?? 0 <= 0) {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete this._entryCount[address.toLowerCase()]
+      delete this._entryCount[address]
     }
   }
 
@@ -76,14 +88,14 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
-      this.setEntryCount(userOp.sender, (this.entryCount(userOp.sender) ?? 0) + 1)
+      this.incrementEntryCount(userOp.sender)
       const paymaster = getAddr(userOp.paymasterAndData)
       if (paymaster != null) {
-        this.setEntryCount(paymaster, (this.entryCount(paymaster) ?? 0) + 1)
+        this.incrementEntryCount(paymaster)
       }
       const factory = getAddr(userOp.initCode)
       if (factory != null) {
-        this.setEntryCount(factory, (this.entryCount(factory) ?? 0) + 1)
+        this.incrementEntryCount(factory)
       }
       // this.checkSenderCountInMempool(userOp, senderInfo)
       this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
@@ -105,7 +117,7 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo)
+    this.checkReputationStatus('account', senderInfo, MAX_MEMPOOL_USEROPS_PER_SENDER)
 
     if (paymasterInfo != null) {
       this.checkReputationStatus('paymaster', paymasterInfo)
@@ -116,21 +128,23 @@ export class MempoolManager {
     }
 
     if (aggregatorInfo != null) {
-      this.checkReputationStatus('deployer', aggregatorInfo)
+      this.checkReputationStatus('aggregator', aggregatorInfo)
     }
   }
 
   private checkReputationStatus (
     title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
-    stakeInfo: StakeInfo
-  ): void{
-    const maxTxMempoolAllowedPaymaster = this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(stakeInfo.addr)
+    stakeInfo: StakeInfo,
+    maxTxMempoolAllowedOverride?: number
+  ): void {
+    const maxTxMempoolAllowedEntity = maxTxMempoolAllowedOverride ??
+      this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(stakeInfo.addr)
     this.reputationManager.checkBanned(title, stakeInfo)
     const entryCount = this.entryCount(stakeInfo.addr) ?? 0
-    if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT){
+    if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
       this.reputationManager.checkThrottled(title, stakeInfo)
     }
-    if (entryCount > maxTxMempoolAllowedPaymaster) {
+    if (entryCount > maxTxMempoolAllowedEntity) {
       this.reputationManager.checkStake(title, stakeInfo)
     }
   }
@@ -194,8 +208,10 @@ export class MempoolManager {
       const userOp = this.mempool[index].userOp
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
-      const count = (this.entryCount(userOp.sender) ?? 0) - 1
-      this.setEntryCount(userOp.sender, count)
+      this.decrementEntryCount(userOp.sender)
+      this.decrementEntryCount(getAddr(userOp.paymasterAndData))
+      this.decrementEntryCount(getAddr(userOp.initCode))
+      // TODO: store and remove aggregator entity count
     }
   }
 
