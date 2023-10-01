@@ -58,9 +58,7 @@ export class ReputationManager {
    * debug: dump reputation map (with updated "status" for each entry)
    */
   dump (): ReputationDump {
-    const reputationDump = Object.values(this.entries)
-    console.log(`Reputations dump:\n${JSON.stringify(reputationDump)}`)
-    return reputationDump
+    return Object.values(this.entries)
   }
 
   /**
