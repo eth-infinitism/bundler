@@ -21,8 +21,8 @@ export interface ReputationParams {
 
 export const BundlerReputationParams: ReputationParams = {
   minInclusionDenominator: 10,
-  throttlingSlack: 5,
-  banSlack: 10
+  throttlingSlack: 10,
+  banSlack: 50
 }
 
 export const NonBundlerReputationParams: ReputationParams = {
@@ -58,6 +58,7 @@ export class ReputationManager {
    * debug: dump reputation map (with updated "status" for each entry)
    */
   dump (): ReputationDump {
+    Object.values(this.entries).forEach(entry => { entry.status = this.getStatus(entry.address) })
     return Object.values(this.entries)
   }
 

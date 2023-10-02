@@ -1,6 +1,8 @@
 // TODO: consider adopting config-loading approach from hardhat to allow code in config file
 import ow from 'ow'
 
+const MIN_UNSTAKE_DELAY = 86400
+const MIN_STAKE_VALUE = 1e18.toString()
 export interface BundlerConfig {
   beneficiary: string
   entryPoint: string
@@ -48,5 +50,7 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   port: '3000',
   entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   unsafe: false,
-  conditionalRpc: false
+  conditionalRpc: false,
+  minStake: MIN_STAKE_VALUE,
+  minUnstakeDelay: MIN_UNSTAKE_DELAY
 }
