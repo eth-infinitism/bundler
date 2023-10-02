@@ -214,6 +214,9 @@ export class BundlerServer {
           result = 'ok'
         }
         break
+      case 'debug_bundler_getAddressStakeStatus':
+        result = await this.debugHandler.getAddressStakeStatus(params[0], params[1])
+        break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)
     }

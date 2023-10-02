@@ -8,6 +8,7 @@ import { parseEther } from 'ethers/lib/utils'
 import { Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
+import { getNetworkProvider } from '../Config'
 
 /**
  * initialize server modules.
@@ -17,7 +18,7 @@ import { EventsManager } from './EventsManager'
  */
 export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
   const entryPoint = EntryPoint__factory.connect(config.entryPoint, signer)
-  const reputationManager = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+  const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
   const validationManager = new ValidationManager(entryPoint, reputationManager, config.unsafe)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
