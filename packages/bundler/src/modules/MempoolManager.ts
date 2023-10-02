@@ -96,8 +96,8 @@ export class MempoolManager {
       if (factory != null) {
         this.incrementEntryCount(factory)
       }
-      // this.checkSenderCountInMempool(userOp, senderInfo)
       this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+      this.checkMultipleRolesViolation(userOp)
       this.mempool.push(entry)
     }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
@@ -135,6 +135,27 @@ export class MempoolManager {
     if (aggregatorInfo != null) {
       this.checkReputationStatus('aggregator', aggregatorInfo)
     }
+  }
+
+  private checkMultipleRolesViolation (userOp: UserOperation): void {
+    const knownEntities = this.getKnownEntities()
+    requireCond(
+      !knownEntities.includes(userOp.sender.toLowerCase()),
+      `The sender address "${userOp.sender}" is used as a different entity in another UserOperation currently in mempool`,
+      ValidationErrors.OpcodeValidation
+    )
+
+    const knownSenders = this.getKnownSenders()
+    const paymaster = getAddr(userOp.paymasterAndData)?.toLowerCase()
+    const factory = getAddr(userOp.initCode)?.toLowerCase()
+
+    const isPaymasterSenderViolation = knownSenders.includes(paymaster?.toLowerCase() ?? '')
+    const isFactorySenderViolation = knownSenders.includes(factory?.toLowerCase() ?? '')
+    requireCond(
+      !isPaymasterSenderViolation && !isFactorySenderViolation,
+      `An entity in this UserOperation is used as a sender entity in another UserOperation currently in mempool. (${paymaster}:${isPaymasterSenderViolation};${factory}:${isFactorySenderViolation})`,
+      ValidationErrors.OpcodeValidation
+    )
   }
 
   private checkReputationStatus (
@@ -233,5 +254,34 @@ export class MempoolManager {
   clearState (): void {
     this.mempool = []
     this._entryCount = {}
+  }
+
+  /**
+   * Returns all addresses that are currently known to be "senders" according to the current mempool.
+   */
+  getKnownSenders (): string[] {
+    return this.getSortedForInclusion().map(it => {
+      return it.userOp.sender.toLowerCase()
+    })
+  }
+
+  /**
+   * Returns all addresses that are currently known to be any kind of entity according to the current mempool.
+   * Note that "sender" addresses are not returned by this function. Use {@link getKnownSenders} instead.
+   */
+  getKnownEntities (): string[] {
+    const res = []
+    const userOps = this.getSortedForInclusion()
+    res.push(
+      ...userOps.map(it => {
+        return getAddr(it.userOp.paymasterAndData)
+      })
+    )
+    res.push(
+      ...userOps.map(it => {
+        return getAddr(it.userOp.initCode)
+      })
+    )
+    return res.filter(it => it != null).map(it => (it as string).toLowerCase())
   }
 }
