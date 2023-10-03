@@ -159,7 +159,7 @@ export class MempoolManager {
     )
     requireCond(
       !isPaymasterSenderViolation,
-      `A Factory at ${factory} in this UserOperation is used as a sender entity in another UserOperation currently in mempool. (${paymaster}:${isPaymasterSenderViolation};${factory}:${isFactorySenderViolation})`,
+      `A Factory at ${factory} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
       ValidationErrors.OpcodeValidation
     )
   }
