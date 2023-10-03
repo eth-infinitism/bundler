@@ -151,9 +151,15 @@ export class MempoolManager {
 
     const isPaymasterSenderViolation = knownSenders.includes(paymaster?.toLowerCase() ?? '')
     const isFactorySenderViolation = knownSenders.includes(factory?.toLowerCase() ?? '')
+
     requireCond(
-      !isPaymasterSenderViolation && !isFactorySenderViolation,
-      `An entity in this UserOperation is used as a sender entity in another UserOperation currently in mempool. (${paymaster}:${isPaymasterSenderViolation};${factory}:${isFactorySenderViolation})`,
+      !isPaymasterSenderViolation,
+      `A Paymaster at ${paymaster} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
+      ValidationErrors.OpcodeValidation
+    )
+    requireCond(
+      !isFactorySenderViolation,
+      `A Factory at ${factory} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
       ValidationErrors.OpcodeValidation
     )
   }
@@ -260,7 +266,7 @@ export class MempoolManager {
    * Returns all addresses that are currently known to be "senders" according to the current mempool.
    */
   getKnownSenders (): string[] {
-    return this.getSortedForInclusion().map(it => {
+    return this.mempool.map(it => {
       return it.userOp.sender.toLowerCase()
     })
   }
@@ -271,7 +277,7 @@ export class MempoolManager {
    */
   getKnownEntities (): string[] {
     const res = []
-    const userOps = this.getSortedForInclusion()
+    const userOps = this.mempool
     res.push(
       ...userOps.map(it => {
         return getAddr(it.userOp.paymasterAndData)
