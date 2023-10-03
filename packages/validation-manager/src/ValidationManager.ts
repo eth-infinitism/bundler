@@ -1,17 +1,27 @@
-import { EntryPoint } from '@account-abstraction/contracts'
-import { ReputationManager } from './ReputationManager'
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
-import { requireCond, RpcError } from '../utils'
-import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { parseScannerResult } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
-import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
-import { GetCodeHashes__factory } from '../types'
-import { ReferencedCodeHashes, StakeInfo, StorageMap, UserOperation, ValidationErrors } from './Types'
-import { getAddr, runContractScript } from './moduleUtils'
+
+import { EntryPoint } from '@account-abstraction/contracts'
+import {
+  AddressZero,
+  ReferencedCodeHashes,
+  RpcError,
+  StakeInfo,
+  StorageMap,
+  UserOperation,
+  ValidationErrors,
+  decodeErrorReason,
+  getAddr,
+  requireCond,
+  runContractScript
+} from '@account-abstraction/utils'
+import { calcPreVerificationGas } from '@account-abstraction/sdk'
+
+import { tracerResultParser } from './TracerResultParser'
+import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './BundlerCollectorTracer'
+import { debug_traceCall } from './GethTracer'
+import { GetCodeHashes__factory } from '@account-abstraction/utils'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -47,7 +57,6 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 export class ValidationManager {
   constructor (
     readonly entryPoint: EntryPoint,
-    readonly reputationManager: ReputationManager,
     readonly unsafe: boolean) {
   }
 
@@ -91,9 +100,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-            ...info,
-            addr
-          }
+          ...info,
+          addr
+        }
     }
 
     return {
@@ -108,13 +117,13 @@ export class ValidationManager {
     }
   }
 
-  async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
+  async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerTracerResult]> {
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
-    const tracerResult: BundlerCollectorReturn = await debug_traceCall(provider, {
+    const tracerResult: BundlerTracerResult = await debug_traceCall(provider, {
       from: ethers.constants.AddressZero,
       to: this.entryPoint.address,
       data: simulateCall,
@@ -183,10 +192,10 @@ export class ValidationManager {
     }
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
-      let tracerResult: BundlerCollectorReturn
+      let tracerResult: BundlerTracerResult
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
@@ -216,10 +225,6 @@ export class ValidationManager {
     requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > now + VALID_UNTIL_FUTURE_SECONDS,
       'expires too soon',
       ValidationErrors.NotInTimeRange)
-
-    if (res.aggregatorInfo != null) {
-      this.reputationManager.checkStake('aggregator', res.aggregatorInfo)
-    }
 
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',

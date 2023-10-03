@@ -17,7 +17,7 @@ declare function toAddress (a: any): string
  * collect access and opcodes, split into "levels" based on NUMBER opcode
  * keccak, calls and logs are collected globally, since the levels are unimportant for them.
  */
-export interface BundlerCollectorReturn {
+export interface BundlerTracerResult {
   /**
    * storage and opcode info, collected on top-level calls from EntryPoint
    */
@@ -87,7 +87,7 @@ interface RelevantStepData {
  * type-safe local storage of our collector. contains all return-value properties.
  * (also defines all "trace-local" variables and functions)
  */
-interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
+interface BundlerCollectorTracer extends LogTracer, BundlerTracerResult {
   lastOp: string
   lastThreeOpcodes: RelevantStepData[]
   stopCollectingTopic: string
@@ -126,7 +126,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       this.debug.push('fault depth=', log.getDepth(), ' gas=', log.getGas(), ' cost=', log.getCost(), ' err=', log.getError())
     },
 
-    result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
+    result (ctx: LogContext, db: LogDb): BundlerTracerResult {
       return {
         callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,

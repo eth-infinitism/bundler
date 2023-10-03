@@ -10,7 +10,7 @@ import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstra
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
-import { RpcError } from './utils'
+import { RpcError } from '@account-abstraction/utils'
 import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 

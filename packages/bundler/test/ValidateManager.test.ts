@@ -19,13 +19,15 @@ import {
   TestCoin,
   TestCoin__factory
 } from '../src/types'
-import { ValidateUserOpResult, ValidationManager } from '../src/modules/ValidationManager'
 import { ReputationManager } from '../src/modules/ReputationManager'
-import { toBytes32 } from '../src/modules/moduleUtils'
-import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
-import { supportsDebugTraceCall } from '../src/utils'
+import { AddressZero, decodeErrorReason, toBytes32 } from '@account-abstraction/utils'
+
+import {
+  ValidateUserOpResult,
+  ValidationManager,
+  supportsDebugTraceCall
+} from '@account-abstraction/validation-manager'
 import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
-// import { resolveNames } from './testUtils'
 import { UserOperation } from '../src/modules/Types'
 
 const cEmptyUserOp: UserOperation = {

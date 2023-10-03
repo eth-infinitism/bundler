@@ -7,11 +7,10 @@ import { deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
 import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { requireCond, RpcError, tostr } from './utils'
+import { requireCond, RpcError, tostr, getAddr, ValidationErrors } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
-import { getAddr } from './modules/moduleUtils'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { ExecutionErrors, UserOperation, ValidationErrors } from './modules/Types'
+import { ExecutionErrors, UserOperation } from './modules/Types'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
