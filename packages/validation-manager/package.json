@@ -16,6 +16,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
+    "@account-abstraction/sdk": "0.6.0",
     "@account-abstraction/utils": "0.6.0"
   },
   "devDependencies": {
