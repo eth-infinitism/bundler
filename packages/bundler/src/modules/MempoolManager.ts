@@ -277,7 +277,7 @@ export class MempoolManager {
    */
   getKnownEntities (): string[] {
     const res = []
-    const userOps = this.getSortedForInclusion()
+    const userOps = this.mempool
     res.push(
       ...userOps.map(it => {
         return getAddr(it.userOp.paymasterAndData)
