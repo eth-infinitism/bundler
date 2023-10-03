@@ -5,12 +5,11 @@ import { Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
-import { AddressZero, deepHexlify, erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { AddressZero, deepHexlify, erc4337RuntimeVersion, RpcError } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
-import { RpcError } from '@account-abstraction/utils'
 import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 

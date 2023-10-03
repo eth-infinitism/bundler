@@ -59,7 +59,7 @@ export class ValidationManager {
     readonly entryPoint: EntryPoint,
     readonly unsafe: boolean,
     readonly abi: any[] = []
-) {}
+  ) {}
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
@@ -101,9 +101,9 @@ export class ValidationManager {
       return addr == null
         ? undefined
         : {
-          ...info,
-          addr
-        }
+            ...info,
+            addr
+          }
     }
 
     return {

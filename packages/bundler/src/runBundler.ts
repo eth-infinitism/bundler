@@ -1,7 +1,7 @@
 import fs from 'fs'
 
 import { Command } from 'commander'
-import { erc4337RuntimeVersion } from '@account-abstraction/utils'
+import { erc4337RuntimeVersion, supportsRpcMethod } from '@account-abstraction/utils'
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
@@ -11,7 +11,6 @@ import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
-import { supportsRpcMethod } from '@account-abstraction/utils'
 import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
