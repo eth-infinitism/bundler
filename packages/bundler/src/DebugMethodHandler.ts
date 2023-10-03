@@ -67,7 +67,7 @@ export class DebugMethodHandler {
     this.repManager.clearState()
   }
 
-  async getAddressStakeStatus (
+  async getStakeStatus (
     address: string,
     entryPoint: string
   ): Promise<{
