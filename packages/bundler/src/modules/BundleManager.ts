@@ -156,9 +156,7 @@ export class BundleManager {
     const senders = new Set<string>()
 
     // all entities that are known to be valid senders in the mempool
-    const knownSenders = entries.map(it => {
-      return it.userOp.sender.toLowerCase()
-    })
+    const knownSenders = this.mempoolManager.getKnownSenders()
 
     const storageMap: StorageMap = {}
     let totalGas = BigNumber.from(0)
