@@ -3,7 +3,6 @@ import { inspect } from 'util'
 import {
   EntryPoint,
   IAccount__factory,
-  IEntryPoint__factory,
   IPaymaster__factory,
   SenderCreator__factory
 } from '@account-abstraction/contracts'
@@ -22,11 +21,6 @@ import {
 import Debug from 'debug'
 import { ValidationResult } from './ValidationManager'
 import { BigNumber, BigNumberish } from 'ethers'
-import {
-  TestOpcodesAccount__factory,
-  TestOpcodesAccountFactory__factory,
-  TestStorageAccount__factory
-} from '@account-abstraction/bundler/dist/src/types'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -46,24 +40,12 @@ interface CallEntry {
  * - entries are ordered by the return (so nested call appears before its outer call
  * - last entry is top-level return from "simulateValidation". it as ret and rettype, but no type or address
  * @param tracerResults
+ * @param abi
  */
-function parseCallStack (tracerResults: BundlerTracerResult): CallEntry[] {
-  const abi = Object.values([
-    ...TestOpcodesAccount__factory.abi,
-    ...TestOpcodesAccountFactory__factory.abi,
-    ...TestStorageAccount__factory.abi,
-    ...SenderCreator__factory.abi,
-    ...IEntryPoint__factory.abi,
-    ...IPaymaster__factory.abi
-  ].reduce((set, entry) => {
-    const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
-    // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
-    return {
-      ...set,
-      [key]: entry
-    }
-  }, {})) as any
-
+function parseCallStack (
+  tracerResults: BundlerTracerResult,
+  abi: any[] = []
+): CallEntry[] {
   const xfaces = new Interface(abi)
 
   function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
@@ -184,7 +166,13 @@ const callsFromEntryPointMethodSigs: { [key: string]: string } = {
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
-export function tracerResultParser (userOp: UserOperation, tracerResults: BundlerTracerResult, validationResult: ValidationResult, entryPoint: EntryPoint): [string[], StorageMap] {
+export function tracerResultParser (
+  userOp: UserOperation,
+  tracerResults: BundlerTracerResult,
+  validationResult: ValidationResult,
+  entryPoint: EntryPoint,
+  abi: any[] = []
+): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -196,7 +184,7 @@ export function tracerResultParser (userOp: UserOperation, tracerResults: Bundle
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
     throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
-  const callStack = parseCallStack(tracerResults)
+  const callStack = parseCallStack(tracerResults, abi)
 
   const callInfoEntryPoint = callStack.find(call =>
     call.to === entryPointAddress && call.from !== entryPointAddress &&

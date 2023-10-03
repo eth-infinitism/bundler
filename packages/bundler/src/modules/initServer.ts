@@ -9,6 +9,7 @@ import { Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
 import { getNetworkProvider } from '../Config'
+import { abi } from './Types'
 
 /**
  * initialize server modules.
@@ -20,7 +21,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const entryPoint = EntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
-  const validationManager = new ValidationManager(entryPoint, reputationManager, config.unsafe)
+  const validationManager = new ValidationManager(entryPoint, config.unsafe, abi)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
     config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)

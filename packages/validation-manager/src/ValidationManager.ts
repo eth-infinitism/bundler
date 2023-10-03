@@ -5,6 +5,7 @@ import Debug from 'debug'
 import { EntryPoint } from '@account-abstraction/contracts'
 import {
   AddressZero,
+  GetCodeHashes__factory,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
@@ -21,7 +22,6 @@ import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { tracerResultParser } from './TracerResultParser'
 import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
-import { GetCodeHashes__factory } from '@account-abstraction/utils'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -57,8 +57,9 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 export class ValidationManager {
   constructor (
     readonly entryPoint: EntryPoint,
-    readonly unsafe: boolean) {
-  }
+    readonly unsafe: boolean,
+    readonly abi: any[] = []
+) {}
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
@@ -195,7 +196,7 @@ export class ValidationManager {
       let tracerResult: BundlerTracerResult
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint, this.abi)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
