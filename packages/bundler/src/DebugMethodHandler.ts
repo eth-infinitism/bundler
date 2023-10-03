@@ -50,14 +50,19 @@ export class DebugMethodHandler {
     return this.mempoolMgr.dump()
   }
 
+  clearMempool (): void {
+    this.mempoolMgr.clearState()
+  }
+
   setReputation (param: any): ReputationDump {
-    if (param.reputation == null) {
-      throw new Error('expected structure { reputation: {addr:{opsSeen:1, opsIncluded:2} }')
-    }
     return this.repManager.setReputation(param)
   }
 
   dumpReputation (): ReputationDump {
     return this.repManager.dump()
+  }
+
+  clearReputation (): void {
+    this.repManager.clearState()
   }
 }

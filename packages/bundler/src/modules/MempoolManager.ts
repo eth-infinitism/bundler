@@ -1,6 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import { getAddr } from './moduleUtils'
-import { requireCond } from '../utils'
+import { requireCond, RpcError } from '../utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
 import { ReferencedCodeHashes, StakeInfo, UserOperation, ValidationErrors } from './Types'
@@ -18,13 +18,38 @@ export interface MempoolEntry {
 
 type MempoolDump = UserOperation[]
 
-const SAME_SENDER_MEMPOOL_COUNT = 4
+const MAX_MEMPOOL_USEROPS_PER_SENDER = 4
+const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
   private mempool: MempoolEntry[] = []
 
   // count entities in mempool.
-  private entryCount: { [addr: string]: number | undefined } = {}
+  private _entryCount: { [addr: string]: number | undefined } = {}
+
+  entryCount (address: string): number | undefined {
+    return this._entryCount[address.toLowerCase()]
+  }
+
+  incrementEntryCount (address?: string): void {
+    address = address?.toLowerCase()
+    if (address == null) {
+      return
+    }
+    this._entryCount[address] = (this._entryCount[address] ?? 0) + 1
+  }
+
+  decrementEntryCount (address?: string): void {
+    address = address?.toLowerCase()
+    if (address == null || this._entryCount[address] == null) {
+      return
+    }
+    this._entryCount[address] = (this._entryCount[address] ?? 0) - 1
+    if ((this._entryCount[address] ?? 0) <= 0) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete this._entryCount[address]
+    }
+  }
 
   constructor (
     readonly reputationManager: ReputationManager) {
@@ -37,13 +62,22 @@ export class MempoolManager {
   // add userOp into the mempool, after initial validation.
   // replace existing, if any (and if new gas is higher)
   // revets if unable to add UserOp to mempool (too many UserOps with this sender)
-  addUserOp (userOp: UserOperation, userOpHash: string, prefund: BigNumberish, senderInfo: StakeInfo, referencedContracts: ReferencedCodeHashes, aggregator?: string): void {
+  addUserOp (
+    userOp: UserOperation,
+    userOpHash: string,
+    prefund: BigNumberish,
+    referencedContracts: ReferencedCodeHashes,
+    senderInfo: StakeInfo,
+    paymasterInfo?: StakeInfo,
+    factoryInfo?: StakeInfo,
+    aggregatorInfo?: StakeInfo
+  ): void {
     const entry: MempoolEntry = {
       userOp,
       userOpHash,
       prefund,
       referencedContracts,
-      aggregator
+      aggregator: aggregatorInfo?.addr
     }
     const index = this._findBySenderNonce(userOp.sender, userOp.nonce)
     if (index !== -1) {
@@ -53,27 +87,70 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
-      this.entryCount[userOp.sender] = (this.entryCount[userOp.sender] ?? 0) + 1
-      this.checkSenderCountInMempool(userOp, senderInfo)
+      this.incrementEntryCount(userOp.sender)
+      const paymaster = getAddr(userOp.paymasterAndData)
+      if (paymaster != null) {
+        this.incrementEntryCount(paymaster)
+      }
+      const factory = getAddr(userOp.initCode)
+      if (factory != null) {
+        this.incrementEntryCount(factory)
+      }
+      // this.checkSenderCountInMempool(userOp, senderInfo)
+      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.mempool.push(entry)
     }
-    this.updateSeenStatus(aggregator, userOp)
+    this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
 
-  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation): void {
+  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation, senderInfo: StakeInfo): void {
+    try {
+      this.reputationManager.checkStake('account', senderInfo)
+      this.reputationManager.updateSeenStatus(userOp.sender)
+    } catch (e: any) {
+      if (!(e instanceof RpcError)) throw e
+    }
     this.reputationManager.updateSeenStatus(aggregator)
     this.reputationManager.updateSeenStatus(getAddr(userOp.paymasterAndData))
     this.reputationManager.updateSeenStatus(getAddr(userOp.initCode))
   }
 
-  // check if there are already too many entries in mempool for that sender.
-  // (allow 4 entities if unstaked, or any number if staked)
-  private checkSenderCountInMempool (userOp: UserOperation, senderInfo: StakeInfo): void {
-    // [STO-050]
-    if ((this.entryCount[userOp.sender] ?? 0) > SAME_SENDER_MEMPOOL_COUNT) {
-      // already enough entities with this sender in mempool.
-      // check that it is staked
-      this.reputationManager.checkStake('account', senderInfo)
+  // TODO: de-duplicate code
+  // TODO 2: use configuration parameters instead of hard-coded constants
+  private checkReputation (
+    senderInfo: StakeInfo,
+    paymasterInfo?: StakeInfo,
+    factoryInfo?: StakeInfo,
+    aggregatorInfo?: StakeInfo): void {
+    this.checkReputationStatus('account', senderInfo, MAX_MEMPOOL_USEROPS_PER_SENDER)
+
+    if (paymasterInfo != null) {
+      this.checkReputationStatus('paymaster', paymasterInfo)
+    }
+
+    if (factoryInfo != null) {
+      this.checkReputationStatus('deployer', factoryInfo)
+    }
+
+    if (aggregatorInfo != null) {
+      this.checkReputationStatus('aggregator', aggregatorInfo)
+    }
+  }
+
+  private checkReputationStatus (
+    title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
+    stakeInfo: StakeInfo,
+    maxTxMempoolAllowedOverride?: number
+  ): void {
+    const maxTxMempoolAllowedEntity = maxTxMempoolAllowedOverride ??
+      this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(stakeInfo.addr)
+    this.reputationManager.checkBanned(title, stakeInfo)
+    const entryCount = this.entryCount(stakeInfo.addr) ?? 0
+    if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
+      this.reputationManager.checkThrottled(title, stakeInfo)
+    }
+    if (entryCount > maxTxMempoolAllowedEntity) {
+      this.reputationManager.checkStake(title, stakeInfo)
     }
   }
 
@@ -136,13 +213,10 @@ export class MempoolManager {
       const userOp = this.mempool[index].userOp
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
-      const count = (this.entryCount[userOp.sender] ?? 0) - 1
-      if (count <= 0) {
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete this.entryCount[userOp.sender]
-      } else {
-        this.entryCount[userOp.sender] = count
-      }
+      this.decrementEntryCount(userOp.sender)
+      this.decrementEntryCount(getAddr(userOp.paymasterAndData))
+      this.decrementEntryCount(getAddr(userOp.initCode))
+      // TODO: store and remove aggregator entity count
     }
   }
 
@@ -158,6 +232,6 @@ export class MempoolManager {
    */
   clearState (): void {
     this.mempool = []
-    this.entryCount = {}
+    this._entryCount = {}
   }
 }
