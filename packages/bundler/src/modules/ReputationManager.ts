@@ -1,7 +1,10 @@
 import Debug from 'debug'
 import { requireCond, tostr } from '../utils'
 import { BigNumber } from 'ethers'
+import { Provider } from '@ethersproject/providers'
+
 import { StakeInfo, ValidationErrors } from './Types'
+import { IStakeManager__factory } from '../types'
 
 const debug = Debug('aa.rep')
 
@@ -42,6 +45,7 @@ export type ReputationDump = ReputationEntry[]
 
 export class ReputationManager {
   constructor (
+    readonly provider: Provider,
     readonly params: ReputationParams,
     readonly minStake: BigNumber,
     readonly minUnstakeDelay: number) {
@@ -146,6 +150,25 @@ export class ReputationManager {
       return ReputationStatus.THROTTLED
     } else {
       return ReputationStatus.BANNED
+    }
+  }
+
+  async getStakeStatus (address: string, entryPointAddress: string): Promise<{
+    stakeInfo: StakeInfo
+    isStaked: boolean
+  }> {
+    const sm = IStakeManager__factory.connect(entryPointAddress, this.provider)
+    const info = await sm.getDepositInfo(address)
+    const isStaked =
+      BigNumber.from(info.stake).gte(this.minStake) &&
+      BigNumber.from(info.unstakeDelaySec).gte(this.minUnstakeDelay)
+    return {
+      stakeInfo: {
+        addr: address,
+        stake: info.stake.toString(),
+        unstakeDelaySec: info.unstakeDelaySec.toString()
+      },
+      isStaked
     }
   }
 
