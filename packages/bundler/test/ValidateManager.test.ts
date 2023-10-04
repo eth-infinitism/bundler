@@ -134,11 +134,11 @@ describe('#ValidationManager', () => {
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
     const reputationManager = new ReputationManager(provider, {
-        minInclusionDenominator: 1,
-        throttlingSlack: 1,
-        banSlack: 1
-      },
-      parseEther('0'), 0)
+      minInclusionDenominator: 1,
+      throttlingSlack: 1,
+      banSlack: 1
+    },
+    parseEther('0'), 0)
     const unsafe = !await supportsDebugTraceCall(provider)
     vm = new ValidationManager(entryPoint, reputationManager, unsafe)
 
@@ -380,5 +380,4 @@ describe('#ValidationManager', () => {
       ).to.be.rejectedWith('account uses banned opcode: COINBASE')
     })
   })
-
 })
