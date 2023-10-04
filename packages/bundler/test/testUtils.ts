@@ -1,6 +1,7 @@
 import { BigNumber, Signer, Wallet } from 'ethers'
 import { HDNode, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
+import { ReputationParams } from '../src/modules/ReputationManager'
 
 // create an hdkey signer, and fund it, if needed.
 export async function createSigner (): Promise<Signer> {
@@ -40,4 +41,10 @@ export function resolveNames<T> (json: T, nameToAddress: { [name: string]: strin
       }
     })
   return JSON.parse(s1)
+}
+
+export const BundlerReputationTestParams: ReputationParams = {
+  minInclusionDenominator: 10,
+  throttlingSlack: 10,
+  banSlack: 50
 }

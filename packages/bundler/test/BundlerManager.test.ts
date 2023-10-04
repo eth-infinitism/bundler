@@ -8,7 +8,7 @@ import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { ethers } from 'hardhat'
-import { BundlerConfig } from '../src/BundlerConfig'
+import { BundlerConfig, eipDefaultParams } from '../src/BundlerConfig'
 import { ValidationManager } from '../src/modules/ValidationManager'
 import { TestFakeWalletToken__factory } from '../src/types'
 import { UserOperation } from '../src/modules/Types'
@@ -40,13 +40,17 @@ describe('#BundlerManager', () => {
       unsafe: !await supportsDebugTraceCall(provider as any),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
+      conditionalRpc: false,
       maxBundleGas: 5e6,
-      // minstake zero, since we don't fund deployer.
-      minStake: '0',
-      minUnstakeDelay: 0
+      eipParams: {
+        // minstake zero, since we don't fund deployer.
+        ...eipDefaultParams,
+        MIN_STAKE_VALUE: '0',
+        MIN_UNSTAKE_DELAY: '0'
+      }
     }
 
-    const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+    const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.eipParams.MIN_STAKE_VALUE), parseInt(config.eipParams.MIN_UNSTAKE_DELAY))
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
     bm = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)

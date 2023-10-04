@@ -4,7 +4,6 @@ import { MempoolManager } from './modules/MempoolManager'
 import { SendBundleReturn } from './modules/BundleManager'
 import { EventsManager } from './modules/EventsManager'
 import { StakeInfo } from './modules/Types'
-import { EipParameters } from './BundlerConfig'
 
 export class DebugMethodHandler {
   constructor (
