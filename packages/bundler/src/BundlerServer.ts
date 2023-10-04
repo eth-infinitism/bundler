@@ -217,6 +217,9 @@ export class BundlerServer {
       case 'debug_bundler_getStakeStatus':
         result = await this.debugHandler.getStakeStatus(params[0], params[1])
         break
+      case 'debug_bundler_getConfiguration':
+        result = this.config.eipParams
+        break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)
     }

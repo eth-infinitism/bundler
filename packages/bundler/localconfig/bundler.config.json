@@ -7,8 +7,11 @@
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 5e6,
-  "minStake": "1" ,
-  "minUnstakeDelay": 0 ,
+  "eipParams":
+    {
+      "MIN_STAKE_VALUE": "1",
+      "MIN_UNSTAKE_DELAY": "86400"
+    },
   "autoBundleInterval": 3,
   "autoBundleMempoolSize": 10
 }

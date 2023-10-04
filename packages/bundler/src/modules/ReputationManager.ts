@@ -22,18 +22,6 @@ export interface ReputationParams {
   banSlack: number
 }
 
-export const BundlerReputationParams: ReputationParams = {
-  minInclusionDenominator: 10,
-  throttlingSlack: 10,
-  banSlack: 50
-}
-
-export const NonBundlerReputationParams: ReputationParams = {
-  minInclusionDenominator: 100,
-  throttlingSlack: 10,
-  banSlack: 10
-}
-
 interface ReputationEntry {
   address: string
   opsSeen: number
