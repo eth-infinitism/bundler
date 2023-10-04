@@ -10,8 +10,8 @@ be called from these methods within the ERC-4337 transaction context.
 
 ```typescript
 import { UserOperation } from '@account-abstraction/utils'
-import { checkUserOpRulesViolations } from '@account-abstraction/validation-manager'
+import { checkRulesViolations } from '@account-abstraction/validation-manager'
 
 const userOperation: UserOperation = createUserOp()
-checkUserOpRulesViolations(provider, userOperation, entryPoint)
+checkRulesViolations(provider, userOperation, entryPoint)
 ```
