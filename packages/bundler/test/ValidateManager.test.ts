@@ -7,7 +7,8 @@ import { AddressZero, decodeErrorReason, toBytes32 } from '@account-abstraction/
 import {
   ValidateUserOpResult,
   ValidationManager,
-  supportsDebugTraceCall, checkUserOpRulesViolations
+  checkRulesViolations,
+  supportsDebugTraceCall
 } from '@account-abstraction/validation-manager'
 
 import {
@@ -369,14 +370,14 @@ describe('#ValidationManager', () => {
   describe('ValidationPackage', () => {
     it('should pass for a transaction that does not violate the rules', async () => {
       const userOp = await createTestUserOp()
-      const res = await checkUserOpRulesViolations(provider, userOp, entryPoint.address)
+      const res = await checkRulesViolations(provider, userOp, entryPoint.address)
       assert.equal(res.returnInfo.sigFailed, false)
     })
 
     it('should throw for a transaction that violates the rules', async () => {
       const userOp = await createTestUserOp('coinbase')
       await expect(
-        checkUserOpRulesViolations(provider, userOp, entryPoint.address)
+        checkRulesViolations(provider, userOp, entryPoint.address)
       ).to.be.rejectedWith('account uses banned opcode: COINBASE')
     })
   })

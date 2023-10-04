@@ -5,7 +5,7 @@ import Debug from 'debug'
 import { IEntryPoint } from '@account-abstraction/contracts'
 import {
   AddressZero,
-  GetCodeHashes__factory,
+  CodeHashGetter__factory,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
@@ -241,7 +241,7 @@ export class ValidationManager {
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
     const { hash } = await runContractScript(
       this.entryPoint.provider,
-      new GetCodeHashes__factory(),
+      new CodeHashGetter__factory(),
       [addresses]
     )
 

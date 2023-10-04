@@ -21,7 +21,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promis
   return ret.logs != null
 }
 
-export async function checkUserOpRulesViolations (
+export async function checkRulesViolations (
   provider: JsonRpcProvider,
   userOperation: UserOperation,
   entryPointAddress: string
