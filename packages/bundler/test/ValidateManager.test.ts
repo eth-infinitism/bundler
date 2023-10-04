@@ -1,33 +1,35 @@
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
+import { assert, expect } from 'chai'
 import { defaultAbiCoder, hexConcat, hexlify, keccak256, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
-import { expect } from 'chai'
-import {
-  TestOpcodesAccount,
-  TestOpcodesAccount__factory,
-  TestOpcodesAccountFactory,
-  TestOpcodesAccountFactory__factory,
-  TestRulesAccount,
-  TestRulesAccount__factory,
-  TestRulesAccountFactory__factory,
-  TestTimeRangeAccountFactory,
-  TestTimeRangeAccountFactory__factory,
-  TestStorageAccount__factory,
-  TestStorageAccountFactory,
-  TestStorageAccountFactory__factory,
-  TestStorageAccount,
-  TestCoin,
-  TestCoin__factory
-} from '../src/types'
-import { ReputationManager } from '../src/modules/ReputationManager'
-import { AddressZero, decodeErrorReason, toBytes32 } from '@account-abstraction/utils'
 
+import { AddressZero, decodeErrorReason, toBytes32 } from '@account-abstraction/utils'
 import {
   ValidateUserOpResult,
   ValidationManager,
-  supportsDebugTraceCall
+  supportsDebugTraceCall, checkUserOpRulesViolations
 } from '@account-abstraction/validation-manager'
-import { TestRecursionAccount__factory } from '../src/types/factories/contracts/tests/TestRecursionAccount__factory'
+
+import {
+  TestCoin,
+  TestCoin__factory,
+  TestOpcodesAccount,
+  TestOpcodesAccountFactory,
+  TestOpcodesAccountFactory__factory,
+  TestOpcodesAccount__factory,
+  TestRecursionAccount__factory,
+  TestRulesAccount,
+  TestRulesAccountFactory__factory,
+  TestRulesAccount__factory,
+  TestStorageAccount,
+  TestStorageAccountFactory,
+  TestStorageAccountFactory__factory,
+  TestStorageAccount__factory,
+  TestTimeRangeAccountFactory,
+  TestTimeRangeAccountFactory__factory
+} from '../src/types'
+import { ReputationManager } from '../src/modules/ReputationManager'
+
 import { UserOperation } from '../src/modules/Types'
 
 const cEmptyUserOp: UserOperation = {
@@ -132,11 +134,11 @@ describe('#ValidationManager', () => {
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
     const reputationManager = new ReputationManager(provider, {
-      minInclusionDenominator: 1,
-      throttlingSlack: 1,
-      banSlack: 1
-    },
-    parseEther('0'), 0)
+        minInclusionDenominator: 1,
+        throttlingSlack: 1,
+        banSlack: 1
+      },
+      parseEther('0'), 0)
     const unsafe = !await supportsDebugTraceCall(provider)
     vm = new ValidationManager(entryPoint, reputationManager, unsafe)
 
@@ -363,4 +365,20 @@ describe('#ValidationManager', () => {
       .catch(e => e.message)
     ).to.match(/account internally reverts on oog/)
   })
+
+  describe('ValidationPackage', () => {
+    it('should pass for a transaction that does not violate the rules', async () => {
+      const userOp = await createTestUserOp()
+      const res = await checkUserOpRulesViolations(provider, userOp, entryPoint.address)
+      assert.equal(res.returnInfo.sigFailed, false)
+    })
+
+    it('should throw for a transaction that violates the rules', async () => {
+      const userOp = await createTestUserOp('coinbase')
+      await expect(
+        checkUserOpRulesViolations(provider, userOp, entryPoint.address)
+      ).to.be.rejectedWith('account uses banned opcode: COINBASE')
+    })
+  })
+
 })

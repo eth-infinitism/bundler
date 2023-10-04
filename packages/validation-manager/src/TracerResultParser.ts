@@ -1,12 +1,14 @@
+import Debug from 'debug'
+import { BigNumber, BigNumberish } from 'ethers'
+import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
 import {
-  EntryPoint,
+  IEntryPoint,
   IAccount__factory,
   IPaymaster__factory,
   SenderCreator__factory
 } from '@account-abstraction/contracts'
-import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
   StakeInfo,
@@ -18,9 +20,7 @@ import {
   toBytes32
 } from '@account-abstraction/utils'
 
-import Debug from 'debug'
 import { ValidationResult } from './ValidationManager'
-import { BigNumber, BigNumberish } from 'ethers'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -164,13 +164,14 @@ const callsFromEntryPointMethodSigs: { [key: string]: string } = {
  * @param tracerResults the tracer return value
  * @param validationResult output from simulateValidation
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
+ * @param abi
  * @return list of contract addresses referenced by this UserOp
  */
 export function tracerResultParser (
   userOp: UserOperation,
   tracerResults: BundlerTracerResult,
   validationResult: ValidationResult,
-  entryPoint: EntryPoint,
+  entryPoint: IEntryPoint,
   abi: any[] = []
 ): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))

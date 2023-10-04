@@ -1,7 +1,7 @@
 // javascript code of tracer function
 // NOTE: we process this locally for hardhat, but send to geth for remote tracing.
 // should NOT "require" anything, or use logs.
-// see LogTrace for valid types (but alas, this one must be javascript, not typescript..
+// see LogTrace for valid types (but alas, this one must be javascript, not typescript).
 
 import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from './GethTracer'
 
@@ -122,11 +122,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     stopCollecting: false,
     topLevelCallCounter: 0,
 
-    fault (log: LogStep, db: LogDb): void {
+    fault (log: LogStep, _db: LogDb): void {
       this.debug.push('fault depth=', log.getDepth(), ' gas=', log.getGas(), ' cost=', log.getCost(), ' err=', log.getError())
     },
 
-    result (ctx: LogContext, db: LogDb): BundlerTracerResult {
+    result (_ctx: LogContext, _db: LogDb): BundlerTracerResult {
       return {
         callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,

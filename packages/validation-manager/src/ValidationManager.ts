@@ -2,7 +2,7 @@ import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
-import { EntryPoint } from '@account-abstraction/contracts'
+import { IEntryPoint } from '@account-abstraction/contracts'
 import {
   AddressZero,
   GetCodeHashes__factory,
@@ -56,7 +56,7 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class ValidationManager {
   constructor (
-    readonly entryPoint: EntryPoint,
+    readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean,
     readonly abi: any[] = []
   ) {}
