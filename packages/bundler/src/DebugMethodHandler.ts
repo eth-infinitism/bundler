@@ -3,6 +3,7 @@ import { ReputationDump, ReputationManager } from './modules/ReputationManager'
 import { MempoolManager } from './modules/MempoolManager'
 import { SendBundleReturn } from './modules/BundleManager'
 import { EventsManager } from './modules/EventsManager'
+import { StakeInfo } from './modules/Types'
 
 export class DebugMethodHandler {
   constructor (
@@ -64,5 +65,15 @@ export class DebugMethodHandler {
 
   clearReputation (): void {
     this.repManager.clearState()
+  }
+
+  async getStakeStatus (
+    address: string,
+    entryPoint: string
+  ): Promise<{
+      stakeInfo: StakeInfo
+      isStaked: boolean
+    }> {
+    return await this.repManager.getStakeStatus(address, entryPoint)
   }
 }
