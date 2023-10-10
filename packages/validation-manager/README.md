@@ -13,5 +13,5 @@ import { UserOperation } from '@account-abstraction/utils'
 import { checkRulesViolations } from '@account-abstraction/validation-manager'
 
 const userOperation: UserOperation = createUserOp()
-checkRulesViolations(provider, userOperation, entryPoint)
+await checkRulesViolations(provider, userOperation, entryPoint)
 ```

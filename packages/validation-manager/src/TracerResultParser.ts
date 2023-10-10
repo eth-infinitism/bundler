@@ -7,7 +7,7 @@ import {
   IEntryPoint,
   IAccount__factory,
   IPaymaster__factory,
-  SenderCreator__factory
+  SenderCreator__factory, IEntryPoint__factory
 } from '@account-abstraction/contracts'
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
@@ -34,6 +34,19 @@ interface CallEntry {
   value?: BigNumberish
 }
 
+const abi = Object.values([
+  ...SenderCreator__factory.abi,
+  ...IEntryPoint__factory.abi,
+  ...IPaymaster__factory.abi
+].reduce((set, entry) => {
+  const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
+  // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
+  return {
+    ...set,
+    [key]: entry
+  }
+}, {})) as any
+
 /**
  * parse all call operation in the trace.
  * notes:
@@ -43,8 +56,7 @@ interface CallEntry {
  * @param abi
  */
 function parseCallStack (
-  tracerResults: BundlerTracerResult,
-  abi: any[] = []
+  tracerResults: BundlerTracerResult
 ): CallEntry[] {
   const xfaces = new Interface(abi)
 
@@ -164,15 +176,13 @@ const callsFromEntryPointMethodSigs: { [key: string]: string } = {
  * @param tracerResults the tracer return value
  * @param validationResult output from simulateValidation
  * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
- * @param abi
  * @return list of contract addresses referenced by this UserOp
  */
 export function tracerResultParser (
   userOp: UserOperation,
   tracerResults: BundlerTracerResult,
   validationResult: ValidationResult,
-  entryPoint: IEntryPoint,
-  abi: any[] = []
+  entryPoint: IEntryPoint
 ): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
@@ -185,7 +195,7 @@ export function tracerResultParser (
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
     throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
-  const callStack = parseCallStack(tracerResults, abi)
+  const callStack = parseCallStack(tracerResults)
 
   const callInfoEntryPoint = callStack.find(call =>
     call.to === entryPointAddress && call.from !== entryPointAddress &&

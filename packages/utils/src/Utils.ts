@@ -39,6 +39,7 @@ export enum ValidationErrors {
   InsufficientStake = -32505,
   UnsupportedSignatureAggregator = -32506,
   InvalidSignature = -32507,
+  UserOperationReverted = -32521
 }
 
 export interface ReferencedCodeHashes {

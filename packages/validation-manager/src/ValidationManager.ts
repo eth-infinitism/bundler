@@ -57,8 +57,7 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 export class ValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
-    readonly unsafe: boolean,
-    readonly abi: any[] = []
+    readonly unsafe: boolean
   ) {}
 
   // standard eth_call to simulateValidation
@@ -196,7 +195,7 @@ export class ValidationManager {
       let tracerResult: BundlerTracerResult
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint, this.abi)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)

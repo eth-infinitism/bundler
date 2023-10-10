@@ -1,12 +1,12 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
 import { ValidationManager } from '@account-abstraction/validation-manager'
+import { UserOperation } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { BundleManager, SendBundleReturn } from './BundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
-import { UserOperation } from './Types'
 
 const debug = Debug('aa.exec')
 

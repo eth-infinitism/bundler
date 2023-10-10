@@ -9,7 +9,7 @@ import {
 } from '@account-abstraction/utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
-import { UserOperation } from './Types'
+import { UserOperation } from '@account-abstraction/utils'
 
 const debug = Debug('aa.mempool')
 

@@ -7,9 +7,9 @@ import { deepHexlify, erc4337RuntimeVersion, requireCond, RpcError, tostr, getAd
 import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { UserOperation } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { ExecutionErrors, UserOperation } from './modules/Types'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -131,7 +131,7 @@ export class UserOpMethodHandler {
       data: userOp.callData
     }).then(b => b.toNumber()).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
-      throw new RpcError(message, ExecutionErrors.UserOperationReverted)
+      throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
     validAfter = BigNumber.from(validAfter)
     validUntil = BigNumber.from(validUntil)

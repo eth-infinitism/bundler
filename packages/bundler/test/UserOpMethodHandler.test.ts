@@ -18,13 +18,13 @@ import {
   TestRulesAccount,
   TestRulesAccount__factory
 } from '../src/types'
+import { ValidationManager } from '@account-abstraction/validation-manager'
 import { resolveHexlify, waitFor } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { MempoolManager } from '../src/modules/MempoolManager'
-import { ValidationManager } from '../../validation-manager/src/ValidationManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
