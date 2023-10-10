@@ -3,13 +3,13 @@ import {
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
+  UserOperation,
   ValidationErrors,
   getAddr,
   requireCond
 } from '@account-abstraction/utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
-import { UserOperation } from '@account-abstraction/utils'
 
 const debug = Debug('aa.mempool')
 
