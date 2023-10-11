@@ -180,8 +180,7 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
   const entryPointAddress = entryPoint.address.toLowerCase()
 
   // opcodes from [OP-011]
-  // [OP-032]
-  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
+  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
