@@ -19,6 +19,8 @@ function usage(msg="") {
 	if (msg) console.error("FATAL:",msg)
 	console.error("usage: checkValidationRules {ruleFile.md} {folder}")
 	console.error("find rules in the format [www-###] in rulesFile and in folder. report matched (and missing) rules in source folder")
+	console.error("(unfortunately, the tool can only highlight the IDs in the source code, not their actual impelmentation....)")
+	console.error('e.g: ./scripts/checkRulesCoverage  ../account-abstraction/eip/EIPS/eip-aa-rules.md packages/bundler/src/' )
 	process.exit(1)
 }
 
