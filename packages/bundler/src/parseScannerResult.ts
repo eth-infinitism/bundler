@@ -318,6 +318,9 @@ export function parseScannerResult (userOp: UserOperation, tracerResults: Bundle
           // [STO-031]
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
+        } else if (writes[slot] == null) {
+          // [STO-033]: staked entity have read-only access to any storage in non-entity contract.
+          requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
           const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
