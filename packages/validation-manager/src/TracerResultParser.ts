@@ -1,13 +1,17 @@
+// This file contains references to validation rules, in the format [xxx-###]
+// where xxx is OP/STO/COD/EP/SREP/EREP/UREP/ALT, and ### is a number
+// the validation rules are defined in erc-aa-validation.md
 import Debug from 'debug'
 import { BigNumber, BigNumberish } from 'ethers'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
 import {
-  IEntryPoint,
   IAccount__factory,
+  IEntryPoint,
+  IEntryPoint__factory,
   IPaymaster__factory,
-  SenderCreator__factory, IEntryPoint__factory
+  SenderCreator__factory
 } from '@account-abstraction/contracts'
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
@@ -189,7 +193,8 @@ export function tracerResultParser (
 
   const entryPointAddress = entryPoint.address.toLowerCase()
 
-  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO'])
+  // opcodes from [OP-011]
+  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
 
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
@@ -197,14 +202,17 @@ export function tracerResultParser (
   }
   const callStack = parseCallStack(tracerResults)
 
+  // [OP-052], [OP-053]
   const callInfoEntryPoint = callStack.find(call =>
     call.to === entryPointAddress && call.from !== entryPointAddress &&
     (call.method !== '0x' && call.method !== 'depositTo'))
+  // [OP-054]
   requireCond(callInfoEntryPoint == null,
     `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
     ValidationErrors.OpcodeValidation
   )
 
+  // [OP-061]
   const illegalNonZeroValueCall = callStack.find(
     call =>
       call.to !== entryPointAddress &&
@@ -238,11 +246,15 @@ export function tracerResultParser (
     const opcodes = currentNumLevel.opcodes
     const access = currentNumLevel.access
 
+    // [OP-020]
     requireCond(!(currentNumLevel.oog ?? false),
       `${entityTitle} internally reverts on oog`, ValidationErrors.OpcodeValidation)
+
+    // opcodes from [OP-011]
     Object.keys(opcodes).forEach(opcode =>
       requireCond(!bannedOpCodes.has(opcode), `${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
     )
+    // [OP-031]
     if (entityTitle === 'factory') {
       requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entityTitle} with too many CREATE2`, ValidationErrors.OpcodeValidation)
     } else {
@@ -256,8 +268,10 @@ export function tracerResultParser (
       // testing read/write access on contract "addr"
       if (addr === sender) {
         // allowed to access sender's storage
+        // [STO-010]
         return
       }
+
       if (addr === entryPointAddress) {
         // ignore storage access on entryPoint (balance/deposit of entities.
         // we block them on method calls: only allowed to deposit, never to read
@@ -305,15 +319,21 @@ export function tracerResultParser (
         if (associatedWith(slot, sender, entitySlots)) {
           if (userOp.initCode.length > 2) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
+            // [STO-022], [STO-021]
             if (!(entityAddr === sender && isStaked(stakeInfoEntities.factory))) {
               requireStakeSlot = slot
             }
           }
         } else if (associatedWith(slot, entityAddr, entitySlots)) {
+          // [STO-032]
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
         } else if (addr === entityAddr) {
+          // [STO-031]
           // accessing storage member of entity itself requires stake.
+          requireStakeSlot = slot
+        } else if (writes[slot] == null) {
+          // [STO-033]: staked entity have read-only access to any storage in non-entity contract.
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
@@ -337,6 +357,7 @@ export function tracerResultParser (
         `unstaked ${entityTitle} accessed ${nameAddr(addr, entityTitle)} slot ${requireStakeSlot}`)
     })
 
+    // [EREP-050]
     if (entityTitle === 'paymaster') {
       const validatePaymasterUserOp = callStack.find(call => call.method === 'validatePaymasterUserOp' && call.to === entityAddr)
       const context = validatePaymasterUserOp?.return?.context
@@ -366,12 +387,14 @@ export function tracerResultParser (
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess: any
     for (const addr of Object.keys(currentNumLevel.contractSize)) {
+      // [OP-042]
       if (addr !== sender && currentNumLevel.contractSize[addr].contractSize <= 2) {
         illegalZeroCodeAccess = currentNumLevel.contractSize[addr]
         illegalZeroCodeAccess.address = addr
         break
       }
     }
+    // [OP-041]
     requireCond(
       illegalZeroCodeAccess == null,
       `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`, ValidationErrors.OpcodeValidation)

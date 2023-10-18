@@ -13,6 +13,8 @@ import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 
 const debug = Debug('aa.exec.cron')
 
+const THROTTLED_ENTITY_BUNDLE_COUNT = 4
+
 export interface SendBundleReturn {
   transactionHash: string
   userOpHashes: string[]
@@ -171,11 +173,13 @@ export class BundleManager {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
-      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > 1)) {
+      // [SREP-030]
+      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
-      if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > 1)) {
+      // [SREP-030]
+      if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
