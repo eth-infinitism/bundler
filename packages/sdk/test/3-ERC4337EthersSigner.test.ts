@@ -1,4 +1,4 @@
-import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils/dist/src/types'
+import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils'
 import { ethers } from 'hardhat'
 import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'

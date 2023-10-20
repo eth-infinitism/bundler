@@ -1,8 +1,8 @@
 import { TracerTest, TracerTest__factory } from '../src/types'
 import { ethers } from 'hardhat'
-import { debug_traceCall } from '../src/GethTracer'
+import { debug_traceCall } from '../../validation-manager/src/GethTracer'
 import { expect } from 'chai'
-import { BundlerCollectorReturn, bundlerCollectorTracer } from '../src/BundlerCollectorTracer'
+import { BundlerTracerResult, bundlerCollectorTracer } from '../../validation-manager/src/BundlerCollectorTracer'
 import { BytesLike } from 'ethers'
 
 const provider = ethers.provider
@@ -35,8 +35,8 @@ describe('#bundlerCollectorTracer', () => {
     expect(ret.debug.toString()).to.not.match(/REVERT/)
   })
 
-  async function traceCall (functionData: BytesLike): Promise<BundlerCollectorReturn> {
-    const ret: BundlerCollectorReturn = await debug_traceCall(provider, {
+  async function traceCall (functionData: BytesLike): Promise<BundlerTracerResult> {
+    const ret: BundlerTracerResult = await debug_traceCall(provider, {
       to: tester.address,
       data: functionData
     }, {
@@ -46,7 +46,7 @@ describe('#bundlerCollectorTracer', () => {
   }
 
   // wrap call in a call to self (depth+1)
-  async function traceExecSelf (functionData: BytesLike, useNumber = true, extraWrapper = false): Promise<BundlerCollectorReturn> {
+  async function traceExecSelf (functionData: BytesLike, useNumber = true, extraWrapper = false): Promise<BundlerTracerResult> {
     const execTestCallGas = tester.interface.encodeFunctionData('execSelf', [functionData, useNumber])
     if (extraWrapper) {
       // add another wreapper for "execSelf" (since our tracer doesn't collect stuff from top-level method
