@@ -129,7 +129,7 @@ describe('#ValidationManager', () => {
     await rulesFactory.create('')
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
-    const reputationManager = new ReputationManager({
+    const reputationManager = new ReputationManager(provider, {
       minInclusionDenominator: 1,
       throttlingSlack: 1,
       banSlack: 1

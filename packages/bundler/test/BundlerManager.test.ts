@@ -46,7 +46,7 @@ describe('#BundlerManager', () => {
       minUnstakeDelay: 0
     }
 
-    const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+    const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
     const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
@@ -99,7 +99,7 @@ describe('#BundlerManager', () => {
         minStake: '0',
         minUnstakeDelay: 0
       }
-      const repMgr = new ReputationManager(BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+      const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
       const validMgr = new ValidationManager(_entryPoint, repMgr, config.unsafe)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)

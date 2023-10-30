@@ -3,6 +3,7 @@ import { ReputationDump, ReputationManager } from './modules/ReputationManager'
 import { MempoolManager } from './modules/MempoolManager'
 import { SendBundleReturn } from './modules/BundleManager'
 import { EventsManager } from './modules/EventsManager'
+import { StakeInfo } from './modules/Types'
 
 export class DebugMethodHandler {
   constructor (
@@ -50,14 +51,29 @@ export class DebugMethodHandler {
     return this.mempoolMgr.dump()
   }
 
+  clearMempool (): void {
+    this.mempoolMgr.clearState()
+  }
+
   setReputation (param: any): ReputationDump {
-    if (param.reputation == null) {
-      throw new Error('expected structure { reputation: {addr:{opsSeen:1, opsIncluded:2} }')
-    }
     return this.repManager.setReputation(param)
   }
 
   dumpReputation (): ReputationDump {
     return this.repManager.dump()
+  }
+
+  clearReputation (): void {
+    this.repManager.clearState()
+  }
+
+  async getStakeStatus (
+    address: string,
+    entryPoint: string
+  ): Promise<{
+      stakeInfo: StakeInfo
+      isStaked: boolean
+    }> {
+    return await this.repManager.getStakeStatus(address, entryPoint)
   }
 }

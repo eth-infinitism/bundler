@@ -40,9 +40,11 @@ export class ExecutionManager {
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
         validationResult.returnInfo.prefund,
-        validationResult.senderInfo,
         validationResult.referencedContracts,
-        validationResult.aggregatorInfo?.addr)
+        validationResult.senderInfo,
+        validationResult.paymasterInfo,
+        validationResult.factoryInfo,
+        validationResult.aggregatorInfo)
       await this.attemptBundle(false)
     })
   }

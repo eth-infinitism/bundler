@@ -196,7 +196,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         this.lastThreeOpcodes.shift()
       }
       // this.debug.push(this.lastOp + '-' + opcode + '-' + log.getDepth() + '-' + log.getGas() + '-' + log.getCost())
-      if (log.getGas() < log.getCost()) {
+      if (log.getGas() < log.getCost() || (
+        // special rule for SSTORE with gas metering
+        opcode === 'SSTORE' && log.getGas() < 2300)
+      ) {
         this.currentLevel.oog = true
       }
       if (this.depth !== this.lastDepth) {
