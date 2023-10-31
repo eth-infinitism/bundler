@@ -207,6 +207,10 @@ export class BundlerServer {
         await this.debugHandler.setBundleInterval(params[0], params[1])
         result = 'ok'
         break
+      case 'debug_bundler_addUserOperations':
+        await this.debugHandler.addUserOperations(params[0])
+        result = 'ok'
+        break
       case 'debug_bundler_sendBundleNow':
         result = await this.debugHandler.sendBundleNow()
         if (result == null) {

@@ -3,7 +3,8 @@ import { ReputationDump, ReputationManager } from './modules/ReputationManager'
 import { MempoolManager } from './modules/MempoolManager'
 import { SendBundleReturn } from './modules/BundleManager'
 import { EventsManager } from './modules/EventsManager'
-import { StakeInfo } from '@account-abstraction/utils'
+import { ReferencedCodeHashes, StakeInfo, UserOperation } from '@account-abstraction/utils'
+import { UserOperationStruct } from '@account-abstraction/contracts'
 
 export class DebugMethodHandler {
   constructor (
@@ -75,5 +76,20 @@ export class DebugMethodHandler {
       isStaked: boolean
     }> {
     return await this.repManager.getStakeStatus(address, entryPoint)
+  }
+
+  addUserOperations (userOps: UserOperation[]): void {
+    userOps.forEach(userOp => {
+      const refs: ReferencedCodeHashes = { addresses: [], hash: '' }
+      const userOpHash = '' // used only by removeUserOp() when processing events.
+
+      // we treat sender as "staked", and ignore any factory or paymaster, to bypass any reputation issues
+      const senderInfo: StakeInfo = {
+        addr: userOp.sender,
+        stake: this.repManager.minStake,
+        unstakeDelaySec: this.repManager.minUnstakeDelay
+      }
+      this.mempoolMgr.addUserOp(userOp, userOpHash, refs, senderInfo, undefined, undefined, undefined)
+    })
   }
 }

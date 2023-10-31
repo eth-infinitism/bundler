@@ -16,7 +16,6 @@ const debug = Debug('aa.mempool')
 export interface MempoolEntry {
   userOp: UserOperation
   userOpHash: string
-  prefund: BigNumberish
   referencedContracts: ReferencedCodeHashes
   // aggregator, if one was found during simulation
   aggregator?: string
@@ -71,7 +70,6 @@ export class MempoolManager {
   addUserOp (
     userOp: UserOperation,
     userOpHash: string,
-    prefund: BigNumberish,
     referencedContracts: ReferencedCodeHashes,
     senderInfo: StakeInfo,
     paymasterInfo?: StakeInfo,
@@ -81,7 +79,6 @@ export class MempoolManager {
     const entry: MempoolEntry = {
       userOp,
       userOpHash,
-      prefund,
       referencedContracts,
       aggregator: aggregatorInfo?.addr
     }
