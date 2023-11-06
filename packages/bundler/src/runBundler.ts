@@ -1,7 +1,7 @@
 import fs from 'fs'
 
 import { Command } from 'commander'
-import { erc4337RuntimeVersion, supportsRpcMethod } from '@account-abstraction/utils'
+import { erc4337RuntimeVersion, RpcError, supportsRpcMethod } from '@account-abstraction/utils'
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
@@ -70,6 +70,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
+    .option('--debugRpc', 'enable debug rpc methods (auto-enabled for test node')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic <file>', 'create the mnemonic file')
@@ -98,6 +99,12 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   } = await provider.getNetwork()
 
   if (chainId === 31337 || chainId === 1337) {
+    if (config.debugRpc == null) {
+      console.log('== debugrpc was', config.debugRpc)
+      config.debugRpc = true
+    } else {
+      console.log('== debugrpc already st', config.debugRpc)
+    }
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
@@ -138,7 +145,13 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   )
   eventsManager.initEventListener()
-  const debugHandler = new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
+  const debugHandler = config.debugRpc ?? false
+    ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
+    : new Proxy({}, {
+      get (target: {}, method: string, receiver: any): any {
+        throw new RpcError(`method debug_bundler_${method} is not supported`, -32601)
+      }
+    }) as DebugMethodHandler
 
   const bundlerServer = new BundlerServer(
     methodHandler,
