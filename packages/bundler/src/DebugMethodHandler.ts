@@ -78,7 +78,7 @@ export class DebugMethodHandler {
     return await this.repManager.getStakeStatus(address, entryPoint)
   }
 
-  addUserOperations (userOps: UserOperation[]): void {
+  addUserOps (userOps: UserOperation[]): void {
     userOps.forEach(userOp => {
       const refs: ReferencedCodeHashes = { addresses: [], hash: '' }
       const userOpHash = '' // used only by removeUserOp() when processing events.
