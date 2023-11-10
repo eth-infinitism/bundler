@@ -10,10 +10,7 @@ import {
   getUserOpHashWithoutNonce,
 } from "@account-abstraction/utils";
 
-import {
-  AdvancedUserOperationStruct,
-  AdvancedUserOperations,
-} from "./AdvancedUserOp";
+import { AdvancedUserOperationStruct } from "./AdvancedUserOp";
 
 const debug = Debug("aa.rpc");
 
