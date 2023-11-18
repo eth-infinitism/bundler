@@ -12,6 +12,34 @@
   resolved "https://registry.npmjs.org/@account-abstraction/contracts/-/contracts-0.6.0.tgz"
   integrity sha512-8ooRJuR7XzohMDM4MV34I12Ci2bmxfE9+cixakRL7lA4BAwJKQ3ahvd8FbJa9kiwkUPCUNtj+/zxDQWYYalLMQ==
 
+"@account-abstraction/sdk@0.6.0", "@account-abstraction/sdk@^0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@account-abstraction/sdk/-/sdk-0.6.0.tgz#a9257e872ba54e6312d322af0802b40002e745b5"
+  integrity sha512-zZNOhMCNUTi8UkCks5x5GKAbuc7pjbsZzbCivfqlPRoldulG7ieauyVwQfnDxR3Qe0jsop7WWnShMmObe4sw/A==
+  dependencies:
+    "@account-abstraction/contracts" "^0.6.0"
+    "@account-abstraction/utils" "^0.6.0"
+    "@ethersproject/abstract-provider" "^5.7.0"
+    "@ethersproject/abstract-signer" "^5.7.0"
+    "@ethersproject/networks" "^5.7.0"
+    "@ethersproject/properties" "^5.7.0"
+    "@ethersproject/providers" "^5.7.0"
+    "@types/debug" "^4.1.7"
+    debug "^4.3.4"
+    ethers "^5.7.0"
+
+"@account-abstraction/utils@0.6.0", "@account-abstraction/utils@^0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@account-abstraction/utils/-/utils-0.6.0.tgz#78682b3e2c0adf64668ae23ba7aeae0d31e79022"
+  integrity sha512-K99c3TNrKjxXDkLLAYOP6DCg0v0FGqQmSQh+NCC9R44k8OOzQ7aOrfOxAqhRYWvhZnNiI4+BVdSrkvyzAXaLJw==
+  dependencies:
+    "@account-abstraction/contracts" "^0.6.0"
+    "@ethersproject/abi" "^5.7.0"
+    "@ethersproject/providers" "^5.7.0"
+    "@openzeppelin/contracts" "^4.7.3"
+    debug "^4.3.4"
+    ethers "^5.7.0"
+
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.22.5":
   version "7.22.5"
   resolved "https://registry.npmjs.org/@babel/code-frame/-/code-frame-7.22.5.tgz"
@@ -166,6 +194,18 @@
   version "0.5.7"
   resolved "https://registry.npmjs.org/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz"
   integrity sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==
+
+"@epoch-protocol/utils@^0.6.2":
+  version "0.6.2"
+  resolved "https://registry.yarnpkg.com/@epoch-protocol/utils/-/utils-0.6.2.tgz#8bc6d8e7ff3c1e554f3dd326c8348caa6ead01be"
+  integrity sha512-SwnIHAn1FBttz3XLDakU2xyz/XlvUVKK8Al8uRAT2msaAE/IkNqFk3bbEBBS589TqEFB6vrjOk9QB0Gh0gNYhg==
+  dependencies:
+    "@account-abstraction/contracts" "^0.6.0"
+    "@ethersproject/abi" "^5.7.0"
+    "@ethersproject/providers" "^5.7.0"
+    "@openzeppelin/contracts" "^4.7.3"
+    debug "^4.3.4"
+    ethers "^5.7.0"
 
 "@eslint-community/eslint-utils@^4.2.0":
   version "4.4.0"
