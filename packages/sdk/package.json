@@ -1,6 +1,6 @@
 {
-  "name": "@account-abstraction/sdk",
-  "version": "0.6.0",
+  "name": "@epoch-protocol/sdk",
+  "version": "0.8.2",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [

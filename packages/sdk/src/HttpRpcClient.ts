@@ -1,14 +1,14 @@
+import { UserOperationStruct } from "@account-abstraction/contracts";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { ethers } from "ethers";
 import { resolveProperties } from "ethers/lib/utils";
-import { UserOperationStruct } from "@account-abstraction/contracts";
 
-import Debug from "debug";
 import {
   NotPromise,
   deepHexlify,
   getUserOpHashWithoutNonce,
-} from "@account-abstraction/utils";
+} from "@epoch-protocol/utils";
+import Debug from "debug";
 
 import { AdvancedUserOperationStruct } from "./AdvancedUserOp";
 
