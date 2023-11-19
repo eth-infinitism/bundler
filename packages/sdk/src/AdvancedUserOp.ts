@@ -1,23 +1,19 @@
-import { UserOperationStruct } from '@account-abstraction/contracts'
-import { BigNumberish } from 'ethers';
+import { UserOperationStruct } from "@account-abstraction/contracts";
+import { BigNumberish } from "ethers";
 
 export interface AdvancedUserOperationStruct extends UserOperationStruct {
-    advancedUserOperation?: AdvancedUserOperations
-
+  advancedUserOperation?: AdvancedUserOperations;
 }
-
 export class AdvancedUserOperations {
-
-    executionTimeWindow?: ExecutionTimeWindow
-    executionConditions?: Array<ExecutionCondition>
+  executionTimeWindow?: ExecutionTimeWindow;
+  triggerEvent?: TriggerEvent;
 }
 export class ExecutionTimeWindow {
-    executionWindowStart!: BigNumberish;
-    executionWindowEnd!: BigNumberish;
+  executionWindowStart?: BigNumberish;
+  executionWindowEnd?: BigNumberish;
 }
-export class ExecutionCondition {
-    contract!: string;
-    eventSignature!: string;
-    eventLogHash!: string;
-
+export class TriggerEvent {
+  contractAddress?: string;
+  eventSignature?: string;
+  evaluationStatement?: string;
 }
