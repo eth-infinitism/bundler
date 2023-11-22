@@ -34,7 +34,6 @@ export async function wrapProvider (
     factoryAddress: SimpleAccountFactory,
     paymasterAPI: config.paymasterAPI
   })
-  debug('config=', config)
   const chainId = await originalProvider.getNetwork().then(net => net.chainId)
   const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, chainId)
   return await new ERC4337EthersProvider(

@@ -1,9 +1,8 @@
 import Debug from 'debug'
-import { requireCond, tostr } from '../utils'
 import { BigNumber } from 'ethers'
 import { Provider } from '@ethersproject/providers'
 
-import { StakeInfo, ValidationErrors } from './Types'
+import { StakeInfo, ValidationErrors, requireCond, tostr } from '@account-abstraction/utils'
 import { IStakeManager__factory } from '../types'
 
 const debug = Debug('aa.rep')
@@ -171,7 +170,8 @@ export class ReputationManager {
     }
     // todo: what value to put? how long do we want this banning to hold?
     const entry = this._getOrCreate(addr)
-    entry.opsSeen = 100
+    // [SREP-050]
+    entry.opsSeen += 10000
     entry.opsIncluded = 0
     debug('crashedHandleOps', addr, entry)
   }

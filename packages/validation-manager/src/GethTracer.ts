@@ -1,10 +1,9 @@
-import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
+import Debug from 'debug'
 import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
+import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { resolveProperties } from 'ethers/lib/utils'
-import Debug from 'debug'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
-//
 
 const debug = Debug('aa.tracer')
 
@@ -13,7 +12,7 @@ const debug = Debug('aa.tracer')
  * the function's body must be "{ return {...} }"
  * the body is executed as "geth" tracer, and thus must be self-contained (no external functions or references)
  * may only reference external functions defined by geth (see go-ethereum/eth/tracers/js): toHex, toWord, isPrecompiled, slice, toString(16)
- * (its OK if original function was in typescript: we extract its value as javascript
+ * (it is OK if original function was in typescript: we extract its value as javascript
  */
 type LogTracerFunc = () => LogTracer
 
