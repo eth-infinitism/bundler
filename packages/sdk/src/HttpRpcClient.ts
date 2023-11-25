@@ -13,7 +13,12 @@ import Debug from "debug";
 import { AdvancedUserOperationStruct } from "./AdvancedUserOp";
 
 const debug = Debug("aa.rpc");
-
+export class DeleteOperationStruct {
+  sender!: string;
+  chainId!: number;
+  nonce!: number;
+  signature!: string;
+}
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider;
 
@@ -64,6 +69,36 @@ export class HttpRpcClient {
       hexifiedUserOp,
       this.entryPointAddress,
     ]);
+  }
+
+  /**
+   * send a UserOperation to the bundler
+   * @param nonce nonce of your transaction
+   * @return userOpHash the id of this operation, for getUserOperationTransaction
+   */
+  async deleteAdvancedUserOpFromBundler(nonce: number): Promise<string> {
+    await this.initializing;
+    const signerAddress = await this.userOpJsonRpcProvider
+      .getSigner()
+      .getAddress();
+    const key = `${this.chainId}:$signerAddress{}:${nonce}`;
+
+    const signedMessage = await this.userOpJsonRpcProvider
+      .getSigner()
+      .signMessage(key);
+    const jsonRequestData: [DeleteOperationStruct] = [
+      {
+        sender: signerAddress,
+        nonce: nonce,
+        chainId: this.chainId,
+        signature: signedMessage,
+      },
+    ];
+
+    return await this.userOpJsonRpcProvider.send(
+      "eth_getDeleteAdvancedUserOp",
+      jsonRequestData
+    );
   }
 
   /**
