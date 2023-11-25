@@ -195,18 +195,6 @@
   resolved "https://registry.npmjs.org/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz"
   integrity sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==
 
-"@epoch-protocol/utils@^0.6.2":
-  version "0.6.2"
-  resolved "https://registry.yarnpkg.com/@epoch-protocol/utils/-/utils-0.6.2.tgz#8bc6d8e7ff3c1e554f3dd326c8348caa6ead01be"
-  integrity sha512-SwnIHAn1FBttz3XLDakU2xyz/XlvUVKK8Al8uRAT2msaAE/IkNqFk3bbEBBS589TqEFB6vrjOk9QB0Gh0gNYhg==
-  dependencies:
-    "@account-abstraction/contracts" "^0.6.0"
-    "@ethersproject/abi" "^5.7.0"
-    "@ethersproject/providers" "^5.7.0"
-    "@openzeppelin/contracts" "^4.7.3"
-    debug "^4.3.4"
-    ethers "^5.7.0"
-
 "@eslint-community/eslint-utils@^4.2.0":
   version "4.4.0"
   resolved "https://registry.npmjs.org/@eslint-community/eslint-utils/-/eslint-utils-4.4.0.tgz"
