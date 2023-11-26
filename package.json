@@ -28,7 +28,7 @@
     "lint-fix": "lerna run lint-fix --parallel",
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
-    "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
+    "preprocess": "yarn lerna-clear && yarn hardhat-compile && yarn workspace @epoch-protocol/utils run tsc && yarn lerna-tsc",
     "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler --unsafe",
     "ci": "env ; yarn depcheck; yarn preprocess ; yarn lerna-test"
   },

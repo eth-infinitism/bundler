@@ -1,24 +1,31 @@
-import { BaseProvider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
-import { BigNumber, Signer } from 'ethers'
-import { Network } from '@ethersproject/networks'
-import { hexValue, resolveProperties } from 'ethers/lib/utils'
+import {
+  BaseProvider,
+  TransactionReceipt,
+  TransactionResponse,
+} from "@ethersproject/providers";
+import { BigNumber, Signer } from "ethers";
+import { Network } from "@ethersproject/networks";
+import { hexValue, resolveProperties } from "ethers/lib/utils";
 
-import { ClientConfig } from './ClientConfig'
-import { ERC4337EthersSigner } from './ERC4337EthersSigner'
-import { UserOperationEventListener } from './UserOperationEventListener'
-import { HttpRpcClient } from './HttpRpcClient'
-import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
-import { getUserOpHash } from '@account-abstraction/utils'
-import { BaseAccountAPI } from './BaseAccountAPI'
-import Debug from 'debug'
-const debug = Debug('aa.provider')
+import { ClientConfig } from "./ClientConfig";
+import { ERC4337EthersSigner } from "./ERC4337EthersSigner";
+import { UserOperationEventListener } from "./UserOperationEventListener";
+import { HttpRpcClient } from "./HttpRpcClient";
+import {
+  EntryPoint,
+  UserOperationStruct,
+} from "@account-abstraction/contracts";
+import { getUserOpHash } from "@epoch-protocol/utils";
+import { BaseAccountAPI } from "./BaseAccountAPI";
+import Debug from "debug";
+const debug = Debug("aa.provider");
 
 export class ERC4337EthersProvider extends BaseProvider {
-  initializedBlockNumber!: number
+  initializedBlockNumber!: number;
 
-  readonly signer: ERC4337EthersSigner
+  readonly signer: ERC4337EthersSigner;
 
-  constructor (
+  constructor(
     readonly chainId: number,
     readonly config: ClientConfig,
     readonly originalSigner: Signer,
@@ -28,75 +35,113 @@ export class ERC4337EthersProvider extends BaseProvider {
     readonly smartAccountAPI: BaseAccountAPI
   ) {
     super({
-      name: 'ERC-4337 Custom Network',
-      chainId
-    })
-    this.signer = new ERC4337EthersSigner(config, originalSigner, this, httpRpcClient, smartAccountAPI)
+      name: "ERC-4337 Custom Network",
+      chainId,
+    });
+    this.signer = new ERC4337EthersSigner(
+      config,
+      originalSigner,
+      this,
+      httpRpcClient,
+      smartAccountAPI
+    );
   }
 
   /**
    * finish intializing the provider.
    * MUST be called after construction, before using the provider.
    */
-  async init (): Promise<this> {
+  async init(): Promise<this> {
     // await this.httpRpcClient.validateChainId()
-    this.initializedBlockNumber = await this.originalProvider.getBlockNumber()
-    await this.smartAccountAPI.init()
+    this.initializedBlockNumber = await this.originalProvider.getBlockNumber();
+    await this.smartAccountAPI.init();
     // await this.signer.init()
-    return this
+    return this;
   }
 
-  getSigner (): ERC4337EthersSigner {
-    return this.signer
+  getSigner(): ERC4337EthersSigner {
+    return this.signer;
   }
 
-  async perform (method: string, params: any): Promise<any> {
-    debug('perform', method, params)
-    if (method === 'sendTransaction' || method === 'getTransactionReceipt') {
+  async perform(method: string, params: any): Promise<any> {
+    debug("perform", method, params);
+    if (method === "sendTransaction" || method === "getTransactionReceipt") {
       // TODO: do we need 'perform' method to be available at all?
       // there is nobody out there to use it for ERC-4337 methods yet, we have nothing to override in fact.
-      throw new Error('Should not get here. Investigate.')
+      throw new Error("Should not get here. Investigate.");
     }
-    return await this.originalProvider.perform(method, params)
+    return await this.originalProvider.perform(method, params);
   }
 
-  async getTransaction (transactionHash: string | Promise<string>): Promise<TransactionResponse> {
+  async getTransaction(
+    transactionHash: string | Promise<string>
+  ): Promise<TransactionResponse> {
     // TODO
-    return await super.getTransaction(transactionHash)
+    return await super.getTransaction(transactionHash);
   }
 
-  async getTransactionReceipt (transactionHash: string | Promise<string>): Promise<TransactionReceipt> {
-    const userOpHash = await transactionHash
-    const sender = await this.getSenderAccountAddress()
+  async getTransactionReceipt(
+    transactionHash: string | Promise<string>
+  ): Promise<TransactionReceipt> {
+    const userOpHash = await transactionHash;
+    const sender = await this.getSenderAccountAddress();
     return await new Promise<TransactionReceipt>((resolve, reject) => {
       new UserOperationEventListener(
-        resolve, reject, this.entryPoint, sender, userOpHash
-      ).start()
-    })
+        resolve,
+        reject,
+        this.entryPoint,
+        sender,
+        userOpHash
+      ).start();
+    });
   }
 
-  async getSenderAccountAddress (): Promise<string> {
-    return await this.smartAccountAPI.getAccountAddress()
+  async getSenderAccountAddress(): Promise<string> {
+    return await this.smartAccountAPI.getAccountAddress();
   }
 
-  async waitForTransaction (transactionHash: string, confirmations?: number, timeout?: number): Promise<TransactionReceipt> {
-    const sender = await this.getSenderAccountAddress()
+  async waitForTransaction(
+    transactionHash: string,
+    confirmations?: number,
+    timeout?: number
+  ): Promise<TransactionReceipt> {
+    const sender = await this.getSenderAccountAddress();
 
     return await new Promise<TransactionReceipt>((resolve, reject) => {
-      const listener = new UserOperationEventListener(resolve, reject, this.entryPoint, sender, transactionHash, undefined, timeout)
-      listener.start()
-    })
+      const listener = new UserOperationEventListener(
+        resolve,
+        reject,
+        this.entryPoint,
+        sender,
+        transactionHash,
+        undefined,
+        timeout
+      );
+      listener.start();
+    });
   }
 
   // fabricate a response in a format usable by ethers users...
-  async constructUserOpTransactionResponse (userOp1: UserOperationStruct): Promise<TransactionResponse> {
-    const userOp = await resolveProperties(userOp1)
-    const userOpHash = getUserOpHash(userOp, this.config.entryPointAddress, this.chainId)
-    const waitForUserOp = async (): Promise<TransactionReceipt> => await new Promise((resolve, reject) => {
-      new UserOperationEventListener(
-        resolve, reject, this.entryPoint, userOp.sender, userOpHash, userOp.nonce
-      ).start()
-    })
+  async constructUserOpTransactionResponse(
+    userOp1: UserOperationStruct
+  ): Promise<TransactionResponse> {
+    const userOp = await resolveProperties(userOp1);
+    const userOpHash = getUserOpHash(
+      userOp,
+      this.config.entryPointAddress,
+      this.chainId
+    );
+    const waitForUserOp = async (): Promise<TransactionReceipt> =>
+      await new Promise((resolve, reject) => {
+        new UserOperationEventListener(
+          resolve,
+          reject,
+          this.entryPoint,
+          userOp.sender,
+          userOpHash,
+          userOp.nonce
+        ).start();
+      });
     return {
       hash: userOpHash,
       confirmations: 0,
@@ -107,17 +152,17 @@ export class ERC4337EthersProvider extends BaseProvider {
       data: hexValue(userOp.callData), // should extract the actual called method from this "execFromEntryPoint()" call
       chainId: this.chainId,
       wait: async (confirmations?: number): Promise<TransactionReceipt> => {
-        const transactionReceipt = await waitForUserOp()
+        const transactionReceipt = await waitForUserOp();
         if (userOp.initCode.length !== 0) {
           // checking if the wallet has been deployed by the transaction; it must be if we are here
-          await this.smartAccountAPI.checkAccountPhantom()
+          await this.smartAccountAPI.checkAccountPhantom();
         }
-        return transactionReceipt
-      }
-    }
+        return transactionReceipt;
+      },
+    };
   }
 
-  async detectNetwork (): Promise<Network> {
-    return (this.originalProvider as any).detectNetwork()
+  async detectNetwork(): Promise<Network> {
+    return (this.originalProvider as any).detectNetwork();
   }
 }
