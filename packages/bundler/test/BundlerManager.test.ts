@@ -1,7 +1,7 @@
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { parseEther } from 'ethers/lib/utils'
 import { assert, expect } from 'chai'
-import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
+import { ReputationManager } from '../src/modules/ReputationManager'
 import { AddressZero, getUserOpHash } from '@account-abstraction/utils'
 
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
@@ -10,13 +10,12 @@ import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { ethers } from 'hardhat'
 import { BundlerConfig, eipDefaultParams } from '../src/BundlerConfig'
-import { ValidationManager } from '../src/modules/ValidationManager'
 import { TestFakeWalletToken__factory } from '../src/types'
 import { UserOperation } from '../src/modules/Types'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { EventsManager } from '../src/modules/EventsManager'
-import { createSigner } from './testUtils'
+import { BundlerReputationTestParams, createSigner } from './testUtils'
 
 describe('#BundlerManager', () => {
   let bm: BundleManager
@@ -51,10 +50,13 @@ describe('#BundlerManager', () => {
       }
     }
 
-    const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.eipParams.MIN_STAKE_VALUE), parseInt(config.eipParams.MIN_UNSTAKE_DELAY))
+    const repMgr = new ReputationManager(provider, BundlerReputationTestParams, parseEther(config.eipParams.MIN_STAKE_VALUE), parseInt(config.eipParams.MIN_UNSTAKE_DELAY))
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
-    bm = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
+
+    bm = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr,
+      config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
 
   it('#getUserOpHashes', async () => {
@@ -97,13 +99,12 @@ describe('#BundlerManager', () => {
         autoBundleInterval: 0,
         autoBundleMempoolSize: 0,
         maxBundleGas: 5e6,
-        // minstake zero, since we don't fund deployer.
-        minStake: '0',
-        minUnstakeDelay: 0
+        eipParams: eipDefaultParams
       }
-      const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+      const repMgr = new ReputationManager(provider, BundlerReputationTestParams,
+        parseEther(config.eipParams.MIN_STAKE_VALUE), parseInt(config.eipParams.MIN_UNSTAKE_DELAY))
       const mempoolMgr = new MempoolManager(repMgr)
-      const validMgr = new ValidationManager(_entryPoint, repMgr, config.unsafe)
+      const validMgr = new ValidationManager(_entryPoint, config.unsafe)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
       const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
