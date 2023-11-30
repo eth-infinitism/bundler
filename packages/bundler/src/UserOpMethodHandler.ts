@@ -1,14 +1,24 @@
 import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { Log, Provider } from '@ethersproject/providers'
+import { JsonRpcProvider, Log } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import { resolveProperties } from 'ethers/lib/utils'
-import { UserOperation, deepHexlify, erc4337RuntimeVersion, requireCond, RpcError, tostr, getAddr, ValidationErrors } from '@account-abstraction/utils'
+import {
+  UserOperation,
+  deepHexlify,
+  erc4337RuntimeVersion,
+  requireCond,
+  RpcError,
+  tostr,
+  getAddr,
+  decodeErrorReason,
+  ValidationErrors
+} from '@account-abstraction/utils'
 import { UserOperationStruct, EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { ExecutionManager } from './modules/ExecutionManager'
-import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
+import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -43,7 +53,7 @@ export interface EstimateUserOpGasResult {
 export class UserOpMethodHandler {
   constructor (
     readonly execManager: ExecutionManager,
-    readonly provider: Provider,
+    readonly provider: JsonRpcProvider,
     readonly signer: Signer,
     readonly config: BundlerConfig,
     readonly entryPoint: EntryPoint
@@ -93,8 +103,12 @@ export class UserOpMethodHandler {
    * eth_estimateUserOperationGas RPC api.
    * @param userOp1 input userOp (may have gas fields missing, so they can be estimated)
    * @param entryPointInput
+   * @param stateOverride
    */
-  async estimateUserOperationGas (userOp1: UserOperationStruct, entryPointInput: string): Promise<EstimateUserOpGasResult> {
+  async estimateUserOperationGas (
+    userOp1: UserOperationStruct,
+    entryPointInput: string,
+    stateOverride?: StateOverride): Promise<EstimateUserOpGasResult> {
     const userOp = {
       // default values for missing fields.
       paymasterAndData: '0x',
@@ -107,28 +121,60 @@ export class UserOpMethodHandler {
 
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
-    // todo: validation manager duplicate?
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
-    if (errorResult.errorName === 'FailedOp') {
-      throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
+    const callParams: any[] = [
+      {
+        to: this.entryPoint.address,
+        data: this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
+      },
+      'latest'
+    ]
+    if (stateOverride != null) {
+      callParams.push(stateOverride)
     }
+    // todo: validation manager duplicate?
+    // ethers.js does not know about state overrides
+    const errorResult = await this.provider.send('eth_call', callParams)
+      .catch(e => e)
+      .then(e => {
+        if (e.data != null) {
+          e.decodedRevertReason = decodeErrorReason(e.data)
+        }
+        return e
+      })
+    // const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
+    if (errorResult.decodedRevertReason?.message?.includes('FailedOp') === true) {
+      throw new RpcError(errorResult.decodedRevertReason.message, ValidationErrors.SimulateValidation)
+    }
+
     // todo throw valid rpc error
-    if (errorResult.errorName !== 'ValidationResult') {
+    // todo 2: this is temporary as ValidationResult is a struct in EntryPoint 0.7
+    // if (errorResult.errorName !== 'ValidationResult') {
+    if (errorResult.decodedRevertReason?.returnInfo == null) {
       throw errorResult
     }
 
-    const { returnInfo } = errorResult.errorArgs
+    const { returnInfo } = errorResult.decodedRevertReason
     let {
       preOpGas,
       validAfter,
       validUntil
     } = returnInfo
 
-    const callGasLimit = await this.provider.estimateGas({
-      from: this.entryPoint.address,
-      to: userOp.sender,
-      data: userOp.callData
-    }).then(b => b.toNumber()).catch(err => {
+    const sendParams: any[] = [
+      {
+        from: this.entryPoint.address,
+        to: userOp.sender,
+        data: userOp.callData
+      },
+      'latest'
+    ]
+    if (stateOverride != null) {
+      sendParams.push(stateOverride)
+    }
+    // ethers.js does not know about state overrides
+    const callGasLimit = await this.provider.send('eth_estimateGas',
+      sendParams
+    ).then(b => parseInt(b)).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })

@@ -3,8 +3,31 @@ import { TransactionReceipt } from '@ethersproject/providers'
 import { UserOperation } from '@account-abstraction/utils'
 
 /**
- * RPC calls return types
+ * RPC calls input and return types
  */
+
+export interface StateOverride {
+  /**
+   * Fake balance to set for the account before executing the call.
+   */
+  balance?: BigNumberish
+  /**
+   * Fake nonce to set for the account before executing the call.
+   */
+  nonce?: BigNumberish
+  /**
+   * Fake EVM bytecode to inject into the account before executing the call.
+   */
+  code?: string
+  /**
+   * Fake key-value mapping to override all slots in the account storage before executing the call.
+   */
+  state?: Object
+  /**
+   * Fake key-value mapping to override individual slots in the account storage before executing the call.
+   */
+  stateDiff?: Object
+}
 
 /**
  * return value from estimateUserOpGas

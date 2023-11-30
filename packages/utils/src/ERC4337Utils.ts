@@ -4,6 +4,8 @@ import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/I
 import { ethers } from 'ethers'
 import Debug from 'debug'
 
+import { IEntryPoint__factory } from './types'
+
 const debug = Debug('aa.utils')
 
 // UserOperation is the first parameter of validateUseOp
@@ -66,6 +68,8 @@ export function getUserOpHash (op: NotPromise<UserOperationStruct>, entryPoint: 
 
 const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
 const FailedOpSig = keccak256(Buffer.from('FailedOp(uint256,string)')).slice(0, 10) // 0x220266b6
+// TODO: this is a temporary fix as ValidationResult is a struct starting with EntryPoint v0.7
+const ValidationResultSig = IEntryPoint__factory.createInterface().getSighash('ValidationResult')
 
 interface DecodedError {
   message: string
@@ -87,6 +91,8 @@ export function decodeErrorReason (error: string): DecodedError | undefined {
       message,
       opIndex
     }
+  } else if (error.startsWith(ValidationResultSig)) {
+    return IEntryPoint__factory.createInterface().decodeErrorResult('ValidationResult', error) as any
   }
 }
 

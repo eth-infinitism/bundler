@@ -10,6 +10,7 @@ import {
   UserOperationStruct
 } from '@account-abstraction/contracts'
 
+import { toHex } from 'hardhat/internal/util/bigint'
 import { Signer, Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
@@ -115,7 +116,7 @@ describe('UserOpMethodHandler', function () {
         target,
         data: '0xdeadface'
       })
-      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('AA21 didn\'t pay prefund')
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('FailedOp: AA21 didn\'t pay prefund')
       // should estimate with gasprice=0
       const op1 = await smartAccountAPI.createSignedUserOp({
         maxFeePerGas: 0,
@@ -128,6 +129,31 @@ describe('UserOpMethodHandler', function () {
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)
+      expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
+    })
+
+    it('estimateUserOperationGas should estimate using state overrides', async function () {
+      const ver: string = await (provider as any).send('web3_clientVersion')
+      if (ver.match('go1') == null) {
+        console.warn('\t==WARNING: test requires state override support on Geth (go-ethereum) node available after 1.12.1; ver=' + ver)
+        this.skip()
+      }
+      const op = await smartAccountAPI.createSignedUserOp({
+        target,
+        data: '0xdeadface'
+      })
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('FailedOp: AA21 didn\'t pay prefund')
+      // should estimate same UserOperation with balance override set to 1 ether
+      const ret = await methodHandler.estimateUserOperationGas(
+        await resolveHexlify(op),
+        entryPoint.address,
+        {
+          [await op.sender]: {
+            balance: toHex(1e18)
+          }
+        }
+      )
+      expect(ret.verificationGasLimit).to.be.closeTo(300000, 100000)
       expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
     })
   })

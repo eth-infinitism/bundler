@@ -14,7 +14,6 @@ import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
-import { JsonRpcProvider } from '@ethersproject/providers'
 import { parseEther } from 'ethers/lib/utils'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
@@ -108,7 +107,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
-      const signer = (provider as JsonRpcProvider).getSigner()
+      const signer = provider.getSigner()
       await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
     }
   }
