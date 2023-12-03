@@ -247,10 +247,10 @@ export abstract class BaseAccountAPI {
     if (maxFeePerGas == null || maxPriorityFeePerGas == null) {
       const feeData = await this.provider.getFeeData()
       if (maxFeePerGas == null) {
-        maxFeePerGas = feeData.maxFeePerGas ?? undefined
+        maxFeePerGas = feeData.maxFeePerGas ?? feeData.gasPrice ?? undefined
       }
       if (maxPriorityFeePerGas == null) {
-        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? undefined
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? feeData.gasPrice ?? undefined
       }
     }
 

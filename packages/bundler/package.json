@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "runop": "ts-node ./src/runner/runop.ts",
+    "runop-mnemonic": "ts-node ./src/runner/runop.ts --mnemonic ./localconfig/mnemonic.txt",
     "bundler": "ts-node ./src/exec.ts --config ./localconfig/bundler.config.json",
     "clear": "rm -rf dist artifacts cache src/types",
     "hardhat-compile": "hardhat compile",

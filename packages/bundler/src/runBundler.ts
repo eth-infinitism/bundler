@@ -105,7 +105,16 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       console.log('== debugrpc already st', config.debugRpc)
     }
-    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+    let deploySigner: Signer
+    try {
+      // on test network, try to use "eth_accounts[0]".
+      deploySigner = (provider as JsonRpcProvider).getSigner()
+      await deploySigner.getAddress()
+    } catch (e) {
+      // if eth_accounts is not supported (e.g. on reth), use our mnemonic-based wallet instead
+      deploySigner = Wallet.fromMnemonic('blood scheme ghost kit twin save film relief neutral where account battle').connect(provider)
+    }
+    await new DeterministicDeployer(provider as any, deploySigner).deterministicDeploy(EntryPoint__factory.bytecode)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
       const signer = (provider as JsonRpcProvider).getSigner()
