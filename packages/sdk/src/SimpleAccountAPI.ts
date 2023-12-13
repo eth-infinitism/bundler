@@ -20,7 +20,6 @@ import { BaseApiParams, BaseAccountAPI } from "./BaseAccountAPI";
  */
 export interface SimpleAccountApiParams extends BaseApiParams {
   owner: Signer;
-  entrypointAddress: string;
   factoryAddress?: string;
   index?: BigNumberish;
 }
@@ -36,7 +35,6 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   factoryAddress?: string;
   owner: Signer;
   index: BigNumberish;
-  entrypointAddress: string;
 
   /**
    * our account contract.
@@ -53,7 +51,6 @@ export class SimpleAccountAPI extends BaseAccountAPI {
     this.factoryAddress = params.factoryAddress;
     this.owner = params.owner;
     this.index = BigNumber.from(params.index ?? 0);
-    this.entrypointAddress = params.entrypointAddress;
   }
 
   async _getAccountContract(): Promise<SimpleAccount> {
@@ -66,10 +63,14 @@ export class SimpleAccountAPI extends BaseAccountAPI {
     return this.accountContract;
   }
 
-  async _getEntrypointContract(): Promise<EntryPoint> {
-    if (this.entrypointContract == null) {
+  async _getEntrypointContract(): Promise<EntryPoint | undefined> {
+    if (
+      this.entrypointContract == null &&
+      this.entryPointAddress &&
+      this.entryPointAddress !== ""
+    ) {
       this.entrypointContract = EntryPoint__factory.connect(
-        await this.entrypointAddress,
+        this.entryPointAddress,
         this.provider
       );
     }
@@ -108,7 +109,9 @@ export class SimpleAccountAPI extends BaseAccountAPI {
 
     if (key) {
       const entrypoint = await this._getEntrypointContract();
-      return entrypoint.getNonce(accountContract.address, key);
+      if (entrypoint) {
+        return entrypoint.getNonce(accountContract.address, key);
+      }
     }
     return await accountContract.getNonce();
   }
