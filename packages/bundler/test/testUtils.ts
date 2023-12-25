@@ -46,5 +46,7 @@ export function resolveNames<T> (json: T, nameToAddress: { [name: string]: strin
 export const BundlerReputationTestParams: ReputationParams = {
   minInclusionDenominator: 10,
   throttlingSlack: 10,
-  banSlack: 50
+  banSlack: 50,
+  sameUnstakedEntityMempoolCount: 10,
+  inclusionRateFactor: 10
 }

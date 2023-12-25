@@ -23,7 +23,9 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
     {
       banSlack: parseInt(config.eipParams.BAN_SLACK),
       throttlingSlack: parseInt(config.eipParams.THROTTLING_SLACK),
-      minInclusionDenominator: parseInt(config.eipParams.MIN_INCLUSION_RATE_DENOMINATOR)
+      minInclusionDenominator: parseInt(config.eipParams.MIN_INCLUSION_RATE_DENOMINATOR),
+      inclusionRateFactor: parseInt(config.eipParams.INCLUSION_RATE_FACTOR),
+      sameUnstakedEntityMempoolCount: parseInt(config.eipParams.SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT)
     },
     parseEther(config.eipParams.MIN_STAKE_VALUE),
     parseInt(config.eipParams.MIN_UNSTAKE_DELAY)

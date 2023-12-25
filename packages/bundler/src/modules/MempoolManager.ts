@@ -87,6 +87,9 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
+      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+      this.checkMultipleRolesViolation(userOp)
+      this.mempool.push(entry)
       this.incrementEntryCount(userOp.sender)
       const paymaster = getAddr(userOp.paymasterAndData)
       if (paymaster != null) {
@@ -96,9 +99,6 @@ export class MempoolManager {
       if (factory != null) {
         this.incrementEntryCount(factory)
       }
-      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
-      this.checkMultipleRolesViolation(userOp)
-      this.mempool.push(entry)
     }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
@@ -176,6 +176,7 @@ export class MempoolManager {
     if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
       this.reputationManager.checkThrottled(title, stakeInfo)
     }
+    console.log('wtf is entryCount, maxTxMempoolAllowedEntity', entryCount, maxTxMempoolAllowedEntity)
     if (entryCount > maxTxMempoolAllowedEntity) {
       this.reputationManager.checkStake(title, stakeInfo)
     }

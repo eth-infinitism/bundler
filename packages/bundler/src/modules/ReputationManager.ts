@@ -20,6 +20,8 @@ export interface ReputationParams {
   minInclusionDenominator: number
   throttlingSlack: number
   banSlack: number
+  inclusionRateFactor: number
+  sameUnstakedEntityMempoolCount: number
 }
 
 interface ReputationEntry {
@@ -246,17 +248,17 @@ export class ReputationManager {
    */
   calculateMaxAllowedMempoolOpsUnstaked (entity: string): number {
     entity = entity.toLowerCase()
-    const SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT = 10
     const entry = this.entries[entity]
     if (entry == null) {
-      return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT
+      return this.params.sameUnstakedEntityMempoolCount
     }
-    const INCLUSION_RATE_FACTOR = 10
     let inclusionRate = entry.opsIncluded / entry.opsSeen
     if (entry.opsSeen === 0) {
       // prevent NaN of Infinity in tests
       inclusionRate = 0
     }
-    return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT + Math.floor(inclusionRate * INCLUSION_RATE_FACTOR) + (Math.min(entry.opsIncluded, 10000))
+    const allowedInMempool = this.params.sameUnstakedEntityMempoolCount + Math.floor(inclusionRate * this.params.inclusionRateFactor) + (Math.min(entry.opsIncluded, 10000))
+    console.log('wtf is opsSeen, opsIncluded, allowed', entry, allowedInMempool)
+    return allowedInMempool
   }
 }
