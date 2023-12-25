@@ -1,18 +1,19 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
-import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
+import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
-import { StorageMap, UserOperation } from './Types'
-import { getAddr, mergeStorageMap, runContractScript } from './moduleUtils'
+import { UserOperation, StorageMap, getAddr, mergeStorageMap, runContractScript } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 
 const debug = Debug('aa.exec.cron')
+
+const THROTTLED_ENTITY_BUNDLE_COUNT = 4
 
 export interface SendBundleReturn {
   transactionHash: string
@@ -172,11 +173,13 @@ export class BundleManager {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
-      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > 1)) {
+      // [SREP-030]
+      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
-      if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > 1)) {
+      // [SREP-030]
+      if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
         continue
       }

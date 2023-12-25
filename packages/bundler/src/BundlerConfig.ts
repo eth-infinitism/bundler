@@ -52,6 +52,7 @@ export interface BundlerConfig {
   network: string
   port: string
   unsafe: boolean
+  debugRpc?: boolean
   conditionalRpc: boolean
 
   whitelist?: string[]
@@ -72,6 +73,7 @@ export const BundlerConfigShape = {
   network: ow.string,
   port: ow.string,
   unsafe: ow.boolean,
+  debugRpc: ow.optional.boolean,
   conditionalRpc: ow.boolean,
 
   whitelist: ow.optional.array.ofType(ow.string),

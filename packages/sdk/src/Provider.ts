@@ -8,9 +8,6 @@ import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { HttpRpcClient } from './HttpRpcClient'
 import { DeterministicDeployer } from './DeterministicDeployer'
 import { Signer } from '@ethersproject/abstract-signer'
-import Debug from 'debug'
-
-const debug = Debug('aa.wrapProvider')
 
 /**
  * wrap an existing provider to tunnel requests through Account Abstraction.
@@ -34,7 +31,6 @@ export async function wrapProvider (
     factoryAddress: SimpleAccountFactory,
     paymasterAPI: config.paymasterAPI
   })
-  debug('config=', config)
   const chainId = await originalProvider.getNetwork().then(net => net.chainId)
   const httpRpcClient = new HttpRpcClient(config.bundlerUrl, config.entryPointAddress, chainId)
   return await new ERC4337EthersProvider(

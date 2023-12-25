@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+const fs = require('fs')
+const {execSync} = require( 'child_process')
+
+args = process.argv.slice(2)
+
+let showRev=true;
+let showMatch=true;
+
+let rulesFile = args[0]
+let folder = args[1]
+
+let rules = {}
+let unmatched = {}
+let totMatched = 0
+let totUnmatched = 0
+
+function usage(msg="") {
+	if (msg) console.error("FATAL:",msg)
+	console.error("usage: checkValidationRules {ruleFile.md} {folder}")
+	console.error("find rules in the format [www-###] in rulesFile and in folder. report matched (and missing) rules in source folder")
+	console.error("(unfortunately, the tool can only highlight the IDs in the source code, not their actual impelmentation....)")
+	console.error('e.g: ./scripts/checkRulesCoverage  ../account-abstraction/eip/EIPS/eip-aa-rules.md packages/bundler/src/' )
+	process.exit(1)
+}
+
+if ( !folder ) usage()
+if ( !fs.existsSync(rulesFile) ) usage( "unknown rulesfile "+rulesFile )
+if ( !fs.existsSync(folder) ) usage( "unknown folder "+folder )
+
+//use separator: /(?<!\\)\n/ to unwrap backslash
+const fileData = fs.readFileSync(rulesFile, "ascii")
+for( let line of fileData.split(/\n/) ) {
+	//wrap backslash
+	//$line=~s/\s*\\\s*\n\s*/; /g;
+
+	line = line.replaceAll( /\*\*(.*?)\*\*/g, '$1' )
+	const match = line.match(/\[(\w+-\d+)\][\s-:]+\s*([\s\S]*)/);
+	if ( !match ) 
+		continue;
+	const [_, rule, rest] = match
+	rules[rule] = rest
+	unmatched[rule] = rest
+}
+
+rules["STO-000"] = "== placehodler rule";
+
+function foundRule(r) {
+	if (r.match(/UTF|eip|erc|gpl/i)) return ;
+	if ( !rules[r]) {
+		console.log("UNKNOWN:", r)
+		rules[r] = "==unknown=="
+	} else if ( unmatched[r]) {
+		if ( showMatch )
+			console.log("matched:",r) // ${rules[r]})
+		totMatched++;
+		delete unmatched[r]
+	}
+}
+
+const grepCmd = execSync( `grep -r . ${folder}`, { maxBuffer: 3e6}).toString()
+
+for ( const line of grepCmd.split(/\n/) ) {
+	const mm = line.replaceAll( /\b(\w{2,3}-\d+)\b/g, rule=>foundRule(rule))
+}
+
+let unmatchedKeys = Object.keys(unmatched)
+unmatchedKeys.sort()
+for ( const r of unmatchedKeys ) {
+	if (showRev) {
+		console.log(`unmatched: ${r} ${rules[r]}`)
+	}
+	totUnmatched++;
+}
+
+console.log("total",totMatched,"matched,", totUnmatched,"unmatched");

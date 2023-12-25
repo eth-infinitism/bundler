@@ -1,17 +1,27 @@
-import { EntryPoint } from '@account-abstraction/contracts'
-import { ReputationManager } from './ReputationManager'
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
-import { requireCond, RpcError } from '../utils'
-import { AddressZero, decodeErrorReason } from '@account-abstraction/utils'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { parseScannerResult } from '../parseScannerResult'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { BundlerCollectorReturn, bundlerCollectorTracer, ExitInfo } from '../BundlerCollectorTracer'
-import { debug_traceCall } from '../GethTracer'
 import Debug from 'debug'
-import { GetCodeHashes__factory } from '../types'
-import { ReferencedCodeHashes, StakeInfo, StorageMap, UserOperation, ValidationErrors } from './Types'
-import { getAddr, runContractScript } from './moduleUtils'
+
+import { IEntryPoint } from '@account-abstraction/contracts'
+import {
+  AddressZero,
+  CodeHashGetter__factory,
+  ReferencedCodeHashes,
+  RpcError,
+  StakeInfo,
+  StorageMap,
+  UserOperation,
+  ValidationErrors,
+  decodeErrorReason,
+  getAddr,
+  requireCond,
+  runContractScript
+} from '@account-abstraction/utils'
+import { calcPreVerificationGas } from '@account-abstraction/sdk'
+
+import { tracerResultParser } from './TracerResultParser'
+import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './BundlerCollectorTracer'
+import { debug_traceCall } from './GethTracer'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -46,10 +56,9 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 export class ValidationManager {
   constructor (
-    readonly entryPoint: EntryPoint,
-    readonly reputationManager: ReputationManager,
-    readonly unsafe: boolean) {
-  }
+    readonly entryPoint: IEntryPoint,
+    readonly unsafe: boolean
+  ) {}
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
@@ -108,13 +117,13 @@ export class ValidationManager {
     }
   }
 
-  async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerCollectorReturn]> {
+  async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerTracerResult]> {
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
-    const tracerResult: BundlerCollectorReturn = await debug_traceCall(provider, {
+    const tracerResult: BundlerTracerResult = await debug_traceCall(provider, {
       from: ethers.constants.AddressZero,
       to: this.entryPoint.address,
       data: simulateCall,
@@ -172,6 +181,7 @@ export class ValidationManager {
   async validateUserOp (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
     if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
       const { hash: codeHashes } = await this.getCodeHashes(previousCodeHashes.addresses)
+      // [COD-010]
       requireCond(codeHashes === previousCodeHashes.hash,
         'modified code after first validation',
         ValidationErrors.OpcodeValidation)
@@ -183,10 +193,10 @@ export class ValidationManager {
     }
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
-      let tracerResult: BundlerCollectorReturn
+      let tracerResult: BundlerTracerResult
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = parseScannerResult(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
@@ -217,10 +227,6 @@ export class ValidationManager {
       'expires too soon',
       ValidationErrors.NotInTimeRange)
 
-    if (res.aggregatorInfo != null) {
-      this.reputationManager.checkStake('aggregator', res.aggregatorInfo)
-    }
-
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
@@ -235,7 +241,7 @@ export class ValidationManager {
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
     const { hash } = await runContractScript(
       this.entryPoint.provider,
-      new GetCodeHashes__factory(),
+      new CodeHashGetter__factory(),
       [addresses]
     )
 

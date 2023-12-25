@@ -1,7 +1,11 @@
 // javascript code of tracer function
 // NOTE: we process this locally for hardhat, but send to geth for remote tracing.
 // should NOT "require" anything, or use logs.
-// see LogTrace for valid types (but alas, this one must be javascript, not typescript..
+// see LogTrace for valid types (but alas, this one must be javascript, not typescript).
+
+// This file contains references to validation rules, in the format [xxx-###]
+// where xxx is OP/STO/COD/EP/SREP/EREP/UREP/ALT, and ### is a number
+// the validation rules are defined in erc-aa-validation.md
 
 import { LogCallFrame, LogContext, LogDb, LogFrameResult, LogStep, LogTracer } from './GethTracer'
 
@@ -17,7 +21,7 @@ declare function toAddress (a: any): string
  * collect access and opcodes, split into "levels" based on NUMBER opcode
  * keccak, calls and logs are collected globally, since the levels are unimportant for them.
  */
-export interface BundlerCollectorReturn {
+export interface BundlerTracerResult {
   /**
    * storage and opcode info, collected on top-level calls from EntryPoint
    */
@@ -87,7 +91,7 @@ interface RelevantStepData {
  * type-safe local storage of our collector. contains all return-value properties.
  * (also defines all "trace-local" variables and functions)
  */
-interface BundlerCollectorTracer extends LogTracer, BundlerCollectorReturn {
+interface BundlerCollectorTracer extends LogTracer, BundlerTracerResult {
   lastOp: string
   lastThreeOpcodes: RelevantStepData[]
   stopCollectingTopic: string
@@ -122,11 +126,11 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
     stopCollecting: false,
     topLevelCallCounter: 0,
 
-    fault (log: LogStep, db: LogDb): void {
+    fault (log: LogStep, _db: LogDb): void {
       this.debug.push('fault depth=', log.getDepth(), ' gas=', log.getGas(), ' cost=', log.getCost(), ' err=', log.getError())
     },
 
-    result (ctx: LogContext, db: LogDb): BundlerCollectorReturn {
+    result (_ctx: LogContext, _db: LogDb): BundlerTracerResult {
       return {
         callsFromEntryPoint: this.callsFromEntryPoint,
         keccak: this.keccak,
@@ -243,6 +247,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         const addrHex = toHex(addr)
         const last3opcodesString = this.lastThreeOpcodes.map(x => x.opcode).join(' ')
         // only store the last EXTCODE* opcode per address - could even be a boolean for our current use-case
+        // [OP-051]
         if (last3opcodesString.match(/^(\w+) EXTCODESIZE ISZERO$/) == null) {
           this.currentLevel.extCodeAccessInfo[addrHex] = opcode
           // this.debug.push(`potentially illegal EXTCODESIZE without ISZERO for ${addrHex}`)
@@ -252,12 +257,14 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       // not using 'isPrecompiled' to only allow the ones defined by the ERC-4337 as stateless precompiles
+      // [OP-062]
       const isAllowedPrecompiled: (address: any) => boolean = (address) => {
         const addrHex = toHex(address)
         const addressInt = parseInt(addrHex)
         // this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
         return addressInt > 0 && addressInt < 10
       }
+      // [OP-041]
       if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
         const idx = opcode.startsWith('EXT') ? 0 : 1
         const addr = toAddress(log.stack.peek(idx).toString(16))
@@ -271,6 +278,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         }
       }
 
+      // [OP-012]
       if (this.lastOp === 'GAS' && !opcode.includes('CALL')) {
         // count "GAS" opcode only if not followed by "CALL"
         this.countSlot(this.currentLevel.opcodes, 'GAS')

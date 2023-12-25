@@ -1,0 +1,24 @@
+{
+  "name": "@account-abstraction/validation-manager",
+  "version": "0.6.0",
+  "main": "./dist/src/index.js",
+  "license": "MIT",
+  "files": [
+    "dist/src",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "clear": "rm -rf dist",
+    "lint": "eslint -f unix .",
+    "lint-fix": "eslint -f unix . --fix",
+    "tsc": "tsc",
+    "watch-tsc": "tsc -w --preserveWatchOutput"
+  },
+  "dependencies": {
+    "@account-abstraction/sdk": "0.6.0",
+    "@account-abstraction/utils": "0.6.0"
+  },
+  "devDependencies": {
+  }
+}
