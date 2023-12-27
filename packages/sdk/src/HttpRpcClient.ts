@@ -52,14 +52,14 @@ export class HttpRpcClient {
 
   /**
    * send a UserOperation to the bundler
-   * @param userOp1
+   * @param userOp
    * @return userOpHash the id of this operation, for getUserOperationTransaction
    */
   async sendUserOpToBundler(
-    userOp1: AdvancedUserOperationStruct
+    userOp: AdvancedUserOperationStruct
   ): Promise<string> {
     await this.initializing;
-    const hexifiedUserOp = deepHexlify(await resolveProperties(userOp1));
+    const hexifiedUserOp = deepHexlify(await resolveProperties(userOp));
     const jsonRequestData: [UserOperationStruct, string] = [
       hexifiedUserOp,
       this.entryPointAddress,
@@ -72,33 +72,24 @@ export class HttpRpcClient {
   }
 
   /**
-   * send a UserOperation to the bundler
-   * @param nonce nonce of your transaction
+   * delete a UserOperation from bundler
+   * @param userOp
    * @return userOpHash the id of this operation, for getUserOperationTransaction
    */
-  async deleteAdvancedUserOpFromBundler(nonce: number): Promise<string> {
+  async deleteAdvancedUserOpFromBundler(
+    userOp: AdvancedUserOperationStruct
+  ): Promise<string> {
     await this.initializing;
-    const signerAddress = await this.userOpJsonRpcProvider
-      .getSigner()
-      .getAddress();
-    const key = `${this.chainId}:$signerAddress{}:${nonce}`;
-
-    const signedMessage = await this.userOpJsonRpcProvider
-      .getSigner()
-      .signMessage(key);
-    const jsonRequestData: [DeleteOperationStruct] = [
-      {
-        sender: signerAddress,
-        nonce: nonce,
-        chainId: this.chainId,
-        signature: signedMessage,
-      },
+    const hexifiedUserOp = deepHexlify(await resolveProperties(userOp));
+    const jsonRequestData: [UserOperationStruct, string] = [
+      hexifiedUserOp,
+      this.entryPointAddress,
     ];
-
-    return await this.userOpJsonRpcProvider.send(
-      "eth_getDeleteAdvancedUserOp",
-      jsonRequestData
-    );
+    await this.printUserOperation("eth_sendUserOperation", jsonRequestData);
+    return await this.userOpJsonRpcProvider.send("eth_sendUserOperation", [
+      hexifiedUserOp,
+      this.entryPointAddress,
+    ]);
   }
 
   /**
