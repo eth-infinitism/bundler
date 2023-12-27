@@ -85,8 +85,8 @@ export class HttpRpcClient {
       hexifiedUserOp,
       this.entryPointAddress,
     ];
-    await this.printUserOperation("eth_sendUserOperation", jsonRequestData);
-    return await this.userOpJsonRpcProvider.send("eth_sendUserOperation", [
+    await this.printUserOperation("eth_deleteUserOperation", jsonRequestData);
+    return await this.userOpJsonRpcProvider.send("eth_deleteUserOperation", [
       hexifiedUserOp,
       this.entryPointAddress,
     ]);
