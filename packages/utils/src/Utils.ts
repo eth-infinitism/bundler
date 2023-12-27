@@ -1,11 +1,9 @@
 // misc utilities for the various modules.
 
-import { BytesLike, ContractFactory } from 'ethers'
+import { BytesLike, ContractFactory, BigNumber } from 'ethers'
 import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
-import { Provider } from '@ethersproject/providers'
-import { JsonRpcProvider } from '@ethersproject/providers'
+import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
-import { BigNumber } from 'ethers'
 import { NotPromise } from './ERC4337Utils'
 import { UserOperationStruct } from '@account-abstraction/contracts'
 

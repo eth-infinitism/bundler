@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@account-abstraction/contracts": "0.6.0",
-    "@account-abstraction/sdk": "0.6.0",
+    "@epoch-protocol/sdk": "0.8.7",
     "@epoch-protocol/utils": "0.6.2",
     "@account-abstraction/validation-manager": "^0.6.0",
     "@ethersproject/abi": "^5.7.0",

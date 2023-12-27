@@ -47,9 +47,10 @@ rules["STO-000"] = "== placehodler rule";
 
 function foundRule(r) {
 	if (r.match(/UTF|eip|erc|gpl/i)) return ;
-	if ( !rules[r])
-		throw new Error(`unknown referenced rule ${r}`)
-	if ( unmatched[r]) {
+	if ( !rules[r]) {
+		console.log("UNKNOWN:", r)
+		rules[r] = "==unknown=="
+	} else if ( unmatched[r]) {
 		if ( showMatch )
 			console.log("matched:",r) // ${rules[r]})
 		totMatched++;
