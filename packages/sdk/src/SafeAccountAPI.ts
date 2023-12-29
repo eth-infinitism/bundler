@@ -83,14 +83,14 @@ export class SafeAccountAPI extends BaseAccountAPI {
     const input = abiCoder.encode(["address"], [this.safeConfig.singleton]);
     const from = this.safeConfig.safeProxyFactory;
 
-    const proxyFactoryInterface = new ethers.utils.Interface(
-      safeProxyFactoryAbi
-    );
     const proxyFactory = new ethers.Contract(
       this.safeConfig.safeProxyFactory,
-      proxyFactoryInterface
+      safeProxyFactoryAbi,
+      this.provider
     );
+
     const creationCode = await proxyFactory.functions.proxyCreationCode();
+
     const constructorData = toBuffer(input).toString("hex");
     const initCode = creationCode + constructorData;
     const proxyAddress =
