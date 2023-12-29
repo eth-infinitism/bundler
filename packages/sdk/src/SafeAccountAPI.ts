@@ -116,10 +116,9 @@ export class SafeAccountAPI extends BaseAccountAPI {
         return entrypoint.getNonce(accountContract.address, key);
       }
     }
-    const safeInterface = new ethers.utils.Interface(SafeAbi);
     const safeProxy = new ethers.Contract(
       await this.getCounterFactualAddress(),
-      safeInterface
+      SafeAbi
     );
     return await safeProxy.functions.getNonce();
   }
