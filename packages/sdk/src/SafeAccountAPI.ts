@@ -6,7 +6,12 @@ import {
 } from "@account-abstraction/contracts";
 import { Interface, arrayify, hexConcat } from "ethers/lib/utils";
 import { SafeConfig } from "./SafeDefaultConfig";
-import { SafeAbi, addModuleLibAbi, safeProxyFactoryAbi } from "./SafeAbis";
+import {
+  SafeAbi,
+  SafeModuleAbi,
+  addModuleLibAbi,
+  safeProxyFactoryAbi,
+} from "./SafeAbis";
 import { generateAddress2, keccak256, toBuffer } from "ethereumjs-util";
 
 export interface SafeAccountApiParams extends BaseApiParams {
@@ -134,7 +139,7 @@ export class SafeAccountAPI extends BaseAccountAPI {
     value: BigNumberish,
     data: string
   ): Promise<string> {
-    const safeInterface = new ethers.utils.Interface(SafeAbi);
+    const safeInterface = new ethers.utils.Interface(SafeModuleAbi);
 
     return safeInterface.encodeFunctionData("executeUserOp", [
       target,
@@ -150,18 +155,17 @@ export class SafeAccountAPI extends BaseAccountAPI {
 
   async _getSetupCode(): Promise<string> {
     const addModuleLibInterface = new ethers.utils.Interface(addModuleLibAbi);
-    const addModuleEnocoding = addModuleLibInterface.encodeFunctionData(
-      "enableModules",
-      [[this.safeConfig.aaModule]]
-    );
+    const initData = addModuleLibInterface.encodeFunctionData("enableModules", [
+      [this.safeConfig.aaModule],
+    ]);
     const threshold = BigNumber.from(1);
     const safeInterface = new ethers.utils.Interface(SafeAbi);
     const encodedSetup = safeInterface.encodeFunctionData("setup", [
       [await this.owner.getAddress()],
       threshold,
       this.safeConfig.addModuleLib,
-      addModuleEnocoding,
-      this.safeConfig.fallbackModule,
+      initData,
+      this.safeConfig.aaModule,
       ethers.constants.AddressZero,
       0,
       ethers.constants.AddressZero,
