@@ -39,6 +39,8 @@ describe("SafeAccountAPI", () => {
         },
       ],
     });
+    owner = owner.connect(provider);
+
     safeApi = new SafeAccountAPI({
       safeConfig: safeConfig,
       owner: owner,
@@ -66,6 +68,7 @@ describe("SafeAccountAPI", () => {
       data: "0x",
       value: BigNumber.from(0),
     });
-    console.log(op);
+    console.log(JSON.stringify(op));
+    console.log(op.signature.toString());
   });
 });

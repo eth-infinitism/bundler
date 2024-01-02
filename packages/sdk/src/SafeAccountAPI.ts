@@ -1,18 +1,36 @@
-import { BigNumber, BigNumberish, Signer, Wallet, ethers } from "ethers";
+import {
+  BigNumber,
+  BigNumberish,
+  Signer,
+  VoidSigner,
+  Wallet,
+  ethers,
+} from "ethers";
 import { BaseAccountAPI, BaseApiParams } from "./BaseAccountAPI";
 import {
   EntryPoint,
   EntryPoint__factory,
+  UserOperationStruct,
 } from "@account-abstraction/contracts";
-import { AbiCoder, Interface, arrayify, hexConcat } from "ethers/lib/utils";
+import {
+  AbiCoder,
+  BytesLike,
+  Interface,
+  arrayify,
+  hexConcat,
+  hexlify,
+} from "ethers/lib/utils";
 import { SafeConfig } from "./SafeDefaultConfig";
 import {
+  EIP712_SAFE_OPERATION_TYPE,
   SafeAbi,
   SafeModuleAbi,
   addModuleLibAbi,
   safeProxyFactoryAbi,
 } from "./SafeAbis";
 import { generateAddress2, keccak256, toBuffer } from "ethereumjs-util";
+import { UserOperation } from "@epoch-protocol/utils";
+import { JsonRpcSigner } from "@ethersproject/providers";
 
 export interface SafeAccountApiParams extends BaseApiParams {
   owner: Signer;
@@ -20,7 +38,29 @@ export interface SafeAccountApiParams extends BaseApiParams {
   salt: BigNumber;
 }
 
+export interface SafeUserOperation {
+  safe: string;
+  nonce: BigNumberish;
+  initCode: BytesLike;
+  callData: BytesLike;
+  callGasLimit: BigNumberish;
+  verificationGasLimit: BigNumberish;
+  preVerificationGas: BigNumberish;
+  maxFeePerGas: BigNumberish;
+  maxPriorityFeePerGas: BigNumberish;
+  paymasterAndData: BytesLike;
+  validAfter: BigNumberish;
+  validUntil: BigNumberish;
+  entryPoint: string;
+}
+export interface SafeSignature {
+  signer: string;
+  data: string;
+}
 export class SafeAccountAPI extends BaseAccountAPI {
+  signUserOpHash(userOpHash: string): Promise<string> {
+    throw new Error("Method not implemented.");
+  }
   owner: Signer;
   entrypointContract?: EntryPoint;
   safeConfig: SafeConfig;
@@ -153,15 +193,33 @@ export class SafeAccountAPI extends BaseAccountAPI {
     ]);
   }
 
-  async signUserOpHash(userOpHash: string): Promise<string> {
-    const now = BigNumber.from(Date.now());
+  async signUserOp(userOp: UserOperationStruct): Promise<UserOperationStruct> {
+    const validAfter = BigNumber.from(Date.now());
     const validUntil = BigNumber.from("3704202280");
-    const sig = await this.owner.signMessage(arrayify(userOpHash));
-    const encoded = this.abiCoder.encode(
-      ["uint256, uint256, bytes"],
-      [now, validUntil, sig]
+    const safeUserOperation: SafeUserOperation = {
+      safe: await userOp.sender,
+      nonce: await userOp.nonce,
+      initCode: await userOp.initCode,
+      callData: await userOp.callData,
+      callGasLimit: await userOp.callGasLimit,
+      verificationGasLimit: await userOp.verificationGasLimit,
+      preVerificationGas: await userOp.preVerificationGas,
+      maxFeePerGas: await userOp.maxFeePerGas,
+      maxPriorityFeePerGas: await userOp.maxPriorityFeePerGas,
+      paymasterAndData: await userOp.paymasterAndData,
+      entryPoint: this.entryPointAddress,
+      validAfter,
+      validUntil,
+    };
+    const signedData = await this.signSafeOp(
+      this.owner,
+      this.safeConfig.aaModule,
+      safeUserOperation,
+      await this.owner.getChainId()
     );
-    return encoded;
+    const signature = this.buildSignatureBytes([signedData]);
+    userOp.signature = signature;
+    return userOp;
   }
 
   async _getSetupCode(): Promise<string> {
@@ -183,4 +241,27 @@ export class SafeAccountAPI extends BaseAccountAPI {
     ]);
     return encodedSetup;
   }
+  signSafeOp = async (
+    signer: Signer,
+    moduleAddress: string,
+    safeOp: SafeUserOperation,
+    chainId: BigNumberish
+  ): Promise<SafeSignature> => {
+    return {
+      signer: await signer.getAddress(),
+      data: await (signer as JsonRpcSigner)._signTypedData(
+        { chainId, verifyingContract: moduleAddress },
+        EIP712_SAFE_OPERATION_TYPE,
+        safeOp
+      ),
+    };
+  };
+  buildSignatureBytes = (signatures: SafeSignature[]): string => {
+    signatures.sort((left, right) =>
+      left.signer.toLowerCase().localeCompare(right.signer.toLowerCase())
+    );
+    return hexlify(
+      ethers.utils.concat(signatures.map((signature) => signature.data))
+    );
+  };
 }
