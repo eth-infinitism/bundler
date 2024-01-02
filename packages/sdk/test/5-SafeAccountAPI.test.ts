@@ -1,4 +1,4 @@
-import { BigNumber, Wallet } from "ethers";
+import { BigNumber, Signer, Wallet } from "ethers";
 import { SafeConfig } from "../src/SafeDefaultConfig";
 import { ethers, network } from "hardhat";
 import { SafeAccountAPI } from "../src/SafeAccountAPI";
@@ -7,8 +7,10 @@ import { initCode } from "./safeConstants";
 const provider = ethers.provider;
 const signer = provider.getSigner();
 describe("SafeAccountAPI", () => {
+  // const mnemonic =
+  //   "test test test test test test test test test test test junk";
   const mnemonic =
-    "test test test test test test test test test test test junk";
+    "shiver sweet verb spend brisk wonder series sting sweet mule cat mandate";
   const entryPoint = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
   const safeConfig: SafeConfig = {
     safeProxyFactory: "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67",
@@ -18,7 +20,7 @@ describe("SafeAccountAPI", () => {
     addModuleLib: "0x8EcD4ec46D4D2a6B64fE960B3D64e8B94B2234eb",
     salt: BigNumber.from("0"),
   };
-  let owner: Wallet;
+  let owner: Signer;
   let safeApi: SafeAccountAPI;
   let salt: BigNumber;
   before("init", async () => {
@@ -55,6 +57,15 @@ describe("SafeAccountAPI", () => {
   });
   it("Gives account initcode", async () => {
     let accountInitCode = await safeApi.getAccountInitCode();
+    console.log(initCode);
     assert.equal(accountInitCode, initCode);
+  });
+  it("signs data", async () => {
+    const op = await safeApi.createSignedUserOp({
+      target: "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67",
+      data: "0x",
+      value: BigNumber.from(0),
+    });
+    console.log(op);
   });
 });

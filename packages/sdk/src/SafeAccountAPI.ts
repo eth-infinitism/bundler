@@ -1,10 +1,10 @@
-import { BigNumber, BigNumberish, Signer, ethers } from "ethers";
+import { BigNumber, BigNumberish, Signer, Wallet, ethers } from "ethers";
 import { BaseAccountAPI, BaseApiParams } from "./BaseAccountAPI";
 import {
   EntryPoint,
   EntryPoint__factory,
 } from "@account-abstraction/contracts";
-import { Interface, arrayify, hexConcat } from "ethers/lib/utils";
+import { AbiCoder, Interface, arrayify, hexConcat } from "ethers/lib/utils";
 import { SafeConfig } from "./SafeDefaultConfig";
 import {
   SafeAbi,
@@ -25,11 +25,13 @@ export class SafeAccountAPI extends BaseAccountAPI {
   entrypointContract?: EntryPoint;
   safeConfig: SafeConfig;
   salt: BigNumber;
+  abiCoder: AbiCoder;
   constructor(params: SafeAccountApiParams) {
     super(params);
     this.owner = params.owner;
     this.safeConfig = params.safeConfig;
     this.salt = params.salt;
+    this.abiCoder = new ethers.utils.AbiCoder();
   }
   async _getAccountContract(): Promise<ethers.Contract> {
     const safeInterface = new ethers.utils.Interface(SafeAbi);
@@ -75,9 +77,8 @@ export class SafeAccountAPI extends BaseAccountAPI {
     ]);
   }
   async getCounterFactualAddress(): Promise<string> {
-    const abiCoder = new ethers.utils.AbiCoder();
     const encodedNonce = toBuffer(
-      abiCoder.encode(["uint256"], [this.salt])
+      this.abiCoder.encode(["uint256"], [this.salt])
     ).toString("hex");
     const initializer = await this._getSetupCode();
     const salt = keccak256(
@@ -85,7 +86,10 @@ export class SafeAccountAPI extends BaseAccountAPI {
         "0x" + keccak256(toBuffer(initializer)).toString("hex") + encodedNonce
       )
     );
-    const input = abiCoder.encode(["address"], [this.safeConfig.singleton]);
+    const input = this.abiCoder.encode(
+      ["address"],
+      [this.safeConfig.singleton]
+    );
     const from = this.safeConfig.safeProxyFactory;
 
     const proxyFactory = new ethers.Contract(
@@ -150,7 +154,14 @@ export class SafeAccountAPI extends BaseAccountAPI {
   }
 
   async signUserOpHash(userOpHash: string): Promise<string> {
-    return await this.owner.signMessage(arrayify(userOpHash));
+    const now = BigNumber.from(Date.now());
+    const validUntil = BigNumber.from("3704202280");
+    const sig = await this.owner.signMessage(arrayify(userOpHash));
+    const encoded = this.abiCoder.encode(
+      ["uint256, uint256, bytes"],
+      [now, validUntil, sig]
+    );
+    return encoded;
   }
 
   async _getSetupCode(): Promise<string> {
