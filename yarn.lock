@@ -191,6 +191,22 @@
   resolved "https://registry.yarnpkg.com/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz#1d572bfbbe14b7704e0ba0f39b74815b84870d70"
   integrity sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==
 
+"@epoch-protocol/sdk@0.8.7":
+  version "0.8.7"
+  resolved "https://registry.yarnpkg.com/@epoch-protocol/sdk/-/sdk-0.8.7.tgz#b2a4319e98ad595ca49f67bffbb5876c1c770d8e"
+  integrity sha512-8N8v3qutKeb9FOqvAQRPuULpexHaIywVhnvp7JEb+6ShdowP/GKZgOnhPP9JyK9pYchyGVAcpCtJYUZbTMajOw==
+  dependencies:
+    "@account-abstraction/contracts" "^0.6.0"
+    "@epoch-protocol/utils" "^0.6.2"
+    "@ethersproject/abstract-provider" "^5.7.0"
+    "@ethersproject/abstract-signer" "^5.7.0"
+    "@ethersproject/networks" "^5.7.0"
+    "@ethersproject/properties" "^5.7.0"
+    "@ethersproject/providers" "^5.7.0"
+    "@types/debug" "^4.1.7"
+    debug "^4.3.4"
+    ethers "^5.7.0"
+
 "@eslint-community/eslint-utils@^4.2.0":
   version "4.4.0"
   resolved "https://registry.yarnpkg.com/@eslint-community/eslint-utils/-/eslint-utils-4.4.0.tgz#a23514e8fb9af1269d5f7788aa556798d61c6b59"

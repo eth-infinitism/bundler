@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { SampleRecipient__factory } from "@epoch-protocol/utils";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { hexValue } from "ethers/lib/utils";
 import { DeterministicDeployer } from "../src/DeterministicDeployer";
 
