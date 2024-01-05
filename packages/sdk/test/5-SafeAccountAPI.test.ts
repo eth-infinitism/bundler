@@ -81,6 +81,5 @@ describe("SafeAccountAPI", () => {
     const response = await rpcClient.getAdvancedUserOperations(
       "0x278160b87c275d453FE5d65BaE5001a06799cF6f"
     );
-    console.log(typeof response);
   });
 });

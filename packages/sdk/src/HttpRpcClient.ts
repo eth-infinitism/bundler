@@ -106,7 +106,6 @@ export class HttpRpcClient {
     await this.initializing;
     const resp: Array<AdvancedUserOperationListStruct> =
       await this.userOpJsonRpcProvider.send("eth_getUserOperations", [sender]);
-    console.log("UserOps resp:", resp);
     return resp;
   }
 
