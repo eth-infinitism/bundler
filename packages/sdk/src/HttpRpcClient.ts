@@ -19,6 +19,10 @@ export class DeleteOperationStruct {
   nonce!: number;
   signature!: string;
 }
+export class AdvancedUserOperationListStruct {
+  chainId!: string;
+  userOp!: UserOperationStruct;
+}
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider;
 
@@ -96,11 +100,14 @@ export class HttpRpcClient {
    * @param sender
    * @return sender - address of smart contract wallet.
    */
-  async getAdvancedUserOperations(sender: string): Promise<string> {
+  async getAdvancedUserOperations(
+    sender: string
+  ): Promise<Array<AdvancedUserOperationListStruct>> {
     await this.initializing;
-    return await this.userOpJsonRpcProvider.send("eth_getUserOperations", [
-      sender,
-    ]);
+    const resp: Array<AdvancedUserOperationListStruct> =
+      await this.userOpJsonRpcProvider.send("eth_getUserOperations", [sender]);
+    console.log("UserOps resp:", resp);
+    return resp;
   }
 
   /**
