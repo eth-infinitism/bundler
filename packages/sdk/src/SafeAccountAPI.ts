@@ -1,25 +1,11 @@
-import {
-  BigNumber,
-  BigNumberish,
-  Signer,
-  VoidSigner,
-  Wallet,
-  ethers,
-} from "ethers";
+import { BigNumber, BigNumberish, Signer, ethers } from "ethers";
 import { BaseAccountAPI, BaseApiParams } from "./BaseAccountAPI";
 import {
   EntryPoint,
   EntryPoint__factory,
   UserOperationStruct,
 } from "@account-abstraction/contracts";
-import {
-  AbiCoder,
-  BytesLike,
-  Interface,
-  arrayify,
-  hexConcat,
-  hexlify,
-} from "ethers/lib/utils";
+import { AbiCoder, BytesLike, hexConcat, hexlify } from "ethers/lib/utils";
 import { SafeConfig } from "./SafeDefaultConfig";
 import {
   EIP712_SAFE_OPERATION_TYPE,
@@ -29,7 +15,6 @@ import {
   safeProxyFactoryAbi,
 } from "./SafeAbis";
 import { generateAddress2, keccak256, toBuffer } from "ethereumjs-util";
-import { UserOperation } from "@epoch-protocol/utils";
 import { JsonRpcSigner } from "@ethersproject/providers";
 
 export interface SafeAccountApiParams extends BaseApiParams {
@@ -53,26 +38,32 @@ export interface SafeUserOperation {
   validUntil: BigNumberish;
   entryPoint: string;
 }
+
 export interface SafeSignature {
   signer: string;
   data: string;
 }
+
 export class SafeAccountAPI extends BaseAccountAPI {
-  signUserOpHash(userOpHash: string): Promise<string> {
-    throw new Error("Method not implemented.");
-  }
   owner: Signer;
-  entrypointContract?: EntryPoint;
+  entrypointContract: EntryPoint;
   safeConfig: SafeConfig;
   salt: BigNumber;
   abiCoder: AbiCoder;
+
   constructor(params: SafeAccountApiParams) {
     super(params);
+
     this.owner = params.owner;
     this.safeConfig = params.safeConfig;
     this.salt = params.salt;
     this.abiCoder = new ethers.utils.AbiCoder();
+    this.entrypointContract = EntryPoint__factory.connect(
+      this.entryPointAddress,
+      this.provider
+    );
   }
+
   async _getAccountContract(): Promise<ethers.Contract> {
     const safeInterface = new ethers.utils.Interface(SafeAbi);
     const safeProxy = new ethers.Contract(
@@ -82,17 +73,7 @@ export class SafeAccountAPI extends BaseAccountAPI {
     return safeProxy;
   }
 
-  async _getEntrypointContract(): Promise<EntryPoint | undefined> {
-    if (
-      this.entrypointContract == null &&
-      this.entryPointAddress &&
-      this.entryPointAddress !== ""
-    ) {
-      this.entrypointContract = EntryPoint__factory.connect(
-        this.entryPointAddress,
-        this.provider
-      );
-    }
+  async _getEntrypointContract(): Promise<EntryPoint> {
     return this.entrypointContract;
   }
 
@@ -116,6 +97,7 @@ export class SafeAccountAPI extends BaseAccountAPI {
       safeProxyFactoryEncodedCallData,
     ]);
   }
+
   async getCounterFactualAddress(): Promise<string> {
     const encodedNonce = toBuffer(
       this.abiCoder.encode(["uint256"], [this.salt])
@@ -159,17 +141,11 @@ export class SafeAccountAPI extends BaseAccountAPI {
     }
     const accountContract = await this._getAccountContract();
 
+    const entrypoint = await this._getEntrypointContract();
     if (key) {
-      const entrypoint = await this._getEntrypointContract();
-      if (entrypoint) {
-        return entrypoint.getNonce(accountContract.address, key);
-      }
+      return entrypoint.getNonce(accountContract.address, key);
     }
-    const safeProxy = new ethers.Contract(
-      await this.getCounterFactualAddress(),
-      SafeAbi
-    );
-    return await safeProxy.functions.getNonce();
+    return entrypoint.getNonce(accountContract.address, 0);
   }
 
   /**
@@ -194,8 +170,10 @@ export class SafeAccountAPI extends BaseAccountAPI {
   }
 
   async signUserOp(userOp: UserOperationStruct): Promise<UserOperationStruct> {
-    const validAfter = BigNumber.from(Date.now());
-    const validUntil = BigNumber.from("3704202280");
+    const validAfter = BigNumber.from(Math.floor(Date.now() / 1000));
+    // Valid Until 365 days
+    const validUntil = validAfter.add(31536000);
+
     const safeUserOperation: SafeUserOperation = {
       safe: await userOp.sender,
       nonce: await userOp.nonce,
@@ -211,14 +189,21 @@ export class SafeAccountAPI extends BaseAccountAPI {
       validAfter,
       validUntil,
     };
-    const signedData = await this.signSafeOp(
-      this.owner,
-      this.safeConfig.aaModule,
-      safeUserOperation,
-      await this.owner.getChainId()
+
+    const signature = this.buildSignatureBytes([
+      await this.signSafeOp(
+        this.owner,
+        this.safeConfig.aaModule,
+        safeUserOperation,
+        await this.owner.getChainId()
+      ),
+    ]);
+
+    userOp.signature = ethers.utils.solidityPack(
+      ["uint48", "uint48", "bytes"],
+      [validAfter, validUntil, signature]
     );
-    const signature = this.buildSignatureBytes([signedData]);
-    userOp.signature = signature;
+
     return userOp;
   }
 
@@ -241,12 +226,13 @@ export class SafeAccountAPI extends BaseAccountAPI {
     ]);
     return encodedSetup;
   }
-  signSafeOp = async (
+
+  async signSafeOp(
     signer: Signer,
     moduleAddress: string,
     safeOp: SafeUserOperation,
     chainId: BigNumberish
-  ): Promise<SafeSignature> => {
+  ): Promise<SafeSignature> {
     return {
       signer: await signer.getAddress(),
       data: await (signer as JsonRpcSigner)._signTypedData(
@@ -255,13 +241,18 @@ export class SafeAccountAPI extends BaseAccountAPI {
         safeOp
       ),
     };
-  };
-  buildSignatureBytes = (signatures: SafeSignature[]): string => {
+  }
+
+  buildSignatureBytes(signatures: SafeSignature[]): string {
     signatures.sort((left, right) =>
       left.signer.toLowerCase().localeCompare(right.signer.toLowerCase())
     );
     return hexlify(
       ethers.utils.concat(signatures.map((signature) => signature.data))
     );
-  };
+  }
+
+  signUserOpHash(userOpHash: string): Promise<string> {
+    throw new Error(`Method not implemented for SAFE Wallets, ${userOpHash}`);
+  }
 }
