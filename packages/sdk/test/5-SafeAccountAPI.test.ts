@@ -4,6 +4,7 @@ import { ethers, network } from "hardhat";
 import { SafeAccountAPI } from "../src/SafeAccountAPI";
 import { assert } from "chai";
 import { initCode } from "./safeConstants";
+import { HttpRpcClient } from "../src";
 const provider = ethers.provider;
 const signer = provider.getSigner();
 describe("SafeAccountAPI", () => {
@@ -70,5 +71,15 @@ describe("SafeAccountAPI", () => {
     });
     console.log(JSON.stringify(op));
     console.log(op.signature.toString());
+  });
+  it("get user operations", async () => {
+    const rpcClient = new HttpRpcClient(
+      "http://0.0.0.0:14337/80001",
+      "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+      80001
+    );
+    const response = await rpcClient.getAdvancedUserOperations(
+      "0x278160b87c275d453FE5d65BaE5001a06799cF6f"
+    );
   });
 });

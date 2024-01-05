@@ -91,6 +91,17 @@ export class HttpRpcClient {
       this.entryPointAddress,
     ]);
   }
+  /**
+   * get userOperations for a user.
+   * @param sender
+   * @return sender - address of smart contract wallet.
+   */
+  async getAdvancedUserOperations(sender: string): Promise<string> {
+    await this.initializing;
+    return await this.userOpJsonRpcProvider.send("eth_getUserOperations", [
+      sender,
+    ]);
+  }
 
   /**
    * send a UserOperation to the bundler
