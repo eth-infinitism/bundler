@@ -13,11 +13,7 @@ import Debug from "debug";
 import { AdvancedUserOperationStruct } from "./AdvancedUserOp";
 
 const debug = Debug("aa.rpc");
-export class AdvancedUserOperationListStruct {
-  constructor(chainId: string, userOp: UserOperationStruct) {
-    this.chainId = chainId;
-    this.userOp = userOp;
-  }
+export interface AdvancedUserOperationListStruct {
   chainId: string;
   userOp: UserOperationStruct;
 }
