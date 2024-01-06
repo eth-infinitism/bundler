@@ -13,11 +13,9 @@ import Debug from "debug";
 import { AdvancedUserOperationStruct } from "./AdvancedUserOp";
 
 const debug = Debug("aa.rpc");
-export class DeleteOperationStruct {
-  sender!: string;
-  chainId!: number;
-  nonce!: number;
-  signature!: string;
+export interface AdvancedUserOperationListStruct {
+  chainId: string;
+  userOp: UserOperationStruct;
 }
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider;
@@ -90,6 +88,19 @@ export class HttpRpcClient {
       hexifiedUserOp,
       this.entryPointAddress,
     ]);
+  }
+  /**
+   * get userOperations for a user.
+   * @param sender
+   * @return sender - address of smart contract wallet.
+   */
+  async getAdvancedUserOperations(
+    sender: string
+  ): Promise<Array<AdvancedUserOperationListStruct>> {
+    await this.initializing;
+    const resp: Array<AdvancedUserOperationListStruct> =
+      await this.userOpJsonRpcProvider.send("eth_getUserOperations", [sender]);
+    return resp;
   }
 
   /**

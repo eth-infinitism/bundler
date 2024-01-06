@@ -5,6 +5,7 @@ import { SafeAccountAPI } from "../src/SafeAccountAPI";
 import { assert } from "chai";
 import { initCode } from "./safeConstants";
 import { HttpRpcClient } from "../src";
+
 import { DEFAULT_MNEMONIC } from "../hardhat.config";
 
 const provider = ethers.provider;
@@ -115,5 +116,15 @@ describe("SafeAccountAPI", () => {
     const bundler = new HttpRpcClient(bundlerUrl, ENTRY_POINT, 80001);
     const deployWalletUserOp = await bundler.sendUserOpToBundler(op);
     console.log("deployWalletUserOp: ", deployWalletUserOp);
+  });
+  it("get user operations", async () => {
+    const rpcClient = new HttpRpcClient(
+      "http://0.0.0.0:14337/80001",
+      "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+      80001
+    );
+    const response = await rpcClient.getAdvancedUserOperations(
+      "0x278160b87c275d453FE5d65BaE5001a06799cF6f"
+    );
   });
 });
