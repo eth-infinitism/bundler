@@ -13,15 +13,13 @@ import Debug from "debug";
 import { AdvancedUserOperationStruct } from "./AdvancedUserOp";
 
 const debug = Debug("aa.rpc");
-export class DeleteOperationStruct {
-  sender!: string;
-  chainId!: number;
-  nonce!: number;
-  signature!: string;
-}
 export class AdvancedUserOperationListStruct {
-  chainId!: string;
-  userOp!: UserOperationStruct;
+  constructor(chainId: string, userOp: UserOperationStruct) {
+    this.chainId = chainId;
+    this.userOp = userOp;
+  }
+  chainId: string;
+  userOp: UserOperationStruct;
 }
 export class HttpRpcClient {
   private readonly userOpJsonRpcProvider: JsonRpcProvider;
