@@ -69,7 +69,12 @@ export class DeterministicDeployer {
       })
     }
     await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
-    if (!await this.isContractDeployed(DeterministicDeployer.proxyAddress)) {
+    var tryCount = 5
+    while (!await this.isContractDeployed(DeterministicDeployer.proxyAddress) && tryCount > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      tryCount--
+    }
+    if (tryCount <= 0) {
       throw new Error('raw TX didn\'t deploy deployer!')
     }
   }
