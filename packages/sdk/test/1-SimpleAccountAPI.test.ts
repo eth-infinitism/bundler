@@ -1,8 +1,7 @@
 import {
   EntryPoint,
   EntryPoint__factory,
-  SimpleAccountFactory__factory,
-  UserOperationStruct
+  SimpleAccountFactory__factory
 } from '@account-abstraction/contracts'
 import { Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
@@ -10,7 +9,13 @@ import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
 import { DeterministicDeployer, SimpleAccountAPI } from '../src'
-import { SampleRecipient, SampleRecipient__factory, rethrowError } from '@account-abstraction/utils'
+import {
+  SampleRecipient,
+  SampleRecipient__factory,
+  rethrowError,
+  UserOperation,
+  packUserOp
+} from '@account-abstraction/utils'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
@@ -41,7 +46,7 @@ describe('SimpleAccountAPI', () => {
   })
 
   it('#getUserOpHash should match entryPoint.getUserOpHash', async function () {
-    const userOp: UserOperationStruct = {
+    const userOp: UserOperation = {
       sender: '0x'.padEnd(42, '1'),
       nonce: 2,
       initCode: '0x3333',
@@ -51,11 +56,10 @@ describe('SimpleAccountAPI', () => {
       preVerificationGas: 7,
       maxFeePerGas: 8,
       maxPriorityFeePerGas: 9,
-      paymasterAndData: '0xaaaaaa',
       signature: '0xbbbb'
     }
     const hash = await api.getUserOpHash(userOp)
-    const epHash = await entryPoint.getUserOpHash(userOp)
+    const epHash = await entryPoint.getUserOpHash(packUserOp(userOp))
     expect(hash).to.equal(epHash)
   })
 
@@ -72,14 +76,14 @@ describe('SimpleAccountAPI', () => {
       data: recipient.interface.encodeFunctionData('something', ['hello'])
     })
 
-    await expect(entryPoint.handleOps([op], beneficiary)).to.emit(recipient, 'Sender')
+    await expect(entryPoint.handleOps([packUserOp(op)], beneficiary)).to.emit(recipient, 'Sender')
       .withArgs(anyValue, accountAddress, 'hello')
     expect(await provider.getCode(accountAddress).then(code => code.length)).to.greaterThan(1000)
     accountDeployed = true
   })
 
   context('#rethrowError', () => {
-    let userOp: UserOperationStruct
+    let userOp: UserOperation
     before(async () => {
       userOp = await api.createUnsignedUserOp({
         target: ethers.constants.AddressZero,
@@ -90,7 +94,7 @@ describe('SimpleAccountAPI', () => {
     })
     it('should parse FailedOp error', async () => {
       await expect(
-        entryPoint.handleOps([userOp], beneficiary)
+        entryPoint.handleOps([packUserOp(userOp)], beneficiary)
           .catch(rethrowError))
         .to.revertedWith('FailedOp: AA23 reverted: ECDSA: invalid signature length')
     })
@@ -122,7 +126,7 @@ describe('SimpleAccountAPI', () => {
       target: recipient.address,
       data: recipient.interface.encodeFunctionData('something', ['world'])
     })
-    await expect(entryPoint.handleOps([op1], beneficiary)).to.emit(recipient, 'Sender')
+    await expect(entryPoint.handleOps([packUserOp(op1)], beneficiary)).to.emit(recipient, 'Sender')
       .withArgs(anyValue, accountAddress, 'world')
   })
 })

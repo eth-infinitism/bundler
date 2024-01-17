@@ -5,7 +5,7 @@ import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 import { NotPromise } from './ERC4337Utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { PackedUserOperationStruct } from '@account-abstraction/contracts'
 
 export interface SlotMap {
   [slot: string]: string
@@ -25,7 +25,7 @@ export interface StakeInfo {
   unstakeDelaySec: BigNumberish
 }
 
-export type UserOperation = NotPromise<UserOperationStruct>
+export type PackedUserOperation = NotPromise<PackedUserOperationStruct>
 
 export enum ValidationErrors {
   InvalidFields = -32602,

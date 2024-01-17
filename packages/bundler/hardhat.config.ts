@@ -41,7 +41,7 @@ const config: HardhatUserConfig = {
     goerli: getInfuraNetwork('goerli')
   },
   solidity: {
-    version: '0.8.15',
+    version: '0.8.23',
     settings: {
       optimizer: { enabled: true }
     }

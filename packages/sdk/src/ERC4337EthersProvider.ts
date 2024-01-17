@@ -7,8 +7,8 @@ import { ClientConfig } from './ClientConfig'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
-import { EntryPoint, UserOperationStruct } from '@account-abstraction/contracts'
-import { getUserOpHash } from '@account-abstraction/utils'
+import { EntryPoint } from '@account-abstraction/contracts'
+import { getUserOpHash, packUserOp, unpackAccountGasLimits, UserOperation } from '@account-abstraction/utils'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import Debug from 'debug'
 const debug = Debug('aa.provider')
@@ -89,9 +89,8 @@ export class ERC4337EthersProvider extends BaseProvider {
   }
 
   // fabricate a response in a format usable by ethers users...
-  async constructUserOpTransactionResponse (userOp1: UserOperationStruct): Promise<TransactionResponse> {
-    const userOp = await resolveProperties(userOp1)
-    const userOpHash = getUserOpHash(userOp, this.config.entryPointAddress, this.chainId)
+  async constructUserOpTransactionResponse (userOp: UserOperation): Promise<TransactionResponse> {
+    const userOpHash = getUserOpHash(packUserOp(userOp), this.config.entryPointAddress, this.chainId)
     const waitForUserOp = async (): Promise<TransactionReceipt> => await new Promise((resolve, reject) => {
       new UserOperationEventListener(
         resolve, reject, this.entryPoint, userOp.sender, userOpHash, userOp.nonce
@@ -102,13 +101,13 @@ export class ERC4337EthersProvider extends BaseProvider {
       confirmations: 0,
       from: userOp.sender,
       nonce: BigNumber.from(userOp.nonce).toNumber(),
-      gasLimit: BigNumber.from(userOp.callGasLimit), // ??
+      gasLimit: BigNumber.from(userOp.callGasLimit),
       value: BigNumber.from(0),
       data: hexValue(userOp.callData), // should extract the actual called method from this "execFromEntryPoint()" call
       chainId: this.chainId,
       wait: async (confirmations?: number): Promise<TransactionReceipt> => {
         const transactionReceipt = await waitForUserOp()
-        if (userOp.initCode.length !== 0) {
+        if (userOp.initCode != null && userOp.initCode.length > 2) {
           // checking if the wallet has been deployed by the transaction; it must be if we are here
           await this.smartAccountAPI.checkAccountPhantom()
         }

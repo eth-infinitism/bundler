@@ -19,7 +19,7 @@
     "@account-abstraction/contracts": "^0.6.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/contracts": "^5.0.1",
     "debug": "^4.3.4",
     "ethers": "^5.7.0"
   },

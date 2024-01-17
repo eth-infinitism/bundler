@@ -9,7 +9,7 @@ const config: HardhatUserConfig = {
     target: 'ethers-v5'
   },
   solidity: {
-    version: '0.8.15',
+    version: '0.8.23',
     settings: {
       optimizer: { enabled: true }
     }

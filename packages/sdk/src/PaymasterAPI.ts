@@ -1,4 +1,4 @@
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { UserOperation } from '@account-abstraction/utils'
 
 /**
  * an API to external a UserOperation with paymaster info
@@ -10,7 +10,7 @@ export class PaymasterAPI {
    *  paymasterAndData value, which will only be returned by this method..
    * @returns the value to put into the PaymasterAndData, undefined to leave it empty
    */
-  async getPaymasterAndData (userOp: Partial<UserOperationStruct>): Promise<string | undefined> {
+  async getPaymasterAndData (userOp: Partial<UserOperation>): Promise<string | undefined> {
     return '0x'
   }
 }

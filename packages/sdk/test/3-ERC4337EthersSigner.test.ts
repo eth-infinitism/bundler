@@ -1,4 +1,4 @@
-import { SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils'
+import { packUserOp, SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils'
 import { ethers } from 'hardhat'
 import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
@@ -28,10 +28,10 @@ describe('ERC4337EthersSigner, Provider', function () {
     // for testing: bypass sending through a bundler, and send directly to our entrypoint..
     aaProvider.httpRpcClient.sendUserOpToBundler = async (userOp) => {
       try {
-        await entryPoint.handleOps([userOp], beneficiary)
+        await entryPoint.handleOps([packUserOp(userOp)], beneficiary)
       } catch (e: any) {
         // doesn't report error unless called with callStatic
-        await entryPoint.callStatic.handleOps([userOp], beneficiary).catch((e: any) => {
+        await entryPoint.callStatic.handleOps([packUserOp(userOp)], beneficiary).catch((e: any) => {
           // eslint-disable-next-line
           const message = e.errorArgs != null ? `${e.errorName}(${e.errorArgs.join(',')})` : e.message
           throw new Error(message)
