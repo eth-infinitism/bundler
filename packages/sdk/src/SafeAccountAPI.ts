@@ -157,15 +157,19 @@ export class SafeAccountAPI extends BaseAccountAPI {
   async encodeExecute(
     target: string,
     value: BigNumberish,
-    data: string
+    data: string,
+    delegateCall?: boolean
   ): Promise<string> {
     const safeInterface = new ethers.utils.Interface(SafeModuleAbi);
-
+    let delegateCAllEnum = BigNumber.from(0);
+    if (delegateCall) {
+      delegateCAllEnum = BigNumber.from(1);
+    }
     return safeInterface.encodeFunctionData("executeUserOp", [
       target,
       value,
       data,
-      BigNumber.from(0),
+      delegateCAllEnum,
     ]);
   }
 

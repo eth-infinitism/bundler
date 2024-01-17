@@ -11,6 +11,7 @@ import {
 import { arrayify, hexConcat } from "ethers/lib/utils";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BaseApiParams, BaseAccountAPI } from "./BaseAccountAPI";
+import { boolean } from "hardhat/internal/core/params/argumentTypes";
 
 /**
  * constructor params, added no top of base params:
@@ -125,8 +126,12 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   async encodeExecute(
     target: string,
     value: BigNumberish,
-    data: string
+    data: string,
+    delegateCall?: boolean
   ): Promise<string> {
+    if (delegateCall) {
+      throw new Error("Simple account does not support delegate call");
+    }
     const accountContract = await this._getAccountContract();
     return accountContract.interface.encodeFunctionData("execute", [
       target,

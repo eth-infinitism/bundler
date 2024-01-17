@@ -97,7 +97,8 @@ export abstract class BaseAccountAPI {
   abstract encodeExecute(
     target: string,
     value: BigNumberish,
-    data: string
+    data: string,
+    delegateCall?: boolean
   ): Promise<string>;
 
   /**
@@ -182,7 +183,8 @@ export abstract class BaseAccountAPI {
   }
 
   async encodeUserOpCallDataAndGasLimit(
-    detailsForUserOp: TransactionDetailsForUserOp
+    detailsForUserOp: TransactionDetailsForUserOp,
+    delegateCall?: boolean
   ): Promise<{ callData: string; callGasLimit: BigNumber }> {
     function parseNumber(a: any): BigNumber | null {
       if (a == null || a === "") return null;
@@ -193,7 +195,8 @@ export abstract class BaseAccountAPI {
     const callData = await this.encodeExecute(
       detailsForUserOp.target,
       value,
-      detailsForUserOp.data
+      detailsForUserOp.data,
+      delegateCall
     );
 
     const callGasLimit =
@@ -253,10 +256,11 @@ export abstract class BaseAccountAPI {
    * @param info
    */
   async createUnsignedUserOp(
-    info: TransactionDetailsForUserOp
+    info: TransactionDetailsForUserOp,
+    delegateCall?: boolean
   ): Promise<UserOperationStruct> {
     const { callData, callGasLimit } =
-      await this.encodeUserOpCallDataAndGasLimit(info);
+      await this.encodeUserOpCallDataAndGasLimit(info, delegateCall);
     const initCode = await this.getInitCode();
 
     const initGas = await this.estimateCreationGas(initCode);
@@ -324,9 +328,12 @@ export abstract class BaseAccountAPI {
    * @param info transaction details for the userOp
    */
   async createSignedUserOp(
-    info: TransactionDetailsForUserOp
+    info: TransactionDetailsForUserOp,
+    delegateCall?: boolean
   ): Promise<UserOperationStruct> {
-    return await this.signUserOp(await this.createUnsignedUserOp(info));
+    return await this.signUserOp(
+      await this.createUnsignedUserOp(info, delegateCall)
+    );
   }
 
   /**
