@@ -29,7 +29,7 @@ contract TestFakeWalletToken is IAccount {
         anotherWallet = _anotherWallet;
     }
 
-    function validateUserOp(UserOperation calldata userOp, bytes32, uint256)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32, uint256)
     public override returns (uint256 validationData) {
         if (userOp.callData.length == 20) {
             // the first UserOperation sets the second sender's "associated" balance to 0

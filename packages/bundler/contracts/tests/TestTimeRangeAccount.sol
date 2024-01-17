@@ -11,7 +11,7 @@ import {_packValidationData} from "@account-abstraction/contracts/core/Helpers.s
  */
 contract TestTimeRangeAccount is IAccount {
 
-    function validateUserOp(UserOperation calldata userOp, bytes32, uint256)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32, uint256)
     external virtual override returns (uint256) {
 
         uint48 validAfter = uint48(userOp.preVerificationGas);

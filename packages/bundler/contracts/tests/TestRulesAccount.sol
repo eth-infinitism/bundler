@@ -65,7 +65,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
         entryPoint.addStake{value : msg.value}(1);
     }
 
-    function validateUserOp(UserOperation calldata userOp, bytes32, uint256 missingAccountFunds)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32, uint256 missingAccountFunds)
     external override returns (uint256) {
         if (missingAccountFunds > 0) {
             /* solhint-disable-next-line avoid-low-level-calls */
@@ -80,14 +80,14 @@ contract TestRulesAccount is IAccount, IPaymaster {
         return 0;
     }
 
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256)
+    function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256)
     external returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         runRule(rule);
         return ("", 0);
     }
 
-    function postOp(PostOpMode, bytes calldata, uint256) external {}
+    function postOp(PostOpMode, bytes calldata, uint256, uint256) external {}
 
 }
 

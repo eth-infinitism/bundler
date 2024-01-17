@@ -66,7 +66,7 @@ export function calcPreVerificationGas (userOp: Partial<UserOperation>, overhead
     ...userOp
   } as any
 
-  const packed = arrayify(encodeUserOp(p, false))
+  const packed = arrayify(encodeUserOp(packUserOp(p), false))
   const lengthInWord = (packed.length + 31) / 32
   const callDataCost = packed.map(x => x === 0 ? ov.zeroByte : ov.nonZeroByte).reduce((sum, x) => sum + x)
   const ret = Math.round(

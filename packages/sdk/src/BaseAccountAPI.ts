@@ -253,8 +253,8 @@ export abstract class BaseAccountAPI {
     }
 
     const partialUserOp: any = {
-      sender: this.getAccountAddress(),
-      nonce: info.nonce ?? this.getNonce(),
+      sender: await this.getAccountAddress(),
+      nonce: info.nonce ?? await this.getNonce(),
       initCode,
       callData,
       callGasLimit,
@@ -276,7 +276,7 @@ export abstract class BaseAccountAPI {
     partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
     return {
       ...partialUserOp,
-      preVerificationGas: this.getPreVerificationGas(partialUserOp),
+      preVerificationGas: await this.getPreVerificationGas(partialUserOp),
       signature: ''
     }
   }

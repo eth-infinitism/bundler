@@ -134,7 +134,7 @@ export function encodeUserOp (op1: NotPromise<PackedUserOperationStruct> | UserO
   if (forSignature) {
     return defaultAbiCoder.encode(
       ['address', 'uint256', 'bytes32', 'bytes32',
-        'bytes32', 'uint256', 'uint256', 'uint256', 'uint256',
+        'bytes32', 'uint256', 'uint256', 'uint256',
         'bytes32'],
       [op.sender, op.nonce, keccak256(op.initCode), keccak256(op.callData),
         op.accountGasLimits, op.preVerificationGas, op.maxFeePerGas, op.maxPriorityFeePerGas,
@@ -143,7 +143,7 @@ export function encodeUserOp (op1: NotPromise<PackedUserOperationStruct> | UserO
     // for the purpose of calculating gas cost encode also signature (and no keccak of bytes)
     return defaultAbiCoder.encode(
       ['address', 'uint256', 'bytes', 'bytes',
-        'bytes32', 'uint256', 'uint256', 'uint256', 'uint256',
+        'bytes32', 'uint256', 'uint256', 'uint256',
         'bytes', 'bytes'],
       [op.sender, op.nonce, op.initCode, op.callData,
         op.accountGasLimits, op.preVerificationGas, op.maxFeePerGas, op.maxPriorityFeePerGas,
@@ -179,7 +179,12 @@ interface DecodedError {
 /**
  * decode bytes thrown by revert as Error(message) or FailedOp(opIndex,paymaster,message)
  */
-export function decodeErrorReason (error: string): DecodedError | undefined {
+export function decodeErrorReason (error: string | Error): DecodedError | undefined {
+  if (typeof error !== 'string') {
+    const err = error as any
+    error = (err.data ?? err.error.data) as string
+  }
+
   debug('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))

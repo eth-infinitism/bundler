@@ -21,7 +21,7 @@ contract TestStorageAccount is TestRuleAccount {
 
     event TestMessage(address eventSender);
 
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
     public virtual override returns (bytes memory context, uint256 deadline) {
         string memory rule = string(userOp.paymasterAndData[20 :]);
         if (eq(rule, 'postOp-context')) {
