@@ -7,7 +7,13 @@ import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
-import { UserOperation, StorageMap, getAddr, mergeStorageMap, runContractScript } from '@account-abstraction/utils'
+import {
+  UserOperation,
+  StorageMap,
+  mergeStorageMap,
+  runContractScript,
+  packUserOp
+} from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 
@@ -79,7 +85,7 @@ export class BundleManager {
   async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
-      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
+      const tx = await this.entryPoint.populateTransaction.handleOps(userOps.map(packUserOp), beneficiary, {
         type: 2,
         nonce: await this.signer.getTransactionCount(),
         gasLimit: 10e6,
@@ -125,11 +131,11 @@ export class BundleManager {
       const userOp = userOps[opIndex]
       const reasonStr: string = reason.toString()
       if (reasonStr.startsWith('AA3')) {
-        this.reputationManager.crashedHandleOps(getAddr(userOp.paymasterAndData))
+        this.reputationManager.crashedHandleOps(userOp.paymaster)
       } else if (reasonStr.startsWith('AA2')) {
         this.reputationManager.crashedHandleOps(userOp.sender)
       } else if (reasonStr.startsWith('AA1')) {
-        this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
+        this.reputationManager.crashedHandleOps(userOp.factory)
       } else {
         this.mempoolManager.removeUserOp(userOp)
         console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
@@ -165,8 +171,8 @@ export class BundleManager {
     // eslint-disable-next-line no-labels
     mainLoop:
     for (const entry of entries) {
-      const paymaster = getAddr(entry.userOp.paymasterAndData)
-      const factory = getAddr(entry.userOp.initCode)
+      const paymaster = entry.userOp.paymaster
+      const factory = entry.userOp.factory
       const paymasterStatus = this.reputationManager.getStatus(paymaster)
       const deployerStatus = this.reputationManager.getStatus(factory)
       if (paymasterStatus === ReputationStatus.BANNED || deployerStatus === ReputationStatus.BANNED) {
@@ -236,7 +242,7 @@ export class BundleManager {
       }
 
       // If sender's account already exist: replace with its storage root hash
-      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
+      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.factory == null) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
         storageMap[entry.userOp.sender.toLowerCase()] = storageHash
       }
@@ -268,7 +274,7 @@ export class BundleManager {
   async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
     const { userOpHashes } = await runContractScript(this.entryPoint.provider,
       new GetUserOpHashes__factory(),
-      [this.entryPoint.address, userOps])
+      [this.entryPoint.address, userOps.map(packUserOp)])
 
     return userOpHashes
   }

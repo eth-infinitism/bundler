@@ -6,8 +6,7 @@ import { BundlerConfig } from '../src/BundlerConfig'
 import {
   EntryPoint,
   EntryPoint__factory,
-  SimpleAccountFactory__factory,
-  UserOperationStruct
+  SimpleAccountFactory__factory
 } from '@account-abstraction/contracts'
 
 import { Signer, Wallet } from 'ethers'
@@ -19,7 +18,7 @@ import {
   TestRulesAccount__factory
 } from '../src/types'
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
-import { resolveHexlify, waitFor } from '@account-abstraction/utils'
+import { packUserOp, resolveHexlify, UserOperation, waitFor } from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
@@ -76,7 +75,7 @@ describe('UserOpMethodHandler', function () {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
@@ -132,8 +131,8 @@ describe('UserOpMethodHandler', function () {
     })
   })
 
-  describe('sendUserOperation', function () {
-    let userOperation: UserOperationStruct
+  describe.only('sendUserOperation', function () {
+    let userOperation: UserOperation
     let accountAddress: string
 
     let accountDeployerAddress: string
@@ -300,9 +299,8 @@ describe('UserOpMethodHandler', function () {
       acc = await new TestRulesAccount__factory(signer).deploy()
       const callData = acc.interface.encodeFunctionData('execSendMessage')
 
-      const op: UserOperationStruct = {
+      const op: UserOperation = {
         sender: acc.address,
-        initCode: '0x',
         nonce: 0,
         callData,
         callGasLimit: 1e6,
@@ -310,14 +308,13 @@ describe('UserOpMethodHandler', function () {
         preVerificationGas: 50000,
         maxFeePerGas: 1e6,
         maxPriorityFeePerGas: 1e6,
-        paymasterAndData: '0x',
         signature: Buffer.from('emit-msg')
       }
       await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})
-      userOpHash = await entryPoint.getUserOpHash(op)
+      userOpHash = await entryPoint.getUserOpHash(packUserOp(op))
       const beneficiary = signer.getAddress()
-      await entryPoint.handleOps([op], beneficiary).then(async ret => await ret.wait())
+      await entryPoint.handleOps([packUserOp(op)], beneficiary).then(async ret => await ret.wait())
       const rcpt = await methodHandler.getUserOperationReceipt(userOpHash)
       if (rcpt == null) {
         throw new Error('getUserOperationReceipt returns null')

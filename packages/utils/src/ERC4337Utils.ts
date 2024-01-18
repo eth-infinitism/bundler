@@ -33,7 +33,8 @@ export interface UserOperation {
 
   sender: string
   nonce: BigNumberish
-  initCode?: BytesLike
+  factory?: string
+  factoryData?: BytesLike
   callData: BytesLike
   callGasLimit: BigNumberish
   verificationGasLimit: BigNumberish
@@ -106,7 +107,7 @@ export function packUserOp (op: UserOperation): PackedUserOperation {
   return {
     sender: op.sender,
     nonce: op.nonce,
-    initCode: op.initCode ?? '0x',
+    initCode: op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? '']),
     callData: op.callData,
     accountGasLimits: packAccountGasLimits(op.verificationGasLimit, op.callGasLimit),
     preVerificationGas: op.preVerificationGas,
@@ -115,6 +116,37 @@ export function packUserOp (op: UserOperation): PackedUserOperation {
     paymasterAndData,
     signature: op.signature
   }
+}
+
+export function unpackUserOp (packed: PackedUserOperation): UserOperation {
+  const { callGasLimit, verificationGasLimit } = unpackAccountGasLimits(packed.accountGasLimits)
+  let ret: UserOperation = {
+    sender: packed.sender,
+    nonce: packed.nonce,
+    callData: packed.callData,
+    preVerificationGas: packed.preVerificationGas,
+    verificationGasLimit,
+    callGasLimit,
+    maxFeePerGas: packed.maxFeePerGas,
+    maxPriorityFeePerGas: packed.maxFeePerGas,
+    signature: packed.signature
+  }
+  if (packed.initCode != null && packed.initCode.length > 2) {
+    const factory = hexDataSlice(packed.initCode, 0, 20)
+    const factoryData = hexDataSlice(packed.initCode, 20)
+    ret = { ...ret, factory, factoryData }
+  }
+  const pmData = unpackPaymasterAndData(packed.paymasterAndData)
+  if (pmData != null) {
+    ret = {
+      ...ret,
+      paymaster: pmData.paymaster,
+      paymasterVerificationGasLimit: pmData.paymasterVerificationGas,
+      paymasterPostOpGasLimit: pmData.postOpGasLimit,
+      paymasterData: pmData.paymasterData
+    }
+  }
+  return ret
 }
 
 /**

@@ -5,12 +5,19 @@ import { Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
-import { AddressZero, deepHexlify, erc4337RuntimeVersion, RpcError } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  deepHexlify,
+  erc4337RuntimeVersion,
+  packUserOp,
+  RpcError,
+  UserOperation
+} from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
-import { EntryPoint__factory, UserOperationStruct } from '@account-abstraction/contracts'
+import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
@@ -57,11 +64,9 @@ export class BundlerServer {
     }
 
     // minimal UserOp to revert with "FailedOp"
-    const emptyUserOp: UserOperationStruct = {
+    const emptyUserOp: UserOperation = {
       sender: AddressZero,
       callData: '0x',
-      initCode: AddressZero,
-      paymasterAndData: '0x',
       nonce: 0,
       preVerificationGas: 0,
       verificationGasLimit: 100000,
@@ -71,10 +76,10 @@ export class BundlerServer {
       signature: '0x'
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
-    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.simulateValidation(emptyUserOp)
+    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
       .catch(e => e)
-    if (err?.errorName !== 'FailedOp') {
-      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`)
+    if (err != null) {
+      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${err}`)
     }
     const signerAddress = await this.wallet.getAddress()
     const bal = await this.provider.getBalance(signerAddress)

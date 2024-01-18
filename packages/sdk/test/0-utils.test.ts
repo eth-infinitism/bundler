@@ -79,10 +79,12 @@ describe('utils', () => {
     })
 
     it('should pack userop with optional fields', function () {
+      const factory = '0xfa'.padEnd(42, 'fa')
       expect(packUserOp({
         sender: 'a',
         nonce: 1,
-        initCode: '0xbeaf',
+        factory,
+        factoryData: '0xbeaf',
         callGasLimit: 2,
         verificationGasLimit: 3,
         preVerificationGas: 4,
@@ -98,7 +100,7 @@ describe('utils', () => {
       })).to.eql({
         sender: 'a',
         nonce: 1,
-        initCode: '0xbeaf',
+        initCode: hexConcat([factory, '0xbeaf']),
         accountGasLimits: packAccountGasLimits(3, 2),
         preVerificationGas: 4,
         callData: '333',

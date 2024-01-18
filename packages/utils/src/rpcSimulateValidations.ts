@@ -1,0 +1,40 @@
+import { packUserOp, UserOperation } from './ERC4337Utils'
+import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
+import { EntryPointSimulations__factory } from '@account-abstraction/contracts'
+import { IEntryPointSimulations } from '@account-abstraction/contracts/dist/types/EntryPointSimulations'
+
+export const entryPointSimulationsInterface = EntryPointSimulations__factory.createInterface()
+
+/**
+ * create the rpc params for eth_call (or debug_traceCall) for simulation method
+ * @param methodName the EntryPointSimulations method (simulateValidation or simulateHandleOp)
+ * @param entryPointAddress
+ * @param userOp
+ * @param extraOptions optional added tracer settings
+ */
+export function simulationRpcParams (methodName: string, entryPointAddress: string, userOp: UserOperation, extraOptions: any = {}): any[] {
+  const data = entryPointSimulationsInterface.encodeFunctionData(methodName as any, [packUserOp(userOp)])
+  const tx = {
+    to: entryPointAddress,
+    data
+  }
+  const stateOverride = {
+    [entryPointAddress]: {
+      code: EntryPointSimulationsJson.deployedBytecode
+    }
+  }
+  return [
+    tx,
+    'latest',
+    {
+      ...extraOptions,
+      stateOverride
+    }
+  ]
+}
+
+export type SimulateHandleUpResult = IEntryPointSimulations.ExecutionResultStructOutput
+
+export function decodeSimulateHandleOpResult (data: string): SimulateHandleUpResult {
+  return entryPointSimulationsInterface.decodeFunctionResult('simulateHandleOp', data) as SimulateHandleUpResult
+}

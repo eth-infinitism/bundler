@@ -2,7 +2,7 @@ import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
-import { IEntryPoint } from '@account-abstraction/contracts'
+import { EntryPointSimulations__factory, IEntryPoint, IEntryPointSimulations } from '@account-abstraction/contracts'
 import {
   AddressZero,
   CodeHashGetter__factory,
@@ -15,13 +15,15 @@ import {
   decodeErrorReason,
   getAddr,
   requireCond,
-  runContractScript
+  runContractScript, packUserOp, requireAddressAndFields
 } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
 import { tracerResultParser } from './TracerResultParser'
 import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
+
+import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -53,17 +55,53 @@ export interface ValidateUserOpResult extends ValidationResult {
 }
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
+const entryPointSimulations = EntryPointSimulations__factory.createInterface()
 
 export class ValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean
-  ) {}
+  ) {
+  }
 
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp, { gasLimit: 10e6 }).catch(e => e)
-    return this._parseErrorResult(userOp, errorResult)
+    // Promise<IEntryPointSimulations.ValidationResultStructOutput> {
+    const data = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
+    const tx = {
+      to: this.entryPoint.address,
+      data
+    }
+    const stateOverride = {
+      [this.entryPoint.address]: {
+        code: EntryPointSimulationsJson.deployedBytecode
+      }
+    }
+    try {
+      const provider = this.entryPoint.provider as JsonRpcProvider
+      const simulationResult = await provider.send('eth_call', [tx, 'latest', stateOverride])
+      const [res] = entryPointSimulations.decodeFunctionResult('simulateValidation', simulationResult) as IEntryPointSimulations.ValidationResultStructOutput[]
+      return {
+        returnInfo: res.returnInfo,
+        senderInfo: { ...res.senderInfo, addr: userOp.sender },
+        paymasterInfo: { ...res.paymasterInfo, addr: userOp.paymaster ?? '' },
+        factoryInfo: { ...res.factoryInfo, addr: userOp.factory ?? '' },
+        aggregatorInfo: res.aggregatorInfo.aggregator === AddressZero ? undefined : { ...res.aggregatorInfo.stakeInfo, addr: res.aggregatorInfo?.aggregator }
+      }
+    } catch (error: any) {
+      const revertData = error?.data
+      // todo: fix error
+      if (revertData != null) {
+        // note: this line throws the revert reason instead of returning it
+        entryPointSimulations.decodeFunctionResult('simulateValidation', revertData)
+      }
+      throw error
+    }
+  }
+
+  // decode and throw error
+  _throwError (errorResult: { errorName: string, errorArgs: any }): never {
+    throw new Error(errorResult.errorName)
   }
 
   _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
@@ -111,15 +149,15 @@ export class ValidationManager {
         ...senderInfo,
         addr: userOp.sender
       },
-      factoryInfo: fillEntity(userOp.initCode, factoryInfo),
-      paymasterInfo: fillEntity(userOp.paymasterAndData, paymasterInfo),
+      factoryInfo: fillEntity(userOp.factory ?? '', factoryInfo),
+      paymasterInfo: fillEntity(userOp.paymaster ?? '', paymasterInfo),
       aggregatorInfo: fillEntity(aggregatorInfo?.actualAggregator, aggregatorInfo?.stakeInfo)
     }
   }
 
   async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerTracerResult]> {
     const provider = this.entryPoint.provider as JsonRpcProvider
-    const simulateCall = this.entryPoint.interface.encodeFunctionData('simulateValidation', [userOp])
+    const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
@@ -128,7 +166,14 @@ export class ValidationManager {
       to: this.entryPoint.address,
       data: simulateCall,
       gasLimit: simulationGas
-    }, { tracer: bundlerCollectorTracer })
+    }, {
+      tracer: bundlerCollectorTracer,
+      stateOverrides: {
+        [this.entryPoint.address]: {
+          code: EntryPointSimulationsJson.deployedBytecode
+        }
+      }
+    })
 
     const lastResult = tracerResult.calls.slice(-1)[0]
     if (lastResult.type !== 'REVERT') {
@@ -155,8 +200,8 @@ export class ValidationManager {
       }
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
-        .replace(new RegExp(getAddr(userOp.paymasterAndData) ?? '--no-paymaster--'), '{paymaster}')
-        .replace(new RegExp(getAddr(userOp.initCode) ?? '--no-initcode--'), '{factory}')
+        .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
+        .replace(new RegExp(getAddr(userOp.factory) ?? '--no-initcode--'), '{factory}')
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       // errorResult is "ValidationResult"
@@ -267,7 +312,7 @@ export class ValidationManager {
     // minimal sanity check: userOp exists, and all members are hex
     requireCond(userOp != null, 'No UserOperation param', ValidationErrors.InvalidFields)
 
-    const fields = ['sender', 'nonce', 'initCode', 'callData', 'paymasterAndData']
+    const fields = ['sender', 'nonce', 'callData']
     if (requireSignature) {
       fields.push('signature')
     }
@@ -284,14 +329,8 @@ export class ValidationManager {
         ValidationErrors.InvalidFields)
     })
 
-    requireCond(userOp.paymasterAndData.length === 2 || userOp.paymasterAndData.length >= 42,
-      'paymasterAndData: must contain at least an address',
-      ValidationErrors.InvalidFields)
-
-    // syntactically, initCode can be only the deployer address. but in reality, it must have calldata to uniquely identify the account
-    requireCond(userOp.initCode.length === 2 || userOp.initCode.length >= 42,
-      'initCode: must contain at least an address',
-      ValidationErrors.InvalidFields)
+    requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
+    requireAddressAndFields(userOp, 'factory', ['factoryData'])
 
     const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
     requireCond(userOp.preVerificationGas >= calcPreVerificationGas1,

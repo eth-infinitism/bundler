@@ -49,7 +49,6 @@ describe('SimpleAccountAPI', () => {
     const userOp: UserOperation = {
       sender: '0x'.padEnd(42, '1'),
       nonce: 2,
-      initCode: '0x3333',
       callData: '0x4444',
       callGasLimit: 5,
       verificationGasLimit: 6,

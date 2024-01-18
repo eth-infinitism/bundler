@@ -1,7 +1,7 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
 import { ValidationManager } from '@account-abstraction/validation-manager'
-import { UserOperation } from '@account-abstraction/utils'
+import { packUserOp, UserOperation } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { BundleManager, SendBundleReturn } from './BundleManager'
@@ -37,7 +37,7 @@ export class ExecutionManager {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
-      const userOpHash = await this.validationManager.entryPoint.getUserOpHash(userOp)
+      const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
         validationResult.returnInfo.prefund,

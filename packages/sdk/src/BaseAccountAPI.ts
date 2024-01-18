@@ -1,14 +1,19 @@
-import { ethers, BigNumber, BigNumberish } from 'ethers'
+import { ethers, BigNumber, BigNumberish, BytesLike } from 'ethers'
 import { Provider } from '@ethersproject/providers'
 import {
   EntryPoint, EntryPoint__factory
 } from '@account-abstraction/contracts'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { resolveProperties } from 'ethers/lib/utils'
+import { defaultAbiCoder } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
 import { encodeUserOp, getUserOpHash, packUserOp, UserOperation } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
+
+export interface FactoryParams {
+  factory: string
+  factoryData?: BytesLike
+}
 
 export interface BaseApiParams {
   provider: Provider
@@ -73,10 +78,9 @@ export abstract class BaseAccountAPI {
   }
 
   /**
-   * return the value to put into the "initCode" field, if the contract is not yet deployed.
-   * this value holds the "factory" address, followed by this account's information
+   * return the value to put into the "factory" and "factoryData", when the contract is not yet deployed.
    */
-  abstract getAccountInitCode (): Promise<string>
+  abstract getFactoryData (): Promise<FactoryParams | null>
 
   /**
    * return current account's nonce.
@@ -119,29 +123,28 @@ export abstract class BaseAccountAPI {
    * calculate the account address even before it is deployed
    */
   async getCounterFactualAddress (): Promise<string> {
-    const initCode = this.getAccountInitCode()
+    const { factory, factoryData } = await this.getFactoryData() ?? {}
+    if (factory == null) {
+      throw new Error(('no counter factual address if not factory'))
+    }
     // use entryPoint to query account address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
-    try {
-      await this.entryPointView.callStatic.getSenderAddress(initCode)
-    } catch (e: any) {
-      if (e.errorArgs == null) {
-        throw e
-      }
-      return e.errorArgs.sender
-    }
-    throw new Error('must handle revert')
+    const retAddr = await this.provider.call({
+      to: factory, data: factoryData
+    })
+    const [addr] = defaultAbiCoder.decode(['address'], retAddr)
+    return addr
   }
 
   /**
    * return initCode value to into the UserOp.
-   * (either deployment code, or empty hex if contract already deployed)
+   * (either factory and factoryData, or null hex if contract already deployed)
    */
-  async getInitCode (): Promise<string> {
+  async getRequiredFactoryData (): Promise<FactoryParams | null> {
     if (await this.checkAccountPhantom()) {
-      return await this.getAccountInitCode()
+      return await this.getFactoryData()
     }
-    return '0x'
+    return null
   }
 
   /**
@@ -156,9 +159,8 @@ export abstract class BaseAccountAPI {
    * should cover cost of putting calldata on-chain, and some overhead.
    * actual overhead depends on the expected bundle size
    */
-  async getPreVerificationGas (userOp: UserOperation): Promise<number> {
-    const p = await resolveProperties(userOp)
-    return calcPreVerificationGas(p, this.overheads)
+  async getPreVerificationGas (userOp: Partial<UserOperation>): Promise<number> {
+    return calcPreVerificationGas(userOp, this.overheads)
   }
 
   /**
@@ -214,11 +216,11 @@ export abstract class BaseAccountAPI {
     return this.senderAddress
   }
 
-  async estimateCreationGas (initCode?: string): Promise<BigNumberish> {
-    if (initCode == null || initCode === '0x') return 0
-    const deployerAddress = initCode.substring(0, 42)
-    const deployerCallData = '0x' + initCode.substring(42)
-    return await this.provider.estimateGas({ to: deployerAddress, data: deployerCallData })
+  async estimateCreationGas (factoryParams: FactoryParams | null): Promise<BigNumberish> {
+    if (factoryParams == null) {
+      return 0
+    }
+    return await this.provider.estimateGas({ to: factoryParams.factory, data: factoryParams.factoryData })
   }
 
   /**
@@ -232,9 +234,9 @@ export abstract class BaseAccountAPI {
       callData,
       callGasLimit
     } = await this.encodeUserOpCallDataAndGasLimit(info)
-    const initCode = await this.getInitCode()
+    const factoryParams = await this.getRequiredFactoryData()
 
-    const initGas = await this.estimateCreationGas(initCode)
+    const initGas = await this.estimateCreationGas(factoryParams)
     const verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
       .add(initGas)
 
@@ -252,33 +254,31 @@ export abstract class BaseAccountAPI {
       }
     }
 
-    const partialUserOp: any = {
+    const partialUserOp: Partial<UserOperation> = {
       sender: await this.getAccountAddress(),
       nonce: info.nonce ?? await this.getNonce(),
-      initCode,
+      factory: factoryParams?.factory,
+      factoryData: factoryParams?.factoryData,
       callData,
       callGasLimit,
       verificationGasLimit,
       maxFeePerGas,
-      maxPriorityFeePerGas,
-      paymasterAndData: '0x'
+      maxPriorityFeePerGas
     }
 
-    let paymasterAndData: string | undefined
     if (this.paymasterAPI != null) {
       // fill (partial) preVerificationGas (all except the cost of the generated paymasterAndData)
-      const userOpForPm = {
-        ...partialUserOp,
-        preVerificationGas: await this.getPreVerificationGas(partialUserOp)
-      }
-      paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm)
+      const pmFields = await this.paymasterAPI.getTemporaryPaymasterData(partialUserOp)
+      partialUserOp.paymaster = pmFields?.paymaster
+      partialUserOp.paymasterVerificationGasLimit = pmFields?.paymasterVerificationGasLimit
+      partialUserOp.paymasterPostOpGasLimit = pmFields?.paymasterPostOpGasLimit
+      partialUserOp.paymasterData = pmFields?.paymasterData
     }
-    partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
     return {
       ...partialUserOp,
       preVerificationGas: await this.getPreVerificationGas(partialUserOp),
       signature: ''
-    }
+    } as any
   }
 
   /**

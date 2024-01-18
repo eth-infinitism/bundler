@@ -107,7 +107,7 @@ export class ERC4337EthersProvider extends BaseProvider {
       chainId: this.chainId,
       wait: async (confirmations?: number): Promise<TransactionReceipt> => {
         const transactionReceipt = await waitForUserOp()
-        if (userOp.initCode != null && userOp.initCode.length > 2) {
+        if (userOp.factory != null) {
           // checking if the wallet has been deployed by the transaction; it must be if we are here
           await this.smartAccountAPI.checkAccountPhantom()
         }
