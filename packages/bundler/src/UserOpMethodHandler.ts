@@ -201,7 +201,7 @@ export class UserOpMethodHandler {
   }
 
   async getUserOperationByHash (userOpHash: string): Promise<UserOperationByHashResponse | null> {
-    requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
+    requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32602)
     const event = await this._getUserOperationEvent(userOpHash)
     if (event == null) {
       return null
@@ -259,7 +259,7 @@ export class UserOpMethodHandler {
   }
 
   async getUserOperationReceipt (userOpHash: string): Promise<UserOperationReceipt | null> {
-    requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32601)
+    requireCond(userOpHash?.toString()?.match(HEX_REGEX) != null, 'Missing/invalid userOpHash', -32602)
     const event = await this._getUserOperationEvent(userOpHash)
     if (event == null) {
       return null
