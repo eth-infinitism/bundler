@@ -1,6 +1,6 @@
 import ow from 'ow'
 import fs from 'fs'
-
+import * as lodash from 'lodash'
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { Wallet, Signer } from 'ethers'
 import { BaseProvider, JsonRpcProvider } from '@ethersproject/providers'
@@ -17,7 +17,7 @@ function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
 }
 
 function mergeConfigs (...sources: Array<Partial<BundlerConfig>>): BundlerConfig {
-  const mergedConfig = Object.assign({}, ...sources)
+  const mergedConfig = lodash.merge({}, ...sources)
   ow(mergedConfig, ow.object.exactShape(BundlerConfigShape))
   return mergedConfig
 }
