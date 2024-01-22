@@ -100,19 +100,19 @@ export function packUserOp (op: UserOperation): PackedUserOperation {
     paymasterAndData = '0x'
   } else {
     if (op.paymasterVerificationGasLimit == null || op.paymasterPostOpGasLimit == null) {
-      throw new Error('paymaster with not gas limits')
+      throw new Error('paymaster with no gas limits')
     }
     paymasterAndData = packPaymasterData(op.paymaster, op.paymasterVerificationGasLimit, op.paymasterPostOpGasLimit, op.paymasterData)
   }
   return {
     sender: op.sender,
-    nonce: op.nonce,
+    nonce: BigNumber.from(op.nonce).toHexString(),
     initCode: op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? '']),
     callData: op.callData,
     accountGasLimits: packAccountGasLimits(op.verificationGasLimit, op.callGasLimit),
-    preVerificationGas: op.preVerificationGas,
-    maxFeePerGas: op.maxFeePerGas,
-    maxPriorityFeePerGas: op.maxPriorityFeePerGas,
+    preVerificationGas: BigNumber.from(op.preVerificationGas).toHexString(),
+    maxFeePerGas: BigNumber.from(op.maxFeePerGas).toHexString(),
+    maxPriorityFeePerGas: BigNumber.from(op.maxPriorityFeePerGas).toHexString(),
     paymasterAndData,
     signature: op.signature
   }

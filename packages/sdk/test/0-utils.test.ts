@@ -66,13 +66,13 @@ describe('utils', () => {
         signature: '777'
       })).to.eql({
         sender: 'a',
-        nonce: 1,
+        nonce: '0x01',
         initCode: '0x',
         accountGasLimits: packAccountGasLimits(3, 2),
-        preVerificationGas: 4,
+        preVerificationGas: '0x04',
         callData: '333',
-        maxFeePerGas: 5,
-        maxPriorityFeePerGas: 6,
+        maxFeePerGas: '0x05',
+        maxPriorityFeePerGas: '0x06',
         signature: '777',
         paymasterAndData: '0x'
       })
@@ -99,13 +99,13 @@ describe('utils', () => {
 
       })).to.eql({
         sender: 'a',
-        nonce: 1,
+        nonce: '0x01',
         initCode: hexConcat([factory, '0xbeaf']),
         accountGasLimits: packAccountGasLimits(3, 2),
-        preVerificationGas: 4,
+        preVerificationGas: '0x04',
         callData: '333',
-        maxFeePerGas: 5,
-        maxPriorityFeePerGas: 6,
+        maxFeePerGas: '0x05',
+        maxPriorityFeePerGas: '0x06',
         signature: '777',
         paymasterAndData: hexConcat([
           paymaster,

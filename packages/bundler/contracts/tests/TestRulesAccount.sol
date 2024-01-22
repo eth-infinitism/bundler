@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
 import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import "@account-abstraction/contracts/core/UserOperationLib.sol";
 import "./TestCoin.sol";
 
 contract Dummy {
@@ -82,7 +83,7 @@ contract TestRulesAccount is IAccount, IPaymaster {
 
     function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256)
     external returns (bytes memory context, uint256 deadline) {
-        string memory rule = string(userOp.paymasterAndData[20 :]);
+        string memory rule = string(userOp.paymasterAndData[UserOperationLib.PAYMASTER_DATA_OFFSET :]);
         runRule(rule);
         return ("", 0);
     }

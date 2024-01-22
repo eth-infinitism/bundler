@@ -79,7 +79,7 @@ export class BundlerServer {
     const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
       .catch(e => e)
     if (err != null) {
-      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${err}`)
+      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${err as string}`)
     }
     const signerAddress = await this.wallet.getAddress()
     const bal = await this.provider.getBalance(signerAddress)

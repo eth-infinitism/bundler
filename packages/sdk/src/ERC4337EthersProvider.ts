@@ -1,14 +1,14 @@
 import { BaseProvider, TransactionReceipt, TransactionResponse } from '@ethersproject/providers'
 import { BigNumber, Signer } from 'ethers'
 import { Network } from '@ethersproject/networks'
-import { hexValue, resolveProperties } from 'ethers/lib/utils'
+import { hexValue } from 'ethers/lib/utils'
 
 import { ClientConfig } from './ClientConfig'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
 import { EntryPoint } from '@account-abstraction/contracts'
-import { getUserOpHash, packUserOp, unpackAccountGasLimits, UserOperation } from '@account-abstraction/utils'
+import { getUserOpHash, packUserOp, UserOperation } from '@account-abstraction/utils'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import Debug from 'debug'
 const debug = Debug('aa.provider')

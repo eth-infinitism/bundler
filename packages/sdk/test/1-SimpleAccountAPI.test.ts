@@ -12,7 +12,6 @@ import { DeterministicDeployer, SimpleAccountAPI } from '../src'
 import {
   SampleRecipient,
   SampleRecipient__factory,
-  rethrowError,
   UserOperation,
   packUserOp, decodeErrorReason
 } from '@account-abstraction/utils'

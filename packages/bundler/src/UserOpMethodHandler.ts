@@ -12,7 +12,7 @@ import {
   packUserOp,
   PackedUserOperation,
   unpackUserOp,
-  simulationRpcParams, decodeSimulateHandleOpResult
+  simulationRpcParams, decodeSimulateHandleOpResult, AddressZero
 } from '@account-abstraction/utils'
 import { EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
@@ -106,8 +106,6 @@ export class UserOpMethodHandler {
    * @param entryPointInput
    */
   async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string): Promise<EstimateUserOpGasResult> {
-    throw new Error('not implemented yet')
-    /*
     const userOp = {
       // default values for missing fields.
       paymasterAndData: '0x',
@@ -120,13 +118,17 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const xprovider = this.provider as JsonRpcProvider
-    const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp)
-    const ret = await xprovider.send('eth_call', rpcParams)
+    const provider = this.provider as JsonRpcProvider
+    const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp as UserOperation, [AddressZero, '0x'],
+      {
+
+      })
+    const ret = await provider.send('eth_call', rpcParams)
     console.log('ret=', ret)
-    const res = decodeSimulateHandleOpResult('simulateHandleOp', ret)
+    const res = decodeSimulateHandleOpResult(ret)
     // todo: revert as FailedOp
     console.log('res=', res)
+    throw new Error('tbd')
     /*
     const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
     // if (errorResult.errorName === 'FailedOp') {
