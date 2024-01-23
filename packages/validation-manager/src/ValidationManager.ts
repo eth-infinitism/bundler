@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
+import { BigNumber, BigNumberish, ethers } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
@@ -24,11 +24,24 @@ import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './Bundler
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
+import { decodeRevertReason } from '@account-abstraction/utils/dist/src/decodeRevertReason'
 
 const debug = Debug('aa.mgr.validate')
 
 // how much time into the future a UserOperation must be valid in order to be accepted
 const VALID_UNTIL_FUTURE_SECONDS = 30
+
+// extract address from "data" (first 20 bytes)
+// add it as "addr" member to the "stakeinfo" struct
+// if no address, then return "undefined" instead of struct.
+function fillEntity (addr: string | undefined, info: StakeInfo): StakeInfo | undefined {
+  return addr == null || addr === AddressZero || addr === ''
+    ? undefined
+    : {
+        ...info,
+        addr
+      }
+}
 
 /**
  * result from successful simulateValidation
@@ -89,11 +102,9 @@ export class ValidationManager {
         aggregatorInfo: res.aggregatorInfo.aggregator === AddressZero ? undefined : { ...res.aggregatorInfo.stakeInfo, addr: res.aggregatorInfo?.aggregator }
       }
     } catch (error: any) {
-      const revertData = error?.data
-      // todo: fix error
-      if (revertData != null) {
-        // note: this line throws the revert reason instead of returning it
-        entryPointSimulations.decodeFunctionResult('simulateValidation', revertData)
+      const decodedError = decodeRevertReason(error)
+      if (decodedError != null) {
+        throw new Error(decodedError)
       }
       throw error
     }
@@ -130,27 +141,14 @@ export class ValidationManager {
       aggregatorInfo // may be missing (exists only SimulationResultWithAggregator
     } = errorResult.errorArgs
 
-    // extract address from "data" (first 20 bytes)
-    // add it as "addr" member to the "stakeinfo" struct
-    // if no address, then return "undefined" instead of struct.
-    function fillEntity (data: BytesLike, info: StakeInfo): StakeInfo | undefined {
-      const addr = getAddr(data)
-      return addr == null
-        ? undefined
-        : {
-            ...info,
-            addr
-          }
-    }
-
     return {
       returnInfo,
       senderInfo: {
         ...senderInfo,
         addr: userOp.sender
       },
-      factoryInfo: fillEntity(userOp.factory ?? '', factoryInfo),
-      paymasterInfo: fillEntity(userOp.paymaster ?? '', paymasterInfo),
+      factoryInfo: fillEntity(userOp.factory, factoryInfo),
+      paymasterInfo: fillEntity(userOp.paymaster, paymasterInfo),
       aggregatorInfo: fillEntity(aggregatorInfo?.actualAggregator, aggregatorInfo?.stakeInfo)
     }
   }
@@ -176,28 +174,39 @@ export class ValidationManager {
     })
 
     const lastResult = tracerResult.calls.slice(-1)[0]
-    if (lastResult.type !== 'REVERT') {
-      throw new Error('Invalid response. simulateCall must revert')
-    }
     const data = (lastResult as ExitInfo).data
+    if (lastResult.type === 'REVERT') {
+      throw new Error(decodeRevertReason(data, false) as string)
+    }
     // Hack to handle SELFDESTRUCT until we fix entrypoint
     if (data === '0x') {
       return [data as any, tracerResult]
     }
     try {
-      const {
-        name: errorName,
-        args: errorArgs
-      } = this.entryPoint.interface.parseError(data)
-      const errFullName = `${errorName}(${errorArgs.toString()})`
-      const errorResult = this._parseErrorResult(userOp, {
-        errorName,
-        errorArgs
-      })
-      if (!errorName.includes('Result')) {
-        // a real error, not a result.
-        throw new Error(errFullName)
+      const [decodedSimulations] = entryPointSimulations.decodeFunctionResult('simulateValidation', data)
+      const validationResult = {
+        returnInfo: decodedSimulations.returnInfo,
+        senderInfo: {
+          ...decodedSimulations.senderInfo,
+          addr: userOp.sender
+        },
+        factoryInfo: fillEntity(userOp.factory ?? '', decodedSimulations.factoryInfo),
+        paymasterInfo: fillEntity(userOp.paymaster ?? '', decodedSimulations.paymasterInfo),
+        aggregatorInfo: fillEntity(decodedSimulations.aggregatorInfo.aggregator, decodedSimulations.aggregatorInfo.stakeInfo)
       }
+      // const {
+      //   name: errorName,
+      //   args: errorArgs
+      // } = this.entryPoint.interface.parseError(data)
+      // const errFullName = `${errorName}(${errorArgs.toString()})`
+      // const errorResult = this._parseErrorResult(userOp, {
+      //   errorName,
+      //   errorArgs
+      // })
+      // if (!errorName.includes('Result')) {
+      //   // a real error, not a result.
+      //   throw new Error(errFullName)
+      // }
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
@@ -205,7 +214,7 @@ export class ValidationManager {
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       // errorResult is "ValidationResult"
-      return [errorResult, tracerResult]
+      return [validationResult as any, tracerResult]
     } catch (e: any) {
       // if already parsed, throw as is
       if (e.code != null) {
@@ -239,7 +248,9 @@ export class ValidationManager {
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
-      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp)
+      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
+        throw e
+      })
       let contractAddresses: string[]
       [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
@@ -333,7 +344,7 @@ export class ValidationManager {
     requireAddressAndFields(userOp, 'factory', ['factoryData'])
 
     const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
-    requireCond(userOp.preVerificationGas >= calcPreVerificationGas1,
+    requireCond(BigNumber.from(userOp.preVerificationGas).gte(calcPreVerificationGas1),
       `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
       ValidationErrors.InvalidFields)
   }

@@ -18,7 +18,14 @@ import {
   TestRulesAccount__factory
 } from '../src/types'
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
-import { packUserOp, resolveHexlify, UserOperation, waitFor } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  packUserOp,
+  resolveHexlify,
+  simulationRpcParams,
+  UserOperation,
+  waitFor
+} from '@account-abstraction/utils'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
@@ -131,7 +138,7 @@ describe('UserOpMethodHandler', function () {
     })
   })
 
-  describe.only('sendUserOperation', function () {
+  describe('sendUserOperation', function () {
     let userOperation: UserOperation
     let accountAddress: string
 

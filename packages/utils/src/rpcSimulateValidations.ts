@@ -12,8 +12,8 @@ export const entryPointSimulationsInterface = EntryPointSimulations__factory.cre
  * @param userOp
  * @param extraOptions optional added tracer settings
  */
-export function simulationRpcParams (methodName: string, entryPointAddress: string, userOp: UserOperation, extraOptions: any = {}): any[] {
-  const data = entryPointSimulationsInterface.encodeFunctionData(methodName as any, [packUserOp(userOp)])
+export function simulationRpcParams (methodName: string, entryPointAddress: string, userOp: UserOperation, extraParams: any[] = [], extraOptions: any = {}): any[] {
+  const data = entryPointSimulationsInterface.encodeFunctionData(methodName as any, [packUserOp(userOp), ...extraParams] as any)
   const tx = {
     to: entryPointAddress,
     data
