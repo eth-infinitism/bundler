@@ -29,7 +29,6 @@ import {
   TestTimeRangeAccountFactory,
   TestTimeRangeAccountFactory__factory
 } from '../src/types'
-import { ReputationManager } from '../src/modules/ReputationManager'
 
 const cEmptyUserOp: UserOperation = {
   sender: AddressZero,
@@ -65,12 +64,14 @@ describe('#ValidationManager', () => {
   }
 
   async function existingStorageAccountUserOp (validateRule = '', pmRule = ''): Promise<UserOperation> {
-    const pmd = pmRule === '' ?{} : { 
-      paymaster: paymaster.address,
-      paymasterVerificationGasLimit: 1e5,
-      paymasterPostOpGasLimit: 1e5,
-      paymasterData: Buffer.from(pmRule)
-    }
+    const pmd = pmRule === ''
+      ? {}
+      : {
+          paymaster: paymaster.address,
+          paymasterVerificationGasLimit: 1e5,
+          paymasterPostOpGasLimit: 1e5,
+          paymasterData: Buffer.from(pmRule)
+        }
     const signature = hexlify(Buffer.from(validateRule))
     return {
       ...cEmptyUserOp,
@@ -140,12 +141,6 @@ describe('#ValidationManager', () => {
     await rulesFactory.create('')
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
-    const reputationManager = new ReputationManager(provider, {
-      minInclusionDenominator: 1,
-      throttlingSlack: 1,
-      banSlack: 1
-    },
-    parseEther('0'), 0)
     const unsafe = !await supportsDebugTraceCall(provider)
     vm = new ValidationManager(entryPoint, unsafe)
 

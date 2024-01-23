@@ -19,10 +19,8 @@ import {
 } from '../src/types'
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import {
-  AddressZero,
   packUserOp,
   resolveHexlify,
-  simulationRpcParams,
   UserOperation,
   waitFor
 } from '@account-abstraction/utils'
