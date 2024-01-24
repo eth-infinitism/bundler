@@ -22,9 +22,9 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic: DEFAULT_MNEMONIC,
       },
-      forking: {
-        url: "https://rpc.ankr.com/polygon_mumbai",
-      },
+      // forking: {
+      //   url: "https://rpc.ankr.com/polygon_mumbai",
+      // },
     },
     mumbai: {
       url: `https://rpc.ankr.com/polygon_mumbai`,

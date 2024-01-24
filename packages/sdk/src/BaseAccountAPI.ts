@@ -6,11 +6,15 @@ import {
   UserOperationStruct,
 } from "@account-abstraction/contracts";
 
-import { TransactionDetailsForUserOp } from "./TransactionDetailsForUserOp";
+import {
+  TransactionDetailsForMultisend,
+  TransactionDetailsForUserOp,
+} from "./TransactionDetailsForUserOp";
 import { resolveProperties } from "ethers/lib/utils";
 import { PaymasterAPI } from "./PaymasterAPI";
 import { getUserOpHash, NotPromise, packUserOp } from "@epoch-protocol/utils";
 import { calcPreVerificationGas, GasOverheads } from "./calcPreVerificationGas";
+import { safeDefaultConfig } from "./SafeDefaultConfig";
 
 export interface BaseApiParams {
   provider: Provider;
@@ -357,6 +361,51 @@ export abstract class BaseAccountAPI {
         return events[0].transactionHash;
       }
       await new Promise((resolve) => setTimeout(resolve, interval));
+    }
+    return null;
+  }
+
+  /**
+   * get the transaction that has this userOpHash mined, or null if not found
+   * @param txInfoArray returned by sendUserOpToBundler (or by getUserOpHash..)
+   * @param timeout stop waiting after this timeout
+   * @param interval time to wait between polls.
+   * @return the transactionHash this userOp was mined, or null if not found.
+   */
+  encodeForMultiSend(
+    txInfoArray: Array<TransactionDetailsForMultisend>,
+    chainId: number
+  ): TransactionDetailsForMultisend | null {
+    let multisendCall = "0x";
+    txInfoArray.forEach((info) => {
+      let delegateCallEnum = 0;
+      if (info.delegateCall) {
+        delegateCallEnum = 1;
+      }
+      const multisendDataTypes = [
+        "uint8",
+        "address",
+        "uint256",
+        "uint256",
+        "bytes",
+      ];
+      const dataLength = ethers.utils.hexDataLength(info.data);
+      const encodedTx = ethers.utils.solidityPack(multisendDataTypes, [
+        delegateCallEnum,
+        info.target,
+        info.value,
+        dataLength,
+        info.data,
+      ]);
+      multisendCall = multisendCall.concat(encodedTx.slice(2));
+    });
+    let multisendAddress = safeDefaultConfig[chainId]?.multisend;
+    if (multisendAddress) {
+      return {
+        data: multisendCall,
+        value: BigNumber.from("0"),
+        target: multisendAddress,
+      };
     }
     return null;
   }
