@@ -119,7 +119,7 @@ describe('UserOpMethodHandler', function () {
         target,
         data: '0xdeadface'
       })
-      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.match(/AA21 didn\'t pay prefund/)
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.match(/AA21 didn't pay prefund/)
       // should estimate with gasprice=0
       const op1 = await smartAccountAPI.createSignedUserOp({
         maxFeePerGas: 0,

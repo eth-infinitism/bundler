@@ -15,7 +15,7 @@ import {
   decodeErrorReason,
   getAddr,
   requireCond,
-  runContractScript, packUserOp, requireAddressAndFields
+  runContractScript, packUserOp, requireAddressAndFields, decodeRevertReason
 } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
@@ -24,7 +24,6 @@ import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './Bundler
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
-import { decodeRevertReason } from '@account-abstraction/utils/dist/src/decodeRevertReason'
 
 const debug = Debug('aa.mgr.validate')
 

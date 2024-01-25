@@ -6,7 +6,7 @@ import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
 import {
-  AddressZero,
+  AddressZero, decodeRevertReason,
   deepHexlify,
   erc4337RuntimeVersion,
   packUserOp,
@@ -21,7 +21,6 @@ import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
-import { decodeRevertReason } from '@account-abstraction/utils/dist/src/decodeRevertReason'
 
 const debug = Debug('aa.rpc')
 export class BundlerServer {

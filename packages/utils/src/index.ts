@@ -1,5 +1,6 @@
 export { UserOperation } from './ERC4337Utils'
 export * from './Version'
+export * from './decodeRevertReason'
 export * from './ERC4337Utils'
 export * from './Utils'
 export * from './rpcSimulateValidations'

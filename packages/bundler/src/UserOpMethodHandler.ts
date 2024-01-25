@@ -12,14 +12,12 @@ import {
   packUserOp,
   PackedUserOperation,
   unpackUserOp,
-  simulationRpcParams, decodeSimulateHandleOpResult, AddressZero, ValidationErrors, RpcError
+  simulationRpcParams, decodeSimulateHandleOpResult, AddressZero, ValidationErrors, RpcError, decodeRevertReason
 } from '@account-abstraction/utils'
 import { EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { hexStripZeros, parseEther } from 'ethers/lib/utils'
-import { decodeRevertReason } from '@account-abstraction/utils/dist/src/decodeRevertReason'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -109,9 +107,8 @@ export class UserOpMethodHandler {
    * @param entryPointInput
    */
   async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string): Promise<EstimateUserOpGasResult> {
-    const userOp = {
+    const userOp: UserOperation = {
       // default values for missing fields.
-      paymasterAndData: '0x',
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
       preVerificationGas: 0,
