@@ -21,6 +21,7 @@ import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
+import { decodeRevertReason } from '@account-abstraction/utils/dist/src/decodeRevertReason'
 
 const debug = Debug('aa.rpc')
 export class BundlerServer {
@@ -76,11 +77,12 @@ export class BundlerServer {
       signature: '0x'
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
-    const err = await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
-      .catch(e => e)
-    if (err != null) {
-      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${err as string}`)
+    try {
+      await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
+    } catch (e: any) {
+      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${decodeRevertReason(e, false) as string}`)
     }
+
     const signerAddress = await this.wallet.getAddress()
     const bal = await this.provider.getBalance(signerAddress)
     console.log('signer', signerAddress, 'balance', utils.formatEther(bal))
