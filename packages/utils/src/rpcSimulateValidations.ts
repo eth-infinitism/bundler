@@ -28,7 +28,7 @@ export function simulationRpcParams (methodName: string, entryPointAddress: stri
     'latest',
     {
       ...extraOptions,
-      stateOverride
+      ...stateOverride
     }
   ]
 }
@@ -36,5 +36,5 @@ export function simulationRpcParams (methodName: string, entryPointAddress: stri
 export type SimulateHandleUpResult = IEntryPointSimulations.ExecutionResultStructOutput
 
 export function decodeSimulateHandleOpResult (data: string): SimulateHandleUpResult {
-  return entryPointSimulationsInterface.decodeFunctionResult('simulateHandleOp', data) as SimulateHandleUpResult
+  return entryPointSimulationsInterface.decodeFunctionResult('simulateHandleOp', data)[0] as SimulateHandleUpResult
 }

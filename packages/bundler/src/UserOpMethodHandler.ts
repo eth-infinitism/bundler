@@ -12,12 +12,15 @@ import {
   packUserOp,
   PackedUserOperation,
   unpackUserOp,
-  simulationRpcParams, decodeSimulateHandleOpResult, AddressZero
+  simulationRpcParams, decodeSimulateHandleOpResult, AddressZero, ValidationErrors, RpcError
 } from '@account-abstraction/utils'
 import { EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
+import { hexStripZeros, parseEther } from 'ethers/lib/utils'
+import { decodeRevertReason } from '@account-abstraction/utils/dist/src/decodeRevertReason'
+import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -114,34 +117,32 @@ export class UserOpMethodHandler {
       preVerificationGas: 0,
       verificationGasLimit: 10e6,
       ...userOp1
-    }
+    } as UserOperation
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
     const provider = this.provider as JsonRpcProvider
-    const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp as UserOperation, [AddressZero, '0x'],
+    const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp, [AddressZero, '0x'],
       {
-
+        // allow estimation when account's balance is zero.
+        // todo: need a way to flag this, and not enable always.
+        // [userOp.sender]: {
+        //   balance: hexStripZeros(parseEther('1').toHexString())
+        // }
       })
-    const ret = await provider.send('eth_call', rpcParams)
-    console.log('ret=', ret)
-    const res = decodeSimulateHandleOpResult(ret)
-    // todo: revert as FailedOp
-    console.log('res=', res)
-    throw new Error('tbd')
-    /*
-    const errorResult = await this.entryPoint.callStatic.simulateValidation(userOp).catch(e => e)
-    // if (errorResult.errorName === 'FailedOp') {
-    //   throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
-    // }
 
-    const { returnInfo } = errorResult.errorArgs
-    let {
+    const ret = await provider.send('eth_call', rpcParams)
+      .catch((e: any) => { throw Error(decodeRevertReason(e) as string) })
+
+    const returnInfo = decodeSimulateHandleOpResult(ret)
+
+    const {
       preOpGas,
       validAfter,
       validUntil
     } = returnInfo
 
+    // todo: use simulateHandleOp for this too...
     const callGasLimit = await this.provider.estimateGas({
       from: this.entryPoint.address,
       to: userOp.sender,
@@ -150,24 +151,16 @@ export class UserOpMethodHandler {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
-    validAfter = BigNumber.from(validAfter)
-    validUntil = BigNumber.from(validUntil)
-    if ((validUntil as BigNumber).eq(0)) {
-      validUntil = undefined
-    }
-    if ((validAfter as BigNumber).eq(0)) {
-      validAfter = undefined
-    }
+
     const preVerificationGas = calcPreVerificationGas(userOp)
     const verificationGasLimit = BigNumber.from(preOpGas).toNumber()
     return {
       preVerificationGas,
       verificationGasLimit,
-      validAfter,
-      validUntil,
+      validAfter: BigNumber.from(0).eq(validAfter) ? undefined : validAfter,
+      validUntil: BigNumber.from(0).eq(validUntil) ? undefined : validUntil,
       callGasLimit
     }
-    */
   }
 
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
