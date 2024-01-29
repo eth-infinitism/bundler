@@ -107,7 +107,7 @@ export class UserOpMethodHandler {
    * @param entryPointInput
    */
   async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string): Promise<EstimateUserOpGasResult> {
-    const userOp: UserOperation = {
+    const userOp = {
       // default values for missing fields.
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,

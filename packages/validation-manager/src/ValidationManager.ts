@@ -189,8 +189,8 @@ export class ValidationManager {
           ...decodedSimulations.senderInfo,
           addr: userOp.sender
         },
-        factoryInfo: fillEntity(userOp.factory ?? '', decodedSimulations.factoryInfo),
-        paymasterInfo: fillEntity(userOp.paymaster ?? '', decodedSimulations.paymasterInfo),
+        factoryInfo: fillEntity(userOp.factory, decodedSimulations.factoryInfo),
+        paymasterInfo: fillEntity(userOp.paymaster, decodedSimulations.paymasterInfo),
         aggregatorInfo: fillEntity(decodedSimulations.aggregatorInfo.aggregator, decodedSimulations.aggregatorInfo.stakeInfo)
       }
       // const {

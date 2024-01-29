@@ -1,6 +1,5 @@
 import { Interface } from '@ethersproject/abi'
 import {
-  EntryPoint__factory,
   EntryPointSimulations__factory,
   TokenPaymaster__factory
 } from '@account-abstraction/contracts'
@@ -11,7 +10,7 @@ const decodeRevertReasonContracts = new Interface([
   ...TokenPaymaster__factory.createInterface().fragments,
   // ...TestERC20__factory.createInterface().fragments, // for OZ errors,
   'error ECDSAInvalidSignature()'
-]) // .filter(f => f.type === 'error'))
+].filter((f: any) => f.type === 'error'))
 
 /**
  * helper to decode revert data into its string representation
