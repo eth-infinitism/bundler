@@ -48,27 +48,89 @@ export interface UserOperation {
   signature: BytesLike
 }
 
+// todo: remove this wrapper method?
 export function packAccountGasLimits (validationGasLimit: BigNumberish, callGasLimit: BigNumberish): string {
-  return hexZeroPad(BigNumber.from(validationGasLimit).shl(128).add(callGasLimit).toHexString(), 32)
+  return packUint(validationGasLimit, callGasLimit)
 }
 
 export function unpackAccountGasLimits (accountGasLimits: BytesLike): {
   verificationGasLimit: BigNumber
   callGasLimit: BigNumber
 } {
-  const limits: BigNumber = BigNumber.from(accountGasLimits)
-  return {
-    verificationGasLimit: limits.shr(128),
-    callGasLimit: limits.and(BigNumber.from(1).shl(128).sub(1))
-  }
+  const [verificationGasLimit, callGasLimit] = unpackUint(accountGasLimits)
+  return { verificationGasLimit, callGasLimit }
+}
+
+export function packUint (high128: BigNumberish, low128: BigNumberish): string {
+  return hexZeroPad(BigNumber.from(high128).shl(128).add(low128).toHexString(), 32)
+}
+
+export function unpackUint (packed: BytesLike): [high128: BigNumber, low128: BigNumber] {
+  const packedNumber: BigNumber = BigNumber.from(packed)
+  return [packedNumber.shr(128), packedNumber.and(BigNumber.from(1).shl(128).sub(1))]
 }
 
 export function packPaymasterData (paymaster: string, paymasterVerificationGasLimit: BigNumberish, postOpGasLimit: BigNumberish, paymasterData?: BytesLike): BytesLike {
   return ethers.utils.hexConcat([
     paymaster,
-    packAccountGasLimits(paymasterVerificationGasLimit, postOpGasLimit),
+    packUint(paymasterVerificationGasLimit, postOpGasLimit),
     paymasterData ?? '0x'
   ])
+}
+
+export interface ValidationData {
+  aggregator: string
+  validAfter: number
+  validUntil: number
+}
+
+export const maxUint48 = (2 ** 48) - 1
+export const SIG_VALIDATION_FAILED = hexZeroPad('0x01', 20)
+
+/**
+ * parse validationData as returned from validateUserOp or validatePaymasterUserOp into ValidationData struct
+ * @param validationData
+ */
+export function parseValidationData (validationData: BigNumberish): ValidationData {
+  const data = hexZeroPad(BigNumber.from(validationData).toHexString(), 32)
+
+  // string offsets start from left (msb)
+  const aggregator = hexDataSlice(data, 32 - 20)
+  let validUntil = parseInt(hexDataSlice(data, 32 - 26, 32 - 20))
+  if (validUntil === 0) validUntil = maxUint48
+  const validAfter = parseInt(hexDataSlice(data, 0, 6))
+
+  return {
+    aggregator,
+    validAfter,
+    validUntil
+  }
+}
+
+export function mergeValidationDataValues (accountValidationData: BigNumberish, paymasterValidationData: BigNumberish): ValidationData {
+  return mergeValidationData(
+    parseValidationData(accountValidationData),
+    parseValidationData(paymasterValidationData)
+  )
+}
+
+/**
+ * merge validationData structure returned by paymaster and account
+ * @param accountValidationData returned from validateUserOp
+ * @param paymasterValidationData returned from validatePaymasterUserOp
+ */
+export function mergeValidationData (accountValidationData: ValidationData, paymasterValidationData: ValidationData): ValidationData {
+  return {
+    aggregator: paymasterValidationData.aggregator !== AddressZero ? SIG_VALIDATION_FAILED : accountValidationData.aggregator,
+    validAfter: Math.max(accountValidationData.validAfter, paymasterValidationData.validAfter),
+    validUntil: Math.min(accountValidationData.validUntil, paymasterValidationData.validUntil)
+  }
+}
+
+export function packValidationData (validationData: ValidationData): BigNumber {
+  return BigNumber.from(validationData.validAfter ?? 0).shl(48)
+    .add(validationData.validUntil ?? 0).shl(160)
+    .add(validationData.aggregator)
 }
 
 export function unpackPaymasterAndData (paymasterAndData: BytesLike): {
@@ -82,10 +144,7 @@ export function unpackPaymasterAndData (paymasterAndData: BytesLike): {
     // if length is non-zero, then must at least host paymaster address and gas-limits
     throw new Error(`invalid PaymasterAndData: ${paymasterAndData as string}`)
   }
-  const {
-    verificationGasLimit: paymasterVerificationGas,
-    callGasLimit: postOpGasLimit
-  } = unpackAccountGasLimits(hexDataSlice(paymasterAndData, 20, 52))
+  const [paymasterVerificationGas, postOpGasLimit] = unpackUint(hexDataSlice(paymasterAndData, 20, 52))
   return {
     paymaster: hexDataSlice(paymasterAndData, 0, 20),
     paymasterVerificationGas,
@@ -109,17 +168,18 @@ export function packUserOp (op: UserOperation): PackedUserOperation {
     nonce: BigNumber.from(op.nonce).toHexString(),
     initCode: op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? '']),
     callData: op.callData,
-    accountGasLimits: packAccountGasLimits(op.verificationGasLimit, op.callGasLimit),
+    accountGasLimits: packUint(op.verificationGasLimit, op.callGasLimit),
     preVerificationGas: BigNumber.from(op.preVerificationGas).toHexString(),
-    maxFeePerGas: BigNumber.from(op.maxFeePerGas).toHexString(),
-    maxPriorityFeePerGas: BigNumber.from(op.maxPriorityFeePerGas).toHexString(),
+    gasFees: packUint(op.maxPriorityFeePerGas, op.maxFeePerGas),
     paymasterAndData,
     signature: op.signature
   }
 }
 
 export function unpackUserOp (packed: PackedUserOperation): UserOperation {
-  const { callGasLimit, verificationGasLimit } = unpackAccountGasLimits(packed.accountGasLimits)
+  const [verificationGasLimit, callGasLimit] = unpackUint(packed.accountGasLimits)
+  const [maxPriorityFeePerGas, maxFeePerGas] = unpackUint(packed.gasFees)
+
   let ret: UserOperation = {
     sender: packed.sender,
     nonce: packed.nonce,
@@ -127,14 +187,18 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
     preVerificationGas: packed.preVerificationGas,
     verificationGasLimit,
     callGasLimit,
-    maxFeePerGas: packed.maxFeePerGas,
-    maxPriorityFeePerGas: packed.maxFeePerGas,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     signature: packed.signature
   }
   if (packed.initCode != null && packed.initCode.length > 2) {
     const factory = hexDataSlice(packed.initCode, 0, 20)
     const factoryData = hexDataSlice(packed.initCode, 20)
-    ret = { ...ret, factory, factoryData }
+    ret = {
+      ...ret,
+      factory,
+      factoryData
+    }
   }
   const pmData = unpackPaymasterAndData(packed.paymasterAndData)
   if (pmData != null) {
@@ -166,19 +230,19 @@ export function encodeUserOp (op1: NotPromise<PackedUserOperationStruct> | UserO
   if (forSignature) {
     return defaultAbiCoder.encode(
       ['address', 'uint256', 'bytes32', 'bytes32',
-        'bytes32', 'uint256', 'uint256', 'uint256',
+        'bytes32', 'uint256', 'bytes32',
         'bytes32'],
       [op.sender, op.nonce, keccak256(op.initCode), keccak256(op.callData),
-        op.accountGasLimits, op.preVerificationGas, op.maxFeePerGas, op.maxPriorityFeePerGas,
+        op.accountGasLimits, op.preVerificationGas, op.gasFees,
         keccak256(op.paymasterAndData)])
   } else {
     // for the purpose of calculating gas cost encode also signature (and no keccak of bytes)
     return defaultAbiCoder.encode(
       ['address', 'uint256', 'bytes', 'bytes',
-        'bytes32', 'uint256', 'uint256', 'uint256',
+        'bytes32', 'uint256', 'bytes32',
         'bytes', 'bytes'],
       [op.sender, op.nonce, op.initCode, op.callData,
-        op.accountGasLimits, op.preVerificationGas, op.maxFeePerGas, op.maxPriorityFeePerGas,
+        op.accountGasLimits, op.preVerificationGas, op.gasFees,
         op.paymasterAndData, op.signature])
   }
 }

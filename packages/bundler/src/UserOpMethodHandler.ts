@@ -12,7 +12,13 @@ import {
   packUserOp,
   PackedUserOperation,
   unpackUserOp,
-  simulationRpcParams, decodeSimulateHandleOpResult, AddressZero, ValidationErrors, RpcError, decodeRevertReason
+  simulationRpcParams,
+  decodeSimulateHandleOpResult,
+  AddressZero,
+  ValidationErrors,
+  RpcError,
+  decodeRevertReason,
+  mergeValidationDataValues
 } from '@account-abstraction/utils'
 import { EntryPoint } from '@account-abstraction/contracts'
 import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
@@ -93,7 +99,7 @@ export class UserOpMethodHandler {
       fields.push('preVerificationGas', 'verificationGasLimit', 'callGasLimit', 'maxFeePerGas', 'maxPriorityFeePerGas')
     }
     fields.forEach(key => {
-      requireCond(userOp[key] != null, 'Missing userOp field: ' + key + JSON.stringify(userOp), -32602)
+      requireCond(userOp[key] != null, 'Missing userOp field: ' + key, -32602)
       const value: string = userOp[key].toString()
       requireCond(value.match(HEX_REGEX) != null, `Invalid hex value for property ${key}:${value} in UserOp`, -32602)
     })
@@ -133,10 +139,9 @@ export class UserOpMethodHandler {
 
     const returnInfo = decodeSimulateHandleOpResult(ret)
 
+    const { validAfter, validUntil } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
     const {
-      preOpGas,
-      validAfter,
-      validUntil
+      preOpGas
     } = returnInfo
 
     // todo: use simulateHandleOp for this too...
@@ -154,8 +159,8 @@ export class UserOpMethodHandler {
     return {
       preVerificationGas,
       verificationGasLimit,
-      validAfter: BigNumber.from(0).eq(validAfter) ? undefined : validAfter,
-      validUntil: BigNumber.from(0).eq(validUntil) ? undefined : validUntil,
+      validAfter,
+      validUntil,
       callGasLimit
     }
   }

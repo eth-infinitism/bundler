@@ -1,8 +1,13 @@
-import { BigNumber, BigNumberish, ethers } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
+
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
-import { EntryPointSimulations__factory, IEntryPoint, IEntryPointSimulations } from '@account-abstraction/contracts'
+import {
+  EntryPointSimulations__factory,
+  IEntryPoint,
+  IEntryPointSimulations
+} from '@account-abstraction/contracts'
 import {
   AddressZero,
   CodeHashGetter__factory,
@@ -15,7 +20,11 @@ import {
   decodeErrorReason,
   getAddr,
   requireCond,
-  runContractScript, packUserOp, requireAddressAndFields, decodeRevertReason
+  runContractScript,
+  packUserOp,
+  requireAddressAndFields,
+  decodeRevertReason,
+  mergeValidationDataValues
 } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
@@ -24,26 +33,18 @@ import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './Bundler
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
+import { IStakeManager } from '@account-abstraction/contracts/types/EntryPointSimulations'
+import StakeInfoStructOutput = IStakeManager.StakeInfoStructOutput
+
+type ValidationResultStructOutput = IEntryPointSimulations.ValidationResultStructOutput
 
 const debug = Debug('aa.mgr.validate')
 
 // how much time into the future a UserOperation must be valid in order to be accepted
 const VALID_UNTIL_FUTURE_SECONDS = 30
 
-// extract address from "data" (first 20 bytes)
-// add it as "addr" member to the "stakeinfo" struct
-// if no address, then return "undefined" instead of struct.
-function fillEntity (addr: string | undefined, info: StakeInfo): StakeInfo | undefined {
-  return addr == null || addr === AddressZero || addr === ''
-    ? undefined
-    : {
-        ...info,
-        addr
-      }
-}
-
 /**
- * result from successful simulateValidation
+ * result from successful simulateValidation, after some parsing.
  */
 export interface ValidationResult {
   returnInfo: {
@@ -76,6 +77,34 @@ export class ValidationManager {
   ) {
   }
 
+  parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
+    const mergedValidation = mergeValidationDataValues(res.returnInfo.accountValidationData, res.returnInfo.paymasterValidationData)
+
+    function fillEntity (addr: string | undefined, info: StakeInfoStructOutput): StakeInfo | undefined {
+      if (addr == null || addr === AddressZero) return undefined
+      return {
+        addr,
+        stake: info.stake,
+        unstakeDelaySec: info.unstakeDelaySec
+      }
+    }
+
+    const returnInfo = {
+      sigFailed: mergedValidation.aggregator !== AddressZero,
+      validUntil: mergedValidation.validUntil,
+      validAfter: mergedValidation.validAfter,
+      preOpGas: res.returnInfo.preOpGas,
+      prefund: res.returnInfo.prefund
+    }
+    return {
+      returnInfo,
+      senderInfo: fillEntity(userOp.sender, res.senderInfo) as StakeInfo,
+      paymasterInfo: fillEntity(userOp.paymaster, res.paymasterInfo),
+      factoryInfo: fillEntity(userOp.factory, res.factoryInfo),
+      aggregatorInfo: fillEntity(res.aggregatorInfo.aggregator, res.aggregatorInfo.stakeInfo)
+    }
+  }
+
   // standard eth_call to simulateValidation
   async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
     // Promise<IEntryPointSimulations.ValidationResultStructOutput> {
@@ -93,17 +122,12 @@ export class ValidationManager {
       const provider = this.entryPoint.provider as JsonRpcProvider
       const simulationResult = await provider.send('eth_call', [tx, 'latest', stateOverride])
       const [res] = entryPointSimulations.decodeFunctionResult('simulateValidation', simulationResult) as IEntryPointSimulations.ValidationResultStructOutput[]
-      return {
-        returnInfo: res.returnInfo,
-        senderInfo: { ...res.senderInfo, addr: userOp.sender },
-        paymasterInfo: { ...res.paymasterInfo, addr: userOp.paymaster ?? '' },
-        factoryInfo: { ...res.factoryInfo, addr: userOp.factory ?? '' },
-        aggregatorInfo: res.aggregatorInfo.aggregator === AddressZero ? undefined : { ...res.aggregatorInfo.stakeInfo, addr: res.aggregatorInfo?.aggregator }
-      }
+
+      return this.parseValidationResult(userOp, res)
     } catch (error: any) {
       const decodedError = decodeRevertReason(error)
       if (decodedError != null) {
-        throw new Error(decodedError)
+        throw new RpcError(decodedError, ValidationErrors.SimulateValidation)
       }
       throw error
     }
@@ -114,44 +138,6 @@ export class ValidationManager {
     throw new Error(errorResult.errorName)
   }
 
-  _parseErrorResult (userOp: UserOperation, errorResult: { errorName: string, errorArgs: any }): ValidationResult {
-    if (!errorResult?.errorName?.startsWith('ValidationResult')) {
-      // parse it as FailedOp
-      // if its FailedOp, then we have the paymaster param... otherwise its an Error(string)
-      let paymaster = errorResult.errorArgs.paymaster
-      if (paymaster === AddressZero) {
-        paymaster = undefined
-      }
-      // eslint-disable-next-line
-      const msg: string = errorResult.errorArgs?.reason ?? errorResult.toString()
-
-      if (paymaster == null) {
-        throw new RpcError(`account validation failed: ${msg}`, ValidationErrors.SimulateValidation)
-      } else {
-        throw new RpcError(`paymaster validation failed: ${msg}`, ValidationErrors.SimulatePaymasterValidation, { paymaster })
-      }
-    }
-
-    const {
-      returnInfo,
-      senderInfo,
-      factoryInfo,
-      paymasterInfo,
-      aggregatorInfo // may be missing (exists only SimulationResultWithAggregator
-    } = errorResult.errorArgs
-
-    return {
-      returnInfo,
-      senderInfo: {
-        ...senderInfo,
-        addr: userOp.sender
-      },
-      factoryInfo: fillEntity(userOp.factory, factoryInfo),
-      paymasterInfo: fillEntity(userOp.paymaster, paymasterInfo),
-      aggregatorInfo: fillEntity(aggregatorInfo?.actualAggregator, aggregatorInfo?.stakeInfo)
-    }
-  }
-
   async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerTracerResult]> {
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
@@ -159,7 +145,7 @@ export class ValidationManager {
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
     const tracerResult: BundlerTracerResult = await debug_traceCall(provider, {
-      from: ethers.constants.AddressZero,
+      from: AddressZero,
       to: this.entryPoint.address,
       data: simulateCall,
       gasLimit: simulationGas
@@ -175,37 +161,16 @@ export class ValidationManager {
     const lastResult = tracerResult.calls.slice(-1)[0]
     const data = (lastResult as ExitInfo).data
     if (lastResult.type === 'REVERT') {
-      throw new Error(decodeRevertReason(data, false) as string)
+      throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
     }
-    // Hack to handle SELFDESTRUCT until we fix entrypoint
-    if (data === '0x') {
-      return [data as any, tracerResult]
-    }
+    // // Hack to handle SELFDESTRUCT until we fix entrypoint
+    // if (data === '0x') {
+    //   return [data as any, tracerResult]
+    // }
     try {
       const [decodedSimulations] = entryPointSimulations.decodeFunctionResult('simulateValidation', data)
-      const validationResult = {
-        returnInfo: decodedSimulations.returnInfo,
-        senderInfo: {
-          ...decodedSimulations.senderInfo,
-          addr: userOp.sender
-        },
-        factoryInfo: fillEntity(userOp.factory, decodedSimulations.factoryInfo),
-        paymasterInfo: fillEntity(userOp.paymaster, decodedSimulations.paymasterInfo),
-        aggregatorInfo: fillEntity(decodedSimulations.aggregatorInfo.aggregator, decodedSimulations.aggregatorInfo.stakeInfo)
-      }
-      // const {
-      //   name: errorName,
-      //   args: errorArgs
-      // } = this.entryPoint.interface.parseError(data)
-      // const errFullName = `${errorName}(${errorArgs.toString()})`
-      // const errorResult = this._parseErrorResult(userOp, {
-      //   errorName,
-      //   errorArgs
-      // })
-      // if (!errorName.includes('Result')) {
-      //   // a real error, not a result.
-      //   throw new Error(errFullName)
-      // }
+      const validationResult = this.parseValidationResult(userOp, decodedSimulations)
+
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
@@ -213,15 +178,15 @@ export class ValidationManager {
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       // errorResult is "ValidationResult"
-      return [validationResult as any, tracerResult]
+      return [validationResult, tracerResult]
     } catch (e: any) {
       // if already parsed, throw as is
       if (e.code != null) {
         throw e
       }
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
-      const err = decodeErrorReason(data)
-      throw new RpcError(err != null ? err.message : data, 111)
+      const err = decodeErrorReason(e)
+      throw new RpcError(err != null ? err.message : data, -32000)
     }
   }
 
@@ -270,10 +235,10 @@ export class ValidationManager {
 
     const now = Math.floor(Date.now() / 1000)
     requireCond(res.returnInfo.validAfter <= now,
-      'time-range in the future time',
+      `time-range in the future time ${res.returnInfo.validAfter}, now=${now}`,
       ValidationErrors.NotInTimeRange)
 
-    console.log('until', res.returnInfo.validUntil, 'now=', now)
+    debug('until', res.returnInfo.validUntil, 'now=', now)
     requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil >= now,
       'already expired',
       ValidationErrors.NotInTimeRange)

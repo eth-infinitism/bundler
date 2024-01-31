@@ -76,7 +76,7 @@ export function requireAddressAndFields (userOp: UserOperation, addrField: strin
     requireCond(unexpected.length === 0,
       `no ${addrField} but got ${unexpected.join(',')}`, ValidationErrors.InvalidFields)
   } else {
-    requireCond(addr.match(/^0x[a-f0-9]{10,40}$/), `invalid ${addrField} address`, ValidationErrors.InvalidFields)
+    requireCond(addr.match(/^0x[a-f0-9]{10,40}$/i), `invalid ${addrField}`, ValidationErrors.InvalidFields)
     const missing = mustFields.filter(name => op[name] == null)
     requireCond(missing.length === 0,
       `got ${addrField} but missing ${missing.join(',')}`, ValidationErrors.InvalidFields)

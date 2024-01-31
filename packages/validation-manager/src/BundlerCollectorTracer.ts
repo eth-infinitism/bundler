@@ -93,7 +93,6 @@ interface RelevantStepData {
  */
 interface BundlerCollectorTracer extends LogTracer, BundlerTracerResult {
   lastOp: string
-  topLevelAddress?: string
   lastThreeOpcodes: RelevantStepData[]
   stopCollectingTopic: string
   stopCollecting: boolean
@@ -212,9 +211,6 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
 
       if (log.getDepth() === 1) {
-        if (this.topLevelAddress == null) {
-          this.topLevelAddress = toHex(log.contract.getAddress())
-        }
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
           const addr = toAddress(log.stack.peek(1).toString(16))
@@ -268,32 +264,29 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         // this.debug.push(`isPrecompiled address=${addrHex} addressInt=${addressInt}`)
         return addressInt > 0 && addressInt < 10
       }
-      // ignore opcodes at top-level contract (EntryPointSimulations)
-      if (this.topLevelAddress !== toHex(log.contract.getAddress())) {
-        // [OP-041]
-        if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
-          const idx = opcode.startsWith('EXT') ? 0 : 1
-          const addr = toAddress(log.stack.peek(idx).toString(16))
-          const addrHex = toHex(addr)
-          // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length() + ' addr=' + addrHex)
-          if (this.currentLevel.contractSize[addrHex] == null && !isAllowedPrecompiled(addr)) {
-            this.currentLevel.contractSize[addrHex] = {
-              contractSize: db.getCode(addr).length,
-              opcode
-            }
+      // [OP-041]
+      if (opcode.match(/^(EXT.*|CALL|CALLCODE|DELEGATECALL|STATICCALL)$/) != null) {
+        const idx = opcode.startsWith('EXT') ? 0 : 1
+        const addr = toAddress(log.stack.peek(idx).toString(16))
+        const addrHex = toHex(addr)
+        // this.debug.push('op=' + opcode + ' last=' + this.lastOp + ' stacksize=' + log.stack.length() + ' addr=' + addrHex)
+        if (this.currentLevel.contractSize[addrHex] == null && !isAllowedPrecompiled(addr)) {
+          this.currentLevel.contractSize[addrHex] = {
+            contractSize: db.getCode(addr).length,
+            opcode
           }
         }
+      }
 
-        // [OP-012]
-        if (this.lastOp === 'GAS' && !opcode.includes('CALL')) {
-          // count "GAS" opcode only if not followed by "CALL"
-          this.countSlot(this.currentLevel.opcodes, 'GAS')
-        }
-        if (opcode !== 'GAS') {
-          // ignore "unimportant" opcodes:
-          if (opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/) == null) {
-            this.countSlot(this.currentLevel.opcodes, opcode)
-          }
+      // [OP-012]
+      if (this.lastOp === 'GAS' && !opcode.includes('CALL')) {
+        // count "GAS" opcode only if not followed by "CALL"
+        this.countSlot(this.currentLevel.opcodes, 'GAS')
+      }
+      if (opcode !== 'GAS') {
+        // ignore "unimportant" opcodes:
+        if (opcode.match(/^(DUP\d+|PUSH\d+|SWAP\d+|POP|ADD|SUB|MUL|DIV|EQ|LTE?|S?GTE?|SLT|SH[LR]|AND|OR|NOT|ISZERO)$/) == null) {
+          this.countSlot(this.currentLevel.opcodes, opcode)
         }
       }
       this.lastOp = opcode

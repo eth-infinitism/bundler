@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import {
   packAccountGasLimits,
-  packPaymasterData,
+  packPaymasterData, packUint,
   packUserOp,
   unpackAccountGasLimits,
   unpackPaymasterAndData
@@ -71,8 +71,7 @@ describe('utils', () => {
         accountGasLimits: packAccountGasLimits(3, 2),
         preVerificationGas: '0x04',
         callData: '333',
-        maxFeePerGas: '0x05',
-        maxPriorityFeePerGas: '0x06',
+        gasFees: packUint(6, 5),
         signature: '777',
         paymasterAndData: '0x'
       })
@@ -103,9 +102,8 @@ describe('utils', () => {
         initCode: hexConcat([factory, '0xbeaf']),
         accountGasLimits: packAccountGasLimits(3, 2),
         preVerificationGas: '0x04',
+        gasFees: packUint(6, 5),
         callData: '333',
-        maxFeePerGas: '0x05',
-        maxPriorityFeePerGas: '0x06',
         signature: '777',
         paymasterAndData: hexConcat([
           paymaster,

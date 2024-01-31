@@ -147,7 +147,7 @@ export class BundlerServer {
         data: err.data,
         code: err.code
       }
-      console.log('failed: ', method, 'error:', JSON.stringify(error))
+      console.log('failed: ', method, 'error:', JSON.stringify(error), err)
       debug('<<', { jsonrpc, id, error })
       return {
         jsonrpc,
