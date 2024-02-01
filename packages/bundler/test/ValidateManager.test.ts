@@ -227,7 +227,6 @@ describe('#ValidationManager', () => {
       const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
       userOp.preVerificationGas = Math.floor(validAfterMs / 1000)
       userOp.maxPriorityFeePerGas = Math.floor(validUntilMs / 1000)
-      console.log('=== validAfter: ', userOp.preVerificationGas, 'validuntil', userOp.maxPriorityFeePerGas)
       await vm.validateUserOp(userOp)
     }
 

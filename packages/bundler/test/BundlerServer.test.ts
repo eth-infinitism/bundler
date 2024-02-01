@@ -55,6 +55,7 @@ describe('BundleServer', function () {
     )
     const None: any = {}
     server = new BundlerServer(methodHandler, None, None, None, None)
+    server.silent = true
   })
 
   it('should revert on invalid userop', async () => {

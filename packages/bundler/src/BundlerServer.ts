@@ -26,6 +26,7 @@ const debug = Debug('aa.rpc')
 export class BundlerServer {
   app: Express
   private readonly httpServer: Server
+  public silent = false
 
   constructor (
     readonly methodHandler: UserOpMethodHandler,
@@ -84,11 +85,11 @@ export class BundlerServer {
 
     const signerAddress = await this.wallet.getAddress()
     const bal = await this.provider.getBalance(signerAddress)
-    console.log('signer', signerAddress, 'balance', utils.formatEther(bal))
+    this.log('signer', signerAddress, 'balance', utils.formatEther(bal))
     if (bal.eq(0)) {
       this.fatal('cannot run with zero balance')
     } else if (bal.lt(parseEther(this.config.minBalance))) {
-      console.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
+      this.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
     }
   }
 
@@ -120,7 +121,7 @@ export class BundlerServer {
         data: err.data,
         code: err.code
       }
-      console.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
+      this.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
     }
   }
 
@@ -134,7 +135,7 @@ export class BundlerServer {
     debug('>>', { jsonrpc, id, method, params })
     try {
       const result = deepHexlify(await this.handleMethod(method, params))
-      console.log('sent', method, '-', result)
+      debug('sent', method, '-', result)
       debug('<<', { jsonrpc, id, result })
       return {
         jsonrpc,
@@ -147,7 +148,7 @@ export class BundlerServer {
         data: err.data,
         code: err.code
       }
-      console.log('failed: ', method, 'error:', JSON.stringify(error), err)
+      this.log('failed: ', method, 'error:', JSON.stringify(error), err)
       debug('<<', { jsonrpc, id, error })
       return {
         jsonrpc,
@@ -226,5 +227,11 @@ export class BundlerServer {
         throw new RpcError(`Method ${method} is not supported`, -32601)
     }
     return result
+  }
+
+  log (...params: any[]): void {
+    if (!this.silent) {
+      console.log(...arguments)
+    }
   }
 }
