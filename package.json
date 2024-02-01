@@ -23,7 +23,7 @@
     "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix --",
     "lerna-clear": "lerna run clear",
     "lerna-lint": "lerna run lint --stream --parallel -- ",
-    "lerna-test": "lerna run hardhat-test --stream",
+    "lerna-test": "lerna run hardhat-test --stream --",
     "lerna-tsc": "lerna run tsc --scope @account-abstraction/*",
     "lerna-watch-tsc": "lerna run --parallel watch-tsc",
     "lint-fix": "lerna run lint-fix --parallel",

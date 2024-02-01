@@ -7,7 +7,7 @@ import { ClientConfig } from './ClientConfig'
 import { ERC4337EthersSigner } from './ERC4337EthersSigner'
 import { UserOperationEventListener } from './UserOperationEventListener'
 import { HttpRpcClient } from './HttpRpcClient'
-import { EntryPoint } from '@account-abstraction/contracts'
+import { IEntryPoint } from '@account-abstraction/contracts'
 import { getUserOpHash, packUserOp, UserOperation } from '@account-abstraction/utils'
 import { BaseAccountAPI } from './BaseAccountAPI'
 import Debug from 'debug'
@@ -24,7 +24,7 @@ export class ERC4337EthersProvider extends BaseProvider {
     readonly originalSigner: Signer,
     readonly originalProvider: BaseProvider,
     readonly httpRpcClient: HttpRpcClient,
-    readonly entryPoint: EntryPoint,
+    readonly entryPoint: IEntryPoint,
     readonly smartAccountAPI: BaseAccountAPI
   ) {
     super({

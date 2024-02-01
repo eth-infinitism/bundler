@@ -222,10 +222,10 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
 export function encodeUserOp (op1: NotPromise<PackedUserOperationStruct> | UserOperation, forSignature = true): string {
   // if "op" is unpacked UserOperation, then pack it first, before we ABI-encode it.
   let op: NotPromise<PackedUserOperationStruct>
-  if ((op1 as any).callGasLimit != null) {
-    op = packUserOp(op1 as UserOperation)
+  if ('callGasLimit' in op1) {
+    op = packUserOp(op1)
   } else {
-    op = op1 as NotPromise<PackedUserOperationStruct>
+    op = op1
   }
   if (forSignature) {
     return defaultAbiCoder.encode(

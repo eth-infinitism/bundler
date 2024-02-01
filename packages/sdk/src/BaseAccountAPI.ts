@@ -1,8 +1,6 @@
 import { ethers, BigNumber, BigNumberish, BytesLike } from 'ethers'
 import { Provider } from '@ethersproject/providers'
-import {
-  EntryPoint, EntryPoint__factory
-} from '@account-abstraction/contracts'
+import { IEntryPoint, IEntryPoint__factory } from '@account-abstraction/contracts'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { defaultAbiCoder } from 'ethers/lib/utils'
@@ -45,7 +43,7 @@ export abstract class BaseAccountAPI {
   private senderAddress!: string
   private isPhantom = true
   // entryPoint connected to "zero" address. allowed to make static calls (e.g. to getSenderAddress)
-  private readonly entryPointView: EntryPoint
+  private readonly entryPointView: IEntryPoint
 
   provider: Provider
   overheads?: Partial<GasOverheads>
@@ -65,7 +63,7 @@ export abstract class BaseAccountAPI {
     this.paymasterAPI = params.paymasterAPI
 
     // factory "connect" define the contract address. the contract "connect" defines the "from" address.
-    this.entryPointView = EntryPoint__factory.connect(params.entryPointAddress, params.provider).connect(ethers.constants.AddressZero)
+    this.entryPointView = IEntryPoint__factory.connect(params.entryPointAddress, params.provider).connect(ethers.constants.AddressZero)
   }
 
   async init (): Promise<this> {
@@ -254,7 +252,7 @@ export abstract class BaseAccountAPI {
       }
     }
 
-    const partialUserOp: Partial<UserOperation> = {
+    let partialUserOp = {
       sender: await this.getAccountAddress(),
       nonce: info.nonce ?? await this.getNonce(),
       factory: factoryParams?.factory,
@@ -262,23 +260,28 @@ export abstract class BaseAccountAPI {
       callData,
       callGasLimit,
       verificationGasLimit,
-      maxFeePerGas,
-      maxPriorityFeePerGas
+      maxFeePerGas: maxFeePerGas as any,
+      maxPriorityFeePerGas: maxPriorityFeePerGas as any
     }
 
     if (this.paymasterAPI != null) {
       // fill (partial) preVerificationGas (all except the cost of the generated paymasterAndData)
       const pmFields = await this.paymasterAPI.getTemporaryPaymasterData(partialUserOp)
-      partialUserOp.paymaster = pmFields?.paymaster
-      partialUserOp.paymasterVerificationGasLimit = pmFields?.paymasterVerificationGasLimit
-      partialUserOp.paymasterPostOpGasLimit = pmFields?.paymasterPostOpGasLimit
-      partialUserOp.paymasterData = pmFields?.paymasterData
+      if (pmFields != null) {
+        partialUserOp = {
+          ...partialUserOp,
+          paymaster: pmFields?.paymaster,
+          paymasterPostOpGasLimit: pmFields?.paymasterPostOpGasLimit,
+          paymasterVerificationGasLimit: pmFields?.paymasterVerificationGasLimit,
+          paymasterData: pmFields?.paymasterData
+        } as any
+      }
     }
     return {
       ...partialUserOp,
       preVerificationGas: await this.getPreVerificationGas(partialUserOp),
       signature: ''
-    } as any
+    }
   }
 
   /**
