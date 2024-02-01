@@ -1,0 +1,4 @@
+[submodule "submodules/account-abstraction"]
+	path = submodules/account-abstraction
+	url = git@github.com:eth-infinitism/account-abstraction.git
+	branch = missing-index
