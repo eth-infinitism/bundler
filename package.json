@@ -29,7 +29,8 @@
     "lint-fix": "lerna run lint-fix --parallel",
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
-    "preprocess": "yarn temp-prepack-contracts && yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
+    "submodule-update": "git submodule update --remote --init --recursive",
+    "preprocess": "yarn submodule-update && yarn temp-prepack-contracts && yarn lerna-clear && yarn hardhat-compile && yarn lerna-tsc",
     "temp-prepack-contracts": "./submodules/account-abstraction/scripts/prepack-contracts-package.sh",
     "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler --unsafe",
     "ci": "env ; yarn depcheck; yarn preprocess ; yarn lerna-test"
