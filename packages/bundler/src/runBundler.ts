@@ -16,6 +16,7 @@ import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { parseEther } from 'ethers/lib/utils'
+import { RIP7560MethodHandler } from './RIP7560MethodHandler'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -73,6 +74,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--debugRpc', 'enable debug rpc methods (auto-enabled for test node')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
+    .option('--useRip7650Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
     .option('--createMnemonic <file>', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
@@ -105,12 +107,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       console.log('== debugrpc already st', config.debugRpc)
     }
-    const addr = await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
-    console.log('deployed EntryPoint at', addr)
-    if ((await wallet.getBalance()).eq(0)) {
-      console.log('=== testnet: fund signer')
-      const signer = (provider as JsonRpcProvider).getSigner()
-      await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
+
+    if (!config.useRip7650Mode) {
+      const addr = await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+      console.log('deployed EntryPoint at', addr)
+      if ((await wallet.getBalance()).eq(0)) {
+        console.log('=== testnet: fund signer')
+        const signer = (provider as JsonRpcProvider).getSigner()
+        await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
+      }
     }
   }
 
@@ -145,6 +150,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     config,
     entryPoint
   )
+  const rip7560MethodHandler = new RIP7560MethodHandler(execManager, entryPoint.provider as JsonRpcProvider)
   eventsManager.initEventListener()
   const debugHandler = config.debugRpc ?? false
     ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
@@ -156,6 +162,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    rip7560MethodHandler,
     debugHandler,
     config,
     provider,

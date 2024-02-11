@@ -24,7 +24,7 @@ import {
   toBytes32
 } from '@account-abstraction/utils'
 
-import { ValidationResult } from './ValidationManager'
+import { ValidationResult } from './IValidationManager'
 
 const debug = Debug('aa.handler.opcodes')
 

@@ -4,8 +4,11 @@ import { AddressZero, IEntryPoint__factory, UserOperation } from '@account-abstr
 
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
-import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
+import { ValidationManager } from './ValidationManager'
+import { ValidateUserOpResult } from './IValidationManager'
 
+export * from './IValidationManager'
+export * from './RIP7560ValidationManager'
 export * from './ValidationManager'
 
 export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promise<boolean> {
@@ -35,5 +38,5 @@ export async function checkRulesViolations (
     entryPoint,
     false
   )
-  return await validationManager.validateUserOp(userOperation)
+  return await validationManager.validateOperation(userOperation)
 }

@@ -1,7 +1,7 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request } from 'express'
-import { Provider } from '@ethersproject/providers'
+import { JsonRpcProvider, Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
@@ -21,8 +21,10 @@ import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
+import { RIP7560MethodHandler } from './RIP7560MethodHandler'
 
 const debug = Debug('aa.rpc')
+
 export class BundlerServer {
   app: Express
   private readonly httpServer: Server
@@ -30,6 +32,7 @@ export class BundlerServer {
 
   constructor (
     readonly methodHandler: UserOpMethodHandler,
+    readonly rip7560methodHandler: RIP7560MethodHandler,
     readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
     readonly provider: Provider,
@@ -60,6 +63,9 @@ export class BundlerServer {
   }
 
   async _preflightCheck (): Promise<void> {
+    if (this.config.useRip7650Mode) {
+      return
+    }
     if (await this.provider.getCode(this.config.entryPoint) === '0x') {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
@@ -161,6 +167,24 @@ export class BundlerServer {
   async handleMethod (method: string, params: any[]): Promise<any> {
     let result: any
     switch (method) {
+      /** RIP-7560 specific RPC API */
+      case 'eth_sendTransaction':
+        if (!this.config.useRip7650Mode) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        if (params[0].sender != null) {
+          result = await this.rip7560methodHandler.sendRIP7560Transaction(params[0])
+        } else {
+          result = await (this.provider as JsonRpcProvider).send(method, params)
+        }
+        break
+      case 'eth_getTransactionReceipt':
+        if (!this.config.useRip7650Mode) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        result = await this.rip7560methodHandler.getRIP7560TransactionReceipt(params[0])
+        break
+      /** EIP-4337 specific RPC API */
       case 'eth_chainId':
         // eslint-disable-next-line no-case-declarations
         const { chainId } = await this.provider.getNetwork()
@@ -224,7 +248,10 @@ export class BundlerServer {
         result = await this.debugHandler.getStakeStatus(params[0], params[1])
         break
       default:
-        throw new RpcError(`Method ${method} is not supported`, -32601)
+        // TODO: separate providers in tests
+        result = await (this.provider as JsonRpcProvider).send(method, params)
+        break
+      // throw new RpcError(`Method ${method} is not supported`, -32601)
     }
     return result
   }

@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
@@ -24,7 +24,8 @@ import {
   packUserOp,
   requireAddressAndFields,
   decodeRevertReason,
-  mergeValidationDataValues
+  mergeValidationDataValues,
+  BaseOperation
 } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
@@ -35,6 +36,7 @@ import { debug_traceCall } from './GethTracer'
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IStakeManager } from '@account-abstraction/contracts/types/EntryPointSimulations'
 import StakeInfoStructOutput = IStakeManager.StakeInfoStructOutput
+import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 
 type ValidationResultStructOutput = IEntryPointSimulations.ValidationResultStructOutput
 
@@ -43,38 +45,18 @@ const debug = Debug('aa.mgr.validate')
 // how much time into the future a UserOperation must be valid in order to be accepted
 const VALID_UNTIL_FUTURE_SECONDS = 30
 
-/**
- * result from successful simulateValidation, after some parsing.
- */
-export interface ValidationResult {
-  returnInfo: {
-    preOpGas: BigNumberish
-    prefund: BigNumberish
-    sigFailed: boolean
-    validAfter: number
-    validUntil: number
-  }
-
-  senderInfo: StakeInfo
-  factoryInfo?: StakeInfo
-  paymasterInfo?: StakeInfo
-  aggregatorInfo?: StakeInfo
-}
-
-export interface ValidateUserOpResult extends ValidationResult {
-
-  referencedContracts: ReferencedCodeHashes
-  storageMap: StorageMap
-}
-
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 const entryPointSimulations = EntryPointSimulations__factory.createInterface()
 
-export class ValidationManager {
+export class ValidationManager implements IValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean
   ) {
+  }
+
+  async getOperationHash (userOp: BaseOperation): Promise<string> {
+    return await this.entryPoint.getUserOpHash(packUserOp(userOp as UserOperation))
   }
 
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
@@ -195,8 +177,10 @@ export class ValidationManager {
    * should also handle unmodified memory (e.g. by referencing cached storage in the mempool
    * one item to check that was un-modified is the aggregator..
    * @param userOp
+   * @param previousCodeHashes
+   * @param checkStakes
    */
-  async validateUserOp (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
+  async validateOperation (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
     if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
       const { hash: codeHashes } = await this.getCodeHashes(previousCodeHashes.addresses)
       // [COD-010]

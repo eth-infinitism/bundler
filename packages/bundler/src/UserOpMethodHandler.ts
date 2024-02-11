@@ -26,7 +26,7 @@ import { ExecutionManager } from './modules/ExecutionManager'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
-const HEX_REGEX = /^0x[a-fA-F\d]*$/i
+export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 /**
  * return value from estimateUserOpGas
