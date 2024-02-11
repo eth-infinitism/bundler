@@ -133,9 +133,8 @@ export class UserOpMethodHandler {
         //   balance: hexStripZeros(parseEther('1').toHexString())
         // }
       })
-
     const ret = await provider.send('eth_call', rpcParams)
-      .catch((e: any) => { throw Error(decodeRevertReason(e) as string) })
+      .catch((e: any) => { throw new RpcError(decodeRevertReason(e) as string, ValidationErrors.SimulateValidation) })
 
     const returnInfo = decodeSimulateHandleOpResult(ret)
 
