@@ -218,7 +218,6 @@ export class ValidationManager {
       'time-range in the future time',
       ValidationErrors.NotInTimeRange)
 
-    console.log('until', res.returnInfo.validUntil, 'now=', now)
     requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil >= now,
       'already expired',
       ValidationErrors.NotInTimeRange)
@@ -230,6 +229,10 @@ export class ValidationManager {
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
+
+    const verificationCost = BigNumber.from(res.returnInfo.preOpGas).sub(userOp.preVerificationGas)
+    const extraGas = BigNumber.from(userOp.verificationGasLimit).sub(verificationCost).toNumber()
+    requireCond(extraGas >= 2000, `verificationGas should have extra 2000 gas. has only ${extraGas}`, ValidationErrors.SimulateValidation)
 
     return {
       ...res,
