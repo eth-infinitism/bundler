@@ -5,7 +5,7 @@ import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 import { NotPromise, UserOperation } from './ERC4337Utils'
-import { PackedUserOperationStruct } from '@account-abstraction/contracts'
+import { PackedUserOperationStruct } from './soltypes'
 
 export interface SlotMap {
   [slot: string]: string

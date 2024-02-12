@@ -6,13 +6,6 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
-import {
-  IAccount__factory,
-  IEntryPoint,
-  IEntryPoint__factory,
-  IPaymaster__factory,
-  SenderCreator__factory
-} from '@account-abstraction/contracts'
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
   StakeInfo,
@@ -21,7 +14,7 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32
+  toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './ValidationManager'

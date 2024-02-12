@@ -1,4 +1,3 @@
-import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish } from 'ethers'
@@ -12,7 +11,7 @@ import {
   StorageMap,
   mergeStorageMap,
   runContractScript,
-  packUserOp
+  packUserOp, IEntryPoint
 } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
@@ -32,7 +31,7 @@ export class BundleManager {
   mutex = new Mutex()
 
   constructor (
-    readonly entryPoint: EntryPoint,
+    readonly entryPoint: IEntryPoint,
     readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,

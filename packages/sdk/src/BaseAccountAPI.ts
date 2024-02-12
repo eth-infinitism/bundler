@@ -1,11 +1,10 @@
 import { ethers, BigNumber, BigNumberish, BytesLike } from 'ethers'
 import { Provider } from '@ethersproject/providers'
-import { IEntryPoint, IEntryPoint__factory } from '@account-abstraction/contracts'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { encodeUserOp, getUserOpHash, packUserOp, UserOperation } from '@account-abstraction/utils'
+import { encodeUserOp, getUserOpHash, IEntryPoint, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface FactoryParams {
@@ -196,7 +195,7 @@ export abstract class BaseAccountAPI {
    */
   async getUserOpHash (op: UserOperation): Promise<string> {
     const chainId = await this.provider.getNetwork().then(net => net.chainId)
-    return getUserOpHash(packUserOp(op), this.entryPointAddress, chainId)
+    return getUserOpHash(op, this.entryPointAddress, chainId)
   }
 
   /**

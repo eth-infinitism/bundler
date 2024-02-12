@@ -1,8 +1,14 @@
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { parseEther } from 'ethers/lib/utils'
 import { assert, expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
-import { AddressZero, getUserOpHash, packUserOp, UserOperation } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  IEntryPoint__factory,
+  getUserOpHash,
+  packUserOp,
+  UserOperation,
+  deployEntryPoint
+} from '@account-abstraction/utils'
 
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { DeterministicDeployer } from '@account-abstraction/sdk'
@@ -25,7 +31,7 @@ describe('#BundlerManager', () => {
   const signer = provider.getSigner()
 
   before(async function () {
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
@@ -130,9 +136,7 @@ describe('#BundlerManager', () => {
       const cEmptyUserOp: UserOperation = {
         sender: AddressZero,
         nonce: '0x0',
-        paymasterAndData: '0x',
         signature: '0x',
-        initCode: '0x',
         callData: '0x',
         callGasLimit: '0x0',
         verificationGasLimit: '0x50000',

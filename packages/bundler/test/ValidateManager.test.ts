@@ -1,9 +1,14 @@
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { assert, expect } from 'chai'
 import { defaultAbiCoder, hexConcat, hexlify, keccak256, parseEther } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
-import { AddressZero, decodeErrorReason, toBytes32, UserOperation } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  decodeErrorReason, deployEntryPoint,
+  IEntryPoint,
+  toBytes32,
+  UserOperation
+} from '@account-abstraction/utils'
 import {
   ValidateUserOpResult,
   ValidationManager,
@@ -49,7 +54,7 @@ describe('#ValidationManager', () => {
   let testcoin: TestCoin
 
   let paymaster: TestOpcodesAccount
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
   let rulesAccount: TestRulesAccount
   let storageAccount: TestStorageAccount
 
@@ -125,7 +130,7 @@ describe('#ValidationManager', () => {
   const ethersSigner = provider.getSigner()
 
   before(async function () {
-    entryPoint = await new EntryPoint__factory(ethersSigner).deploy()
+    entryPoint = await deployEntryPoint(provider)
     paymaster = await new TestOpcodesAccount__factory(ethersSigner).deploy()
     await entryPoint.depositTo(paymaster.address, { value: parseEther('0.1') })
     await paymaster.addStake(entryPoint.address, { value: parseEther('0.1') })

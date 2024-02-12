@@ -3,11 +3,6 @@ import { assert, expect } from 'chai'
 import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import {
-  EntryPoint,
-  EntryPoint__factory,
-  SimpleAccountFactory__factory
-} from '@account-abstraction/contracts'
 
 import { Signer, Wallet } from 'ethers'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
@@ -19,12 +14,13 @@ import {
 } from '../src/types'
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import {
+  deployEntryPoint,
+  IEntryPoint,
   packUserOp,
-  resolveHexlify,
+  resolveHexlify, SimpleAccountFactory__factory,
   UserOperation,
   waitFor
 } from '@account-abstraction/utils'
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
@@ -45,14 +41,14 @@ describe('UserOpMethodHandler', function () {
   const accountSigner = Wallet.createRandom()
   let mempoolMgr: MempoolManager
 
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
   let sampleRecipient: SampleRecipient
 
   before(async function () {
     provider = ethers.provider
 
     signer = await createSigner()
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider, signer)
 
     DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
@@ -169,7 +165,7 @@ describe('UserOpMethodHandler', function () {
       // sendUserOperation is async, even in auto-mining. need to wait for it.
       const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
 
-      const transactionReceipt = await event!.getTransactionReceipt()
+      const transactionReceipt = await event.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
       const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
         .map(log => entryPoint.interface.parseLog(log))

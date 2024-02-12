@@ -1,15 +1,19 @@
-import {
-  EntryPoint__factory, IEntryPoint, SimpleAccountFactory__factory
-} from '@account-abstraction/contracts'
 import { Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { expect } from 'chai'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { ethers } from 'hardhat'
-import { DeterministicDeployer, SimpleAccountAPI } from '../src'
+import { SimpleAccountAPI } from '../src'
 import {
+  deployEntryPoint,
+  DeterministicDeployer, 
   UserOperation,
-  packUserOp, decodeErrorReason, SampleRecipient, SampleRecipient__factory
+  packUserOp,
+  decodeErrorReason,
+  SampleRecipient,
+  SampleRecipient__factory,
+  IEntryPoint,
+  SimpleAccountFactory__factory
 } from '@account-abstraction/utils'
 
 const provider = ethers.provider
@@ -25,7 +29,7 @@ describe('SimpleAccountAPI', () => {
   let accountDeployed = false
 
   before('init', async () => {
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
     beneficiary = await signer.getAddress()
 
     recipient = await new SampleRecipient__factory(signer).deploy()
@@ -98,9 +102,10 @@ describe('SimpleAccountAPI', () => {
     })
     it('should parse revert with no description', async () => {
       // use wrong signature for contract..
+      console.log(await provider.getCode(recipient.address))
       const wrongContract = entryPoint.attach(recipient.address)
       await expect(
-        wrongContract.callStatic.addStake(0)
+        wrongContract.addStake(0)
       ).to.revertedWithoutReason()
     })
   })

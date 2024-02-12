@@ -8,10 +8,14 @@ import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/
 import { BundleManager, SendBundleReturn } from '../src/modules/BundleManager'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
-import { EntryPoint, EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
 import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { Signer, Wallet } from 'ethers'
-import { resolveHexlify } from '@account-abstraction/utils'
+import {
+  IEntryPoint__factory,
+  IEntryPoint,
+  resolveHexlify,
+  SimpleAccountFactory__factory, deployEntryPoint
+} from '@account-abstraction/utils'
 import { expect } from 'chai'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
@@ -20,7 +24,7 @@ const provider = ethers.provider
 
 describe('#DebugMethodHandler', () => {
   let debugMethodHandler: DebugMethodHandler
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
   let methodHandler: UserOpMethodHandler
   let smartAccountAPI: SimpleAccountAPI
   let signer: Signer
@@ -29,7 +33,7 @@ describe('#DebugMethodHandler', () => {
   before(async () => {
     signer = await createSigner()
 
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {

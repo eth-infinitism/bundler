@@ -1,13 +1,11 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-import { IEntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
-
 import { ClientConfig } from './ClientConfig'
 import { SimpleAccountAPI } from './SimpleAccountAPI'
 import { ERC4337EthersProvider } from './ERC4337EthersProvider'
 import { HttpRpcClient } from './HttpRpcClient'
-import { DeterministicDeployer } from './DeterministicDeployer'
 import { Signer } from '@ethersproject/abstract-signer'
+import { DeterministicDeployer, IEntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/utils'
 
 /**
  * wrap an existing provider to tunnel requests through Account Abstraction.

@@ -1,7 +1,7 @@
 import { resolveProperties } from 'ethers/lib/utils'
-import { NotPromise } from './ERC4337Utils'
 import Debug from 'debug'
-import { IEntryPoint, PackedUserOperationStruct } from '@account-abstraction/contracts'
+import { IEntryPoint } from './types'
+import { PackedUserOperation } from './Utils'
 
 const debug = Debug('aa.postExec')
 
@@ -24,7 +24,7 @@ export async function postExecutionCheck (entryPoint: IEntryPoint, userOpHash: s
   gasUsed: number
   gasPaid: number
   success: boolean
-  userOp: NotPromise<PackedUserOperationStruct>
+  userOp: PackedUserOperation
 }> {
   const req = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash))
   if (req.length === 0) {
@@ -36,7 +36,7 @@ export async function postExecutionCheck (entryPoint: IEntryPoint, userOpHash: s
 
   const tx = await req[0].getTransaction()
   const { ops } = entryPoint.interface.decodeFunctionData('handleOps', tx.data)
-  const userOp = await resolveProperties(ops[0] as PackedUserOperationStruct)
+  const userOp = await resolveProperties(ops[0] as PackedUserOperation)
   const {
     actualGasUsed,
     success

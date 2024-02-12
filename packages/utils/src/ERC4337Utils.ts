@@ -7,8 +7,8 @@ import {
   keccak256,
   resolveProperties
 } from 'ethers/lib/utils'
-import { PackedUserOperationStruct } from '@account-abstraction/contracts'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
+
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import Debug from 'debug'
 import { PackedUserOperation } from './Utils'
@@ -219,9 +219,9 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
  * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */
-export function encodeUserOp (op1: NotPromise<PackedUserOperationStruct> | UserOperation, forSignature = true): string {
+export function encodeUserOp (op1: PackedUserOperation | UserOperation, forSignature = true): string {
   // if "op" is unpacked UserOperation, then pack it first, before we ABI-encode it.
-  let op: NotPromise<PackedUserOperationStruct>
+  let op: PackedUserOperation
   if ('callGasLimit' in op1) {
     op = packUserOp(op1)
   } else {
@@ -256,7 +256,7 @@ export function encodeUserOp (op1: NotPromise<PackedUserOperationStruct> | UserO
  * @param entryPoint
  * @param chainId
  */
-export function getUserOpHash (op: PackedUserOperation, entryPoint: string, chainId: number): string {
+export function getUserOpHash (op: UserOperation, entryPoint: string, chainId: number): string {
   const userOpHash = keccak256(encodeUserOp(op, true))
   const enc = defaultAbiCoder.encode(
     ['bytes32', 'address', 'uint256'],

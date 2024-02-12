@@ -13,7 +13,8 @@
     "hardhat-compile": "hardhat compile",
     "lint-fix": "eslint -f unix . --fix",
     "watch-tsc": "tsc -w --preserveWatchOutput",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "sol-ts": "yarn hardhat-compile && yarn tsc"
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.6.0",

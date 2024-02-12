@@ -1,7 +1,12 @@
-import { AddressZero, deepHexlify, UserOperation } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  deepHexlify,
+  deployEntryPoint, IEntryPoint,
+  IEntryPoint__factory,
+  UserOperation
+} from '@account-abstraction/utils'
 import { BundlerServer } from '../src/BundlerServer'
 import { expect } from 'chai'
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { createSigner } from './testUtils'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { parseEther } from 'ethers/lib/utils'
@@ -15,12 +20,12 @@ import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 
 describe('BundleServer', function () {
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
   let server: BundlerServer
   before(async () => {
     const provider = ethers.provider
     const signer = await createSigner()
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
 
     const config: BundlerConfig = {
       beneficiary: await signer.getAddress(),

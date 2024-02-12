@@ -1,7 +1,12 @@
-import { packUserOp, SampleRecipient, SampleRecipient__factory } from '@account-abstraction/utils'
+import {
+  deployEntryPoint,
+  IEntryPoint,
+  packUserOp,
+  SampleRecipient,
+  SampleRecipient__factory
+} from '@account-abstraction/utils'
 import { ethers } from 'hardhat'
 import { ClientConfig, ERC4337EthersProvider, wrapProvider } from '../src'
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { expect } from 'chai'
 import { parseEther } from 'ethers/lib/utils'
 import { Wallet } from 'ethers'
@@ -13,10 +18,10 @@ const signer = provider.getSigner()
 describe('ERC4337EthersSigner, Provider', function () {
   let recipient: SampleRecipient
   let aaProvider: ERC4337EthersProvider
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
   before('init', async () => {
     const deployRecipient = await new SampleRecipient__factory(signer).deploy()
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
     const config: ClientConfig = {
       entryPointAddress: entryPoint.address,
       bundlerUrl: ''

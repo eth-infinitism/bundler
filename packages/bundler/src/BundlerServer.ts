@@ -7,7 +7,7 @@ import { parseEther } from 'ethers/lib/utils'
 
 import {
   AddressZero, decodeRevertReason,
-  deepHexlify,
+  deepHexlify, IEntryPoint__factory,
   erc4337RuntimeVersion,
   packUserOp,
   RpcError,
@@ -17,7 +17,6 @@ import {
 import { BundlerConfig } from './BundlerConfig'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
 import { Server } from 'http'
-import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
@@ -78,7 +77,7 @@ export class BundlerServer {
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
     try {
-      await EntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
+      await IEntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
     } catch (e: any) {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${decodeRevertReason(e, false) as string}`)
     }

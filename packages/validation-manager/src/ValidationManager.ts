@@ -4,11 +4,6 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
 import {
-  EntryPointSimulations__factory,
-  IEntryPoint,
-  IEntryPointSimulations
-} from '@account-abstraction/contracts'
-import {
   AddressZero,
   CodeHashGetter__factory,
   ReferencedCodeHashes,
@@ -24,7 +19,11 @@ import {
   packUserOp,
   requireAddressAndFields,
   decodeRevertReason,
-  mergeValidationDataValues
+  mergeValidationDataValues,
+  IEntryPointSimulations__factory,
+  IEntryPoint,
+  ValidationResultStructOutput,
+  StakeInfoStructOutput
 } from '@account-abstraction/utils'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
@@ -33,10 +32,6 @@ import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './Bundler
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
-import { IStakeManager } from '@account-abstraction/contracts/types/EntryPointSimulations'
-import StakeInfoStructOutput = IStakeManager.StakeInfoStructOutput
-
-type ValidationResultStructOutput = IEntryPointSimulations.ValidationResultStructOutput
 
 const debug = Debug('aa.mgr.validate')
 
@@ -68,7 +63,7 @@ export interface ValidateUserOpResult extends ValidationResult {
 }
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
-const entryPointSimulations = EntryPointSimulations__factory.createInterface()
+const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
 
 export class ValidationManager {
   constructor (
@@ -121,7 +116,7 @@ export class ValidationManager {
     try {
       const provider = this.entryPoint.provider as JsonRpcProvider
       const simulationResult = await provider.send('eth_call', [tx, 'latest', stateOverride])
-      const [res] = entryPointSimulations.decodeFunctionResult('simulateValidation', simulationResult) as IEntryPointSimulations.ValidationResultStructOutput[]
+      const [res] = entryPointSimulations.decodeFunctionResult('simulateValidation', simulationResult) as ValidationResultStructOutput[]
 
       return this.parseValidationResult(userOp, res)
     } catch (error: any) {

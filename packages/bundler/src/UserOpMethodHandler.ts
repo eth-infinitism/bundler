@@ -18,13 +18,13 @@ import {
   ValidationErrors,
   RpcError,
   decodeRevertReason,
-  mergeValidationDataValues
+  mergeValidationDataValues,
+  UserOperationEventEvent, IEntryPoint
 } from '@account-abstraction/utils'
-import { EntryPoint } from '@account-abstraction/contracts'
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { EventFragment } from '@ethersproject/abi'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -62,7 +62,7 @@ export class UserOpMethodHandler {
     readonly provider: Provider,
     readonly signer: Signer,
     readonly config: BundlerConfig,
-    readonly entryPoint: EntryPoint
+    readonly entryPoint: IEntryPoint
   ) {
   }
 
@@ -186,7 +186,7 @@ export class UserOpMethodHandler {
     let endIndex = -1
     const events = Object.values(this.entryPoint.interface.events)
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const beforeExecutionTopic = this.entryPoint.interface.getEventTopic(events.find(e => e.name === 'BeforeExecution')!)
+    const beforeExecutionTopic = this.entryPoint.interface.getEventTopic(events.find((e:EventFragment) => e.name === 'BeforeExecution')!)
     logs.forEach((log, index) => {
       if (log?.topics[0] === beforeExecutionTopic) {
         // all UserOp execution events start after the "BeforeExecution" event.
