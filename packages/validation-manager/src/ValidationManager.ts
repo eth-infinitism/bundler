@@ -232,7 +232,7 @@ export class ValidationManager {
 
     const verificationCost = BigNumber.from(res.returnInfo.preOpGas).sub(userOp.preVerificationGas)
     const extraGas = BigNumber.from(userOp.verificationGasLimit).sub(verificationCost).toNumber()
-    requireCond(extraGas >= 2000, `verificationGas should have extra 2000 gas. has only ${extraGas}`)
+    requireCond(extraGas >= 2000, `verificationGas should have extra 2000 gas. has only ${extraGas}`, ValidationErrors.SimulateValidation)
 
     return {
       ...res,
