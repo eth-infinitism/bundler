@@ -15,6 +15,7 @@ const debug = Debug('aa.exec.cron')
 
 export class RIP7560BundleManager extends BaseBundleManager implements IBundleManager {
   sentBundles: SendBundleReturn[] = []
+  lastScannedBlock: number = 0
 
   constructor (
     mempoolManager: MempoolManager,
@@ -65,14 +66,14 @@ export class RIP7560BundleManager extends BaseBundleManager implements IBundleMa
       (transaction as any).paymasterGas = transaction.paymasterVerificationGasLimit
       userOpHashes.push(getRIP7560TransactionHash(transaction))
     }
-    const transactionHash = await this.provider.send('eth_sendAATransactionsBundle', [
+    const bundleHash = await this.provider.send('eth_sendAATransactionsBundle', [
       transactions, creationBlock, expectedRevenue, bundlerId
     ])
-    console.log(transactionHash)
+    console.log(bundleHash)
     this.sentBundles.push({
-      transactionHash,
+      transactionHash: bundleHash,
       userOpHashes
     })
-    return transactionHash
+    return bundleHash
   }
 }

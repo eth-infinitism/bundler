@@ -7,7 +7,7 @@ import {
 import { IValidationManager, ValidateUserOpResult } from './IValidationManager'
 
 export class RIP7560ValidationManager implements IValidationManager {
-  validateInputParameters (operation: BaseOperation, entryPointInput: string): void {
+  validateInputParameters (operation: BaseOperation, entryPointInput?: string): void {
     // throw new Error('Method not implemented.');
   }
 

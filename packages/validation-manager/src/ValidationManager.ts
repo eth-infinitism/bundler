@@ -176,11 +176,12 @@ export class ValidationManager implements IValidationManager {
    * validate UserOperation.
    * should also handle unmodified memory (e.g. by referencing cached storage in the mempool
    * one item to check that was un-modified is the aggregator..
-   * @param userOp
+   * @param operation
    * @param previousCodeHashes
    * @param checkStakes
    */
-  async validateOperation (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
+  async validateOperation (operation: BaseOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes: boolean = true): Promise<ValidateUserOpResult> {
+    const userOp = operation as UserOperation
     if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
       const { hash: codeHashes } = await this.getCodeHashes(previousCodeHashes.addresses)
       // [COD-010]
@@ -257,14 +258,15 @@ export class ValidationManager implements IValidationManager {
 
   /**
    * perform static checking on input parameters.
-   * @param userOp
+   * @param operation
    * @param entryPointInput
    * @param requireSignature
    * @param requireGasParams
    */
-  validateInputParameters (userOp: UserOperation, entryPointInput: string, requireSignature = true, requireGasParams = true): void {
+  validateInputParameters (operation: BaseOperation, entryPointInput?: string, requireSignature = true, requireGasParams = true): void {
+    const userOp = operation as UserOperation
     requireCond(entryPointInput != null, 'No entryPoint param', ValidationErrors.InvalidFields)
-    requireCond(entryPointInput.toLowerCase() === this.entryPoint.address.toLowerCase(),
+    requireCond(entryPointInput?.toLowerCase() === this.entryPoint.address.toLowerCase(),
       `The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.entryPoint.address}`,
       ValidationErrors.InvalidFields)
 

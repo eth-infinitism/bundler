@@ -27,9 +27,9 @@ export interface ValidateUserOpResult extends ValidationResult {
 
 export interface IValidationManager {
 
-  validateInputParameters: (operation: BaseOperation, entryPointInput?: string) => void
+  validateInputParameters: (operation: BaseOperation, entryPointInput?: string, requireSignature?: boolean, requireGasParams?: boolean) => void
 
-  validateOperation: (userOp: BaseOperation, previousCodeHashes?: ReferencedCodeHashes) => Promise<ValidateUserOpResult>
+  validateOperation: (userOp: BaseOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes?: boolean) => Promise<ValidateUserOpResult>
 
   getOperationHash: (userOp: BaseOperation) => Promise<string>
 
