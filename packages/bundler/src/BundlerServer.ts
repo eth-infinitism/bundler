@@ -63,7 +63,7 @@ export class BundlerServer {
   }
 
   async _preflightCheck (): Promise<void> {
-    if (this.config.useRip7650Mode) {
+    if (this.config.useRip7560Mode) {
       return
     }
     if (await this.provider.getCode(this.config.entryPoint) === '0x') {
@@ -169,7 +169,7 @@ export class BundlerServer {
     switch (method) {
       /** RIP-7560 specific RPC API */
       case 'eth_sendTransaction':
-        if (!this.config.useRip7650Mode) {
+        if (!this.config.useRip7560Mode) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         if (params[0].sender != null) {
@@ -179,7 +179,7 @@ export class BundlerServer {
         }
         break
       case 'eth_getTransactionReceipt':
-        if (!this.config.useRip7650Mode) {
+        if (!this.config.useRip7560Mode) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         result = await this.rip7560methodHandler.getRIP7560TransactionReceipt(params[0])

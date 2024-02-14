@@ -74,7 +74,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--debugRpc', 'enable debug rpc methods (auto-enabled for test node')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
-    .option('--useRip7650Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
+    .option('--useRip7560Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
     .option('--createMnemonic <file>', 'create the mnemonic file')
 
   const programOpts = program.parse(argv).opts()
@@ -108,7 +108,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       console.log('== debugrpc already st', config.debugRpc)
     }
 
-    if (!config.useRip7650Mode) {
+    if (!config.useRip7560Mode) {
       const addr = await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
       console.log('deployed EntryPoint at', addr)
       if ((await wallet.getBalance()).eq(0)) {

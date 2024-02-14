@@ -27,7 +27,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
-  if (config.useRip7650Mode) {
+  if (config.useRip7560Mode) {
     validationManager = new RIP7560ValidationManager()
     bundleManager = new RIP7560BundleManager(mempoolManager, validationManager, reputationManager, config.maxBundleGas, entryPoint.provider as JsonRpcProvider)
   } else {

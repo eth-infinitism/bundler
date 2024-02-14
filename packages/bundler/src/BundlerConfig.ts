@@ -24,7 +24,7 @@ export interface BundlerConfig {
   autoBundleInterval: number
   autoBundleMempoolSize: number
 
-  useRip7650Mode: boolean
+  useRip7560Mode: boolean
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -48,7 +48,7 @@ export const BundlerConfigShape = {
   autoBundleInterval: ow.number,
   autoBundleMempoolSize: ow.number,
 
-  useRip7650Mode: ow.boolean
+  useRip7560Mode: ow.boolean
 }
 
 // TODO: consider if we want any default fields at all
@@ -60,5 +60,5 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   conditionalRpc: false,
   minStake: MIN_STAKE_VALUE,
   minUnstakeDelay: MIN_UNSTAKE_DELAY,
-  useRip7650Mode: false
+  useRip7560Mode: false
 }
