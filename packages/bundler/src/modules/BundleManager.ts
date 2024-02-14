@@ -1,32 +1,32 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
-import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
+import { IValidationManager } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
-import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { ReputationManager } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
 import {
   UserOperation,
   StorageMap,
-  mergeStorageMap,
   runContractScript,
   packUserOp
 } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import { IBundleManager } from './IBundleManager'
+import { BaseBundleManager } from './BaseBundleManager'
 
 const debug = Debug('aa.exec.cron')
 
-const THROTTLED_ENTITY_BUNDLE_COUNT = 4
 
 export interface SendBundleReturn {
   transactionHash: string
   userOpHashes: string[]
 }
 
-export class BundleManager {
+export class BundleManager extends BaseBundleManager implements IBundleManager {
   provider: JsonRpcProvider
   signer: JsonRpcSigner
   mutex = new Mutex()
@@ -34,17 +34,18 @@ export class BundleManager {
   constructor (
     readonly entryPoint: EntryPoint,
     readonly eventsManager: EventsManager,
-    readonly mempoolManager: MempoolManager,
-    readonly validationManager: ValidationManager,
-    readonly reputationManager: ReputationManager,
+    mempoolManager: MempoolManager,
+    validationManager: IValidationManager,
+    reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
-    readonly maxBundleGas: number,
+    maxBundleGas: number,
     // use eth_sendRawTransactionConditional with storage map
     readonly conditionalRpc: boolean,
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
     readonly mergeToAccountRootHash: boolean = false
   ) {
+    super(mempoolManager, validationManager, reputationManager, maxBundleGas)
     this.provider = entryPoint.provider as JsonRpcProvider
     this.signer = entryPoint.signer as JsonRpcSigner
   }
@@ -61,12 +62,12 @@ export class BundleManager {
       // first flush mempool from already-included UserOps, by actively scanning past events.
       await this.handlePastEvents()
 
-      const [bundle, storageMap] = await this.createBundle()
+      const [bundle, storageMap] = await this._createBundle()
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle, beneficiary, storageMap)
+        const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -151,108 +152,8 @@ export class BundleManager {
     }
   }
 
-  async createBundle (): Promise<[UserOperation[], StorageMap]> {
-    const entries = this.mempoolManager.getSortedForInclusion()
-    const bundle: UserOperation[] = []
-
-    // paymaster deposit should be enough for all UserOps in the bundle.
-    const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
-    // throttled paymasters and deployers are allowed only small UserOps per bundle.
-    const stakedEntityCount: { [addr: string]: number } = {}
-    // each sender is allowed only once per bundle
-    const senders = new Set<string>()
-
-    // all entities that are known to be valid senders in the mempool
-    const knownSenders = this.mempoolManager.getKnownSenders()
-
-    const storageMap: StorageMap = {}
-    let totalGas = BigNumber.from(0)
-    debug('got mempool of ', entries.length)
-    // eslint-disable-next-line no-labels
-    mainLoop:
-    for (const entry of entries) {
-      const paymaster = entry.userOp.paymaster
-      const factory = entry.userOp.factory
-      const paymasterStatus = this.reputationManager.getStatus(paymaster)
-      const deployerStatus = this.reputationManager.getStatus(factory)
-      if (paymasterStatus === ReputationStatus.BANNED || deployerStatus === ReputationStatus.BANNED) {
-        this.mempoolManager.removeUserOp(entry.userOp)
-        continue
-      }
-      // [SREP-030]
-      if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
-        debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
-        continue
-      }
-      // [SREP-030]
-      if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
-        debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
-        continue
-      }
-      if (senders.has(entry.userOp.sender)) {
-        debug('skipping already included sender', entry.userOp.sender, entry.userOp.nonce)
-        // allow only a single UserOp per sender per bundle
-        continue
-      }
-      let validationResult: ValidateUserOpResult
-      try {
-        // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
-        validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
-      } catch (e: any) {
-        debug('failed 2nd validation:', e.message)
-        // failed validation. don't try anymore
-        this.mempoolManager.removeUserOp(entry.userOp)
-        continue
-      }
-
-      for (const storageAddress of Object.keys(validationResult.storageMap)) {
-        if (
-          storageAddress.toLowerCase() !== entry.userOp.sender.toLowerCase() &&
-          knownSenders.includes(storageAddress.toLowerCase())
-        ) {
-          console.debug(`UserOperation from ${entry.userOp.sender} sender accessed a storage of another known sender ${storageAddress}`)
-          // eslint-disable-next-line no-labels
-          continue mainLoop
-        }
-      }
-
-      // todo: we take UserOp's callGasLimit, even though it will probably require less (but we don't
-      // attempt to estimate it to check)
-      // which means we could "cram" more UserOps into a bundle.
-      const userOpGasCost = BigNumber.from(validationResult.returnInfo.preOpGas).add(entry.userOp.callGasLimit)
-      const newTotalGas = totalGas.add(userOpGasCost)
-      if (newTotalGas.gt(this.maxBundleGas)) {
-        break
-      }
-
-      if (paymaster != null) {
-        if (paymasterDeposit[paymaster] == null) {
-          paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
-        }
-        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund)) {
-          // not enough balance in paymaster to pay for all UserOps
-          // (but it passed validation, so it can sponsor them separately
-          continue
-        }
-        stakedEntityCount[paymaster] = (stakedEntityCount[paymaster] ?? 0) + 1
-        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund)
-      }
-      if (factory != null) {
-        stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
-      }
-
-      // If sender's account already exist: replace with its storage root hash
-      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.factory == null) {
-        const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
-        storageMap[entry.userOp.sender.toLowerCase()] = storageHash
-      }
-      mergeStorageMap(storageMap, validationResult.storageMap)
-
-      senders.add(entry.userOp.sender)
-      bundle.push(entry.userOp)
-      totalGas = newTotalGas
-    }
-    return [bundle, storageMap]
+  async getPaymasterBalance (paymaster: string): Promise<BigNumber>{
+    return await this.entryPoint.balanceOf(paymaster)
   }
 
   /**
