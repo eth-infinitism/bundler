@@ -13,7 +13,7 @@ import {
   SampleRecipient,
   SampleRecipient__factory,
   IEntryPoint,
-  SimpleAccountFactory__factory
+  SimpleAccountFactory__factory, AddressZero, IEntryPoint__factory, decodeRevertReason
 } from '@account-abstraction/utils'
 
 const provider = ethers.provider
@@ -91,9 +91,8 @@ describe('SimpleAccountAPI', () => {
       userOp.signature = '0x11'
     })
     it('should parse FailedOp error', async () => {
-      // await expect(
-      console.log('ex=', await entryPoint.handleOps([packUserOp(userOp)], beneficiary).catch(decodeErrorReason))
-      // .to.revertedWith('FailedOp: AA23 reverted: ECDSA: invalid signature length')
+      expect(await entryPoint.handleOps([packUserOp(userOp)], beneficiary).catch(decodeRevertReason))
+        .to.eql('FailedOpWithRevert(0,"AA23 reverted",ECDSAInvalidSignatureLength(1))')
     })
     it('should parse Error(message) error', async () => {
       await expect(

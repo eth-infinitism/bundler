@@ -5,7 +5,7 @@ import { DeterministicDeployer } from './DeterministicDeployer'
 
 export async function deployEntryPoint (provider: JsonRpcProvider, signer=provider.getSigner()): Promise<IEntryPoint> {
   const addr = await new DeterministicDeployer(provider, signer).deterministicDeploy(entryPointByteCode)
-  return IEntryPoint__factory.connect(addr, provider)
+  return IEntryPoint__factory.connect(addr, signer)
 }
 
 export function getEntryPointAddress () {

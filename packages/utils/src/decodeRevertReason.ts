@@ -1,12 +1,12 @@
 import { Interface } from '@ethersproject/abi'
 import { ethers } from 'ethers'
 import { EntryPointSimulations__factory, IPaymaster__factory } from './types'
+import { SimpleAccount__factory } from './soltypes'
 
 const decodeRevertReasonContracts = new Interface([
   ...EntryPointSimulations__factory.createInterface().fragments,
   ...IPaymaster__factory.createInterface().fragments,
-  // ...TestERC20__factory.createInterface().fragments, // for OZ errors,
-  'error ECDSAInvalidSignature()'
+  ...SimpleAccount__factory.createInterface().fragments
 ].filter((f: any) => f.type === 'error'))
 
 /**
