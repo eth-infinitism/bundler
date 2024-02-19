@@ -6,7 +6,7 @@ import { ethers } from 'hardhat'
 import { SimpleAccountAPI } from '../src'
 import {
   deployEntryPoint,
-  DeterministicDeployer, 
+  DeterministicDeployer,
   UserOperation,
   packUserOp,
   decodeErrorReason,
@@ -102,7 +102,6 @@ describe('SimpleAccountAPI', () => {
     })
     it('should parse revert with no description', async () => {
       // use wrong signature for contract..
-      console.log(await provider.getCode(recipient.address))
       const wrongContract = entryPoint.attach(recipient.address)
       await expect(
         wrongContract.addStake(0)
