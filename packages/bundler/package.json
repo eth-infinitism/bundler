@@ -23,7 +23,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.6.0",
+    "@account-abstraction/contracts": "^0.7.0",
     "@account-abstraction/sdk": "^0.6.0",
     "@account-abstraction/utils": "^0.6.0",
     "@account-abstraction/validation-manager": "^0.6.0",
