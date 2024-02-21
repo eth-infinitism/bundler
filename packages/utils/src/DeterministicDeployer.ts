@@ -105,7 +105,7 @@ export class DeterministicDeployer {
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
 
     const ctrCode1 = DeterministicDeployer.getCtrCode(ctrCode, params)
-    return toChecksumAddress( '0x' + keccak256(hexConcat([
+    return toChecksumAddress('0x' + keccak256(hexConcat([
       '0xff',
       DeterministicDeployer.proxyAddress,
       saltEncoded,
