@@ -51,6 +51,11 @@ export function decodeRevertReason (data: string | Error, nullIfNoMatch = true):
   }
 }
 
+// not sure why ethers fail to decode revert reasons, not even "Error()" (and obviously, not custom errors)
+export function rethrowWithRevertReason (e: Error): never {
+  throw new Error(decodeRevertReason(e, false) as any)
+}
+
 const panicCodes: { [key: number]: string } = {
   // from https://docs.soliditylang.org/en/v0.8.0/control-structures.html
   0x01: 'assert(false)',

@@ -2,7 +2,7 @@ import fs from 'fs'
 
 import { Command } from 'commander'
 import {
-  deployEntryPoint, DeterministicDeployer,
+  deployEntryPoint,
   erc4337RuntimeVersion,
   IEntryPoint,
   RpcError,

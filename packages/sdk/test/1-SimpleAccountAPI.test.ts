@@ -9,11 +9,10 @@ import {
   DeterministicDeployer,
   UserOperation,
   packUserOp,
-  decodeErrorReason,
   SampleRecipient,
   SampleRecipient__factory,
   IEntryPoint,
-  SimpleAccountFactory__factory, AddressZero, IEntryPoint__factory, decodeRevertReason
+  SimpleAccountFactory__factory, decodeRevertReason
 } from '@account-abstraction/utils'
 
 const provider = ethers.provider

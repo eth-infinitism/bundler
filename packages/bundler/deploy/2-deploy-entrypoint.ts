@@ -6,7 +6,7 @@ import { deployEntryPoint, getEntryPointAddress } from '@account-abstraction/uti
 // deploy entrypoint - but only on debug network..
 const deployEP: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const epAddr = getEntryPointAddress()
-  if (await ethers.provider.getCode(epAddr) != '0x') {
+  if (await ethers.provider.getCode(epAddr) !== '0x') {
     console.log('EntryPoint already deployed at', epAddr)
     return
   }

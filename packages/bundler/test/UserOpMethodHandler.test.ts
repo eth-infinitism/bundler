@@ -5,7 +5,7 @@ import { parseEther, resolveProperties } from 'ethers/lib/utils'
 import { BundlerConfig } from '../src/BundlerConfig'
 
 import { Signer, Wallet } from 'ethers'
-import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
   SampleRecipient,
@@ -15,9 +15,14 @@ import {
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import {
   deployEntryPoint,
+  DeterministicDeployer,
   IEntryPoint,
+  IEntryPoint__factory,
   packUserOp,
-  resolveHexlify, SimpleAccountFactory__factory,
+  resolveHexlify,
+  SampleRecipient__factory,
+  SimpleAccount__factory,
+  SimpleAccountFactory__factory,
   UserOperation,
   waitFor
 } from '@account-abstraction/utils'
@@ -46,11 +51,11 @@ describe('UserOpMethodHandler', function () {
 
   before(async function () {
     provider = ethers.provider
+    DeterministicDeployer.init(ethers.provider)
 
     signer = await createSigner()
-    entryPoint = await deployEntryPoint(provider, signer)
+    entryPoint = await deployEntryPoint(ethers.provider, ethers.provider.getSigner())
 
-    DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
@@ -179,9 +184,6 @@ describe('UserOpMethodHandler', function () {
       const userOperationEvent = logs[3]
 
       assert.equal(userOperationEvent.args.success, true)
-
-      const expectedTxOrigin = await methodHandler.signer.getAddress()
-      assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
       assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')
     })
 

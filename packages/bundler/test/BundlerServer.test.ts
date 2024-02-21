@@ -2,7 +2,6 @@ import {
   AddressZero,
   deepHexlify,
   deployEntryPoint, IEntryPoint,
-  IEntryPoint__factory,
   UserOperation
 } from '@account-abstraction/utils'
 import { BundlerServer } from '../src/BundlerServer'

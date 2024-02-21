@@ -92,18 +92,20 @@ export class BundleManager {
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
       tx.chainId = this.provider._network.chainId
-      const signedTx = await this.signer.signTransaction(tx)
       let ret: string
       if (this.conditionalRpc) {
+        const signedTx = await this.signer.signTransaction(tx)
         debug('eth_sendRawTransactionConditional', storageMap)
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, { knownAccounts: storageMap }
         ])
         debug('eth_sendRawTransactionConditional ret=', ret)
       } else {
-        // ret = await this.signer.sendTransaction(tx)
-        ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
-        debug('eth_sendRawTransaction ret=', ret)
+        const resp = await this.signer.sendTransaction(tx)
+        const rcpt = await resp.wait()
+        ret = rcpt.transactionHash
+        // ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+        debug('eth_sendTransaction ret=', ret)
       }
       // TODO: parse ret, and revert if needed.
       debug('ret=', ret)
@@ -207,7 +209,7 @@ export class BundleManager {
       for (const storageAddress of Object.keys(validationResult.storageMap)) {
         if (
           storageAddress.toLowerCase() !== entry.userOp.sender.toLowerCase() &&
-          knownSenders.includes(storageAddress.toLowerCase())
+            knownSenders.includes(storageAddress.toLowerCase())
         ) {
           console.debug(`UserOperation from ${entry.userOp.sender} sender accessed a storage of another known sender ${storageAddress}`)
           // eslint-disable-next-line no-labels

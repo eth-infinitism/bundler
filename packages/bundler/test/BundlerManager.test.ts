@@ -3,15 +3,13 @@ import { assert, expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import {
   AddressZero,
-  IEntryPoint__factory,
   getUserOpHash,
   packUserOp,
   UserOperation,
-  deployEntryPoint
+  deployEntryPoint, IEntryPoint, DeterministicDeployer
 } from '@account-abstraction/utils'
 
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
-import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { ethers } from 'hardhat'
@@ -25,7 +23,7 @@ import { createSigner } from './testUtils'
 describe('#BundlerManager', () => {
   let bm: BundleManager
 
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
 
   const provider = ethers.provider
   const signer = provider.getSigner()

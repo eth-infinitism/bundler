@@ -8,13 +8,12 @@ import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/
 import { BundleManager, SendBundleReturn } from '../src/modules/BundleManager'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
-import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { SimpleAccountAPI } from '@account-abstraction/sdk'
 import { Signer, Wallet } from 'ethers'
 import {
-  IEntryPoint__factory,
   IEntryPoint,
   resolveHexlify,
-  SimpleAccountFactory__factory, deployEntryPoint
+  SimpleAccountFactory__factory, deployEntryPoint, DeterministicDeployer
 } from '@account-abstraction/utils'
 import { expect } from 'chai'
 import { createSigner } from './testUtils'

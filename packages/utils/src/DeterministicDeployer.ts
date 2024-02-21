@@ -1,5 +1,6 @@
 import { BigNumber, BigNumberish, ContractFactory } from 'ethers'
 import { hexConcat, hexlify, hexZeroPad, keccak256 } from 'ethers/lib/utils'
+import { toChecksumAddress } from 'ethereumjs-util'
 import { TransactionRequest } from '@ethersproject/abstract-provider'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import { Signer } from '@ethersproject/abstract-signer'
@@ -104,12 +105,12 @@ export class DeterministicDeployer {
     const saltEncoded = hexZeroPad(hexlify(salt), 32)
 
     const ctrCode1 = DeterministicDeployer.getCtrCode(ctrCode, params)
-    return '0x' + keccak256(hexConcat([
+    return toChecksumAddress( '0x' + keccak256(hexConcat([
       '0xff',
       DeterministicDeployer.proxyAddress,
       saltEncoded,
       keccak256(ctrCode1)
-    ])).slice(-40)
+    ])).slice(-40))
   }
 
   async deterministicDeploy (ctrCode: string | ContractFactory, salt: BigNumberish = 0, params: any[] = []): Promise<string> {
