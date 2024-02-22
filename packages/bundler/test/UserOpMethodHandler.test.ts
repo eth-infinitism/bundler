@@ -17,11 +17,8 @@ import {
   deployEntryPoint,
   DeterministicDeployer,
   IEntryPoint,
-  IEntryPoint__factory,
   packUserOp,
   resolveHexlify,
-  SampleRecipient__factory,
-  SimpleAccount__factory,
   SimpleAccountFactory__factory,
   UserOperation,
   waitFor
