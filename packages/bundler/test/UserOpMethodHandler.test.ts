@@ -33,7 +33,7 @@ import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
-import { createSigner } from './testUtils'
+import { createSigner, findMin } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
 
 describe('UserOpMethodHandler', function () {
@@ -257,6 +257,58 @@ describe('UserOpMethodHandler', function () {
           expect(e.message).to.match(/preVerificationGas too low/)
         }
       })
+    })
+  })
+
+  describe('check aa51', function () {
+    const ethersSigner = ethers.provider.getSigner()
+
+    it('should return bundler error', async function () {
+      this.timeout(200000)
+      const privkey = '0x'.padEnd(66, '9')
+      const owner = new Wallet(privkey)
+      const factory = await new SimpleAccountFactory__factory(ethersSigner).deploy(entryPoint.address)
+      const accountAddress = await factory.getAddress(owner.address, 0)
+      await factory.createAccount(owner.address, 0)
+      const acc = new SimpleAccountAPI({
+        provider: ethers.provider,
+        entryPointAddress: entryPoint.address,
+        owner,
+        accountAddress
+      })
+
+      await ethersSigner.sendTransaction({ to: await acc.getAccountAddress(), value: parseEther('1') })
+
+      // find the largest "reverting" verificationGasLimit, and try to submit it to the bundler:
+      async function createTestUserOpWithVerGas (n: number): Promise<boolean> {
+        const op = await acc.createUnsignedUserOp({ target: factory.address, data: '0xdead', gasLimit: 1000, nonce: 0 })
+        op.verificationGasLimit = n + 1
+        op.maxFeePerGas = op.maxPriorityFeePerGas = 1
+        const signed = await acc.signUserOp(op)
+        try {
+          await entryPoint.callStatic.handleOps([signed], entryPoint.address)
+          // console.log(n, 'ok')
+          return true
+        } catch (e) {
+          // const data = e.data
+          // console.log(n, 'ex', typeof data !== 'string' ? e.message : decodeErrorReason(data)?.message)
+          return false
+        }
+      }
+
+      const verGL = await findMin(createTestUserOpWithVerGas, 10000, 500000, 2)
+      const op = await resolveProperties(await acc.createUnsignedUserOp({
+        target: factory.address,
+        data: '0xdead',
+        nonce: 0,
+        gasLimit: 1000 // deliberately too little
+      })) as UserOperationStruct
+      op.maxFeePerGas = op.maxPriorityFeePerGas = 1
+      op.verificationGasLimit = verGL // this is a value that handleOps reverts
+      await expect(methodHandler.sendUserOperation(await resolveHexlify(await acc.signUserOp(op)), entryPoint.address))
+        .to.rejectedWith('verificationGas should have extra')
+      op.verificationGasLimit = verGL + 1200
+      await methodHandler.sendUserOperation(await resolveHexlify(await acc.signUserOp(op)), entryPoint.address)
     })
   })
 

@@ -41,3 +41,32 @@ export function resolveNames<T> (json: T, nameToAddress: { [name: string]: strin
     })
   return JSON.parse(s1)
 }
+
+/**
+ * find the lowest number in the range min..max where testFunc returns true
+ * @param testFunc function to test each value. should return "false" for "too low".
+ * @param min range minimum. testFunc(min) expected to be false
+ * @param max range maximum. testFunc(max) expected to be true
+ * @param delta stop searching when the test range falls below this value.
+ * @return a number in the range min...max
+ */
+export async function findMin (testFunc: (index: number) => Promise<boolean>, min: number, max: number, delta = 5): Promise<number> {
+  if (await testFunc(min)) {
+    throw new Error(`increase range: min in ${min}..${max} already true`)
+  }
+  if (!await testFunc(max)) {
+    throw new Error(`no result: function is false for max value in ${min}..${max}`)
+  }
+  while (true) {
+    const avg = Math.floor((max + min) / 2)
+    if (await testFunc(avg)) {
+      max = avg
+    } else {
+      min = avg
+    }
+    // console.log('== ', min, '...', max, max - min)
+    if (Math.abs(max - min) < delta) {
+      return max
+    }
+  }
+}
