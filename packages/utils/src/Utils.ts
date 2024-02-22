@@ -4,8 +4,8 @@ import { BytesLike, ContractFactory, BigNumber } from 'ethers'
 import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
-import { NotPromise } from './ERC4337Utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { NotPromise, UserOperation } from './ERC4337Utils'
+import { PackedUserOperationStruct } from './soltypes'
 
 export interface SlotMap {
   [slot: string]: string
@@ -25,7 +25,7 @@ export interface StakeInfo {
   unstakeDelaySec: BigNumberish
 }
 
-export type UserOperation = NotPromise<UserOperationStruct>
+export type PackedUserOperation = NotPromise<PackedUserOperationStruct>
 
 export enum ValidationErrors {
   InvalidFields = -32602,
@@ -62,6 +62,24 @@ export function tostr (s: BigNumberish): string {
 export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
   if (!cond) {
     throw new RpcError(msg, code, data)
+  }
+}
+
+// verify that either address field exist along with "mustFields",
+// or address field is missing, and none of the must (or optional) field also exists
+export function requireAddressAndFields (userOp: UserOperation, addrField: string, mustFields: string[], optionalFields: string[] = []): void {
+  const op = userOp as any
+  const addr = op[addrField]
+  if (addr == null) {
+    const unexpected = Object.entries(op)
+      .filter(([name, value]) => value != null && (mustFields.includes(name) || optionalFields.includes(name)))
+    requireCond(unexpected.length === 0,
+      `no ${addrField} but got ${unexpected.join(',')}`, ValidationErrors.InvalidFields)
+  } else {
+    requireCond(addr.match(/^0x[a-f0-9]{10,40}$/i), `invalid ${addrField}`, ValidationErrors.InvalidFields)
+    const missing = mustFields.filter(name => op[name] == null)
+    requireCond(missing.length === 0,
+      `got ${addrField} but missing ${missing.join(',')}`, ValidationErrors.InvalidFields)
   }
 }
 

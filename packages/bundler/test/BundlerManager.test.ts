@@ -1,17 +1,20 @@
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 import { parseEther } from 'ethers/lib/utils'
 import { assert, expect } from 'chai'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
-import { AddressZero, getUserOpHash } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  getUserOpHash,
+  packUserOp,
+  UserOperation,
+  deployEntryPoint, IEntryPoint, DeterministicDeployer
+} from '@account-abstraction/utils'
 
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
-import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { TestFakeWalletToken__factory } from '../src/types'
-import { UserOperation } from '../src/modules/Types'
 import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { EventsManager } from '../src/modules/EventsManager'
@@ -20,13 +23,13 @@ import { createSigner } from './testUtils'
 describe('#BundlerManager', () => {
   let bm: BundleManager
 
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
 
   const provider = ethers.provider
   const signer = provider.getSigner()
 
   before(async function () {
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
@@ -43,22 +46,22 @@ describe('#BundlerManager', () => {
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
-      minUnstakeDelay: 0
+      minUnstakeDelay: 0,
+      conditionalRpc: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
-    bm = new BundleManager(entryPoint, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    bm = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
 
   it('#getUserOpHashes', async () => {
     const userOp: UserOperation = {
       sender: AddressZero,
       nonce: 1,
-      paymasterAndData: '0x02',
       signature: '0x03',
-      initCode: '0x04',
       callData: '0x05',
       callGasLimit: 6,
       verificationGasLimit: 7,
@@ -67,7 +70,7 @@ describe('#BundlerManager', () => {
       preVerificationGas: 10
     }
 
-    const hash = await entryPoint.getUserOpHash(userOp)
+    const hash = await entryPoint.getUserOpHash(packUserOp(userOp))
     const bmHash = await bm.getUserOpHashes([userOp])
     expect(bmHash).to.eql([hash])
   })
@@ -98,7 +101,7 @@ describe('#BundlerManager', () => {
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
-      const validMgr = new ValidationManager(_entryPoint, repMgr, config.unsafe)
+      const validMgr = new ValidationManager(_entryPoint, config.unsafe)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
       const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
@@ -131,9 +134,7 @@ describe('#BundlerManager', () => {
       const cEmptyUserOp: UserOperation = {
         sender: AddressZero,
         nonce: '0x0',
-        paymasterAndData: '0x',
         signature: '0x',
-        initCode: '0x',
         callData: '0x',
         callGasLimit: '0x0',
         verificationGasLimit: '0x50000',

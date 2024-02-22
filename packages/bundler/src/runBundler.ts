@@ -1,16 +1,20 @@
 import fs from 'fs'
 
 import { Command } from 'commander'
-import { erc4337RuntimeVersion, RpcError, supportsRpcMethod } from '@account-abstraction/utils'
+import {
+  deployEntryPoint,
+  erc4337RuntimeVersion,
+  IEntryPoint,
+  RpcError,
+  supportsRpcMethod
+} from '@account-abstraction/utils'
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
 import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
-import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
@@ -30,8 +34,8 @@ export let showStackTraces = false
 
 export async function connectContracts (
   wallet: Signer,
-  entryPointAddress: string): Promise<{ entryPoint: EntryPoint }> {
-  const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
+  entryPointAddress: string): Promise<{ entryPoint: IEntryPoint }> {
+  const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
   return {
     entryPoint
   }
@@ -105,7 +109,9 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       console.log('== debugrpc already st', config.debugRpc)
     }
-    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+    const ep = await deployEntryPoint(provider as any)
+    const addr = ep.address
+    console.log('deployed EntryPoint at', addr)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
       const signer = (provider as JsonRpcProvider).getSigner()

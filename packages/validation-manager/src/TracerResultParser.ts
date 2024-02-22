@@ -6,13 +6,6 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
-import {
-  IAccount__factory,
-  IEntryPoint,
-  IEntryPoint__factory,
-  IPaymaster__factory,
-  SenderCreator__factory
-} from '@account-abstraction/contracts'
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
   StakeInfo,
@@ -21,7 +14,7 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32
+  toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './ValidationManager'
@@ -57,7 +50,6 @@ const abi = Object.values([
  * - entries are ordered by the return (so nested call appears before its outer call
  * - last entry is top-level return from "simulateValidation". it as ret and rettype, but no type or address
  * @param tracerResults
- * @param abi
  */
 function parseCallStack (
   tracerResults: BundlerTracerResult
@@ -317,7 +309,7 @@ export function tracerResultParser (
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
-          if (userOp.initCode.length > 2) {
+          if (userOp.factory != null) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
             if (!(entityAddr === sender && isStaked(stakeInfoEntities.factory))) {
