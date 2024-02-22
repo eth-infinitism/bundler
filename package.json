@@ -34,7 +34,7 @@
     "preprocess1": "yarn submodule-update && cd submodules/account-abstraction && yarn && yarn --cwd contracts prepack",
     "submodule-update": "git submodule update --remote --init --recursive",
     "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler --unsafe",
-    "ci": "env ; yarn depcheck; yarn preprocess ; yarn lerna-test"
+    "ci": "env && yarn depcheck && yarn preprocess ; yarn lerna-test"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.33.0",
