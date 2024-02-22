@@ -6,7 +6,7 @@ import {
   AccountDeployedEvent,
   SignatureAggregatorChangedEvent,
   UserOperationEventEvent
-} from '../types/@account-abstraction/contracts/interfaces/IEntryPoint'
+} from '../types'
 import { TypedEvent } from '../types/common'
 
 const debug = Debug('aa.events')
