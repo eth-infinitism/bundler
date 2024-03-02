@@ -1,6 +1,4 @@
 [submodule "submodules/account-abstraction"]
 	path = submodules/account-abstraction
 	url = https://github.com/eth-infinitism/account-abstraction.git
-	branch = fix-deployment
-[submodule "submodules/account-abstraction/"]
-	branch = fix-deployment
+	branch = releases/v0.7
