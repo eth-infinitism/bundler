@@ -44,21 +44,28 @@ export class RIP7560BundleManager extends BaseBundleManager implements IBundleMa
   }
 
   async handlePastEvents (): Promise<any> {
+    let bundlesToClear: string[] = []
     for (const bundle of this.sentBundles) {
-      // TODO: remove bundled UserOps and apply reputation changes based on the WIP Bundle Stats API response
-      // const bundleStats = await this.provider.send('eth_getBundleStats', [bundle.transactionHash])
+      // TODO: apply reputation changes based on the Bundle Stats API response
+      const bundleStats = await this.provider.send('eth_getBundleStatus', [bundle.transactionHash])
+      if (bundleStats != null) {
+        bundlesToClear.push(bundle.transactionHash)
+      }
 
       for (const operationHash of bundle.userOpHashes) {
         this.mempoolManager.removeUserOp(operationHash)
       }
     }
-    this.sentBundles = []
+    for (const bundleId of bundlesToClear) {
+      this.sentBundles = this.sentBundles.filter(it => it.transactionHash != bundleId)
+    }
+
   }
 
   async _sendBundle (transactions: RIP7560Transaction[]): Promise<any> {
-    const creationBlock = 0
+    const creationBlock = await this.provider.getBlockNumber()
     const expectedRevenue = 0
-    const bundlerId = ''
+    const bundlerId = 'www.reference-bundler.fake'
     const userOpHashes: string[] = []
     for (const transaction of transactions) {
       (transaction as any).gas = transaction.callGasLimit;
@@ -67,7 +74,7 @@ export class RIP7560BundleManager extends BaseBundleManager implements IBundleMa
       userOpHashes.push(getRIP7560TransactionHash(transaction))
     }
     const bundleHash = await this.provider.send('eth_sendAATransactionsBundle', [
-      transactions, creationBlock, expectedRevenue, bundlerId
+      transactions, creationBlock + 1, expectedRevenue, bundlerId
     ])
     console.log(bundleHash)
     this.sentBundles.push({
