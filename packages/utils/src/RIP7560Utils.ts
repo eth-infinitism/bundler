@@ -21,8 +21,9 @@ export interface BaseOperation {
 }
 
 export interface RIP7560Transaction extends BaseOperation {
+  subtype: number
   chainId: number
-  callData: BytesLike
+  data: BytesLike
   accessList: any // NOTE: this field is not present in ERC-4337
 
   signature: BytesLike
@@ -32,6 +33,7 @@ export interface RIP7560Transaction extends BaseOperation {
   builderFee: BigNumberish // NOTE: this field is not present in ERC-4337
   verificationGasLimit: BigNumberish
   paymasterVerificationGasLimit?: BigNumberish
+  bigNonce: BigNumberish
 
   // todo: consider unifying gas limits approach between 4337 and 7560
   // paymasterPostOpGasLimit?: BigNumberish
@@ -50,22 +52,28 @@ export function getRIP7560TransactionHash (tx: RIP7560Transaction, forSignature 
 
 function rlpEncodeType4Tx (op: RIP7560Transaction, forSignature = true): string {
   const input: List = []
+  input.push(bigNumberishToUnpaddedBuffer(op.subtype))
   input.push(bigNumberishToUnpaddedBuffer(op.chainId))
   input.push(bigNumberishToUnpaddedBuffer(op.maxPriorityFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.maxFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.callGasLimit))
   // input.push(toBuffer(op.to.toString()))
-  input.push(toBuffer(op.callData as string))
-  input.push([])
+  input.push(toBuffer(op.data as string))
+  input.push([]) // AccessList
   input.push(toBuffer(op.sender.toString()))
+  input.push(toBuffer(op.signature as string)) // Signature
   input.push(toBuffer(op.paymasterData as string))
   input.push(toBuffer(op.deployerData as string))
   input.push(bigNumberishToUnpaddedBuffer(op.builderFee))
   input.push(bigNumberishToUnpaddedBuffer(op.verificationGasLimit))
   input.push(bigNumberishToUnpaddedBuffer(op.paymasterVerificationGasLimit ?? 0))
-  input.push(bigNumberishToUnpaddedBuffer(op.nonce))
+  input.push(bigNumberishToUnpaddedBuffer(op.bigNonce ?? 0))
+  input.push(toBuffer('0x0000000000000000000000000000000000000000')) // to
+  input.push(bigNumberishToUnpaddedBuffer(0)) // nonce - ignored in geth
+  input.push(bigNumberishToUnpaddedBuffer(0)) // value
   let rlpEncoded: any = encode(input)
   rlpEncoded = Buffer.from([4, ...rlpEncoded])
+  console.log('rlpEncoded', rlpEncoded.toString('hex'))
   return hexlify(rlpEncoded)
 }
 
