@@ -67,6 +67,7 @@ export class RIP7560BundleManager extends BaseBundleManager implements IBundleMa
     const expectedRevenue = 0
     const bundlerId = 'www.reference-bundler.fake'
     const userOpHashes: string[] = []
+    console.log('_sendBundle size:', transactions.length)
     for (const transaction of transactions) {
       (transaction as any).gas = transaction.callGasLimit;
       (transaction as any).validationGas = transaction.verificationGasLimit;
@@ -76,7 +77,7 @@ export class RIP7560BundleManager extends BaseBundleManager implements IBundleMa
     const bundleHash = await this.provider.send('eth_sendAATransactionsBundle', [
       transactions, creationBlock + 1, expectedRevenue, bundlerId
     ])
-    console.log(bundleHash)
+    console.log('eth_sendAATransactionsBundle bundleHash = ', bundleHash)
     this.sentBundles.push({
       transactionHash: bundleHash,
       userOpHashes

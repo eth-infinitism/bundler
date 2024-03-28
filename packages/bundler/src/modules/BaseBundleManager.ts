@@ -114,6 +114,7 @@ export abstract class BaseBundleManager implements IBundleManager {
         const userOpGasCost = BigNumber.from(validationResult.returnInfo.preOpGas).add(entry.userOp.callGasLimit)
         const newTotalGas = totalGas.add(userOpGasCost)
         if (newTotalGas.gt(this.maxBundleGas)) {
+          debug(`bundle will exceed maximum of ${this.maxBundleGas} gas if this transaction with ${userOpGasCost} gas limit is included, breaking`)
           break
         }
 
@@ -125,6 +126,7 @@ export abstract class BaseBundleManager implements IBundleManager {
             stakedEntityCount
           )
           if (!isSufficient) {
+            debug(`not enough balance to pay for all UserOps in paymaster: ${paymaster}`)
             // not enough balance in paymaster to pay for all UserOps
             // (but it passed validation, so it can sponsor them separately
             continue
@@ -146,6 +148,7 @@ export abstract class BaseBundleManager implements IBundleManager {
         bundle.push(entry.userOp)
         totalGas = newTotalGas
       }
+    debug('returning bundle of length: ', bundle.length)
     return [bundle, storageMap]
   }
 

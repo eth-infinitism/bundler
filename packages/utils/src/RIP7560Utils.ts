@@ -73,7 +73,6 @@ function rlpEncodeType4Tx (op: RIP7560Transaction, forSignature = true): string 
   input.push(bigNumberishToUnpaddedBuffer(0)) // value
   let rlpEncoded: any = encode(input)
   rlpEncoded = Buffer.from([4, ...rlpEncoded])
-  console.log('rlpEncoded', rlpEncoded.toString('hex'))
   return hexlify(rlpEncoded)
 }
 
