@@ -60,6 +60,7 @@ export interface ValidateUserOpResult extends ValidationResult {
 
   referencedContracts: ReferencedCodeHashes
   storageMap: StorageMap
+  transientStorageMap: StorageMap
 }
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -205,13 +206,14 @@ export class ValidationManager {
       hash: ''
     }
     let storageMap: StorageMap = {}
+    let transientStorageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
         throw e
       })
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap, transientStorageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
@@ -252,7 +254,8 @@ export class ValidationManager {
     return {
       ...res,
       referencedContracts: codeHashes,
-      storageMap
+      storageMap,
+      transientStorageMap
     }
   }
 

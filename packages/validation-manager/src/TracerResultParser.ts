@@ -179,7 +179,7 @@ export function tracerResultParser (
   tracerResults: BundlerTracerResult,
   validationResult: ValidationResult,
   entryPoint: IEntryPoint
-): [string[], StorageMap] {
+): [string[], StorageMap, StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -255,7 +255,9 @@ export function tracerResultParser (
 
     Object.entries(access).forEach(([addr, {
       reads,
-      writes
+      writes,
+      transientReads,
+      transientWrites
     }]) => {
       // testing read/write access on contract "addr"
       if (addr === sender) {
@@ -305,7 +307,12 @@ export function tracerResultParser (
       // scan all slots. find a referenced slot
       // at the end of the scan, we will check if the entity has stake, and report that slot if not.
       let requireStakeSlot: string | undefined
-      [...Object.keys(writes), ...Object.keys(reads)].forEach(slot => {
+      [
+        ...Object.keys(writes),
+        ...Object.keys(reads),
+        ...Object.keys(transientWrites),
+        ...Object.keys(transientReads)
+      ].forEach(slot => {
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
@@ -406,10 +413,16 @@ export function tracerResultParser (
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
   const addresses = tracerResults.callsFromEntryPoint.flatMap(level => Object.keys(level.contractSize))
   const storageMap: StorageMap = {}
+  const transientStorageMap: StorageMap = {}
   tracerResults.callsFromEntryPoint.forEach(level => {
     Object.keys(level.access).forEach(addr => {
       storageMap[addr] = storageMap[addr] ?? level.access[addr].reads
     })
   })
-  return [addresses, storageMap]
+  tracerResults.callsFromEntryPoint.forEach(level => {
+    Object.keys(level.access).forEach(addr => {
+      storageMap[addr] = storageMap[addr] ?? level.access[addr].transientReads
+    })
+  })
+  return [addresses, storageMap, transientStorageMap]
 }
