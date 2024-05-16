@@ -144,7 +144,7 @@ describe('UserOpMethodHandler', function () {
         target,
         data: '0xdeadface'
       })
-      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('FailedOp: AA21 didn\'t pay prefund')
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('FailedOp(0,"AA21 didn\'t pay prefund")')
       // should estimate same UserOperation with balance override set to 1 ether
       const ret = await methodHandler.estimateUserOperationGas(
         await resolveHexlify(op),
