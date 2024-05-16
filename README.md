@@ -15,14 +15,14 @@ You can still run the bundler with such nodes, but with `--unsafe` so it would s
 
 If you don't have geth installed locally, you can use docker to run it:
 ```
-docker run --rm -ti --name geth -p 8545:8545 ethereum/client-go:v1.10.26 \
+docker run --rm -ti --name geth -p 8545:8545 ethereum/client-go:v1.13.5 \
   --miner.gaslimit 12000000 \
   --http --http.api personal,eth,net,web3,debug \
   --http.vhosts '*,localhost,host.docker.internal' --http.addr "0.0.0.0" \
-  --ignore-legacy-receipts --allow-insecure-unlock --rpc.allow-unprotected-txs \
+  --allow-insecure-unlock --rpc.allow-unprotected-txs \
   --dev \
   --verbosity 2 \
-  --nodiscover --maxpeers 0 --mine --miner.threads 1 \
+  --nodiscover --maxpeers 0 --mine \
   --networkid 1337
 ```
 

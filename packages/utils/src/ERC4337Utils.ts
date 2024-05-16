@@ -58,7 +58,10 @@ export function unpackAccountGasLimits (accountGasLimits: BytesLike): {
   callGasLimit: BigNumber
 } {
   const [verificationGasLimit, callGasLimit] = unpackUint(accountGasLimits)
-  return { verificationGasLimit, callGasLimit }
+  return {
+    verificationGasLimit,
+    callGasLimit
+  }
 }
 
 export function packUint (high128: BigNumberish, low128: BigNumberish): string {

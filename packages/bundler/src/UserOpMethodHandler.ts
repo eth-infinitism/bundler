@@ -1,13 +1,10 @@
 import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { JsonRpcProvider, Log, Provider } from '@ethersproject/providers'
+import { JsonRpcProvider, Log } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import {
-  UserOperation,
-  deepHexlify,
-  erc4337RuntimeVersion,
-  requireCond,
-  tostr,
+  RpcError,
+  ValidationErrors,
   requireAddressAndFields,
   packUserOp,
   PackedUserOperation,
@@ -15,14 +12,13 @@ import {
   simulationRpcParams,
   decodeSimulateHandleOpResult,
   AddressZero,
-  ValidationErrors,
-  RpcError,
   decodeRevertReason,
   mergeValidationDataValues,
-  UserOperationEventEvent, IEntryPoint
+  UserOperationEventEvent, IEntryPoint, requireCond, deepHexlify, tostr, erc4337RuntimeVersion
+  , UserOperation
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
-import { UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
+import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { EventFragment } from '@ethersproject/abi'
 
@@ -59,7 +55,7 @@ export interface EstimateUserOpGasResult {
 export class UserOpMethodHandler {
   constructor (
     readonly execManager: ExecutionManager,
-    readonly provider: Provider,
+    readonly provider: JsonRpcProvider,
     readonly signer: Signer,
     readonly config: BundlerConfig,
     readonly entryPoint: IEntryPoint
@@ -111,8 +107,9 @@ export class UserOpMethodHandler {
    * eth_estimateUserOperationGas RPC api.
    * @param userOp1 input userOp (may have gas fields missing, so they can be estimated)
    * @param entryPointInput
+   * @param stateOverride
    */
-  async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string): Promise<EstimateUserOpGasResult> {
+  async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string, stateOverride?: StateOverride): Promise<EstimateUserOpGasResult> {
     const userOp: UserOperation = {
       // default values for missing fields.
       maxFeePerGas: 0,
@@ -124,15 +121,17 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const provider = this.provider as JsonRpcProvider
+    const provider = this.provider
     const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp, [AddressZero, '0x'],
-      {
-        // allow estimation when account's balance is zero.
-        // todo: need a way to flag this, and not enable always.
-        // [userOp.sender]: {
-        //   balance: hexStripZeros(parseEther('1').toHexString())
-        // }
-      })
+      stateOverride
+      // {
+      // allow estimation when account's balance is zero.
+      // todo: need a way to flag this, and not enable always.
+      // [userOp.sender]: {
+      //   balance: hexStripZeros(parseEther('1').toHexString())
+      // }
+      // }
+    )
     const ret = await provider.send('eth_call', rpcParams)
       .catch((e: any) => { throw new RpcError(decodeRevertReason(e) as string, ValidationErrors.SimulateValidation) })
 

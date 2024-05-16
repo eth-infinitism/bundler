@@ -172,7 +172,7 @@ export class BundlerServer {
         result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
       case 'eth_estimateUserOperationGas':
-        result = await this.methodHandler.estimateUserOperationGas(params[0], params[1])
+        result = await this.methodHandler.estimateUserOperationGas(params[0], params[1], params[2])
         break
       case 'eth_getUserOperationReceipt':
         result = await this.methodHandler.getUserOperationReceipt(params[0])
