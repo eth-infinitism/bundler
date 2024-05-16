@@ -12,6 +12,7 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/utils/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/bundler/src/types" />
       <excludeFolder url="file://$MODULE_DIR$/packages/bundler/deployments" />
+      <excludeFolder url="file://$MODULE_DIR$/submodules/account-abstraction/deployments" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
