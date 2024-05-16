@@ -179,7 +179,7 @@ export function tracerResultParser (
   tracerResults: BundlerTracerResult,
   validationResult: ValidationResult,
   entryPoint: IEntryPoint
-): [string[], StorageMap, StorageMap] {
+): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
@@ -413,16 +413,10 @@ export function tracerResultParser (
   // return list of contract addresses by this UserOp. already known not to contain zero-sized addresses.
   const addresses = tracerResults.callsFromEntryPoint.flatMap(level => Object.keys(level.contractSize))
   const storageMap: StorageMap = {}
-  const transientStorageMap: StorageMap = {}
   tracerResults.callsFromEntryPoint.forEach(level => {
     Object.keys(level.access).forEach(addr => {
       storageMap[addr] = storageMap[addr] ?? level.access[addr].reads
     })
   })
-  tracerResults.callsFromEntryPoint.forEach(level => {
-    Object.keys(level.access).forEach(addr => {
-      storageMap[addr] = storageMap[addr] ?? level.access[addr].transientReads
-    })
-  })
-  return [addresses, storageMap, transientStorageMap]
+  return [addresses, storageMap]
 }
