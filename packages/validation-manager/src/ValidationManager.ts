@@ -60,7 +60,6 @@ export interface ValidateUserOpResult extends ValidationResult {
 
   referencedContracts: ReferencedCodeHashes
   storageMap: StorageMap
-  transientStorageMap: StorageMap
 }
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -206,7 +205,6 @@ export class ValidationManager {
       hash: ''
     }
     let storageMap: StorageMap = {}
-    let transientStorageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
@@ -254,8 +252,7 @@ export class ValidationManager {
     return {
       ...res,
       referencedContracts: codeHashes,
-      storageMap,
-      transientStorageMap
+      storageMap
     }
   }
 
