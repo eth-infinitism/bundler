@@ -75,6 +75,10 @@ export interface AccessInfo {
   reads: { [slot: string]: string }
   // count of writes.
   writes: { [slot: string]: number }
+  // count of transient reads
+  transientReads: { [slot: string]: number }
+  // count of transient writes
+  transientWrites: { [slot: string]: number }
 }
 
 export interface LogInfo {
@@ -291,7 +295,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
       this.lastOp = opcode
 
-      if (opcode === 'SLOAD' || opcode === 'SSTORE') {
+      if (opcode === 'SLOAD' || opcode === 'SSTORE' || opcode === 'TLOAD' || opcode === 'TSTORE') {
         const slot = toWord(log.stack.peek(0).toString(16))
         const slotHex = toHex(slot)
         const addr = log.contract.getAddress()
@@ -300,7 +304,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         if (access == null) {
           access = {
             reads: {},
-            writes: {}
+            writes: {},
+            transientReads: {},
+            transientWrites: {}
           }
           this.currentLevel.access[addrHex] = access
         }
@@ -310,8 +316,12 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           if (access.reads[slotHex] == null && access.writes[slotHex] == null) {
             access.reads[slotHex] = toHex(db.getState(addr, slot))
           }
-        } else {
+        } else if (opcode === 'SSTORE') {
           this.countSlot(access.writes, slotHex)
+        } else if (opcode === 'TLOAD') {
+          this.countSlot(access.transientReads, slotHex)
+        } else if (opcode === 'TSTORE') {
+          this.countSlot(access.transientWrites, slotHex)
         }
       }
 

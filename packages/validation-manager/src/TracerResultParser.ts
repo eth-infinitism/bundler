@@ -255,7 +255,9 @@ export function tracerResultParser (
 
     Object.entries(access).forEach(([addr, {
       reads,
-      writes
+      writes,
+      transientReads,
+      transientWrites
     }]) => {
       // testing read/write access on contract "addr"
       if (addr === sender) {
@@ -305,7 +307,12 @@ export function tracerResultParser (
       // scan all slots. find a referenced slot
       // at the end of the scan, we will check if the entity has stake, and report that slot if not.
       let requireStakeSlot: string | undefined
-      [...Object.keys(writes), ...Object.keys(reads)].forEach(slot => {
+      [
+        ...Object.keys(writes),
+        ...Object.keys(reads),
+        ...Object.keys(transientWrites),
+        ...Object.keys(transientReads)
+      ].forEach(slot => {
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
@@ -324,14 +331,17 @@ export function tracerResultParser (
           // [STO-031]
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
-        } else if (writes[slot] == null) {
+        } else if (writes[slot] == null && transientWrites[slot] == null) {
           // [STO-033]: staked entity have read-only access to any storage in non-entity contract.
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
-          const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
+          const isWrite = Object.keys(writes).includes(slot) || Object.keys(transientWrites).includes(slot)
+          const isTransient = Object.keys(transientReads).includes(slot) || Object.keys(transientWrites).includes(slot)
+          const readWrite = isWrite ? 'write to' : 'read from'
+          const transientStr = isTransient ? 'transient ' : ''
           requireCond(false,
-            `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot}`,
+            `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, entityTitle)} slot ${slot}`,
             ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
