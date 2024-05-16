@@ -349,14 +349,6 @@ export function tracerResultParser (
         `unstaked ${entityTitle} accessed ${nameAddr(addr, entityTitle)} slot ${requireStakeSlot}`)
     })
 
-    // [EREP-050]
-    if (entityTitle === 'paymaster') {
-      const validatePaymasterUserOp = callStack.find(call => call.method === 'validatePaymasterUserOp' && call.to === entityAddr)
-      const context = validatePaymasterUserOp?.return?.context
-      requireCondAndStake(context != null && context !== '0x', entStakes,
-        'unstaked paymaster must not return context')
-    }
-
     // check if the given entity is staked
     function isStaked (entStake?: StakeInfo): boolean {
       return entStake != null && BigNumber.from(1).lte(entStake.stake) && BigNumber.from(1).lte(entStake.unstakeDelaySec)
