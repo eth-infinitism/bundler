@@ -213,7 +213,7 @@ export class ValidationManager {
         throw e
       })
       let contractAddresses: string[]
-      [contractAddresses, storageMap, transientStorageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)

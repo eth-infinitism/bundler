@@ -331,14 +331,17 @@ export function tracerResultParser (
           // [STO-031]
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
-        } else if (writes[slot] == null) {
+        } else if (writes[slot] == null && transientWrites[slot] == null) {
           // [STO-033]: staked entity have read-only access to any storage in non-entity contract.
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
-          const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
+          const isWrite = Object.keys(writes).includes(addr) || Object.keys(transientWrites).includes(addr)
+          const isTransient = Object.keys(transientReads).includes(addr) || Object.keys(transientWrites).includes(addr)
+          const readWrite = isWrite ? 'write to' : 'read from'
+          const transientStr = isTransient ? 'transient ' : ''
           requireCond(false,
-            `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot}`,
+            `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, entityTitle)} slot ${slot}`,
             ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
