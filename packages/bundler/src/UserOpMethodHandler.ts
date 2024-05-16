@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { JsonRpcProvider, Log, Provider } from '@ethersproject/providers'
+import { JsonRpcProvider, Log } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import {
@@ -15,12 +15,12 @@ import {
   decodeRevertReason,
   mergeValidationDataValues,
   UserOperationEventEvent, IEntryPoint, requireCond, deepHexlify, tostr, erc4337RuntimeVersion
+  , UserOperation
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
-import {StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
+import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { EventFragment } from '@ethersproject/abi'
-import { UserOperation } from '@account-abstraction/utils'
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -121,15 +121,15 @@ export class UserOpMethodHandler {
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
     await this._validateParameters(deepHexlify(userOp), entryPointInput)
     // todo: validation manager duplicate?
-    const provider = this.provider as JsonRpcProvider
+    const provider = this.provider
     const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp, [AddressZero, '0x'],
-        stateOverride
+      stateOverride
       // {
-        // allow estimation when account's balance is zero.
-        // todo: need a way to flag this, and not enable always.
-        // [userOp.sender]: {
-        //   balance: hexStripZeros(parseEther('1').toHexString())
-        // }
+      // allow estimation when account's balance is zero.
+      // todo: need a way to flag this, and not enable always.
+      // [userOp.sender]: {
+      //   balance: hexStripZeros(parseEther('1').toHexString())
+      // }
       // }
     )
     const ret = await provider.send('eth_call', rpcParams)
