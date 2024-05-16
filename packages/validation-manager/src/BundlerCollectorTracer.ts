@@ -75,9 +75,9 @@ export interface AccessInfo {
   reads: { [slot: string]: string }
   // count of writes.
   writes: { [slot: string]: number }
-  // slot value, just prior this operation
-  transientReads: { [slot: string]: string }
-  // count of writes.
+  // count of transient reads
+  transientReads: { [slot: string]: number }
+  // count of transient writes
   transientWrites: { [slot: string]: number }
 }
 
@@ -319,9 +319,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         } else if (opcode === 'SSTORE') {
           this.countSlot(access.writes, slotHex)
         } else if (opcode === 'TLOAD') {
-          if (access.transientReads[slotHex] == null && access.transientWrites[slotHex] == null) {
-            access.transientReads[slotHex] = toHex(db.getState(addr, slot))
-          }
+          this.countSlot(access.transientReads, slotHex)
         } else if (opcode === 'TSTORE') {
           this.countSlot(access.transientWrites, slotHex)
         }
