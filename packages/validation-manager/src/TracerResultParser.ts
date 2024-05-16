@@ -336,8 +336,8 @@ export function tracerResultParser (
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
-          const isWrite = Object.keys(writes).includes(addr) || Object.keys(transientWrites).includes(addr)
-          const isTransient = Object.keys(transientReads).includes(addr) || Object.keys(transientWrites).includes(addr)
+          const isWrite = Object.keys(writes).includes(slot) || Object.keys(transientWrites).includes(slot)
+          const isTransient = Object.keys(transientReads).includes(slot) || Object.keys(transientWrites).includes(slot)
           const readWrite = isWrite ? 'write to' : 'read from'
           const transientStr = isTransient ? 'transient ' : ''
           requireCond(false,
