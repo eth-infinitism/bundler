@@ -15,6 +15,7 @@
   },
   "scripts": {
     "bundler": "yarn --cwd packages/bundler bundler",
+    "bundler-rip7560": "yarn --cwd packages/bundler bundler-rip7560",
     "runop": "yarn --cwd packages/bundler runop",
     "runop-goerli": "yarn runop --network goerli --unsafe",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",

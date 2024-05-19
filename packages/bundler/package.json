@@ -11,6 +11,7 @@
   "scripts": {
     "runop": "ts-node ./src/runner/runop.ts",
     "bundler": "ts-node ./src/exec.ts --config ./localconfig/bundler.config.json",
+    "bundler-rip7560": "ts-node ./src/exec.ts --config ./localconfig/bundler.rip7560.config.json",
     "clear": "rm -rf dist artifacts cache src/types",
     "hardhat-compile": "hardhat compile",
     "hardhat-node": "npx hardhat node --no-deploy",
