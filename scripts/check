@@ -1,0 +1,3 @@
+
+curl -s https://raw.githubusercontent.com/ethereum/ERCs/master/ERCS/erc-7562.md > /tmp/erc-7562.md
+`dirname $0`/checkRulesCoverage /tmp/erc-7562.md `dirname $0`/../packages/validation-manager | grep unmatched|grep -v -i -w ALT | grep -v REMOVED

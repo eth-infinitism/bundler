@@ -7,6 +7,7 @@ import {
   SignatureAggregatorChangedEvent,
   UserOperationEventEvent
 } from '@account-abstraction/utils'
+import { DepositManager } from './DepositManager'
 
 const debug = Debug('aa.events')
 
@@ -19,7 +20,8 @@ export class EventsManager {
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly mempoolManager: MempoolManager,
-    readonly reputationManager: ReputationManager) {
+    readonly reputationManager: ReputationManager,
+    readonly depositManager: DepositManager) {
   }
 
   /**
@@ -43,6 +45,7 @@ export class EventsManager {
     for (const ev of events) {
       this.handleEvent(ev)
     }
+    this.depositManager.clearCache()
   }
 
   handleEvent (ev: UserOperationEventEvent | AccountDeployedEvent | SignatureAggregatorChangedEvent): void {

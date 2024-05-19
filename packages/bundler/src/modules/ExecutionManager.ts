@@ -7,6 +7,7 @@ import { clearInterval } from 'timers'
 import { BundleManager, SendBundleReturn } from './BundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
+import { DepositManager } from './DepositManager'
 
 const debug = Debug('aa.exec')
 
@@ -24,13 +25,15 @@ export class ExecutionManager {
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: BundleManager,
-    private readonly validationManager: ValidationManager
+    private readonly validationManager: ValidationManager,
+    private readonly depositManager: DepositManager
   ) {
   }
 
   /**
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
+   * @param entryPointInput the entryPoint passed through the RPC request.
    */
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
     await this.mutex.runExclusive(async () => {
@@ -38,6 +41,7 @@ export class ExecutionManager {
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
       const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
+      await this.depositManager.checkPaymasterDeposit(userOp)
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
         validationResult.returnInfo.prefund,

@@ -1,4 +1,4 @@
-import { BaseProvider } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
@@ -21,7 +21,7 @@ import {
   packUserOp,
   resolveHexlify,
   SimpleAccountFactory__factory,
-  UserOperation,
+  UserOperation, UserOperationEventEvent,
   waitFor
 } from '@account-abstraction/utils'
 import { UserOperationReceipt } from '../src/RpcTypes'
@@ -33,13 +33,14 @@ import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
+import { DepositManager } from '../src/modules/DepositManager'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
   let accountDeployerAddress: string
   let methodHandler: UserOpMethodHandler
-  let provider: BaseProvider
+  let provider: JsonRpcProvider
   let signer: Signer
   const accountSigner = Wallet.createRandom()
   let mempoolMgr: MempoolManager
@@ -80,9 +81,10 @@ describe('UserOpMethodHandler', function () {
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, config.unsafe)
-    const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    const depositManager = new DepositManager(entryPoint, mempoolMgr)
+    const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr, depositManager)
     const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
     methodHandler = new UserOpMethodHandler(
       execManager,
       provider,
@@ -193,7 +195,7 @@ describe('UserOpMethodHandler', function () {
       // sendUserOperation is async, even in auto-mining. need to wait for it.
       const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
 
-      const transactionReceipt = await event.getTransactionReceipt()
+      const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
       const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
         .map(log => entryPoint.interface.parseLog(log))

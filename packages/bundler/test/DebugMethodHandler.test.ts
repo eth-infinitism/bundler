@@ -18,6 +18,7 @@ import {
 import { expect } from 'chai'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
+import { DepositManager } from '../src/modules/DepositManager'
 
 const provider = ethers.provider
 
@@ -56,10 +57,11 @@ describe('#DebugMethodHandler', () => {
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, config.unsafe)
-    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
+    const depositManager = new DepositManager(entryPoint, mempoolMgr)
+    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr, depositManager)
     const bundleMgr = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
     methodHandler = new UserOpMethodHandler(
       execManager,
       provider,
