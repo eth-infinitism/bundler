@@ -11,7 +11,7 @@ import {
   StorageMap,
   mergeStorageMap,
   runContractScript,
-  packUserOp, IEntryPoint
+  packUserOp, IEntryPoint, RpcError, ValidationErrors
 } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
@@ -202,6 +202,13 @@ export class BundleManager {
       } catch (e: any) {
         debug('failed 2nd validation:', e.message)
         // failed validation. don't try anymore
+        // no active "penalization" (opsSeen was increased, but opsIncluded was not, so over time it hurts reputation)
+        // EREP-015: special case: if it is account/factory failure, then decreases paymaster's opsSeen)
+        if (paymaster != null && e instanceof RpcError && e.code === ValidationErrors.SimulateValidation &&
+          (e?.message.match(/FailedOpWithRevert\(\d+,"AA[21]/)) != null) {
+          debug('don\'t blame paymaster', paymaster, ' for account/factory failure', e.message)
+          this.reputationManager.updateSeenStatus(paymaster, -1)
+        }
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }

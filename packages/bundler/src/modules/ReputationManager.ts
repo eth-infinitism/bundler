@@ -104,14 +104,15 @@ export class ReputationManager {
   /**
    * address seen in the mempool triggered by the
    * @param addr
+   * @param val increment value for "seen" status
    */
-  updateSeenStatus (addr?: string): void {
+  updateSeenStatus (addr?: string, val = 1): void {
     if (addr == null) {
       return
     }
     const entry = this._getOrCreate(addr)
-    entry.opsSeen++
-    debug('after seen++', addr, entry)
+    entry.opsSeen += val
+    debug('after seen+', val, addr, entry)
   }
 
   /**
