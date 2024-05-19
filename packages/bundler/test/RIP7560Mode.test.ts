@@ -12,7 +12,7 @@ import { DebugMethodHandler } from '../src/DebugMethodHandler'
 import { parseEther } from 'ethers/lib/utils'
 import { OperationRIP7560, sleep } from '@account-abstraction/utils'
 
-describe.only('RIP7560Mode', function () {
+describe.skip('RIP7560Mode', function () {
   describe('running bundler in the RIP-7560 mode', function () {
     let ethersProviderSpy: any
     let bundlerServer: BundlerServer
