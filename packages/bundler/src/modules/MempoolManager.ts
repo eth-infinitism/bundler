@@ -3,9 +3,8 @@ import {
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
-  UserOperation,
   ValidationErrors,
-  requireCond
+  requireCond, OperationBase
 } from '@account-abstraction/utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
@@ -13,7 +12,7 @@ import Debug from 'debug'
 const debug = Debug('aa.mempool')
 
 export interface MempoolEntry {
-  userOp: UserOperation
+  userOp: OperationBase
   userOpHash: string
   prefund: BigNumberish
   referencedContracts: ReferencedCodeHashes
@@ -21,7 +20,7 @@ export interface MempoolEntry {
   aggregator?: string
 }
 
-type MempoolDump = UserOperation[]
+type MempoolDump = OperationBase[]
 
 const MAX_MEMPOOL_USEROPS_PER_SENDER = 4
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
@@ -68,7 +67,7 @@ export class MempoolManager {
   // replace existing, if any (and if new gas is higher)
   // reverts if unable to add UserOp to mempool (too many UserOps with this sender)
   addUserOp (
-    userOp: UserOperation,
+    userOp: OperationBase,
     userOpHash: string,
     prefund: BigNumberish,
     referencedContracts: ReferencedCodeHashes,
@@ -106,7 +105,7 @@ export class MempoolManager {
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
 
-  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation, senderInfo: StakeInfo): void {
+  private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo): void {
     try {
       this.reputationManager.checkStake('account', senderInfo)
       this.reputationManager.updateSeenStatus(userOp.sender)
@@ -140,7 +139,7 @@ export class MempoolManager {
     }
   }
 
-  private checkMultipleRolesViolation (userOp: UserOperation): void {
+  private checkMultipleRolesViolation (userOp: OperationBase): void {
     const knownEntities = this.getKnownEntities()
     requireCond(
       !knownEntities.includes(userOp.sender.toLowerCase()),
@@ -199,7 +198,7 @@ export class MempoolManager {
   getSortedForInclusion (): MempoolEntry[] {
     const copy = Array.from(this.mempool)
 
-    function cost (op: UserOperation): number {
+    function cost (op: OperationBase): number {
       // TODO: need to consult basefee and maxFeePerGas
       return BigNumber.from(op.maxPriorityFeePerGas).toNumber()
     }
@@ -232,7 +231,7 @@ export class MempoolManager {
    * remove UserOp from mempool. either it is invalid, or was included in a block
    * @param userOpOrHash
    */
-  removeUserOp (userOpOrHash: UserOperation | string): void {
+  removeUserOp (userOpOrHash: OperationBase | string): void {
     let index: number
     if (typeof userOpOrHash === 'string') {
       index = this._findByHash(userOpOrHash)

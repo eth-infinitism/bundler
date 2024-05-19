@@ -11,7 +11,7 @@ import {
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
-import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
@@ -19,6 +19,8 @@ import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
+import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
+import { JsonRpcProvider } from '@ethersproject/providers'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -142,13 +144,18 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   }
 
   const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
-  const methodHandler = new UserOpMethodHandler(
+  const methodHandler = new MethodHandlerERC4337(
     execManager,
     provider,
     wallet,
     config,
     entryPoint
   )
+  const methodHandlerRip7560 = new MethodHandlerRIP7560(
+    execManager,
+    entryPoint.provider as JsonRpcProvider
+  )
+
   eventsManager.initEventListener()
   const debugHandler = config.debugRpc ?? false
     ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
@@ -160,6 +167,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    methodHandlerRip7560,
     debugHandler,
     config,
     provider,

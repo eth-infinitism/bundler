@@ -6,7 +6,7 @@ import { parseEther } from 'ethers/lib/utils'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { BundleManager, SendBundleReturn } from '../src/modules/BundleManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ethers } from 'hardhat'
 import { SimpleAccountAPI } from '@account-abstraction/sdk'
 import { Signer, Wallet } from 'ethers'
@@ -24,7 +24,7 @@ const provider = ethers.provider
 describe('#DebugMethodHandler', () => {
   let debugMethodHandler: DebugMethodHandler
   let entryPoint: IEntryPoint
-  let methodHandler: UserOpMethodHandler
+  let methodHandler: MethodHandlerERC4337
   let smartAccountAPI: SimpleAccountAPI
   let signer: Signer
   const accountSigner = Wallet.createRandom()
@@ -60,7 +60,7 @@ describe('#DebugMethodHandler', () => {
     const bundleMgr = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
-    methodHandler = new UserOpMethodHandler(
+    methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,

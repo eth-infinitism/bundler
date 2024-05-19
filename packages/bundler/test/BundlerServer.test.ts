@@ -14,7 +14,7 @@ import { supportsDebugTraceCall, ValidationManager } from '@account-abstraction/
 import { EventsManager } from '../src/modules/EventsManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 
@@ -50,7 +50,7 @@ describe('BundleServer', function () {
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
-    const methodHandler = new UserOpMethodHandler(
+    const methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,

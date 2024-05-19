@@ -17,7 +17,7 @@ import {
   toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint
 } from '@account-abstraction/utils'
 
-import { ValidationResult } from './ValidationManager'
+import { ValidationResult } from './IValidationManager'
 
 const debug = Debug('aa.handler.opcodes')
 

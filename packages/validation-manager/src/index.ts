@@ -4,9 +4,12 @@ import { AddressZero, IEntryPoint__factory, UserOperation } from '@account-abstr
 
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
-import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
+import { ValidateUserOpResult } from './IValidationManager'
+import { ValidationManager } from './ValidationManager'
 
 export * from './ValidationManager'
+export * from './ValidationManagerRIP7560'
+export * from './IValidationManager'
 
 export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promise<boolean> {
   const p = provider.send as any

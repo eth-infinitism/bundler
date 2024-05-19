@@ -1,5 +1,5 @@
 import { MempoolManager } from './MempoolManager'
-import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
+import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
@@ -7,11 +7,13 @@ import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
 import {
-  UserOperation,
+  IEntryPoint,
+  OperationBase,
   StorageMap,
+  UserOperation,
   mergeStorageMap,
-  runContractScript,
-  packUserOp, IEntryPoint
+  packUserOp,
+  runContractScript
 } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
@@ -26,15 +28,16 @@ export interface SendBundleReturn {
 }
 
 export class BundleManager {
+  readonly entryPoint: IEntryPoint
   provider: JsonRpcProvider
   signer: JsonRpcSigner
   mutex = new Mutex()
 
   constructor (
-    readonly entryPoint: IEntryPoint,
+    _entryPoint: IEntryPoint | undefined,
     readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
-    readonly validationManager: ValidationManager,
+    readonly validationManager: IValidationManager,
     readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
@@ -44,8 +47,10 @@ export class BundleManager {
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
     readonly mergeToAccountRootHash: boolean = false
   ) {
-    this.provider = entryPoint.provider as JsonRpcProvider
-    this.signer = entryPoint.signer as JsonRpcSigner
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    this.entryPoint = _entryPoint!
+    this.provider = this.entryPoint.provider as JsonRpcProvider
+    this.signer = this.entryPoint.signer as JsonRpcSigner
   }
 
   /**
@@ -65,7 +70,8 @@ export class BundleManager {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle, beneficiary, storageMap)
+        // TODO: STOPSHIP
+        const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -152,9 +158,9 @@ export class BundleManager {
     }
   }
 
-  async createBundle (): Promise<[UserOperation[], StorageMap]> {
+  async createBundle (): Promise<[OperationBase[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
-    const bundle: UserOperation[] = []
+    const bundle: OperationBase[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -230,13 +236,15 @@ export class BundleManager {
         if (paymasterDeposit[paymaster] == null) {
           paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
         }
-        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund!)) {
           // not enough balance in paymaster to pay for all UserOps
           // (but it passed validation, so it can sponsor them separately
           continue
         }
         stakedEntityCount[paymaster] = (stakedEntityCount[paymaster] ?? 0) + 1
-        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund)
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund!)
       }
       if (factory != null) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1

@@ -4,6 +4,7 @@ import express, { Express, Response, Request } from 'express'
 import { Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
+import { Server } from 'http'
 
 import {
   AddressZero, decodeRevertReason,
@@ -15,8 +16,8 @@ import {
 } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
-import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { Server } from 'http'
+import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
+import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
@@ -28,7 +29,8 @@ export class BundlerServer {
   public silent = false
 
   constructor (
-    readonly methodHandler: UserOpMethodHandler,
+    readonly methodHandler: MethodHandlerERC4337,
+    readonly methodHandlerRip7560: MethodHandlerRIP7560,
     readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
     readonly provider: Provider,
@@ -160,6 +162,24 @@ export class BundlerServer {
   async handleMethod (method: string, params: any[]): Promise<any> {
     let result: any
     switch (method) {
+      /** RIP-7560 specific RPC API */
+      case 'eth_sendTransaction':
+        if (!this.config.useRip7560Mode) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        if (params[0].sender != null) {
+          result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0])
+        // } else {
+        //   result = await (this.provider as JsonRpcProvider).send(method, params)
+        }
+        break
+      case 'eth_getTransactionReceipt':
+        if (!this.config.useRip7560Mode) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        result = await this.methodHandlerRip7560.getRIP7560TransactionReceipt(params[0])
+        break
+      /** EIP-4337 specific RPC API */
       case 'eth_chainId':
         // eslint-disable-next-line no-case-declarations
         const { chainId } = await this.provider.getNetwork()

@@ -1,12 +1,13 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { ValidationManager } from '@account-abstraction/validation-manager'
-import { packUserOp, UserOperation } from '@account-abstraction/utils'
+import { OperationBase } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
-import { BundleManager, SendBundleReturn } from './BundleManager'
+import { SendBundleReturn } from './BundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
+import { IBundleManager } from './IBundleManager'
+import { IValidationManager } from '@account-abstraction/validation-manager'
 
 const debug = Debug('aa.exec')
 
@@ -23,8 +24,8 @@ export class ExecutionManager {
 
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
-    private readonly bundleManager: BundleManager,
-    private readonly validationManager: ValidationManager
+    private readonly bundleManager: IBundleManager,
+    private readonly validationManager: IValidationManager
   ) {
   }
 
@@ -32,15 +33,17 @@ export class ExecutionManager {
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
    */
-  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
+  async sendUserOperation (userOp: OperationBase, entryPointInput: string): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
-      const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
+      // const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
+      const userOpHash = await this.validationManager.getOperationHash(userOp)
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
-        validationResult.returnInfo.prefund,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        validationResult.returnInfo.prefund!,
         validationResult.referencedContracts,
         validationResult.senderInfo,
         validationResult.paymasterInfo,
