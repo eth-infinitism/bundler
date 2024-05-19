@@ -1,6 +1,6 @@
-import { BigNumberish, BytesLike } from 'ethers'
+import { BigNumberish } from 'ethers'
 
-import { encode, type List } from 'rlp'
+import { encode, type Input } from 'rlp'
 import { BN, bnToUnpaddedBuffer, toBuffer } from 'ethereumjs-util'
 import { hexlify, keccak256 } from 'ethers/lib/utils'
 
@@ -15,7 +15,7 @@ export function getRIP7560TransactionHash (op: OperationRIP7560, forSignature = 
 }
 
 function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string {
-  const input: List = []
+  const input: Input = []
   input.push(bigNumberishToUnpaddedBuffer(op.chainId))
   input.push(bigNumberishToUnpaddedBuffer(op.maxPriorityFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.maxFeePerGas))
