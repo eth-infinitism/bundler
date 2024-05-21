@@ -202,9 +202,9 @@ export class ReputationManager {
   setReputation (reputations: ReputationDump): ReputationDump {
     reputations.forEach(rep => {
       this.entries[rep.address.toLowerCase()] = {
-        address: rep.address,
-        opsSeen: rep.opsSeen,
-        opsIncluded: rep.opsIncluded
+        address: rep.address.toLowerCase(),
+        opsSeen: BigNumber.from(rep.opsSeen).toNumber(),
+        opsIncluded: BigNumber.from(rep.opsIncluded).toNumber()
       }
     })
     return this.dump()
