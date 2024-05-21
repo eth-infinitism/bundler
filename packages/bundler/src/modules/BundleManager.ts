@@ -139,16 +139,35 @@ export class BundleManager {
       } = parsedError.args
       const userOp = userOps[opIndex]
       const reasonStr: string = reason.toString()
+
+      // find entity to blame
+      let addr: string | undefined
       if (reasonStr.startsWith('AA3')) {
-        this.reputationManager.crashedHandleOps(userOp.paymaster)
+        // [EREP-030] A staked account is accountable for failure in any entity
+        addr = await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
       } else if (reasonStr.startsWith('AA2')) {
-        this.reputationManager.crashedHandleOps(userOp.sender)
+        // [EREP-020] A staked factory is "accountable" for account
+        addr = await this.isFactoryStaked(userOp) ? userOp.factory : userOp.sender
       } else if (reasonStr.startsWith('AA1')) {
-        this.reputationManager.crashedHandleOps(userOp.factory)
+        // [EREP-030] A staked account is accountable for failure in any entity
+        addr = await this.isAccountStaked(userOp) ? userOp.sender : userOp.factory
+      }
+      if (addr != null) {
+        this.reputationManager.crashedHandleOps(addr)
+      } else {
+        console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)
       }
       this.mempoolManager.removeUserOp(userOp)
-      console.error(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
-    }
+      console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
+
+  async isAccountStaked (userOp: UserOperation): Promise<boolean> {
+    const senderStakeInfo = await this.reputationManager.getStakeStatus(userOp.sender, this.entryPoint.address)
+    return senderStakeInfo?.isStaked
+  }
+
+  async isFactoryStaked (userOp: UserOperation): Promise<boolean> {
+    const factoryStakeInfo = await this.reputationManager.getStakeStatus(userOp.factory, this.entryPoint.address)
+    return factoryStakeInfo?.isStaked
   }
 
   // fatal errors we know we can't recover
@@ -187,12 +206,12 @@ export class BundleManager {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
-      // [SREP-030]
+      // [GREP-020] - renamed from [SREP-030]
       if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
-      // [SREP-030]
+      // [GREP-020] - renamed from [SREP-030]
       if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
         continue
