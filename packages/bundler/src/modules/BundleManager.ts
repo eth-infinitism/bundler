@@ -166,8 +166,10 @@ export class BundleManager {
   }
 
   async isFactoryStaked (userOp: UserOperation): Promise<boolean> {
-    const factoryStakeInfo = await this.reputationManager.getStakeStatus(userOp.factory, this.entryPoint.address)
-    return factoryStakeInfo?.isStaked
+    const factoryStakeInfo = userOp.factory == null
+      ? null
+      : await this.reputationManager.getStakeStatus(userOp.factory, this.entryPoint.address)
+    return factoryStakeInfo?.isStaked ?? false
   }
 
   // fatal errors we know we can't recover
