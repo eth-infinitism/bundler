@@ -94,10 +94,10 @@ export class MempoolManager {
       debug('add userOp', userOp.sender, userOp.nonce)
       this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.checkMultipleRolesViolation(userOp)
+      this.incrementEntryCount(userOp.sender)
       if (userOp.paymaster != null) {
         this.incrementEntryCount(userOp.paymaster)
       }
-      this.incrementEntryCount(userOp.sender)
       if (userOp.factory != null) {
         this.incrementEntryCount(userOp.factory)
       }
