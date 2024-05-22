@@ -9,6 +9,7 @@ import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
 import { getNetworkProvider } from '../Config'
 import { IEntryPoint__factory } from '@account-abstraction/utils'
+import { DepositManager } from './DepositManager'
 
 /**
  * initialize server modules.
@@ -21,10 +22,11 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
   const validationManager = new ValidationManager(entryPoint, config.unsafe)
+  const depositManager = new DepositManager(entryPoint, mempoolManager)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
     config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
-  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager)
+  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])
   reputationManager.addBlacklist(...config.blacklist ?? [])

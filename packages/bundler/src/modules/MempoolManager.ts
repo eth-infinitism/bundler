@@ -92,6 +92,8 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
+      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+      this.checkMultipleRolesViolation(userOp)
       this.incrementEntryCount(userOp.sender)
       if (userOp.paymaster != null) {
         this.incrementEntryCount(userOp.paymaster)
@@ -99,8 +101,6 @@ export class MempoolManager {
       if (userOp.factory != null) {
         this.incrementEntryCount(userOp.factory)
       }
-      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
-      this.checkMultipleRolesViolation(userOp)
       this.mempool.push(entry)
     }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
@@ -289,5 +289,9 @@ export class MempoolManager {
     )
 
     return res.filter(it => it != null).map(it => (it as string).toLowerCase())
+  }
+
+  getMempool (): MempoolEntry[] {
+    return this.mempool
   }
 }

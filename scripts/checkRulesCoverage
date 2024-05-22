@@ -2,7 +2,7 @@
 const fs = require('fs')
 const {execSync} = require( 'child_process')
 
-args = process.argv.slice(2)
+const args = process.argv.slice(2)
 
 let showRev=true;
 let showMatch=true;
@@ -36,7 +36,7 @@ for( let line of fileData.split(/\n/) ) {
 
 	line = line.replaceAll( /\*\*(.*?)\*\*/g, '$1' )
 	const match = line.match(/\[(\w+-\d+)\][\s-:]+\s*([\s\S]*)/);
-	if ( !match ) 
+	if ( !match )
 		continue;
 	const [_, rule, rest] = match
 	rules[rule] = rest
@@ -58,7 +58,7 @@ function foundRule(r) {
 	}
 }
 
-const grepCmd = execSync( `grep -r . ${folder}`, { maxBuffer: 3e6}).toString()
+const grepCmd = execSync( `grep -r . ${folder}`, { maxBuffer: 3e6, encoding:'ascii'})
 
 for ( const line of grepCmd.split(/\n/) ) {
 	const mm = line.replaceAll( /\b(\w{2,3}-\d+)\b/g, rule=>foundRule(rule))

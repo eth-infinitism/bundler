@@ -331,7 +331,7 @@ describe('#ValidationManager', () => {
     await testExistingUserOp('balance-self', undefined)
   })
 
-  it('should fail with unstaked paymaster returning context', async () => {
+  it('should accept unstaked paymaster returning context', async () => {
     const pm = await new TestStorageAccount__factory(ethersSigner).deploy()
     // await entryPoint.depositTo(pm.address, { value: parseEther('0.1') })
     // await pm.addStake(entryPoint.address, { value: parseEther('0.1') })
@@ -345,9 +345,7 @@ describe('#ValidationManager', () => {
       paymasterPostOpGasLimit: 1e6,
       paymasterData: Buffer.from('postOp-context')
     }
-    expect(await vm.validateUserOp(userOp)
-      .then(() => 'should fail', e => e.message))
-      .to.match(/unstaked paymaster must not return context/)
+    await vm.validateUserOp(userOp)
   })
 
   it('should fail if validation recursively calls handleOps', async () => {
