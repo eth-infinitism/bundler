@@ -23,7 +23,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const mempoolManager = new MempoolManager(reputationManager)
   const validationManager = new ValidationManager(entryPoint, config.unsafe)
   const depositManager = new DepositManager(entryPoint, mempoolManager)
-  const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager, depositManager)
+  const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
     config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager)

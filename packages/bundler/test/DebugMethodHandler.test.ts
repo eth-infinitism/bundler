@@ -58,7 +58,7 @@ describe('#DebugMethodHandler', () => {
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, config.unsafe)
     const depositManager = new DepositManager(entryPoint, mempoolMgr)
-    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr, depositManager)
+    const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
