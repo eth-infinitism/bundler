@@ -94,6 +94,9 @@ export class ExecutionManager {
         // in "auto-bundling" mode (which implies auto-mining) also flush mempool from included UserOps
         await this.bundleManager.handlePastEvents()
       }
+
+      this.depositManager.clearCache()
+
       return ret
     }
   }
