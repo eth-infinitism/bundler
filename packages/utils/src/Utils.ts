@@ -37,6 +37,7 @@ export enum ValidationErrors {
   InsufficientStake = -32505,
   UnsupportedSignatureAggregator = -32506,
   InvalidSignature = -32507,
+  PaymasterDepositTooLow = -32508,
   UserOperationReverted = -32521
 }
 
