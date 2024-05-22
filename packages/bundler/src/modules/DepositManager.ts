@@ -31,7 +31,7 @@ export class DepositManager {
     // on-chain AA31 checks the deposit for the current userop.
     // but submitting all these UserOps it will eventually abort on this error,
     // so it's fine to return the same code.
-    requireCond(deposit.gte(0), 'paymaster deposit too low for all mempool UserOps', ValidationErrors.BannedOrThrottledPaymaster)
+    requireCond(deposit.gte(0), 'paymaster deposit too low for all mempool UserOps', ValidationErrors.PaymasterDepositTooLow)
   }
 
   /**

@@ -217,7 +217,7 @@ export class ReputationManager {
   checkBanned (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info: StakeInfo): void {
     requireCond(this.getStatus(info.addr) !== ReputationStatus.BANNED,
       `${title} ${info.addr} is banned`,
-      ValidationErrors.BannedOrThrottledPaymaster, { [title]: info.addr })
+      ValidationErrors.Reputation, { [title]: info.addr })
   }
 
   /**
@@ -227,7 +227,7 @@ export class ReputationManager {
   checkThrottled (title: 'account' | 'paymaster' | 'aggregator' | 'deployer', info: StakeInfo): void {
     requireCond(this.getStatus(info.addr) !== ReputationStatus.THROTTLED,
       `${title} ${info.addr} is throttled`,
-      ValidationErrors.BannedOrThrottledPaymaster, { [title]: info.addr })
+      ValidationErrors.Reputation, { [title]: info.addr })
   }
 
   /**
@@ -242,7 +242,7 @@ export class ReputationManager {
     }
     requireCond(this.getStatus(info.addr) !== ReputationStatus.BANNED,
       `${title} ${info.addr} is banned`,
-      ValidationErrors.BannedOrThrottledPaymaster, { [title]: info.addr })
+      ValidationErrors.Reputation, { [title]: info.addr })
 
     requireCond(BigNumber.from(info.stake).gte(this.minStake),
       `${title} ${info.addr} ${tostr(info.stake) === '0' ? 'is unstaked' : `stake ${tostr(info.stake)} is too low (min=${tostr(this.minStake)})`}`,

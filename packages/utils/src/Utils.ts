@@ -33,10 +33,11 @@ export enum ValidationErrors {
   SimulatePaymasterValidation = -32501,
   OpcodeValidation = -32502,
   NotInTimeRange = -32503,
-  BannedOrThrottledPaymaster = -32504,
+  Reputation = -32504,
   InsufficientStake = -32505,
   UnsupportedSignatureAggregator = -32506,
   InvalidSignature = -32507,
+  PaymasterDepositTooLow = -32508,
   UserOperationReverted = -32521
 }
 
