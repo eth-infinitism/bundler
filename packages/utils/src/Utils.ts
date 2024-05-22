@@ -203,6 +203,6 @@ export function sum (...args: BigNumberish[]): BigNumber {
  * the cost is the sum of the verification gas limits, multiplied by the maxFeePerGas.
  * @param userOp
  */
-export function getUserOpMaxCost (userOp: UserOperation): number {
-  return sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas).toNumber()
+export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
+  return sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
 }
