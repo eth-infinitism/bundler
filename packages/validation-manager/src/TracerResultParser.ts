@@ -307,6 +307,7 @@ export function tracerResultParser (
         reads
       })
 
+      // [OP-070]: treat transient storage (TLOAD/TSTORE) just like storage.
       // scan all slots. find a referenced slot
       // at the end of the scan, we will check if the entity has stake, and report that slot if not.
       let requireStakeSlot: string | undefined

@@ -23,7 +23,6 @@ export interface MempoolEntry {
 
 type MempoolDump = UserOperation[]
 
-const SAME_SENDER_MEMPOOL_COUNT = 4
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
@@ -125,19 +124,11 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo, SAME_SENDER_MEMPOOL_COUNT)
 
-    if (paymasterInfo != null) {
-      this.checkReputationStatus('paymaster', paymasterInfo)
-    }
-
-    if (factoryInfo != null) {
-      this.checkReputationStatus('deployer', factoryInfo)
-    }
-
-    if (aggregatorInfo != null) {
-      this.checkReputationStatus('aggregator', aggregatorInfo)
-    }
+    this.checkReputationStatus('account', senderInfo)
+    this.checkReputationStatus('paymaster', paymasterInfo)
+    this.checkReputationStatus('deployer', factoryInfo)
+    this.checkReputationStatus('aggregator', aggregatorInfo)
   }
 
   private checkMultipleRolesViolation (userOp: UserOperation): void {
@@ -169,11 +160,15 @@ export class MempoolManager {
 
   private checkReputationStatus (
     title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
-    stakeInfo: StakeInfo,
-    maxTxMempoolAllowedOverride?: number
+    stakeInfo?: StakeInfo
   ): void {
-    const maxTxMempoolAllowedEntity = maxTxMempoolAllowedOverride ??
-      this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(stakeInfo.addr)
+
+    if (stakeInfo == null) {
+      // entity missing from this userop.
+      return
+    }
+    const maxTxMempoolAllowedEntity = this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(title, stakeInfo.addr)
+    // GREP-010 A `BANNED` address is not allowed into the mempool
     this.reputationManager.checkBanned(title, stakeInfo)
     const entryCount = this.entryCount(stakeInfo.addr) ?? 0
     if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
@@ -293,5 +288,17 @@ export class MempoolManager {
 
   getMempool (): MempoolEntry[] {
     return this.mempool
+  }
+
+  // GREP-010 A `BANNED` address is not allowed into the mempool
+  removeBannedAddr (addr: string): void{
+    // scan mempool in reverse. remove any UserOp where address is any entity
+    for (let i = this.mempool.length - 1; i >= 0; i--) {
+      const mempoolEntry = this.mempool[i]
+      const userOp = mempoolEntry.userOp
+      if (userOp.sender === addr || userOp.paymaster === addr || userOp.factory === addr) {
+        this.removeUserOp(mempoolEntry.userOpHash)
+      }
+    }
   }
 }
