@@ -84,10 +84,10 @@ export class BundleManager {
   async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
+      // TODO: estimate is not enough. should trace with validation rules, to prevent on-chain revert.
       const tx = await this.entryPoint.populateTransaction.handleOps(userOps.map(packUserOp), beneficiary, {
         type: 2,
         nonce: await this.signer.getTransactionCount(),
-        gasLimit: 10e6,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
@@ -119,7 +119,15 @@ export class BundleManager {
     } catch (e: any) {
       let parsedError: ErrorDescription
       try {
-        parsedError = this.entryPoint.interface.parseError((e.data?.data ?? e.data))
+        let data = e.data?.data ?? e.data
+        // geth error body, packed in ethers exception object
+        const body = e?.error?.error?.body
+        if (body != null) {
+          const jsonbody = JSON.parse(body)
+          data = jsonbody.error.data?.data ?? jsonbody.error.data
+        }
+
+        parsedError = this.entryPoint.interface.parseError(data)
       } catch (e1) {
         this.checkFatal(e)
         console.warn('Failed handleOps, but non-FailedOp error', e)
@@ -137,10 +145,9 @@ export class BundleManager {
         this.reputationManager.crashedHandleOps(userOp.sender)
       } else if (reasonStr.startsWith('AA1')) {
         this.reputationManager.crashedHandleOps(userOp.factory)
-      } else {
-        this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
       }
+      this.mempoolManager.removeUserOp(userOp)
+      console.error(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
     }
   }
 
