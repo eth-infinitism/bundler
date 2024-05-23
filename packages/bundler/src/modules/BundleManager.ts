@@ -140,18 +140,7 @@ export class BundleManager {
       const userOp = userOps[opIndex]
       const reasonStr: string = reason.toString()
 
-      // find entity to blame
-      let addr: string | undefined
-      if (reasonStr.startsWith('AA3')) {
-        // [EREP-030] A staked account is accountable for failure in any entity
-        addr = await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
-      } else if (reasonStr.startsWith('AA2')) {
-        // [EREP-020] A staked factory is "accountable" for account
-        addr = await this.isFactoryStaked(userOp) ? userOp.factory : userOp.sender
-      } else if (reasonStr.startsWith('AA1')) {
-        // [EREP-030] A staked account is accountable for failure in any entity
-        addr = await this.isAccountStaked(userOp) ? userOp.sender : userOp.factory
-      }
+      const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
         this.reputationManager.crashedHandleOps(addr)
       } else {
@@ -159,6 +148,20 @@ export class BundleManager {
       }
       this.mempoolManager.removeUserOp(userOp)
       console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
+
+  private async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
+    if (reasonStr.startsWith('AA3')) {
+      // [EREP-030] A staked account is accountable for failure in any entity
+      return await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
+    } else if (reasonStr.startsWith('AA2')) {
+      // [EREP-020] A staked factory is "accountable" for account
+      return await this.isFactoryStaked(userOp) ? userOp.factory : userOp.sender
+    } else if (reasonStr.startsWith('AA1')) {
+      // (can't have staked account during its creation)
+      return userOp.factory
+    }
+    return undefined
+  }
 
   async isAccountStaked (userOp: UserOperation): Promise<boolean> {
     const senderStakeInfo = await this.reputationManager.getStakeStatus(userOp.sender, this.entryPoint.address)
