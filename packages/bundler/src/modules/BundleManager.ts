@@ -143,11 +143,14 @@ export class BundleManager {
       const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
         this.reputationManager.crashedHandleOps(addr)
+        this.mempoolManager.removeBannedAddr(addr)
       } else {
         console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)
       }
       this.mempoolManager.removeUserOp(userOp)
       console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
+    }
+  }
 
   private async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
     if (reasonStr.startsWith('AA3')) {
