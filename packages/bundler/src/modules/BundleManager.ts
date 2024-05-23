@@ -1,4 +1,4 @@
-import { MempoolManager } from './MempoolManager'
+import { MempoolEntry, MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish } from 'ethers'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
@@ -11,7 +11,7 @@ import {
   StorageMap,
   mergeStorageMap,
   runContractScript,
-  packUserOp, IEntryPoint
+  packUserOp, IEntryPoint, RpcError, ValidationErrors
 } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
@@ -200,9 +200,7 @@ export class BundleManager {
         // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
         validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
       } catch (e: any) {
-        debug('failed 2nd validation:', e.message)
-        // failed validation. don't try anymore
-        this.mempoolManager.removeUserOp(entry.userOp)
+        this._handleSecondValidationException(e, paymaster, entry)
         continue
       }
 
@@ -254,6 +252,22 @@ export class BundleManager {
       totalGas = newTotalGas
     }
     return [bundle, storageMap]
+  }
+
+  _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
+    debug('failed 2nd validation:', e.message)
+    // EREP-015: special case: if it is account/factory failure, then decreases paymaster's opsSeen
+    if (paymaster != null && this._isAccountOrFactoryError(e)) {
+      debug('don\'t blame paymaster', paymaster, ' for account/factory failure', e.message)
+      this.reputationManager.updateSeenStatus(paymaster, -1)
+    }
+    // failed validation. don't try anymore this userop
+    this.mempoolManager.removeUserOp(entry.userOp)
+  }
+
+  _isAccountOrFactoryError (e: any): boolean {
+    return e instanceof RpcError && e.code === ValidationErrors.SimulateValidation &&
+      (e?.message.match(/FailedOpWithRevert\(\d+,"AA[21]/)) != null
   }
 
   /**

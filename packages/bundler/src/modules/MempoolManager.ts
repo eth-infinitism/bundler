@@ -23,7 +23,7 @@ export interface MempoolEntry {
 
 type MempoolDump = UserOperation[]
 
-const MAX_MEMPOOL_USEROPS_PER_SENDER = 4
+const SAME_SENDER_MEMPOOL_COUNT = 4
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
@@ -125,7 +125,7 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo, MAX_MEMPOOL_USEROPS_PER_SENDER)
+    this.checkReputationStatus('account', senderInfo, SAME_SENDER_MEMPOOL_COUNT)
 
     if (paymasterInfo != null) {
       this.checkReputationStatus('paymaster', paymasterInfo)
@@ -179,7 +179,7 @@ export class MempoolManager {
     if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
       this.reputationManager.checkThrottled(title, stakeInfo)
     }
-    if (entryCount > maxTxMempoolAllowedEntity) {
+    if (entryCount >= maxTxMempoolAllowedEntity) {
       this.reputationManager.checkStake(title, stakeInfo)
     }
   }
