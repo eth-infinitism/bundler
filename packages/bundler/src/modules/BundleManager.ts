@@ -148,8 +148,10 @@ export class BundleManager {
       }
       this.mempoolManager.removeUserOp(userOp)
       console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
+    }
+  }
 
-  private async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
+  async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
     if (reasonStr.startsWith('AA3')) {
       // [EREP-030] A staked account is accountable for failure in any entity
       return await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
