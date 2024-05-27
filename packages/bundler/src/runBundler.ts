@@ -35,7 +35,11 @@ export let showStackTraces = false
 
 export async function connectContracts (
   wallet: Signer,
-  entryPointAddress: string): Promise<{ entryPoint: IEntryPoint }> {
+  entryPointAddress: string,
+  deployNewEntryPoint: boolean = true): Promise<{ entryPoint?: IEntryPoint }> {
+  if (!deployNewEntryPoint) {
+    return { entryPoint: undefined }
+  }
   const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
   return {
     entryPoint
@@ -111,9 +115,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       console.log('== debugrpc already st', config.debugRpc)
     }
-    const ep = await deployEntryPoint(provider as any)
-    const addr = ep.address
-    console.log('deployed EntryPoint at', addr)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
       const signer = provider.getSigner()
@@ -132,8 +133,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const {
     entryPoint
-  } = await connectContracts(wallet, config.entryPoint)
-
+  } = await connectContracts(wallet, config.entryPoint, !config.useRip7560Mode)
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config
@@ -144,17 +144,17 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, wallet)
   const methodHandler = new MethodHandlerERC4337(
     execManager,
     provider,
     wallet,
     config,
-    entryPoint
+    entryPoint!
   )
   const methodHandlerRip7560 = new MethodHandlerRIP7560(
     execManager,
-    entryPoint.provider as JsonRpcProvider
+    wallet.provider as JsonRpcProvider
   )
 
   eventsManager.initEventListener()

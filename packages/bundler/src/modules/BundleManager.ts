@@ -1,6 +1,7 @@
 import { MempoolManager } from './MempoolManager'
 import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish } from 'ethers'
+import { isAddress } from 'ethers/lib/utils'
 import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
@@ -232,7 +233,7 @@ export class BundleManager {
         break
       }
 
-      if (paymaster != null) {
+      if (paymaster != null && isAddress(paymaster)) {
         if (paymasterDeposit[paymaster] == null) {
           paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
         }
@@ -246,7 +247,7 @@ export class BundleManager {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund!)
       }
-      if (factory != null) {
+      if (factory != null && isAddress(factory)) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
 

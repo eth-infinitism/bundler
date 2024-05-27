@@ -61,6 +61,10 @@ export class BundlerServer {
   }
 
   async _preflightCheck (): Promise<void> {
+    if (this.config.useRip7560Mode) {
+      // TODO: implement preflight checks for the RIP-7560 mode
+      return
+    }
     if (await this.provider.getCode(this.config.entryPoint) === '0x') {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
