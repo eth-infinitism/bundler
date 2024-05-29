@@ -74,7 +74,6 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
 
   async sendBundle (userOps: OperationBase[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
     const creationBlock = await this.provider.getBlockNumber()
-    const expectedRevenue = 0
     const bundlerId = 'www.reference-bundler.fake'
     const userOpHashes: string[] = []
     console.log('_sendBundle size:', userOps.length)
@@ -83,7 +82,7 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     }
     const transactions = userOps.map(convertToGethNames)
     const bundleHash = await this.provider.send('eth_sendRip7560TransactionsBundle', [
-      transactions, creationBlock + 1, expectedRevenue, bundlerId
+      transactions, creationBlock + 1, bundlerId
     ])
     console.log('eth_sendRip7560TransactionsBundle bundleHash = ', bundleHash)
     this.sentBundles.push({
