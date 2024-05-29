@@ -40,6 +40,7 @@ export enum ValidationErrors {
   InsufficientStake = -32505,
   UnsupportedSignatureAggregator = -32506,
   InvalidSignature = -32507,
+  PaymasterDepositTooLow = -32508,
   UserOperationReverted = -32521
 }
 
@@ -191,4 +192,20 @@ export async function runContractScript<T extends ContractFactory> (provider: Pr
   const parsed = ContractFactory.getInterface(c.interface).parseError(ret)
   if (parsed == null) throw new Error('unable to parse script (error) response: ' + ret)
   return parsed.args
+}
+
+/**
+ * sum the given bignumberish items (numbers, hex, bignumbers)
+ */
+export function sum (...args: BigNumberish[]): BigNumber {
+  return args.reduce((acc: BigNumber, cur) => acc.add(cur), BigNumber.from(0))
+}
+
+/**
+ * calculate the maximum verification cost of a UserOperation.
+ * the cost is the sum of the verification gas limits, multiplied by the maxFeePerGas.
+ * @param userOp
+ */
+export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
+  return sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
 }

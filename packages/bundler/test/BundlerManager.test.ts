@@ -19,6 +19,7 @@ import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { EventsManager } from '../src/modules/EventsManager'
 import { createSigner } from './testUtils'
+import { DepositManager } from '../src/modules/DepositManager'
 
 describe('#BundlerManager', () => {
   let bm: BundleManager
@@ -102,9 +103,10 @@ describe('#BundlerManager', () => {
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
       const validMgr = new ValidationManager(_entryPoint, config.unsafe)
+      const depositManager = new DepositManager(entryPoint, mempoolMgr)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
-      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
+      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
       execManager.setAutoBundler(0, 1000)
 
       methodHandler = new MethodHandlerERC4337(
