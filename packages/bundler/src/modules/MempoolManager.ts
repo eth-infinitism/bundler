@@ -22,7 +22,7 @@ export interface MempoolEntry {
 
 type MempoolDump = OperationBase[]
 
-const MAX_MEMPOOL_USEROPS_PER_SENDER = 4
+const SAME_SENDER_MEMPOOL_COUNT = 4
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
@@ -91,6 +91,8 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
+      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+      this.checkMultipleRolesViolation(userOp)
       this.incrementEntryCount(userOp.sender)
       if (userOp.paymaster != null) {
         this.incrementEntryCount(userOp.paymaster)
@@ -98,8 +100,6 @@ export class MempoolManager {
       if (userOp.factory != null) {
         this.incrementEntryCount(userOp.factory)
       }
-      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
-      this.checkMultipleRolesViolation(userOp)
       this.mempool.push(entry)
     }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
@@ -124,7 +124,7 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo, MAX_MEMPOOL_USEROPS_PER_SENDER)
+    this.checkReputationStatus('account', senderInfo, SAME_SENDER_MEMPOOL_COUNT)
 
     if (paymasterInfo != null) {
       this.checkReputationStatus('paymaster', paymasterInfo)
@@ -178,7 +178,7 @@ export class MempoolManager {
     if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
       this.reputationManager.checkThrottled(title, stakeInfo)
     }
-    if (entryCount > maxTxMempoolAllowedEntity) {
+    if (entryCount >= maxTxMempoolAllowedEntity) {
       this.reputationManager.checkStake(title, stakeInfo)
     }
   }
@@ -288,5 +288,9 @@ export class MempoolManager {
     )
 
     return res.filter(it => it != null).map(it => (it as string).toLowerCase())
+  }
+
+  getMempool (): MempoolEntry[] {
+    return this.mempool
   }
 }

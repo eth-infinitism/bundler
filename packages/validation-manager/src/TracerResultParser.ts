@@ -186,8 +186,9 @@ export function tracerResultParser (
   const entryPointAddress = entryPoint.address.toLowerCase()
 
   // opcodes from [OP-011]
-  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
-
+  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
+  // opcodes allowed in staked entities [OP-080]
+  const opcodesOnlyInStakedEntities = new Set(['BALANCE', 'SELFBALANCE'])
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
     throw new Error('Unexpected traceCall result: no calls from entrypoint.')
@@ -243,9 +244,11 @@ export function tracerResultParser (
       `${entityTitle} internally reverts on oog`, ValidationErrors.OpcodeValidation)
 
     // opcodes from [OP-011]
-    Object.keys(opcodes).forEach(opcode =>
+    Object.keys(opcodes).forEach(opcode => {
       requireCond(!bannedOpCodes.has(opcode), `${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
-    )
+      // [OP-080]
+      requireCond(!opcodesOnlyInStakedEntities.has(opcode) || isStaked(entStakes), `unstaked ${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
+    })
     // [OP-031]
     if (entityTitle === 'factory') {
       requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entityTitle} with too many CREATE2`, ValidationErrors.OpcodeValidation)

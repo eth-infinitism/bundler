@@ -8,6 +8,7 @@ import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import { IValidationManager } from '@account-abstraction/validation-manager'
+import { DepositManager } from './DepositManager'
 
 const debug = Debug('aa.exec')
 
@@ -25,21 +26,23 @@ export class ExecutionManager {
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: IBundleManager,
-    private readonly validationManager: IValidationManager
+    private readonly validationManager: IValidationManager,
+    private readonly depositManager: DepositManager
   ) {
   }
 
   /**
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
+   * @param entryPointInput the entryPoint passed through the RPC request.
    */
   async sendUserOperation (userOp: OperationBase, entryPointInput: string): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
-      // const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
       const userOpHash = await this.validationManager.getOperationHash(userOp)
+      await this.depositManager.checkPaymasterDeposit(userOp)
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -93,6 +96,7 @@ export class ExecutionManager {
         // in "auto-bundling" mode (which implies auto-mining) also flush mempool from included UserOps
         await this.bundleManager.handlePastEvents()
       }
+      this.depositManager.clearCache()
       return ret
     }
   }

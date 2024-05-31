@@ -150,6 +150,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     provider,
     wallet,
     config,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     entryPoint!
   )
   const methodHandlerRip7560 = new MethodHandlerRIP7560(
