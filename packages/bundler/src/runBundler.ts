@@ -126,8 +126,9 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await supportsDebugTraceCall(provider as any)) {
-    console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
+  if (!config.unsafe && !await supportsDebugTraceCall(provider as any, config.useRip7560Mode)) {
+    const requiredApi = config.useRip7560Mode ? 'debug_traceRip7560Validation' : 'debug_traceCall'
+    console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
     process.exit(1)
   }
 
