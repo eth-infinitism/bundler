@@ -1,5 +1,6 @@
 import { BigNumber } from 'ethers'
 import {
+  AddressZero,
   getUserOpMaxCost,
   IEntryPoint,
   OperationBase,
@@ -21,7 +22,7 @@ export class DepositManager {
 
   async checkPaymasterDeposit (userOp: OperationBase): Promise<void> {
     const paymaster = userOp.paymaster
-    if (paymaster == null) {
+    if (paymaster == null || paymaster === '0x' || paymaster === AddressZero) {
       return
     }
     let deposit = await this.getCachedDeposit(paymaster)

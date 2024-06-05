@@ -8,6 +8,7 @@ import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
 import {
+  AddressZero,
   IEntryPoint,
   OperationBase,
   RpcError,
@@ -266,9 +267,9 @@ export class BundleManager {
         break
       }
 
-      if (paymaster != null && isAddress(paymaster)) {
+      if (paymaster != null && isAddress(paymaster) && paymaster === AddressZero) {
         if (paymasterDeposit[paymaster] == null) {
-          paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
+          paymasterDeposit[paymaster] = await this.getPaymasterBalance(paymaster)
         }
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund!)) {
@@ -336,5 +337,9 @@ export class BundleManager {
       [this.entryPoint.address, userOps.map(packUserOp)])
 
     return userOpHashes
+  }
+
+  async getPaymasterBalance (paymaster: string): Promise<BigNumber> {
+    return await this.entryPoint.balanceOf(paymaster)
   }
 }

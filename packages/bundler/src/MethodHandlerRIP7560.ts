@@ -1,5 +1,6 @@
 import { JsonRpcProvider, TransactionReceipt } from '@ethersproject/providers'
 import {
+  AddressZero,
   getRIP7560TransactionHash,
   OperationRIP7560,
   requireCond,
@@ -32,7 +33,13 @@ export class MethodHandlerRIP7560 {
 
   // TODO: align parameter names across 4337 and 7560
   async _validateParameters (transaction: OperationRIP7560): Promise<void> {
-    transaction.callGasLimit = transaction.callGasLimit ?? (transaction as any).gas
+    (transaction as any).deployer = transaction.factory ?? AddressZero;
+    (transaction as any).deployerData = transaction.factoryData ?? '0x'
+    transaction.paymaster = transaction.paymaster ?? AddressZero
+    transaction.paymasterData = transaction.paymasterData ?? '0x'
+    transaction.callGasLimit = transaction.callGasLimit ?? (transaction as any).gas;
+    (transaction as any).gas = transaction.callGasLimit;
+    (transaction as any).data = transaction.callData
     transaction.verificationGasLimit = transaction.verificationGasLimit ?? (transaction as any).validationGas
     transaction.paymasterVerificationGasLimit = transaction.paymasterVerificationGasLimit ?? (transaction as any).paymasterGas
   }

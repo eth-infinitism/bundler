@@ -38,7 +38,11 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7
       paymasterVerificationGasLimit: '0x10000',
       paymasterPostOpGasLimit: '0x0',
       signature: '0x'
-    }
+    };
+
+    // TODO: align parameter names across 4337 and 7560
+    (defaultsForRip7560Tx as any).deployer = defaultsForRip7560Tx.factory;
+    (defaultsForRip7560Tx as any).deployerData = defaultsForRip7560Tx.factoryData
     // make sure we can trace a call.
     const ret = await debug_traceRip7560Validation(provider, defaultsForRip7560Tx
     ).catch(e => e)

@@ -1,5 +1,5 @@
 import Debug from 'debug'
-import { BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 import {
@@ -80,9 +80,9 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     for (const transaction of userOps) {
       userOpHashes.push(getRIP7560TransactionHash(transaction as OperationRIP7560))
     }
-    const transactions = userOps.map(convertToGethNames)
+    // const transactions = userOps.map(convertToGethNames)
     const bundleHash = await this.provider.send('eth_sendRip7560TransactionsBundle', [
-      transactions, creationBlock + 1, bundlerId
+      userOps, creationBlock + 1, bundlerId
     ])
     console.log('eth_sendRip7560TransactionsBundle bundleHash = ', bundleHash)
     this.sentBundles.push({
@@ -91,27 +91,8 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     })
     return bundleHash
   }
-}
 
-// todo: this should be done in Go-Ethereum or across this codebase, not ad-hoc adapter
-function convertToGethNames (operationBase: OperationBase): Object {
-  const operation = operationBase as OperationRIP7560
-  return {
-    to: '0x0000000000000000000000000000000000001010',
-    chainID: operation.chainId,
-    gas: operation.callGasLimit,
-    maxFeePerGas: operation.maxFeePerGas,
-    maxPriorityFeePerGas: operation.maxPriorityFeePerGas,
-    value: operation.value,
-    data: operation.callData,
-    accessList: operation.accessList,
-    sender: operation.sender,
-    signature: operation.signature,
-    paymasterData: operation.paymasterData,
-    deployerData: operation.factoryData,
-    builderFee: operation.builderFee,
-    validationGas: operation.verificationGasLimit,
-    paymasterGas: operation.paymasterVerificationGasLimit,
-    postOpGas: operation.paymasterPostOpGasLimit
+  async getPaymasterBalance (paymaster: string): Promise<BigNumber> {
+    return await this.provider.getBalance(paymaster)
   }
 }
