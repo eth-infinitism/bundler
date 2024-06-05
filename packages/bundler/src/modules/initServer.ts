@@ -39,7 +39,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
     bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
-    validationManager = new ValidationManagerRIP7560()
+    validationManager = new ValidationManagerRIP7560(entryPoint.provider as JsonRpcProvider, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false, entryPoint.provider as JsonRpcProvider)
   }
