@@ -74,7 +74,7 @@ export class ValidationManagerRIP7560 implements IValidationManager {
   }
 
   parseValidationTracingResult (result: any): void {
-    if (result.usedOpcodes[0]['TIMESTAMP']) {
+    if (result.calls_from_entry_point[0]['opcodes']['TIMESTAMP']) {
       throw new RpcError("Forbidden opcode RIP-7560", ValidationErrors.OpcodeValidation)
     }
   }
