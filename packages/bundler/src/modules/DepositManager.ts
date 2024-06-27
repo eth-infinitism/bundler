@@ -9,6 +9,7 @@ import {
   ValidationErrors
 } from '@account-abstraction/utils'
 import { MempoolManager } from './MempoolManager'
+import { IBundleManager } from './IBundleManager'
 
 /**
  * manage paymaster deposits, to make sure a paymaster has enough gas for all its pending transaction in the mempool
@@ -17,7 +18,10 @@ import { MempoolManager } from './MempoolManager'
 export class DepositManager {
   deposits: { [addr: string]: BigNumber } = {}
 
-  constructor (readonly entryPoint: IEntryPoint, readonly mempool: MempoolManager) {
+  constructor (
+    readonly entryPoint: IEntryPoint,
+    readonly mempool: MempoolManager,
+    readonly bundleManager: IBundleManager) {
   }
 
   async checkPaymasterDeposit (userOp: OperationBase): Promise<void> {
@@ -53,7 +57,7 @@ export class DepositManager {
   async getCachedDeposit (addr: string): Promise<BigNumber> {
     let deposit = this.deposits[addr]
     if (deposit == null) {
-      deposit = this.deposits[addr] = await this.entryPoint.balanceOf(addr)
+      deposit = this.deposits[addr] = await this.bundleManager.getPaymasterBalance(addr)
     }
     return deposit
   }

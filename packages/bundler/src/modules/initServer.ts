@@ -30,7 +30,6 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const entryPoint = IEntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
-  const depositManager = new DepositManager(entryPoint, mempoolManager)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
@@ -43,6 +42,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
     bundleManager = new BundleManagerRIP7560(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false, entryPoint.provider as JsonRpcProvider)
   }
+  const depositManager = new DepositManager(entryPoint, mempoolManager, bundleManager)
   const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])
