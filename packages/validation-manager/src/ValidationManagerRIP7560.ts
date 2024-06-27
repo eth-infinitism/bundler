@@ -3,11 +3,11 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import {
   OperationBase,
   OperationRIP7560,
-  getRIP7560TransactionHash, RpcError, ValidationErrors
+  getRIP7560TransactionHash, RpcError, ValidationErrors, StorageMap, AddressZero, ReferencedCodeHashes
 } from '@account-abstraction/utils'
 
 import { BundlerTracerResult } from './BundlerCollectorTracer'
-import { IValidationManager, ValidateUserOpResult } from './IValidationManager'
+import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { debug_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
 
@@ -22,26 +22,33 @@ export class ValidationManagerRIP7560 implements IValidationManager {
     // TODO
   }
 
-  async validateUserOp (operation: OperationBase): Promise<ValidateUserOpResult> {
+  async validateUserOp (operation: OperationBase, previousCodeHashes?: ReferencedCodeHashes): Promise<ValidateUserOpResult> {
     const transaction = operation as OperationRIP7560
+    let storageMap: StorageMap = {}
+    let codeHashes: ReferencedCodeHashes = {
+      addresses: [],
+      hash: ''
+    }
     if (!this.unsafe) {
-      const result = await this.traceValidation(transaction).catch(e => {
+      const traceResult = await this.traceValidation(transaction).catch(e => {
         throw e
       })
-      console.log(JSON.stringify(result))
-      this.parseValidationTracingResult(result)
-      // let contractAddresses: string[]
-      // [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
+      // TODO alex shahaf add staked entities support
+      const validationResult: ValidationResult = {
+        returnInfo: { sigFailed: false, validAfter: 0, validUntil: 0 },
+        senderInfo: {stake: 0, addr: '', unstakeDelaySec: 0 }
+      }
+      console.log(JSON.stringify(traceResult))
+      // this.parseValidationTracingResult(traceResult)
+      let contractAddresses: string[]
+      [contractAddresses, storageMap] = tracerResultParser(operation, traceResult, validationResult, AddressZero)
+      // TODO alex shahaf handle codehashes
       // if no previous contract hashes, then calculate hashes of contracts
-      // if (previousCodeHashes == null) {
-      //   codeHashes = await this.getCodeHashes(contractAddresses)
-      // }
-      // if (res as any === '0x') {
-      //   throw new Error('simulateValidation reverted with no revert string!')
-      // }
+      if (previousCodeHashes == null) {
+        // codeHashes = await this.getCodeHashes(contractAddresses)
+      }
     } else {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
-      // res = await this._callSimulateValidation(userOp)
     }
     return {
       returnInfo: {

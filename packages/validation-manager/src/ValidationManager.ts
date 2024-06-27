@@ -196,7 +196,7 @@ export class ValidationManager implements IValidationManager {
         throw e
       })
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint.address)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
