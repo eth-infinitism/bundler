@@ -36,7 +36,9 @@ export class ValidationManagerRIP7560 implements IValidationManager {
       // TODO alex shahaf add staked entities support
       const validationResult: ValidationResult = {
         returnInfo: { sigFailed: false, validAfter: 0, validUntil: 0 },
-        senderInfo: {stake: 0, addr: '', unstakeDelaySec: 0 }
+        factoryInfo: { stake: 0, addr: '', unstakeDelaySec: 0 },
+        paymasterInfo: { stake: 0, addr: '', unstakeDelaySec: 0 },
+        senderInfo: { stake: 0, addr: '', unstakeDelaySec: 0 }
       }
       console.log(JSON.stringify(traceResult))
       // this.parseValidationTracingResult(traceResult)
@@ -82,7 +84,7 @@ export class ValidationManagerRIP7560 implements IValidationManager {
 
   parseValidationTracingResult (result: any): void {
     if (result.calls_from_entry_point[0]['opcodes']['TIMESTAMP']) {
-      throw new RpcError("Forbidden opcode RIP-7560", ValidationErrors.OpcodeValidation)
+      throw new RpcError('Forbidden opcode RIP-7560', ValidationErrors.OpcodeValidation)
     }
   }
 }

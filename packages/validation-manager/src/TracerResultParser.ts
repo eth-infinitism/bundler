@@ -166,8 +166,10 @@ const callsFromEntryPointMethodSigs1: { [key: string]: string } = {
   paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
 }
 
+// todo: use a selector for factory or refactor the tracer for RIP-7560
 const callsFromEntryPointMethodSigs: { [key: string]: string } = {
-  account: '0xbf45c166'
+  account: '0xbf45c166',
+  paymaster: '0xe0e6183a',
 }
 
 /**
