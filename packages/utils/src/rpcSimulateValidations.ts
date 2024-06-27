@@ -1,7 +1,8 @@
-import { packUserOp, UserOperation } from './ERC4337Utils'
+import { packUserOp } from './ERC4337Utils'
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 
 import { EntryPointSimulations__factory, IEntryPointSimulations } from './types'
+import { UserOperation } from './interfaces/UserOperation'
 
 export const entryPointSimulationsInterface = EntryPointSimulations__factory.createInterface()
 

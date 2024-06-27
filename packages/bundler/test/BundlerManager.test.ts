@@ -15,7 +15,7 @@ import { BundleManager } from '../src/modules/BundleManager'
 import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { TestFakeWalletToken__factory } from '../src/types'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { EventsManager } from '../src/modules/EventsManager'
 import { createSigner } from './testUtils'
@@ -77,7 +77,7 @@ describe('#BundlerManager', () => {
   })
 
   describe('createBundle', function () {
-    let methodHandler: UserOpMethodHandler
+    let methodHandler: MethodHandlerERC4337
     let bundleMgr: BundleManager
 
     before(async function () {
@@ -109,7 +109,7 @@ describe('#BundlerManager', () => {
       const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
       execManager.setAutoBundler(0, 1000)
 
-      methodHandler = new UserOpMethodHandler(
+      methodHandler = new MethodHandlerERC4337(
         execManager,
         provider,
         bundlerSigner,

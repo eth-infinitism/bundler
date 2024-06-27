@@ -14,10 +14,10 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint
+  toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint, OperationBase
 } from '@account-abstraction/utils'
 
-import { ValidationResult } from './ValidationManager'
+import { ValidationResult } from './IValidationManager'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -160,10 +160,16 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
 }
 
 // method-signature for calls from entryPoint
-const callsFromEntryPointMethodSigs: { [key: string]: string } = {
+const callsFromEntryPointMethodSigs1: { [key: string]: string } = {
   factory: SenderCreator__factory.createInterface().getSighash('createSender'),
   account: IAccount__factory.createInterface().getSighash('validateUserOp'),
   paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
+}
+
+// todo: use a selector for factory or refactor the tracer for RIP-7560
+const callsFromEntryPointMethodSigs: { [key: string]: string } = {
+  account: '0xbf45c166',
+  paymaster: '0xe0e6183a',
 }
 
 /**
@@ -171,19 +177,17 @@ const callsFromEntryPointMethodSigs: { [key: string]: string } = {
  * @param userOp the userOperation that was used in this simulation
  * @param tracerResults the tracer return value
  * @param validationResult output from simulateValidation
- * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
+ * @param entryPointAddress the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
 export function tracerResultParser (
-  userOp: UserOperation,
+  userOp: OperationBase,
   tracerResults: BundlerTracerResult,
   validationResult: ValidationResult,
-  entryPoint: IEntryPoint
+  entryPointAddress: string
 ): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
-
-  const entryPointAddress = entryPoint.address.toLowerCase()
 
   // opcodes from [OP-011]
   const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
@@ -193,27 +197,29 @@ export function tracerResultParser (
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
     throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
-  const callStack = parseCallStack(tracerResults)
+  if (tracerResults.calls != null) {
+    const callStack = parseCallStack(tracerResults)
+    // [OP-052], [OP-053]
+    const callInfoEntryPoint = callStack.find(call =>
+      call.to === entryPointAddress && call.from !== entryPointAddress &&
+      (call.method !== '0x' && call.method !== 'depositTo'))
+    // [OP-054]
+    requireCond(callInfoEntryPoint == null,
+      `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
+      ValidationErrors.OpcodeValidation
+    )
 
-  // [OP-052], [OP-053]
-  const callInfoEntryPoint = callStack.find(call =>
-    call.to === entryPointAddress && call.from !== entryPointAddress &&
-    (call.method !== '0x' && call.method !== 'depositTo'))
-  // [OP-054]
-  requireCond(callInfoEntryPoint == null,
-    `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
-    ValidationErrors.OpcodeValidation
-  )
+    // [OP-061]
+    const illegalNonZeroValueCall = callStack.find(
+      call =>
+        call.to !== entryPointAddress &&
+        !BigNumber.from(call.value ?? 0).eq(0))
+    requireCond(
+      illegalNonZeroValueCall == null,
+      'May not may CALL with value',
+      ValidationErrors.OpcodeValidation)
+  }
 
-  // [OP-061]
-  const illegalNonZeroValueCall = callStack.find(
-    call =>
-      call.to !== entryPointAddress &&
-      !BigNumber.from(call.value ?? 0).eq(0))
-  requireCond(
-    illegalNonZeroValueCall == null,
-    'May not may CALL with value',
-    ValidationErrors.OpcodeValidation)
 
   const sender = userOp.sender.toLowerCase()
   // stake info per "number" level (factory, sender, paymaster)

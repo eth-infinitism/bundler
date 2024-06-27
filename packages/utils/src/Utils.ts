@@ -4,8 +4,11 @@ import { BytesLike, ContractFactory, BigNumber } from 'ethers'
 import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
-import { NotPromise, UserOperation } from './ERC4337Utils'
+
+import { NotPromise } from './ERC4337Utils'
 import { PackedUserOperationStruct } from './soltypes'
+import { UserOperation } from './interfaces/UserOperation'
+import { OperationBase } from './interfaces/OperationBase'
 
 export interface SlotMap {
   [slot: string]: string
@@ -68,7 +71,7 @@ export function requireCond (cond: boolean, msg: string, code?: number, data: an
 
 // verify that either address field exist along with "mustFields",
 // or address field is missing, and none of the must (or optional) field also exists
-export function requireAddressAndFields (userOp: UserOperation, addrField: string, mustFields: string[], optionalFields: string[] = []): void {
+export function requireAddressAndFields (userOp: OperationBase, addrField: string, mustFields: string[], optionalFields: string[] = []): void {
   const op = userOp as any
   const addr = op[addrField]
   if (addr == null) {
@@ -203,6 +206,10 @@ export function sum (...args: BigNumberish[]): BigNumber {
  * the cost is the sum of the verification gas limits, multiplied by the maxFeePerGas.
  * @param userOp
  */
-export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
-  return sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
+export function getUserOpMaxCost (userOp: OperationBase): BigNumber {
+  let preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
+  if (preVerificationGas == null){
+    preVerificationGas = 0
+  }
+  return sum(preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
 }

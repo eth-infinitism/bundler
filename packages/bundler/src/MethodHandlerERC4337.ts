@@ -22,7 +22,7 @@ import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { EventFragment } from '@ethersproject/abi'
 
-const HEX_REGEX = /^0x[a-fA-F\d]*$/i
+export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 /**
  * return value from estimateUserOpGas
@@ -52,7 +52,7 @@ export interface EstimateUserOpGasResult {
   callGasLimit: BigNumberish
 }
 
-export class UserOpMethodHandler {
+export class MethodHandlerERC4337 {
   constructor (
     readonly execManager: ExecutionManager,
     readonly provider: JsonRpcProvider,

@@ -14,7 +14,7 @@ import { supportsDebugTraceCall, ValidationManager } from '@account-abstraction/
 import { EventsManager } from '../src/modules/EventsManager'
 import { BundleManager } from '../src/modules/BundleManager'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { DepositManager } from '../src/modules/DepositManager'
@@ -42,7 +42,8 @@ describe('BundleServer', function () {
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
-      minUnstakeDelay: 0
+      minUnstakeDelay: 0,
+      useRip7560Mode: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -52,7 +53,7 @@ describe('BundleServer', function () {
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
-    const methodHandler = new UserOpMethodHandler(
+    const methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,
@@ -60,7 +61,7 @@ describe('BundleServer', function () {
       entryPoint
     )
     const None: any = {}
-    server = new BundlerServer(methodHandler, None, None, None, None)
+    server = new BundlerServer(methodHandler, None, None, None, None, None)
     server.silent = true
   })
 

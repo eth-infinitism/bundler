@@ -22,6 +22,7 @@ export interface BundlerConfig {
   minUnstakeDelay: number
   autoBundleInterval: number
   autoBundleMempoolSize: number
+  useRip7560Mode: boolean
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -43,7 +44,8 @@ export const BundlerConfigShape = {
   minStake: ow.string,
   minUnstakeDelay: ow.number,
   autoBundleInterval: ow.number,
-  autoBundleMempoolSize: ow.number
+  autoBundleMempoolSize: ow.number,
+  useRip7560Mode: ow.boolean
 }
 
 // TODO: consider if we want any default fields at all

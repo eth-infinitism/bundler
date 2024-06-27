@@ -1,8 +1,10 @@
-
-export { UserOperation } from './ERC4337Utils'
+export { UserOperation } from './interfaces/UserOperation'
+export { OperationBase } from './interfaces/OperationBase'
+export { OperationRIP7560 } from './interfaces/OperationRIP7560'
 export * from './Version'
 export * from './decodeRevertReason'
 export * from './ERC4337Utils'
+export * from './RIP7560Utils'
 export * from './DeterministicDeployer'
 export * from './deployEntryPoint'
 export * from './Utils'

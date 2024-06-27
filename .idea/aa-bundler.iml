@@ -13,8 +13,6 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/bundler/src/types" />
       <excludeFolder url="file://$MODULE_DIR$/packages/bundler/deployments" />
       <excludeFolder url="file://$MODULE_DIR$/submodules/account-abstraction/deployments" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/validation-manager/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/submodules/account-abstraction/artifacts" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
