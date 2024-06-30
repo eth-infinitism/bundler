@@ -52,7 +52,7 @@ export interface ExitInfo {
 }
 
 export interface TopLevelCallInfo {
-  topLevelMethodSig: string
+  // topLevelMethodSig: string
   topLevelTargetAddress: string
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
@@ -222,10 +222,10 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           // stack.peek(2) - value
           const ofs = parseInt(log.stack.peek(3).toString())
           // stack.peek(4) - len
-          const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
+          // const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
 
           this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
-            topLevelMethodSig,
+            // topLevelMethodSig,
             topLevelTargetAddress,
             access: {},
             opcodes: {},

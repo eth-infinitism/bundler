@@ -14,7 +14,13 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint, OperationBase
+  toBytes32,
+  SenderCreator__factory,
+  IEntryPoint__factory,
+  IPaymaster__factory,
+  IAccount__factory,
+  IEntryPoint,
+  OperationBase
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './IValidationManager'
@@ -159,17 +165,30 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
   return entitySlots
 }
 
-// method-signature for calls from entryPoint
-const callsFromEntryPointMethodSigs1: { [key: string]: string } = {
-  factory: SenderCreator__factory.createInterface().getSighash('createSender'),
-  account: IAccount__factory.createInterface().getSighash('validateUserOp'),
-  paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
-}
+//
+// // method-signature for calls from entryPoint
+// const callsFromEntryPointMethodSigs1: { [key: string]: string } = {
+//   factory: SenderCreator__factory.createInterface().getSighash('createSender'),
+//   account: IAccount__factory.createInterface().getSighash('validateUserOp'),
+//   paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
+// }
+//
+// // todo: use a selector for factory or refactor the tracer for RIP-7560
+// const callsFromEntryPointMethodSigs: { [key: string]: string } = {
+//   account: '0xbf45c166',
+//   paymaster: '0xe0e6183a',
+// }
 
-// todo: use a selector for factory or refactor the tracer for RIP-7560
-const callsFromEntryPointMethodSigs: { [key: string]: string } = {
-  account: '0xbf45c166',
-  paymaster: '0xe0e6183a',
+function getEntityTitle (userOp: OperationBase, entityAddress: string) {
+  if (userOp.sender.toLowerCase() === entityAddress.toLowerCase()) {
+    return 'account'
+  } else if (userOp.factory?.toLowerCase() === entityAddress.toLowerCase()) {
+    return 'factory'
+  } else if (userOp.paymaster?.toLowerCase() === entityAddress.toLowerCase()) {
+    return 'paymaster'
+  } else {
+    throw new Error(`could not find entity name for address ${entityAddress}. This should not happen. This is a bug.`)
+  }
 }
 
 /**
@@ -220,23 +239,22 @@ export function tracerResultParser (
       ValidationErrors.OpcodeValidation)
   }
 
-
   const sender = userOp.sender.toLowerCase()
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
-    factory: validationResult.factoryInfo,
-    account: validationResult.senderInfo,
-    paymaster: validationResult.paymasterInfo
+    [userOp.factory!]: validationResult.factoryInfo,
+    [userOp.sender]: validationResult.senderInfo,
+    [userOp.paymaster!]: validationResult.paymasterInfo
   }
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
-  Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
-    const entityAddr = (entStakes?.addr ?? '').toLowerCase()
-    const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelMethodSig === callsFromEntryPointMethodSigs[entityTitle])
+  Object.entries(stakeInfoEntities).forEach(([entityAddress, entStakes]) => {
+    const entityTitle = getEntityTitle(userOp, entityAddress)
+    const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelTargetAddress.toLowerCase() === entityAddress.toLowerCase())
     if (currentNumLevel == null) {
-      if (entityTitle === 'account') {
+      if (entityAddress === userOp.sender) {
         // should never happen... only factory, paymaster are optional.
         throw new Error('missing trace into validateUserOp')
       }
@@ -308,7 +326,7 @@ export function tracerResultParser (
 
       debug('dump keccak calculations and reads', {
         entityTitle,
-        entityAddr,
+        entityAddress,
         k: mapOf(tracerResults.keccak, k => keccak256(k)),
         reads
       })
@@ -319,8 +337,8 @@ export function tracerResultParser (
       [
         ...Object.keys(writes),
         ...Object.keys(reads),
-        ...Object.keys(transientWrites),
-        ...Object.keys(transientReads)
+        ...Object.keys(transientWrites ?? {}),
+        ...Object.keys(transientReads ?? {})
       ].forEach(slot => {
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
@@ -328,15 +346,15 @@ export function tracerResultParser (
           if (userOp.factory != null) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
-            if (!(entityAddr === sender && isStaked(stakeInfoEntities.factory))) {
+            if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities.factory))) {
               requireStakeSlot = slot
             }
           }
-        } else if (associatedWith(slot, entityAddr, entitySlots)) {
+        } else if (associatedWith(slot, entityAddress, entitySlots)) {
           // [STO-032]
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
-        } else if (addr === entityAddr) {
+        } else if (addr.toLowerCase() === entityAddress.toLowerCase()) {
           // [STO-031]
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
@@ -345,8 +363,8 @@ export function tracerResultParser (
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
-          const isWrite = Object.keys(writes).includes(slot) || Object.keys(transientWrites).includes(slot)
-          const isTransient = Object.keys(transientReads).includes(slot) || Object.keys(transientWrites).includes(slot)
+          const isWrite = Object.keys(writes).includes(slot) || Object.keys(transientWrites ?? {}).includes(slot)
+          const isTransient = Object.keys(transientReads ?? {}).includes(slot) || Object.keys(transientWrites ?? {}).includes(slot)
           const readWrite = isWrite ? 'write to' : 'read from'
           const transientStr = isTransient ? 'transient ' : ''
           requireCond(false,
