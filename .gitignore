@@ -21,3 +21,4 @@ tsconfig.tsbuildinfo
 /packages/bundler/src/types/
 yarn-error.log
 .vscode
+packages/bundler/localconfig/mnemonic.txt

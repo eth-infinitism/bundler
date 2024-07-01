@@ -5,7 +5,7 @@ import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './Bundl
 import { Wallet, Signer } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
+function getCommandLineParams(programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
   for (const bundlerConfigShapeKey in BundlerConfigShape) {
     const optionValue = programOpts[bundlerConfigShapeKey]
@@ -16,7 +16,7 @@ function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   return params as BundlerConfig
 }
 
-function mergeConfigs (...sources: Array<Partial<BundlerConfig>>): BundlerConfig {
+function mergeConfigs(...sources: Array<Partial<BundlerConfig>>): BundlerConfig {
   const mergedConfig = Object.assign({}, ...sources)
   ow(mergedConfig, ow.object.exactShape(BundlerConfigShape))
   return mergedConfig
@@ -24,7 +24,7 @@ function mergeConfigs (...sources: Array<Partial<BundlerConfig>>): BundlerConfig
 
 const DEFAULT_INFURA_ID = 'd442d82a1ab34327a7126a578428dfc4'
 
-export function getNetworkProvider (url: string): JsonRpcProvider {
+export function getNetworkProvider(url: string): JsonRpcProvider {
   if (url.match(/^[\w-]+$/) != null) {
     const infuraId = process.env.INFURA_ID1 ?? DEFAULT_INFURA_ID
     url = `https://${url}.infura.io/v3/${infuraId}`
@@ -33,7 +33,9 @@ export function getNetworkProvider (url: string): JsonRpcProvider {
   return new JsonRpcProvider(url)
 }
 
-export async function resolveConfiguration (programOpts: any): Promise<{ config: BundlerConfig, provider: JsonRpcProvider, wallet: Signer }> {
+export async function resolveConfiguration(
+  programOpts: any
+): Promise<{ config: BundlerConfig; provider: JsonRpcProvider; wallet: Signer }> {
   const commandLineParams = getCommandLineParams(programOpts)
   let fileConfig: Partial<BundlerConfig> = {}
   const configFileName = programOpts.config

@@ -5,8 +5,9 @@ import {
   deployEntryPoint,
   erc4337RuntimeVersion,
   IEntryPoint,
+  IEntryPoint__factory,
   RpcError,
-  supportsRpcMethod
+  supportsRpcMethod,
 } from '@account-abstraction/utils'
 import { ethers, Wallet, Signer } from 'ethers'
 
@@ -31,13 +32,21 @@ const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
 
 export let showStackTraces = false
 
-export async function connectContracts (
+export async function connectContracts(
   wallet: Signer,
-  entryPointAddress: string): Promise<{ entryPoint: IEntryPoint }> {
-  const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
-  return {
-    entryPoint
+  entryPointAddress: string
+): Promise<{ entryPoint: IEntryPoint | undefined }> {
+  try {
+    const entryPoint = await IEntryPoint__factory.connect(entryPointAddress, wallet)
+    return {
+      entryPoint,
+    }
+  } catch (e: any) {
+    console.error(`Invalid entryPoint contract at ${entryPointAddress}.`)
+    return { entryPoint: undefined }
   }
+
+  // const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
 }
 
 /**
@@ -46,13 +55,13 @@ export async function connectContracts (
  * @param argv
  * @param overrideExit
  */
-export async function runBundler (argv: string[], overrideExit = true): Promise<BundlerServer> {
+export async function runBundler(argv: string[], overrideExit = true): Promise<BundlerServer> {
   const program = new Command()
 
   if (overrideExit) {
-    (program as any)._exit = (exitCode: any, code: any, message: any) => {
+    ;(program as any)._exit = (exitCode: any, code: any, message: any) => {
       class CommandError extends Error {
-        constructor (message: string, readonly code: any, readonly exitCode: any) {
+        constructor(message: string, readonly code: any, readonly exitCode: any) {
           super(message)
         }
       }
@@ -98,7 +107,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const {
     // name: chainName,
-    chainId
+    chainId,
   } = await provider.getNetwork()
 
   if (chainId === 31337 || chainId === 1337) {
@@ -118,22 +127,26 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
   }
 
-  if (config.conditionalRpc && !await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional', [{}, {}])) {
+  if (
+    config.conditionalRpc &&
+    !(await supportsRpcMethod(provider as any, 'eth_sendRawTransactionConditional', [{}, {}]))
+  ) {
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await supportsDebugTraceCall(provider as any)) {
+  if (!config.unsafe && !(await supportsDebugTraceCall(provider as any))) {
     console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
     process.exit(1)
   }
 
-  const {
-    entryPoint
-  } = await connectContracts(wallet, config.entryPoint)
-
+  const { entryPoint } = await connectContracts(wallet, config.entryPoint)
+  if (!entryPoint) {
+    console.error('FATAL: cannot connect to EntryPoint')
+    process.exit(1)
+  }
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
-    ...config
+    ...config,
     // autoBundleMempoolSize: 0
   }
   if (programOpts.auto === true) {
@@ -141,39 +154,33 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
-  const methodHandler = new UserOpMethodHandler(
-    execManager,
-    provider,
-    wallet,
-    config,
-    entryPoint
-  )
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, wallet)
+  const methodHandler = new UserOpMethodHandler(execManager, provider, wallet, config, entryPoint)
   eventsManager.initEventListener()
-  const debugHandler = config.debugRpc ?? false
-    ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
-    : new Proxy({}, {
-      get (target: {}, method: string, receiver: any): any {
-        throw new RpcError(`method debug_bundler_${method} is not supported`, -32601)
-      }
-    }) as DebugMethodHandler
+  const debugHandler =
+    config.debugRpc ?? false
+      ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
+      : (new Proxy(
+          {},
+          {
+            get(target: {}, method: string, receiver: any): any {
+              throw new RpcError(`method debug_bundler_${method} is not supported`, -32601)
+            },
+          }
+        ) as DebugMethodHandler)
 
-  const bundlerServer = new BundlerServer(
-    methodHandler,
-    debugHandler,
-    config,
-    provider,
-    wallet
-  )
-
+  const bundlerServer = new BundlerServer(methodHandler, debugHandler, config, provider, wallet)
   void bundlerServer.asyncStart().then(async () => {
     console.log('Bundle interval (seconds)', execManagerConfig.autoBundleInterval)
-    console.log('connected to network', await provider.getNetwork().then(net => {
-      return {
-        name: net.name,
-        chainId: net.chainId
-      }
-    }))
+    console.log(
+      'connected to network',
+      await provider.getNetwork().then((net) => {
+        return {
+          name: net.name,
+          chainId: net.chainId,
+        }
+      })
+    )
     console.log(`running on http://localhost:${config.port}/rpc`)
   })
 

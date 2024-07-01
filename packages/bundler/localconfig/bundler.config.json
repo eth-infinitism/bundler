@@ -1,14 +1,14 @@
 {
   "gasFactor": "1",
   "port": "3000",
-  "network": "http://127.0.0.1:8545",
-  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-  "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
+  "network": "https://jsonrpc.euphoria.aura.network",
+  "entryPoint": "0xfbC1a3AD32465bea6605d3bb7E6387caCa9337AC",
+  "beneficiary": "0xF4FC193579bCdA3172Fb7C49610e831b033D8d10",
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 5e6,
-  "minStake": "1" ,
-  "minUnstakeDelay": 0 ,
+  "minStake": "1",
+  "minUnstakeDelay": 0,
   "autoBundleInterval": 3,
   "autoBundleMempoolSize": 10
 }

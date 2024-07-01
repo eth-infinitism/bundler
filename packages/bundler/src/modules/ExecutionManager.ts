@@ -22,39 +22,41 @@ export class ExecutionManager {
   private autoInterval = 0
   private readonly mutex = new Mutex()
 
-  constructor (private readonly reputationManager: ReputationManager,
+  constructor(
+    private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: BundleManager,
     private readonly validationManager: ValidationManager,
     private readonly depositManager: DepositManager
-  ) {
-  }
+  ) {}
 
   /**
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
    * @param entryPointInput the entryPoint passed through the RPC request.
    */
-  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
+  async sendUserOperation(userOp: UserOperation, entryPointInput: string): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
       const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
       await this.depositManager.checkPaymasterDeposit(userOp)
-      this.mempoolManager.addUserOp(userOp,
+      this.mempoolManager.addUserOp(
+        userOp,
         userOpHash,
         validationResult.returnInfo.prefund,
         validationResult.referencedContracts,
         validationResult.senderInfo,
         validationResult.paymasterInfo,
         validationResult.factoryInfo,
-        validationResult.aggregatorInfo)
+        validationResult.aggregatorInfo
+      )
       await this.attemptBundle(false)
     })
   }
 
-  setReputationCron (interval: number): void {
+  setReputationCron(interval: number): void {
     debug('set reputation interval to', interval)
     clearInterval(this.reputationCron)
     if (interval !== 0) {
@@ -70,13 +72,13 @@ export class ExecutionManager {
    * (note: there is a chance that the sent bundle will contain less than this number, in case only some mempool entities can be sent.
    *  e.g. throttled paymaster)
    */
-  setAutoBundler (autoBundleInterval: number, maxMempoolSize: number): void {
+  setAutoBundler(autoBundleInterval: number, maxMempoolSize: number): void {
     debug('set auto-bundle autoBundleInterval=', autoBundleInterval, 'maxMempoolSize=', maxMempoolSize)
     clearInterval(this.autoBundleInterval)
     this.autoInterval = autoBundleInterval
     if (autoBundleInterval !== 0) {
       this.autoBundleInterval = setInterval(() => {
-        void this.attemptBundle(true).catch(e => console.error('auto-bundle failed', e))
+        void this.attemptBundle(true).catch((e) => console.error('auto-bundle failed', e))
       }, autoBundleInterval * 1000)
     }
     this.maxMempoolSize = maxMempoolSize
@@ -86,7 +88,7 @@ export class ExecutionManager {
    * attempt to send a bundle now.
    * @param force
    */
-  async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
+  async attemptBundle(force = true): Promise<SendBundleReturn | undefined> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       const ret = await this.bundleManager.sendNextBundle()
