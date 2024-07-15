@@ -14,7 +14,14 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory, IAccount__factory, IEntryPoint, OperationBase
+  toBytes32,
+  SenderCreator__factory,
+  IEntryPoint__factory,
+  IPaymaster__factory,
+  IAccount__factory,
+  IEntryPoint,
+  OperationBase,
+  RpcError
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './IValidationManager'
@@ -238,7 +245,7 @@ export function tracerResultParser (
     if (currentNumLevel == null) {
       if (entityTitle === 'account') {
         // should never happen... only factory, paymaster are optional.
-        throw new Error('missing trace into validateUserOp')
+        throw new RpcError('missing trace into validateUserOp', ValidationErrors.InvalidFields)
       }
       return
     }
