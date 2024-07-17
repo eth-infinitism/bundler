@@ -1,12 +1,13 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 import {
+  AddressZero,
   OperationBase,
   OperationRIP7560,
-  getRIP7560TransactionHash, RpcError, ValidationErrors, StorageMap, AddressZero, ReferencedCodeHashes
+  ReferencedCodeHashes,
+  getRIP7560TransactionHash
 } from '@account-abstraction/utils'
 
-import { BundlerTracerResult } from './BundlerCollectorTracer'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { debug_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
@@ -24,11 +25,11 @@ export class ValidationManagerRIP7560 implements IValidationManager {
 
   async validateUserOp (operation: OperationBase, previousCodeHashes?: ReferencedCodeHashes): Promise<ValidateUserOpResult> {
     const transaction = operation as OperationRIP7560
-    let storageMap: StorageMap = {}
-    let codeHashes: ReferencedCodeHashes = {
-      addresses: [],
-      hash: ''
-    }
+    // let storageMap: StorageMap = {}
+    // let codeHashes: ReferencedCodeHashes = {
+    //   addresses: [],
+    //   hash: ''
+    // }
     if (!this.unsafe) {
       const traceResult = await this.traceValidation(transaction).catch(e => {
         throw e
@@ -42,8 +43,9 @@ export class ValidationManagerRIP7560 implements IValidationManager {
       }
       console.log(JSON.stringify(traceResult))
       // this.parseValidationTracingResult(traceResult)
-      let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(operation, traceResult, validationResult, AddressZero)
+      // let contractAddresses: string[]
+      // [contractAddresses, storageMap] =
+      tracerResultParser(operation, traceResult, validationResult, AddressZero)
       // TODO alex shahaf handle codehashes
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
@@ -80,11 +82,5 @@ export class ValidationManagerRIP7560 implements IValidationManager {
 
   async traceValidation (transaction: OperationRIP7560): Promise<any> {
     return await debug_traceRip7560Validation(this.provider, transaction)
-  }
-
-  parseValidationTracingResult (result: any): void {
-    if (result.calls_from_entry_point[0]['opcodes']['TIMESTAMP']) {
-      throw new RpcError('Forbidden opcode RIP-7560', ValidationErrors.OpcodeValidation)
-    }
   }
 }

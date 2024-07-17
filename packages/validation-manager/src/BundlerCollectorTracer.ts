@@ -220,7 +220,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           const addr = toAddress(log.stack.peek(1).toString(16))
           const topLevelTargetAddress = toHex(addr)
           // stack.peek(2) - value
-          const ofs = parseInt(log.stack.peek(3).toString())
+          // const ofs = parseInt(log.stack.peek(3).toString())
           // stack.peek(4) - len
           // const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
 

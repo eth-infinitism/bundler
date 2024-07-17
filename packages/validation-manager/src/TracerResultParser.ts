@@ -10,7 +10,6 @@ import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
   StakeInfo,
   StorageMap,
-  UserOperation,
   ValidationErrors,
   mapOf,
   requireCond,
@@ -18,8 +17,6 @@ import {
   SenderCreator__factory,
   IEntryPoint__factory,
   IPaymaster__factory,
-  IAccount__factory,
-  IEntryPoint,
   OperationBase
 } from '@account-abstraction/utils'
 
@@ -179,7 +176,7 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
 //   paymaster: '0xe0e6183a',
 // }
 
-function getEntityTitle (userOp: OperationBase, entityAddress: string) {
+function getEntityTitle (userOp: OperationBase, entityAddress: string): string {
   if (userOp.sender.toLowerCase() === entityAddress.toLowerCase()) {
     return 'account'
   } else if (userOp.factory?.toLowerCase() === entityAddress.toLowerCase()) {
@@ -243,8 +240,10 @@ export function tracerResultParser (
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     [userOp.factory!]: validationResult.factoryInfo,
     [userOp.sender]: validationResult.senderInfo,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     [userOp.paymaster!]: validationResult.paymasterInfo
   }
 
