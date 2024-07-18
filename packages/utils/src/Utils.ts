@@ -31,7 +31,15 @@ export interface StakeInfo {
 export type PackedUserOperation = NotPromise<PackedUserOperationStruct>
 
 export enum ValidationErrors {
+
+  // standard EIP-1474 errors:
+  ParseError = -32700,
+  InvalidRequest = -32600,
+  MethodNotFound = -32601,
   InvalidFields = -32602,
+  InternalError = -32603,
+
+  // ERC-4337 errors:
   SimulateValidation = -32500,
   SimulatePaymasterValidation = -32501,
   OpcodeValidation = -32502,
@@ -54,7 +62,7 @@ export interface ReferencedCodeHashes {
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
-  constructor (msg: string, readonly code?: number, readonly data: any = undefined) {
+  constructor (msg: string, readonly code: number, readonly data: any = undefined) {
     super(msg)
   }
 }
@@ -63,7 +71,7 @@ export function tostr (s: BigNumberish): string {
   return BigNumber.from(s).toString()
 }
 
-export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
+export function requireCond (cond: boolean, msg: string, code: number, data: any = undefined): void {
   if (!cond) {
     throw new RpcError(msg, code, data)
   }
@@ -208,7 +216,7 @@ export function sum (...args: BigNumberish[]): BigNumber {
  */
 export function getUserOpMaxCost (userOp: OperationBase): BigNumber {
   let preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
-  if (preVerificationGas == null){
+  if (preVerificationGas == null) {
     preVerificationGas = 0
   }
   return sum(preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)

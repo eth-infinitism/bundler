@@ -17,7 +17,7 @@ import {
   SenderCreator__factory,
   IEntryPoint__factory,
   IPaymaster__factory,
-  OperationBase
+  OperationBase, RpcError
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './IValidationManager'
@@ -255,7 +255,7 @@ export function tracerResultParser (
     if (currentNumLevel == null) {
       if (entityAddress === userOp.sender) {
         // should never happen... only factory, paymaster are optional.
-        throw new Error('missing trace into validateUserOp')
+        throw new RpcError('missing trace into validateUserOp', ValidationErrors.InvalidFields)
       }
       return
     }

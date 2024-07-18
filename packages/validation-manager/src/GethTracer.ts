@@ -3,7 +3,7 @@ import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { resolveProperties } from 'ethers/lib/utils'
-import { OperationRIP7560 } from '@account-abstraction/utils'
+import { OperationRIP7560, RpcError } from '@account-abstraction/utils'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 
 const debug = Debug('aa.tracer')
@@ -35,7 +35,7 @@ export async function debug_traceRip7560Validation (provider: JsonRpcProvider, t
   const tx1 = await resolveProperties(tx)
   return await provider.send('debug_traceRip7560Validation', [tx1, 'latest']).catch(e => {
     debug('ex=', e.error)
-    throw e
+    throw new RpcError(e.error, 0)
   })
 }
 
