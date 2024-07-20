@@ -55,6 +55,7 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
   unsafe: false,
   conditionalRpc: false,
+  useRip7560Mode: false,
   minStake: MIN_STAKE_VALUE,
   minUnstakeDelay: MIN_UNSTAKE_DELAY
 }
