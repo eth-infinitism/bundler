@@ -229,7 +229,7 @@ export function tracerResultParser (
     // [OP-061]
     const illegalNonZeroValueCall = callStack.find(
       call =>
-        call.to !== entryPointAddress &&
+        call.to?.toLowerCase() !== entryPointAddress?.toLowerCase() &&
         !BigNumber.from(call.value ?? 0).eq(0))
     requireCond(
       illegalNonZeroValueCall == null,
@@ -241,14 +241,16 @@ export function tracerResultParser (
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
-    [userOp.sender]: validationResult.senderInfo,
+    [userOp.sender]: validationResult.senderInfo
   }
   const factory = userOp.factory
   if (factory != null) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     stakeInfoEntities[factory] = validationResult.factoryInfo!
   }
   const paymaster = userOp.paymaster
   if (paymaster != null) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     stakeInfoEntities[paymaster] = validationResult.paymasterInfo!
   }
 
