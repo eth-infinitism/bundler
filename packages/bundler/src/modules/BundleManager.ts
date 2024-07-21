@@ -74,7 +74,6 @@ export class BundleManager {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        // TODO: STOPSHIP
         const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
