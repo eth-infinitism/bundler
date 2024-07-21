@@ -3,7 +3,7 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import { AddressZero, IEntryPoint__factory, OperationRIP7560, UserOperation } from '@account-abstraction/utils'
 
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
-import { debug_traceCall, debug_traceRip7560Validation } from './GethTracer'
+import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
 
@@ -44,7 +44,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7
     (defaultsForRip7560Tx as any).deployer = defaultsForRip7560Tx.factory;
     (defaultsForRip7560Tx as any).deployerData = defaultsForRip7560Tx.factoryData
     // make sure we can trace a call.
-    const ret = await debug_traceRip7560Validation(provider, defaultsForRip7560Tx
+    const ret = await eth_traceRip7560Validation(provider, defaultsForRip7560Tx
     ).catch(e => e)
     return ret.traceResults != null
   }

@@ -9,7 +9,7 @@ import {
 } from '@account-abstraction/utils'
 
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
-import { debug_traceRip7560Validation } from './GethTracer'
+import { eth_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
 
 export class ValidationManagerRIP7560 implements IValidationManager {
@@ -81,6 +81,6 @@ export class ValidationManagerRIP7560 implements IValidationManager {
   }
 
   async traceValidation (transaction: OperationRIP7560): Promise<any> {
-    return await debug_traceRip7560Validation(this.provider, transaction)
+    return await eth_traceRip7560Validation(this.provider, transaction)
   }
 }

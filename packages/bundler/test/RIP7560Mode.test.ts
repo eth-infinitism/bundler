@@ -6,7 +6,6 @@ import { BundlerServer } from '../src/BundlerServer'
 import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { MethodHandlerRIP7560 } from '../src/MethodHandlerRIP7560'
 import { initServer } from '../src/modules/initServer'
-import { connectContracts } from '../src/runBundler'
 import { resolveConfiguration } from '../src/Config'
 import { DebugMethodHandler } from '../src/DebugMethodHandler'
 import { parseEther } from 'ethers/lib/utils'
@@ -15,7 +14,6 @@ import { OperationRIP7560, sleep } from '@account-abstraction/utils'
 describe.skip('RIP7560Mode', function () {
   describe('running bundler in the RIP-7560 mode', function () {
     let ethersProviderSpy: any
-    let bundlerServer: BundlerServer
     let operationRIP7560: OperationRIP7560
 
     // TODO: 'runBundler' is a spaghetti but this code is mostly copied from there - refactor to reuse
@@ -57,10 +55,7 @@ describe.skip('RIP7560Mode', function () {
       // fund deployment of the EntryPoint contract
       await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
 
-      const {
-        entryPoint
-      } = await connectContracts(wallet, config.entryPoint)
-      const [execManager] = initServer(config, entryPoint.signer)
+      const [execManager] = initServer(config, signer)
 
       // spy on the underlying ExecutionManager provider 'send' function
       // @ts-ignore
@@ -70,9 +65,10 @@ describe.skip('RIP7560Mode', function () {
 
       const methodHandlerRip7560 = new MethodHandlerRIP7560(
         execManager,
-        entryPoint.provider as JsonRpcProvider
+        signer.provider
       )
-      bundlerServer = new BundlerServer(
+      // eslint-disable-next-line no-new
+      new BundlerServer(
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         {} as MethodHandlerERC4337,
         methodHandlerRip7560,
@@ -82,7 +78,6 @@ describe.skip('RIP7560Mode', function () {
         ethersProviderSpy,
         wallet
       )
-      bundlerServer
     })
 
     it('should accept eth_sendTransaction requests with RIP-7560 transactions', async function () {

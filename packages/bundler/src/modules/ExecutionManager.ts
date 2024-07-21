@@ -45,8 +45,7 @@ export class ExecutionManager {
       await this.depositManager.checkPaymasterDeposit(userOp)
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        validationResult.returnInfo.prefund!,
+        validationResult.returnInfo.prefund ?? 0,
         validationResult.referencedContracts,
         validationResult.senderInfo,
         validationResult.paymasterInfo,

@@ -255,7 +255,7 @@ export function tracerResultParser (
     if (currentNumLevel == null) {
       if (entityAddress === userOp.sender) {
         // should never happen... only factory, paymaster are optional.
-        throw new Error('missing trace into validateUserOp')
+        throw new Error('missing trace into account validation')
       }
       return
     }

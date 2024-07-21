@@ -267,7 +267,7 @@ export class BundleManager {
         break
       }
 
-      if (paymaster != null && isAddress(paymaster) && paymaster === AddressZero) {
+      if (paymaster != null && isAddress(paymaster) && paymaster.toLowerCase() !== AddressZero) {
         if (paymasterDeposit[paymaster] == null) {
           paymasterDeposit[paymaster] = await this.getPaymasterBalance(paymaster)
         }

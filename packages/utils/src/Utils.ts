@@ -207,9 +207,6 @@ export function sum (...args: BigNumberish[]): BigNumber {
  * @param userOp
  */
 export function getUserOpMaxCost (userOp: OperationBase): BigNumber {
-  let preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
-  if (preVerificationGas == null){
-    preVerificationGas = 0
-  }
-  return sum(preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
+  const preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
+  return sum(preVerificationGas ?? 0, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
 }
