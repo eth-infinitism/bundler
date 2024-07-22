@@ -17,11 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     services:
       geth:
-        #couldn't find a way to pass all geth command-line flags to a service container.
-        # so instead using a wrapper container
-        image: dtr22/geth-dev
+        image: ethereum/client-go:release-1.14
         ports:
           - 8545:8545
+        cmd: >-
+          --http
+          --http.addr "0.0.0.0"
+          --http.api personal,eth,net,web3,debug
+          --http.vhosts '*,localhost,host.docker.internal'
+          --http.corsdomain '*'
+          --rpc.allow-unprotected-txs
+          --allow-insecure-unlock
+          --dev
     steps:
       - uses: actions/setup-node@v1
         with:
