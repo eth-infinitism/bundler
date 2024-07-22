@@ -216,6 +216,8 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
       if (
         this.currentLevel != null &&
+        // TODO: This is a hardcoded address of SenderCreator immutable member in EntryPoint. Any change in EntryPoint's code
+        //  requires a change of this address
         this.currentLevel.topLevelTargetAddress.toLowerCase() === '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c' &&
         log.getDepth() === 2
       ) {

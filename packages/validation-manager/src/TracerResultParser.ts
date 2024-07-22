@@ -218,7 +218,7 @@ export function tracerResultParser (
     const callStack = parseCallStack(tracerResults)
     // [OP-052], [OP-053]
     const callInfoEntryPoint = callStack.find(call =>
-      call.to === entryPointAddress && call.from !== entryPointAddress &&
+      call.to?.toLowerCase() === entryPointAddress?.toLowerCase() && call.from?.toLowerCase() !== entryPointAddress?.toLowerCase() &&
       (call.method !== '0x' && call.method !== 'depositTo'))
     // [OP-054]
     requireCond(callInfoEntryPoint == null,
@@ -260,7 +260,7 @@ export function tracerResultParser (
     const entityTitle = getEntityTitle(userOp, entityAddress)
     const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelTargetAddress.toLowerCase() === entityAddress.toLowerCase())
     if (currentNumLevel == null) {
-      if (entityAddress === userOp.sender) {
+      if (entityAddress.toLowerCase() === userOp.sender.toLowerCase()) {
         // should never happen... only factory, paymaster are optional.
         throw new RpcError('missing trace into account validation', ValidationErrors.InvalidFields)
       }
@@ -293,13 +293,13 @@ export function tracerResultParser (
       transientWrites
     }]) => {
       // testing read/write access on contract "addr"
-      if (addr === sender) {
+      if (addr.toLowerCase() === sender.toLowerCase()) {
         // allowed to access sender's storage
         // [STO-010]
         return
       }
 
-      if (addr === entryPointAddress) {
+      if (addr.toLowerCase() === entryPointAddress.toLowerCase()) {
         // ignore storage access on entryPoint (balance/deposit of entities.
         // we block them on method calls: only allowed to deposit, never to read
         return
@@ -352,7 +352,7 @@ export function tracerResultParser (
           if (userOp.factory != null) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
-            if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities.factory))) {
+            if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities[userOp.factory.toLowerCase()]))) {
               requireStakeSlot = slot
             }
           }
@@ -387,7 +387,6 @@ export function tracerResultParser (
 
         return title ?? addr
       }
-
       requireCondAndStake(requireStakeSlot != null, entStakes,
         `unstaked ${entityTitle} accessed ${nameAddr(addr, entityTitle)} slot ${requireStakeSlot}`)
     })
@@ -428,7 +427,7 @@ export function tracerResultParser (
 
     let illegalEntryPointCodeAccess
     for (const addr of Object.keys(currentNumLevel.extCodeAccessInfo)) {
-      if (addr === entryPointAddress) {
+      if (addr.toLowerCase() === entryPointAddress.toLowerCase()) {
         illegalEntryPointCodeAccess = currentNumLevel.extCodeAccessInfo[addr]
         break
       }
