@@ -216,7 +216,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
 
       if (
         this.currentLevel != null &&
-        this.currentLevel.topLevelTargetAddress.toLowerCase() == '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c' &&
+        this.currentLevel.topLevelTargetAddress.toLowerCase() === '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c' &&
         log.getDepth() === 2
       ) {
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
