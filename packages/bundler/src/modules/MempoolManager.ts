@@ -124,7 +124,6 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-
     this.checkReputationStatus('account', senderInfo)
     this.checkReputationStatus('paymaster', paymasterInfo)
     this.checkReputationStatus('deployer', factoryInfo)
@@ -162,7 +161,6 @@ export class MempoolManager {
     title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
     stakeInfo?: StakeInfo
   ): void {
-
     if (stakeInfo == null) {
       // entity missing from this userop.
       return
@@ -291,7 +289,7 @@ export class MempoolManager {
   }
 
   // GREP-010 A `BANNED` address is not allowed into the mempool
-  removeBannedAddr (addr: string): void{
+  removeBannedAddr (addr: string): void {
     // scan mempool in reverse. remove any UserOp where address is any entity
     for (let i = this.mempool.length - 1; i >= 0; i--) {
       const mempoolEntry = this.mempool[i]
