@@ -17,7 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     services:
       geth:
-        image: ethereum/client-go:release-1.14 --help
+        image: >-
+          ethereum/client-go:release-1.14
+          --http
+          --http.addr "0.0.0.0"
+          --http.api personal,eth,net,web3,debug
+          --http.vhosts '*,localhost,host.docker.internal'
+          --http.corsdomain '*'
+          --rpc.allow-unprotected-txs
+          --allow-insecure-unlock
+          --dev
 #        image: dtr22/geth-dev
         ports:
           - 8545:8545
@@ -25,7 +34,9 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '18'
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
+        with:
+          show-progress: false
       - uses: actions/cache@v2
         with:
           path: node_modules
