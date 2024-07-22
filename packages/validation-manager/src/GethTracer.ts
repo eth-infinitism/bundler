@@ -31,9 +31,9 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export async function debug_traceRip7560Validation (provider: JsonRpcProvider, tx: Deferrable<Partial<OperationRIP7560>>): Promise<TraceResult | any> {
+export async function eth_traceRip7560Validation (provider: JsonRpcProvider, tx: Deferrable<Partial<OperationRIP7560>>): Promise<TraceResult | any> {
   const tx1 = await resolveProperties(tx)
-  return await provider.send('debug_traceRip7560Validation', [tx1, 'latest']).catch(e => {
+  return await provider.send('eth_traceRip7560Validation', [tx1, 'latest']).catch(e => {
     debug('ex=', e.error)
     throw new RpcError(e.error, 0)
   })

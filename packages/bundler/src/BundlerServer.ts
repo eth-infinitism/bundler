@@ -148,6 +148,11 @@ export class BundlerServer {
         result
       }
     } catch (err: any) {
+      // Try unwrapping RPC error codes wrapped by the Ethers.js library
+      if (err.error instanceof Error) {
+        // eslint-disable-next-line no-ex-assign
+        err = err.error
+      }
       const error = {
         message: err.message,
         data: err.data,

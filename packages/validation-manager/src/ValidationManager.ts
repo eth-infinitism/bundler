@@ -3,6 +3,8 @@ import { BigNumber } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
+import { calcPreVerificationGas } from '@account-abstraction/sdk'
+
 import {
   AddressZero,
   CodeHashGetter__factory,
@@ -290,11 +292,12 @@ export class ValidationManager implements IValidationManager {
     requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
     requireAddressAndFields(userOp, 'factory', ['factoryData'])
 
-    // TODO: solve
-    // const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
-    // requireCond(BigNumber.from(userOp.preVerificationGas).gte(calcPreVerificationGas1),
-    //   `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
-    //   ValidationErrors.InvalidFields)
+    if ((userOp as UserOperation).preVerificationGas != null) {
+      const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
+      requireCond(BigNumber.from((userOp as UserOperation).preVerificationGas).gte(calcPreVerificationGas1),
+        `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
+        ValidationErrors.InvalidFields)
+    }
   }
 
   async getOperationHash (userOp: OperationBase): Promise<string> {

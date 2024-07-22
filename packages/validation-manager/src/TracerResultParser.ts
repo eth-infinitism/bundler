@@ -8,16 +8,17 @@ import { inspect } from 'util'
 
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
+  IEntryPoint__factory,
+  IPaymaster__factory,
+  OperationBase,
+  RpcError,
+  SenderCreator__factory,
   StakeInfo,
   StorageMap,
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32,
-  SenderCreator__factory,
-  IEntryPoint__factory,
-  IPaymaster__factory,
-  OperationBase, RpcError
+  toBytes32
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './IValidationManager'
@@ -184,7 +185,7 @@ function getEntityTitle (userOp: OperationBase, entityAddress: string): string {
   } else if (userOp.paymaster?.toLowerCase() === entityAddress.toLowerCase()) {
     return 'paymaster'
   } else {
-    throw new Error(`could not find entity name for address ${entityAddress}. This should not happen. This is a bug.`)
+    throw new RpcError(`could not find entity name for address ${entityAddress}. This should not happen. This is a bug.`, 0)
   }
 }
 
@@ -228,7 +229,7 @@ export function tracerResultParser (
     // [OP-061]
     const illegalNonZeroValueCall = callStack.find(
       call =>
-        call.to !== entryPointAddress &&
+        call.to?.toLowerCase() !== entryPointAddress?.toLowerCase() &&
         !BigNumber.from(call.value ?? 0).eq(0))
     requireCond(
       illegalNonZeroValueCall == null,
@@ -240,11 +241,17 @@ export function tracerResultParser (
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
+    [userOp.sender]: validationResult.senderInfo
+  }
+  const factory = userOp.factory
+  if (factory != null) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    [userOp.factory!]: validationResult.factoryInfo,
-    [userOp.sender]: validationResult.senderInfo,
+    stakeInfoEntities[factory] = validationResult.factoryInfo!
+  }
+  const paymaster = userOp.paymaster
+  if (paymaster != null) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    [userOp.paymaster!]: validationResult.paymasterInfo
+    stakeInfoEntities[paymaster] = validationResult.paymasterInfo!
   }
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
@@ -255,7 +262,7 @@ export function tracerResultParser (
     if (currentNumLevel == null) {
       if (entityAddress === userOp.sender) {
         // should never happen... only factory, paymaster are optional.
-        throw new RpcError('missing trace into validateUserOp', ValidationErrors.InvalidFields)
+        throw new Error('missing trace into account validation', ValidationErrors.InvalidFields)
       }
       return
     }
