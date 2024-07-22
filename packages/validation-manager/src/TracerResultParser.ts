@@ -241,14 +241,14 @@ export function tracerResultParser (
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
-    [userOp.sender]: validationResult.senderInfo
+    [sender]: validationResult.senderInfo
   }
-  const factory = userOp.factory
+  const factory = userOp.factory?.toLowerCase()
   if (factory != null) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     stakeInfoEntities[factory] = validationResult.factoryInfo!
   }
-  const paymaster = userOp.paymaster
+  const paymaster = userOp.paymaster?.toLowerCase()
   if (paymaster != null) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     stakeInfoEntities[paymaster] = validationResult.paymasterInfo!
