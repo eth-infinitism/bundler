@@ -214,6 +214,25 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         this.lastThreeOpcodes = []
       }
 
+      if (
+        this.currentLevel != null &&
+        this.currentLevel.topLevelTargetAddress.toLowerCase() == '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c' &&
+        log.getDepth() === 2
+      ) {
+        if (opcode === 'CALL' || opcode === 'STATICCALL') {
+          const addr = toAddress(log.stack.peek(1).toString(16))
+          const topLevelTargetAddress = toHex(addr)
+          this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
+            // topLevelMethodSig,
+            topLevelTargetAddress,
+            access: {},
+            opcodes: {},
+            extCodeAccessInfo: {},
+            contractSize: {}
+          }
+          this.topLevelCallCounter++
+        }
+      }
       if (log.getDepth() === 1) {
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
