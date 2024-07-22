@@ -144,9 +144,6 @@ export class BundleManager {
       if (addr != null) {
         this.mempoolManager.removeBannedAddr(addr)
         this.reputationManager.crashedHandleOps(addr)
-      } else if (reasonStr.startsWith('AA1')) {
-        this.mempoolManager.removeBannedAddr(userOp.factory as string)
-        this.reputationManager.crashedHandleOps(userOp.factory)
       } else {
         console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)
       }
