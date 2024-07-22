@@ -84,7 +84,7 @@ export class MethodHandlerERC4337 {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
     // minimal sanity check: userOp exists, and all members are hex
-    requireCond(userOp1 != null, 'No UserOperation param')
+    requireCond(userOp1 != null, 'No UserOperation param', ValidationErrors.InvalidFields)
     const userOp = userOp1 as any
 
     const fields = ['sender', 'nonce', 'callData']
