@@ -143,7 +143,8 @@ export class BundleManager {
       const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
         this.reputationManager.crashedHandleOps(addr)
-        this.mempoolManager.removeBannedAddr(addr)
+      } else if (reasonStr.startsWith('AA1')) {
+        this.reputationManager.crashedHandleOps(userOp.factory)
       } else {
         console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)
       }
@@ -152,7 +153,7 @@ export class BundleManager {
     }
   }
 
-  private async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
+  async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
     if (reasonStr.startsWith('AA3')) {
       // [EREP-030] A staked account is accountable for failure in any entity
       return await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
