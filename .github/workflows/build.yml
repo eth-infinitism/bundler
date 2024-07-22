@@ -17,7 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       geth:
-        image: dtr22/geth-dev
+        image: ethereum/client-go:release-1.14 --help
+#        image: dtr22/geth-dev
         ports:
           - 8545:8545
     steps:
