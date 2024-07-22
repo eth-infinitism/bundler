@@ -34,8 +34,7 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
 export async function eth_traceRip7560Validation (provider: JsonRpcProvider, tx: Deferrable<Partial<OperationRIP7560>>): Promise<TraceResult | any> {
   const tx1 = await resolveProperties(tx)
   return await provider.send('eth_traceRip7560Validation', [tx1, 'latest']).catch(e => {
-    debug('ex=', e.error)
-    throw new RpcError(e.error, 0)
+    throw new RpcError(e.error, -32000)
   })
 }
 
