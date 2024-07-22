@@ -15,7 +15,11 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-
+    services:
+      geth:
+        image: dtr22/geth-dev
+        ports:
+          - 8545:8545
     steps:
       - uses: actions/setup-node@v1
         with:
