@@ -262,7 +262,7 @@ export function tracerResultParser (
     if (currentNumLevel == null) {
       if (entityAddress === userOp.sender) {
         // should never happen... only factory, paymaster are optional.
-        throw new Error('missing trace into account validation', ValidationErrors.InvalidFields)
+        throw new RpcError('missing trace into account validation', ValidationErrors.InvalidFields)
       }
       return
     }
