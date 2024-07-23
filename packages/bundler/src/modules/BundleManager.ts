@@ -149,6 +149,7 @@ export class BundleManager {
 
       const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
+        this.mempoolManager.removeBannedAddr(addr)
         this.reputationManager.crashedHandleOps(addr)
       } else {
         console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)

@@ -57,11 +57,12 @@ function foundRule(r) {
 		delete unmatched[r]
 	}
 }
-
-const grepCmd = execSync( `grep -r . ${folder}`, { maxBuffer: 3e6, encoding:'ascii'})
+cmd=`grep -E -r '\\b\\w{2,4}-\\d{2,4}' ${folder}`
+console.log( "unmatched cmd=",cmd)
+const grepCmd = execSync( cmd, { maxBuffer: 30e6, encoding:'ascii'})
 
 for ( const line of grepCmd.split(/\n/) ) {
-	const mm = line.replaceAll( /\b(\w{2,3}-\d+)\b/g, rule=>foundRule(rule))
+	const mm = line.replaceAll( /\b(\w{2,4}-\d+)\b/g, rule=>foundRule(rule))
 }
 
 let unmatchedKeys = Object.keys(unmatched)
