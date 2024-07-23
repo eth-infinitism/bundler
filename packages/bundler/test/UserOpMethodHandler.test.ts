@@ -1,17 +1,12 @@
-import { BaseProvider } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
 import { parseEther, resolveProperties } from 'ethers/lib/utils'
 
 import { BundlerConfig } from '../src/BundlerConfig'
-import {
-  EntryPoint,
-  EntryPoint__factory,
-  SimpleAccountFactory__factory,
-  UserOperationStruct
-} from '@account-abstraction/contracts'
 
+import { toHex } from 'hardhat/internal/util/bigint'
 import { Signer, Wallet } from 'ethers'
-import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
   SampleRecipient,
@@ -19,38 +14,47 @@ import {
   TestRulesAccount__factory
 } from '../src/types'
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
-import { resolveHexlify, waitFor } from '@account-abstraction/utils'
-import { UserOperationEventEvent } from '@account-abstraction/contracts/dist/types/EntryPoint'
+import {
+  deployEntryPoint,
+  DeterministicDeployer,
+  IEntryPoint,
+  packUserOp,
+  resolveHexlify,
+  SimpleAccountFactory__factory,
+  UserOperation, UserOperationEventEvent,
+  waitFor
+} from '@account-abstraction/utils'
 import { UserOperationReceipt } from '../src/RpcTypes'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
+import { DepositManager } from '../src/modules/DepositManager'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
   let accountDeployerAddress: string
-  let methodHandler: UserOpMethodHandler
-  let provider: BaseProvider
+  let methodHandler: MethodHandlerERC4337
+  let provider: JsonRpcProvider
   let signer: Signer
   const accountSigner = Wallet.createRandom()
   let mempoolMgr: MempoolManager
 
-  let entryPoint: EntryPoint
+  let entryPoint: IEntryPoint
   let sampleRecipient: SampleRecipient
 
   before(async function () {
     provider = ethers.provider
+    DeterministicDeployer.init(ethers.provider)
 
     signer = await createSigner()
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(ethers.provider, ethers.provider.getSigner())
 
-    DeterministicDeployer.init(ethers.provider)
     accountDeployerAddress = await DeterministicDeployer.deploy(new SimpleAccountFactory__factory(), 0, [entryPoint.address])
 
     const sampleRecipientFactory = await ethers.getContractFactory('SampleRecipient')
@@ -64,23 +68,25 @@ describe('UserOpMethodHandler', function () {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
-      minUnstakeDelay: 0
+      minUnstakeDelay: 0,
+      useRip7560Mode: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
-    const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
-    methodHandler = new UserOpMethodHandler(
+    const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+    const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+    methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,
@@ -115,7 +121,7 @@ describe('UserOpMethodHandler', function () {
         target,
         data: '0xdeadface'
       })
-      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('AA21 didn\'t pay prefund')
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.match(/AA21 didn't pay prefund/)
       // should estimate with gasprice=0
       const op1 = await smartAccountAPI.createSignedUserOp({
         maxFeePerGas: 0,
@@ -130,10 +136,35 @@ describe('UserOpMethodHandler', function () {
       // and estimation doesn't perform full deploy-validate-execute cycle)
       expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
     })
+
+    it('estimateUserOperationGas should estimate using state overrides', async function () {
+      const ver: string = await (provider as any).send('web3_clientVersion')
+      if (ver.match('go1') == null) {
+        console.warn('\t==WARNING: test requires state override support on Geth (go-ethereum) node available after 1.12.1; ver=' + ver)
+        this.skip()
+      }
+      const op = await smartAccountAPI.createSignedUserOp({
+        target,
+        data: '0xdeadface'
+      })
+      expect(await methodHandler.estimateUserOperationGas(await resolveHexlify(op), entryPoint.address).catch(e => e.message)).to.eql('FailedOp(0,"AA21 didn\'t pay prefund")')
+      // should estimate same UserOperation with balance override set to 1 ether
+      const ret = await methodHandler.estimateUserOperationGas(
+        await resolveHexlify(op),
+        entryPoint.address,
+        {
+          [await op.sender]: {
+            balance: toHex(1e18)
+          }
+        }
+      )
+      expect(ret.verificationGasLimit).to.be.closeTo(300000, 100000)
+      expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
+    })
   })
 
   describe('sendUserOperation', function () {
-    let userOperation: UserOperationStruct
+    let userOperation: UserOperation
     let accountAddress: string
 
     let accountDeployerAddress: string
@@ -179,9 +210,6 @@ describe('UserOpMethodHandler', function () {
       const userOperationEvent = logs[3]
 
       assert.equal(userOperationEvent.args.success, true)
-
-      const expectedTxOrigin = await methodHandler.signer.getAddress()
-      assert.equal(senderEvent.args.txOrigin, expectedTxOrigin, 'sample origin should be bundler')
       assert.equal(senderEvent.args.msgSender, accountAddress, 'sample msgsender should be account address')
     })
 
@@ -300,9 +328,8 @@ describe('UserOpMethodHandler', function () {
       acc = await new TestRulesAccount__factory(signer).deploy()
       const callData = acc.interface.encodeFunctionData('execSendMessage')
 
-      const op: UserOperationStruct = {
+      const op: UserOperation = {
         sender: acc.address,
-        initCode: '0x',
         nonce: 0,
         callData,
         callGasLimit: 1e6,
@@ -310,14 +337,13 @@ describe('UserOpMethodHandler', function () {
         preVerificationGas: 50000,
         maxFeePerGas: 1e6,
         maxPriorityFeePerGas: 1e6,
-        paymasterAndData: '0x',
         signature: Buffer.from('emit-msg')
       }
       await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})
-      userOpHash = await entryPoint.getUserOpHash(op)
+      userOpHash = await entryPoint.getUserOpHash(packUserOp(op))
       const beneficiary = signer.getAddress()
-      await entryPoint.handleOps([op], beneficiary).then(async ret => await ret.wait())
+      await entryPoint.handleOps([packUserOp(op)], beneficiary).then(async ret => await ret.wait())
       const rcpt = await methodHandler.getUserOperationReceipt(userOpHash)
       if (rcpt == null) {
         throw new Error('getUserOperationReceipt returns null')

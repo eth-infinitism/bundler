@@ -1,13 +1,14 @@
 // misc utilities for the various modules.
 
-import { BytesLike, ContractFactory } from 'ethers'
+import { BytesLike, ContractFactory, BigNumber } from 'ethers'
 import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
-import { Provider } from '@ethersproject/providers'
-import { JsonRpcProvider } from '@ethersproject/providers'
+import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
-import { BigNumber } from 'ethers'
+
 import { NotPromise } from './ERC4337Utils'
-import { UserOperationStruct } from '@account-abstraction/contracts'
+import { PackedUserOperationStruct } from './soltypes'
+import { UserOperation } from './interfaces/UserOperation'
+import { OperationBase } from './interfaces/OperationBase'
 
 export interface SlotMap {
   [slot: string]: string
@@ -27,10 +28,18 @@ export interface StakeInfo {
   unstakeDelaySec: BigNumberish
 }
 
-export type UserOperation = NotPromise<UserOperationStruct>
+export type PackedUserOperation = NotPromise<PackedUserOperationStruct>
 
 export enum ValidationErrors {
+
+  // standard EIP-1474 errors:
+  ParseError = -32700,
+  InvalidRequest = -32600,
+  MethodNotFound = -32601,
   InvalidFields = -32602,
+  InternalError = -32603,
+
+  // ERC-4337 errors:
   SimulateValidation = -32500,
   SimulatePaymasterValidation = -32501,
   OpcodeValidation = -32502,
@@ -39,6 +48,7 @@ export enum ValidationErrors {
   InsufficientStake = -32505,
   UnsupportedSignatureAggregator = -32506,
   InvalidSignature = -32507,
+  PaymasterDepositTooLow = -32508,
   UserOperationReverted = -32521
 }
 
@@ -52,7 +62,7 @@ export interface ReferencedCodeHashes {
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
-  constructor (msg: string, readonly code?: number, readonly data: any = undefined) {
+  constructor (msg: string, readonly code: number, readonly data: any = undefined) {
     super(msg)
   }
 }
@@ -61,9 +71,27 @@ export function tostr (s: BigNumberish): string {
   return BigNumber.from(s).toString()
 }
 
-export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
+export function requireCond (cond: boolean, msg: string, code: number, data: any = undefined): void {
   if (!cond) {
     throw new RpcError(msg, code, data)
+  }
+}
+
+// verify that either address field exist along with "mustFields",
+// or address field is missing, and none of the must (or optional) field also exists
+export function requireAddressAndFields (userOp: OperationBase, addrField: string, mustFields: string[], optionalFields: string[] = []): void {
+  const op = userOp as any
+  const addr = op[addrField]
+  if (addr == null) {
+    const unexpected = Object.entries(op)
+      .filter(([name, value]) => value != null && (mustFields.includes(name) || optionalFields.includes(name)))
+    requireCond(unexpected.length === 0,
+      `no ${addrField} but got ${unexpected.join(',')}`, ValidationErrors.InvalidFields)
+  } else {
+    requireCond(addr.match(/^0x[a-f0-9]{10,40}$/i), `invalid ${addrField}`, ValidationErrors.InvalidFields)
+    const missing = mustFields.filter(name => op[name] == null)
+    requireCond(missing.length === 0,
+      `got ${addrField} but missing ${missing.join(',')}`, ValidationErrors.InvalidFields)
   }
 }
 
@@ -172,4 +200,21 @@ export async function runContractScript<T extends ContractFactory> (provider: Pr
   const parsed = ContractFactory.getInterface(c.interface).parseError(ret)
   if (parsed == null) throw new Error('unable to parse script (error) response: ' + ret)
   return parsed.args
+}
+
+/**
+ * sum the given bignumberish items (numbers, hex, bignumbers)
+ */
+export function sum (...args: BigNumberish[]): BigNumber {
+  return args.reduce((acc: BigNumber, cur) => acc.add(cur), BigNumber.from(0))
+}
+
+/**
+ * calculate the maximum verification cost of a UserOperation.
+ * the cost is the sum of the verification gas limits, multiplied by the maxFeePerGas.
+ * @param userOp
+ */
+export function getUserOpMaxCost (userOp: OperationBase): BigNumber {
+  const preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
+  return sum(preVerificationGas ?? 0, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
 }

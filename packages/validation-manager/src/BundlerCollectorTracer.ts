@@ -52,7 +52,7 @@ export interface ExitInfo {
 }
 
 export interface TopLevelCallInfo {
-  topLevelMethodSig: string
+  // topLevelMethodSig: string
   topLevelTargetAddress: string
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
@@ -75,6 +75,10 @@ export interface AccessInfo {
   reads: { [slot: string]: string }
   // count of writes.
   writes: { [slot: string]: number }
+  // count of transient reads
+  transientReads: { [slot: string]: number }
+  // count of transient writes
+  transientWrites: { [slot: string]: number }
 }
 
 export interface LogInfo {
@@ -210,18 +214,39 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         this.lastThreeOpcodes = []
       }
 
+      if (
+        this.currentLevel != null &&
+        // TODO: This is a hardcoded address of SenderCreator immutable member in EntryPoint. Any change in EntryPoint's code
+        //  requires a change of this address
+        this.currentLevel.topLevelTargetAddress.toLowerCase() === '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c' &&
+        log.getDepth() === 2
+      ) {
+        if (opcode === 'CALL' || opcode === 'STATICCALL') {
+          const addr = toAddress(log.stack.peek(1).toString(16))
+          const topLevelTargetAddress = toHex(addr)
+          this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
+            // topLevelMethodSig,
+            topLevelTargetAddress,
+            access: {},
+            opcodes: {},
+            extCodeAccessInfo: {},
+            contractSize: {}
+          }
+          this.topLevelCallCounter++
+        }
+      }
       if (log.getDepth() === 1) {
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
           const addr = toAddress(log.stack.peek(1).toString(16))
           const topLevelTargetAddress = toHex(addr)
           // stack.peek(2) - value
-          const ofs = parseInt(log.stack.peek(3).toString())
+          // const ofs = parseInt(log.stack.peek(3).toString())
           // stack.peek(4) - len
-          const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
+          // const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
 
           this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
-            topLevelMethodSig,
+            // topLevelMethodSig,
             topLevelTargetAddress,
             access: {},
             opcodes: {},
@@ -291,7 +316,7 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
       }
       this.lastOp = opcode
 
-      if (opcode === 'SLOAD' || opcode === 'SSTORE') {
+      if (opcode === 'SLOAD' || opcode === 'SSTORE' || opcode === 'TLOAD' || opcode === 'TSTORE') {
         const slot = toWord(log.stack.peek(0).toString(16))
         const slotHex = toHex(slot)
         const addr = log.contract.getAddress()
@@ -300,7 +325,9 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         if (access == null) {
           access = {
             reads: {},
-            writes: {}
+            writes: {},
+            transientReads: {},
+            transientWrites: {}
           }
           this.currentLevel.access[addrHex] = access
         }
@@ -310,8 +337,12 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
           if (access.reads[slotHex] == null && access.writes[slotHex] == null) {
             access.reads[slotHex] = toHex(db.getState(addr, slot))
           }
-        } else {
+        } else if (opcode === 'SSTORE') {
           this.countSlot(access.writes, slotHex)
+        } else if (opcode === 'TLOAD') {
+          this.countSlot(access.transientReads, slotHex)
+        } else if (opcode === 'TSTORE') {
+          this.countSlot(access.transientWrites, slotHex)
         }
       }
 

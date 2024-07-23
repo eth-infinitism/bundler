@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
 import "@account-abstraction/contracts/interfaces/IPaymaster.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import "@account-abstraction/contracts/core/UserOperationLib.sol";
 import "./TestRuleAccount.sol";
 import "./TestCoin.sol";
 
@@ -21,9 +22,9 @@ contract TestStorageAccount is TestRuleAccount {
 
     event TestMessage(address eventSender);
 
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+    function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
     public virtual override returns (bytes memory context, uint256 deadline) {
-        string memory rule = string(userOp.paymasterAndData[20 :]);
+        string memory rule = string(userOp.paymasterAndData[UserOperationLib.PAYMASTER_DATA_OFFSET :]);
         if (eq(rule, 'postOp-context')) {
             return ("some-context", 0);
         }

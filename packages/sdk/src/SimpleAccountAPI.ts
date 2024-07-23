@@ -3,11 +3,11 @@ import {
   SimpleAccount,
   SimpleAccount__factory, SimpleAccountFactory,
   SimpleAccountFactory__factory
-} from '@account-abstraction/contracts'
+} from '@account-abstraction/utils'
 
-import { arrayify, hexConcat } from 'ethers/lib/utils'
+import { arrayify } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
-import { BaseApiParams, BaseAccountAPI } from './BaseAccountAPI'
+import { BaseApiParams, BaseAccountAPI, FactoryParams } from './BaseAccountAPI'
 
 /**
  * constructor params, added no top of base params:
@@ -60,7 +60,7 @@ export class SimpleAccountAPI extends BaseAccountAPI {
    * return the value to put into the "initCode" field, if the account is not yet deployed.
    * this value holds the "factory" address, followed by this account's information
    */
-  async getAccountInitCode (): Promise<string> {
+  async getFactoryData (): Promise<FactoryParams | null> {
     if (this.factory == null) {
       if (this.factoryAddress != null && this.factoryAddress !== '') {
         this.factory = SimpleAccountFactory__factory.connect(this.factoryAddress, this.provider)
@@ -68,10 +68,10 @@ export class SimpleAccountAPI extends BaseAccountAPI {
         throw new Error('no factory to get initCode')
       }
     }
-    return hexConcat([
-      this.factory.address,
-      this.factory.interface.encodeFunctionData('createAccount', [await this.owner.getAddress(), this.index])
-    ])
+    return {
+      factory: this.factory.address,
+      factoryData: this.factory.interface.encodeFunctionData('createAccount', [await this.owner.getAddress(), this.index])
+    }
   }
 
   async getNonce (): Promise<BigNumber> {

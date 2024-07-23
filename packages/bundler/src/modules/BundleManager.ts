@@ -1,13 +1,24 @@
-import { EntryPoint } from '@account-abstraction/contracts'
-import { MempoolManager } from './MempoolManager'
-import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
-import { BigNumber, BigNumberish } from 'ethers'
-import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { MempoolEntry, MempoolManager } from './MempoolManager'
+import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
+import { BigNumber, BigNumberish, Signer } from 'ethers'
+import { isAddress } from 'ethers/lib/utils'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
 import { GetUserOpHashes__factory } from '../types'
-import { UserOperation, StorageMap, getAddr, mergeStorageMap, runContractScript } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  IEntryPoint,
+  OperationBase,
+  RpcError,
+  StorageMap,
+  UserOperation,
+  ValidationErrors,
+  mergeStorageMap,
+  packUserOp,
+  runContractScript
+} from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 
@@ -21,15 +32,16 @@ export interface SendBundleReturn {
 }
 
 export class BundleManager {
-  provider: JsonRpcProvider
-  signer: JsonRpcSigner
+  readonly entryPoint: IEntryPoint
   mutex = new Mutex()
 
   constructor (
-    readonly entryPoint: EntryPoint,
+    _entryPoint: IEntryPoint | undefined,
+    readonly provider: JsonRpcProvider,
+    readonly signer: Signer,
     readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
-    readonly validationManager: ValidationManager,
+    readonly validationManager: IValidationManager,
     readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
@@ -39,8 +51,8 @@ export class BundleManager {
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
     readonly mergeToAccountRootHash: boolean = false
   ) {
-    this.provider = entryPoint.provider as JsonRpcProvider
-    this.signer = entryPoint.signer as JsonRpcSigner
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    this.entryPoint = _entryPoint!
   }
 
   /**
@@ -60,7 +72,7 @@ export class BundleManager {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle, beneficiary, storageMap)
+        const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -79,26 +91,28 @@ export class BundleManager {
   async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
-      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
+      // TODO: estimate is not enough. should trace with validation rules, to prevent on-chain revert.
+      const tx = await this.entryPoint.populateTransaction.handleOps(userOps.map(packUserOp), beneficiary, {
         type: 2,
         nonce: await this.signer.getTransactionCount(),
-        gasLimit: 10e6,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
       })
       tx.chainId = this.provider._network.chainId
-      const signedTx = await this.signer.signTransaction(tx)
       let ret: string
       if (this.conditionalRpc) {
+        const signedTx = await this.signer.signTransaction(tx)
         debug('eth_sendRawTransactionConditional', storageMap)
         ret = await this.provider.send('eth_sendRawTransactionConditional', [
           signedTx, { knownAccounts: storageMap }
         ])
         debug('eth_sendRawTransactionConditional ret=', ret)
       } else {
-        // ret = await this.signer.sendTransaction(tx)
-        ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
-        debug('eth_sendRawTransaction ret=', ret)
+        const resp = await this.signer.sendTransaction(tx)
+        const rcpt = await resp.wait()
+        ret = rcpt.transactionHash
+        // ret = await this.provider.send('eth_sendRawTransaction', [signedTx])
+        debug('eth_sendTransaction ret=', ret)
       }
       // TODO: parse ret, and revert if needed.
       debug('ret=', ret)
@@ -112,7 +126,15 @@ export class BundleManager {
     } catch (e: any) {
       let parsedError: ErrorDescription
       try {
-        parsedError = this.entryPoint.interface.parseError((e.data?.data ?? e.data))
+        let data = e.data?.data ?? e.data
+        // geth error body, packed in ethers exception object
+        const body = e?.error?.error?.body
+        if (body != null) {
+          const jsonbody = JSON.parse(body)
+          data = jsonbody.error.data?.data ?? jsonbody.error.data
+        }
+
+        parsedError = this.entryPoint.interface.parseError(data)
       } catch (e1) {
         this.checkFatal(e)
         console.warn('Failed handleOps, but non-FailedOp error', e)
@@ -124,17 +146,42 @@ export class BundleManager {
       } = parsedError.args
       const userOp = userOps[opIndex]
       const reasonStr: string = reason.toString()
-      if (reasonStr.startsWith('AA3')) {
-        this.reputationManager.crashedHandleOps(getAddr(userOp.paymasterAndData))
-      } else if (reasonStr.startsWith('AA2')) {
-        this.reputationManager.crashedHandleOps(userOp.sender)
-      } else if (reasonStr.startsWith('AA1')) {
-        this.reputationManager.crashedHandleOps(getAddr(userOp.initCode))
+
+      const addr = await this._findEntityToBlame(reasonStr, userOp)
+      if (addr != null) {
+        this.reputationManager.crashedHandleOps(addr)
       } else {
-        this.mempoolManager.removeUserOp(userOp)
-        console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
+        console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)
       }
+      this.mempoolManager.removeUserOp(userOp)
+      console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
     }
+  }
+
+  async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
+    if (reasonStr.startsWith('AA3')) {
+      // [EREP-030] A staked account is accountable for failure in any entity
+      return await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
+    } else if (reasonStr.startsWith('AA2')) {
+      // [EREP-020] A staked factory is "accountable" for account
+      return await this.isFactoryStaked(userOp) ? userOp.factory : userOp.sender
+    } else if (reasonStr.startsWith('AA1')) {
+      // (can't have staked account during its creation)
+      return userOp.factory
+    }
+    return undefined
+  }
+
+  async isAccountStaked (userOp: UserOperation): Promise<boolean> {
+    const senderStakeInfo = await this.reputationManager.getStakeStatus(userOp.sender, this.entryPoint.address)
+    return senderStakeInfo?.isStaked
+  }
+
+  async isFactoryStaked (userOp: UserOperation): Promise<boolean> {
+    const factoryStakeInfo = userOp.factory == null
+      ? null
+      : await this.reputationManager.getStakeStatus(userOp.factory, this.entryPoint.address)
+    return factoryStakeInfo?.isStaked ?? false
   }
 
   // fatal errors we know we can't recover
@@ -145,9 +192,9 @@ export class BundleManager {
     }
   }
 
-  async createBundle (): Promise<[UserOperation[], StorageMap]> {
+  async createBundle (): Promise<[OperationBase[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
-    const bundle: UserOperation[] = []
+    const bundle: OperationBase[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -165,20 +212,20 @@ export class BundleManager {
     // eslint-disable-next-line no-labels
     mainLoop:
     for (const entry of entries) {
-      const paymaster = getAddr(entry.userOp.paymasterAndData)
-      const factory = getAddr(entry.userOp.initCode)
+      const paymaster = entry.userOp.paymaster
+      const factory = entry.userOp.factory
       const paymasterStatus = this.reputationManager.getStatus(paymaster)
       const deployerStatus = this.reputationManager.getStatus(factory)
       if (paymasterStatus === ReputationStatus.BANNED || deployerStatus === ReputationStatus.BANNED) {
         this.mempoolManager.removeUserOp(entry.userOp)
         continue
       }
-      // [SREP-030]
+      // [GREP-020] - renamed from [SREP-030]
       if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
         continue
       }
-      // [SREP-030]
+      // [GREP-020] - renamed from [SREP-030]
       if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
         continue
@@ -193,16 +240,14 @@ export class BundleManager {
         // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
         validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
       } catch (e: any) {
-        debug('failed 2nd validation:', e.message)
-        // failed validation. don't try anymore
-        this.mempoolManager.removeUserOp(entry.userOp)
+        this._handleSecondValidationException(e, paymaster, entry)
         continue
       }
 
       for (const storageAddress of Object.keys(validationResult.storageMap)) {
         if (
           storageAddress.toLowerCase() !== entry.userOp.sender.toLowerCase() &&
-          knownSenders.includes(storageAddress.toLowerCase())
+            knownSenders.includes(storageAddress.toLowerCase())
         ) {
           console.debug(`UserOperation from ${entry.userOp.sender} sender accessed a storage of another known sender ${storageAddress}`)
           // eslint-disable-next-line no-labels
@@ -219,24 +264,26 @@ export class BundleManager {
         break
       }
 
-      if (paymaster != null) {
+      if (paymaster != null && isAddress(paymaster) && paymaster.toLowerCase() !== AddressZero) {
         if (paymasterDeposit[paymaster] == null) {
-          paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
+          paymasterDeposit[paymaster] = await this.getPaymasterBalance(paymaster)
         }
-        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund!)) {
           // not enough balance in paymaster to pay for all UserOps
           // (but it passed validation, so it can sponsor them separately
           continue
         }
         stakedEntityCount[paymaster] = (stakedEntityCount[paymaster] ?? 0) + 1
-        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund)
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund!)
       }
-      if (factory != null) {
+      if (factory != null && isAddress(factory)) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
 
       // If sender's account already exist: replace with its storage root hash
-      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.initCode.length <= 2) {
+      if (this.mergeToAccountRootHash && this.conditionalRpc && entry.userOp.factory == null) {
         const { storageHash } = await this.provider.send('eth_getProof', [entry.userOp.sender, [], 'latest'])
         storageMap[entry.userOp.sender.toLowerCase()] = storageHash
       }
@@ -247,6 +294,22 @@ export class BundleManager {
       totalGas = newTotalGas
     }
     return [bundle, storageMap]
+  }
+
+  _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
+    debug('failed 2nd validation:', e.message)
+    // EREP-015: special case: if it is account/factory failure, then decreases paymaster's opsSeen
+    if (paymaster != null && this._isAccountOrFactoryError(e)) {
+      debug('don\'t blame paymaster', paymaster, ' for account/factory failure', e.message)
+      this.reputationManager.updateSeenStatus(paymaster, -1)
+    }
+    // failed validation. don't try anymore this userop
+    this.mempoolManager.removeUserOp(entry.userOp)
+  }
+
+  _isAccountOrFactoryError (e: any): boolean {
+    return e instanceof RpcError && e.code === ValidationErrors.SimulateValidation &&
+      (e?.message.match(/FailedOpWithRevert\(\d+,"AA[21]/)) != null
   }
 
   /**
@@ -268,8 +331,12 @@ export class BundleManager {
   async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
     const { userOpHashes } = await runContractScript(this.entryPoint.provider,
       new GetUserOpHashes__factory(),
-      [this.entryPoint.address, userOps])
+      [this.entryPoint.address, userOps.map(packUserOp)])
 
     return userOpHashes
+  }
+
+  async getPaymasterBalance (paymaster: string): Promise<BigNumber> {
+    return await this.entryPoint.balanceOf(paymaster)
   }
 }

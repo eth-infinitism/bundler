@@ -3,10 +3,8 @@ import {
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
-  UserOperation,
   ValidationErrors,
-  getAddr,
-  requireCond
+  requireCond, OperationBase
 } from '@account-abstraction/utils'
 import { ReputationManager } from './ReputationManager'
 import Debug from 'debug'
@@ -14,16 +12,16 @@ import Debug from 'debug'
 const debug = Debug('aa.mempool')
 
 export interface MempoolEntry {
-  userOp: UserOperation
+  userOp: OperationBase
   userOpHash: string
   referencedContracts: ReferencedCodeHashes
   // aggregator, if one was found during simulation
   aggregator?: string
 }
 
-type MempoolDump = UserOperation[]
+type MempoolDump = OperationBase[]
 
-const MAX_MEMPOOL_USEROPS_PER_SENDER = 4
+const SAME_SENDER_MEMPOOL_COUNT = 4
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
@@ -66,9 +64,9 @@ export class MempoolManager {
 
   // add userOp into the mempool, after initial validation.
   // replace existing, if any (and if new gas is higher)
-  // revets if unable to add UserOp to mempool (too many UserOps with this sender)
+  // reverts if unable to add UserOp to mempool (too many UserOps with this sender)
   addUserOp (
-    userOp: UserOperation,
+    userOp: OperationBase,
     userOpHash: string,
     referencedContracts: ReferencedCodeHashes,
     senderInfo: StakeInfo,
@@ -90,23 +88,21 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, userOp.nonce)
-      this.incrementEntryCount(userOp.sender)
-      const paymaster = getAddr(userOp.paymasterAndData)
-      if (paymaster != null) {
-        this.incrementEntryCount(paymaster)
-      }
-      const factory = getAddr(userOp.initCode)
-      if (factory != null) {
-        this.incrementEntryCount(factory)
-      }
       this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.checkMultipleRolesViolation(userOp)
+      this.incrementEntryCount(userOp.sender)
+      if (userOp.paymaster != null) {
+        this.incrementEntryCount(userOp.paymaster)
+      }
+      if (userOp.factory != null) {
+        this.incrementEntryCount(userOp.factory)
+      }
       this.mempool.push(entry)
     }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
 
-  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation, senderInfo: StakeInfo): void {
+  private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo): void {
     try {
       this.reputationManager.checkStake('account', senderInfo)
       this.reputationManager.updateSeenStatus(userOp.sender)
@@ -114,8 +110,8 @@ export class MempoolManager {
       if (!(e instanceof RpcError)) throw e
     }
     this.reputationManager.updateSeenStatus(aggregator)
-    this.reputationManager.updateSeenStatus(getAddr(userOp.paymasterAndData))
-    this.reputationManager.updateSeenStatus(getAddr(userOp.initCode))
+    this.reputationManager.updateSeenStatus(userOp.paymaster)
+    this.reputationManager.updateSeenStatus(userOp.factory)
   }
 
   // TODO: de-duplicate code
@@ -125,7 +121,7 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo, MAX_MEMPOOL_USEROPS_PER_SENDER)
+    this.checkReputationStatus('account', senderInfo, SAME_SENDER_MEMPOOL_COUNT)
 
     if (paymasterInfo != null) {
       this.checkReputationStatus('paymaster', paymasterInfo)
@@ -140,7 +136,7 @@ export class MempoolManager {
     }
   }
 
-  private checkMultipleRolesViolation (userOp: UserOperation): void {
+  private checkMultipleRolesViolation (userOp: OperationBase): void {
     const knownEntities = this.getKnownEntities()
     requireCond(
       !knownEntities.includes(userOp.sender.toLowerCase()),
@@ -149,20 +145,20 @@ export class MempoolManager {
     )
 
     const knownSenders = this.getKnownSenders()
-    const paymaster = getAddr(userOp.paymasterAndData)?.toLowerCase()
-    const factory = getAddr(userOp.initCode)?.toLowerCase()
+    const paymaster = userOp.paymaster
+    const factory = userOp.factory
 
     const isPaymasterSenderViolation = knownSenders.includes(paymaster?.toLowerCase() ?? '')
     const isFactorySenderViolation = knownSenders.includes(factory?.toLowerCase() ?? '')
 
     requireCond(
       !isPaymasterSenderViolation,
-      `A Paymaster at ${paymaster} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
+      `A Paymaster at ${paymaster as string} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
       ValidationErrors.OpcodeValidation
     )
     requireCond(
       !isFactorySenderViolation,
-      `A Factory at ${factory} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
+      `A Factory at ${factory as string} in this UserOperation is used as a sender entity in another UserOperation currently in mempool.`,
       ValidationErrors.OpcodeValidation
     )
   }
@@ -179,7 +175,7 @@ export class MempoolManager {
     if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
       this.reputationManager.checkThrottled(title, stakeInfo)
     }
-    if (entryCount > maxTxMempoolAllowedEntity) {
+    if (entryCount >= maxTxMempoolAllowedEntity) {
       this.reputationManager.checkStake(title, stakeInfo)
     }
   }
@@ -199,7 +195,7 @@ export class MempoolManager {
   getSortedForInclusion (): MempoolEntry[] {
     const copy = Array.from(this.mempool)
 
-    function cost (op: UserOperation): number {
+    function cost (op: OperationBase): number {
       // TODO: need to consult basefee and maxFeePerGas
       return BigNumber.from(op.maxPriorityFeePerGas).toNumber()
     }
@@ -232,7 +228,7 @@ export class MempoolManager {
    * remove UserOp from mempool. either it is invalid, or was included in a block
    * @param userOpOrHash
    */
-  removeUserOp (userOpOrHash: UserOperation | string): void {
+  removeUserOp (userOpOrHash: OperationBase | string): void {
     let index: number
     if (typeof userOpOrHash === 'string') {
       index = this._findByHash(userOpOrHash)
@@ -244,8 +240,8 @@ export class MempoolManager {
       debug('removeUserOp', userOp.sender, userOp.nonce)
       this.mempool.splice(index, 1)
       this.decrementEntryCount(userOp.sender)
-      this.decrementEntryCount(getAddr(userOp.paymasterAndData))
-      this.decrementEntryCount(getAddr(userOp.initCode))
+      this.decrementEntryCount(userOp.paymaster)
+      this.decrementEntryCount(userOp.factory)
       // TODO: store and remove aggregator entity count
     }
   }
@@ -282,15 +278,16 @@ export class MempoolManager {
     const res = []
     const userOps = this.mempool
     res.push(
-      ...userOps.map(it => {
-        return getAddr(it.userOp.paymasterAndData)
-      })
+      ...userOps.map(it => it.userOp.paymaster)
     )
     res.push(
-      ...userOps.map(it => {
-        return getAddr(it.userOp.initCode)
-      })
+      ...userOps.map(it => it.userOp.factory)
     )
+
     return res.filter(it => it != null).map(it => (it as string).toLowerCase())
+  }
+
+  getMempool (): MempoolEntry[] {
+    return this.mempool
   }
 }

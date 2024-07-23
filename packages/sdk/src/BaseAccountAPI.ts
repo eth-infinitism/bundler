@@ -1,15 +1,16 @@
-import { ethers, BigNumber, BigNumberish } from 'ethers'
+import { ethers, BigNumber, BigNumberish, BytesLike } from 'ethers'
 import { Provider } from '@ethersproject/providers'
-import {
-  EntryPoint, EntryPoint__factory,
-  UserOperationStruct
-} from '@account-abstraction/contracts'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { resolveProperties } from 'ethers/lib/utils'
+import { defaultAbiCoder } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
-import { getUserOpHash, NotPromise, packUserOp } from '@account-abstraction/utils'
+import { encodeUserOp, getUserOpHash, IEntryPoint, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
 import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
+
+export interface FactoryParams {
+  factory: string
+  factoryData?: BytesLike
+}
 
 export interface BaseApiParams {
   provider: Provider
@@ -41,7 +42,7 @@ export abstract class BaseAccountAPI {
   private senderAddress!: string
   private isPhantom = true
   // entryPoint connected to "zero" address. allowed to make static calls (e.g. to getSenderAddress)
-  private readonly entryPointView: EntryPoint
+  private readonly entryPointView: IEntryPoint
 
   provider: Provider
   overheads?: Partial<GasOverheads>
@@ -61,7 +62,7 @@ export abstract class BaseAccountAPI {
     this.paymasterAPI = params.paymasterAPI
 
     // factory "connect" define the contract address. the contract "connect" defines the "from" address.
-    this.entryPointView = EntryPoint__factory.connect(params.entryPointAddress, params.provider).connect(ethers.constants.AddressZero)
+    this.entryPointView = IEntryPoint__factory.connect(params.entryPointAddress, params.provider).connect(ethers.constants.AddressZero)
   }
 
   async init (): Promise<this> {
@@ -74,10 +75,9 @@ export abstract class BaseAccountAPI {
   }
 
   /**
-   * return the value to put into the "initCode" field, if the contract is not yet deployed.
-   * this value holds the "factory" address, followed by this account's information
+   * return the value to put into the "factory" and "factoryData", when the contract is not yet deployed.
    */
-  abstract getAccountInitCode (): Promise<string>
+  abstract getFactoryData (): Promise<FactoryParams | null>
 
   /**
    * return current account's nonce.
@@ -120,29 +120,28 @@ export abstract class BaseAccountAPI {
    * calculate the account address even before it is deployed
    */
   async getCounterFactualAddress (): Promise<string> {
-    const initCode = this.getAccountInitCode()
+    const { factory, factoryData } = await this.getFactoryData() ?? {}
+    if (factory == null) {
+      throw new Error(('no counter factual address if not factory'))
+    }
     // use entryPoint to query account address (factory can provide a helper method to do the same, but
     // this method attempts to be generic
-    try {
-      await this.entryPointView.callStatic.getSenderAddress(initCode)
-    } catch (e: any) {
-      if (e.errorArgs == null) {
-        throw e
-      }
-      return e.errorArgs.sender
-    }
-    throw new Error('must handle revert')
+    const retAddr = await this.provider.call({
+      to: factory, data: factoryData
+    })
+    const [addr] = defaultAbiCoder.decode(['address'], retAddr)
+    return addr
   }
 
   /**
    * return initCode value to into the UserOp.
-   * (either deployment code, or empty hex if contract already deployed)
+   * (either factory and factoryData, or null hex if contract already deployed)
    */
-  async getInitCode (): Promise<string> {
+  async getRequiredFactoryData (): Promise<FactoryParams | null> {
     if (await this.checkAccountPhantom()) {
-      return await this.getAccountInitCode()
+      return await this.getFactoryData()
     }
-    return '0x'
+    return null
   }
 
   /**
@@ -157,16 +156,15 @@ export abstract class BaseAccountAPI {
    * should cover cost of putting calldata on-chain, and some overhead.
    * actual overhead depends on the expected bundle size
    */
-  async getPreVerificationGas (userOp: Partial<UserOperationStruct>): Promise<number> {
-    const p = await resolveProperties(userOp)
-    return calcPreVerificationGas(p, this.overheads)
+  async getPreVerificationGas (userOp: Partial<UserOperation>): Promise<number> {
+    return calcPreVerificationGas(userOp, this.overheads)
   }
 
   /**
    * ABI-encode a user operation. used for calldata cost estimation
    */
-  packUserOp (userOp: NotPromise<UserOperationStruct>): string {
-    return packUserOp(userOp, false)
+  encodeUserOP (userOp: UserOperation): string {
+    return encodeUserOp(userOp, false)
   }
 
   async encodeUserOpCallDataAndGasLimit (detailsForUserOp: TransactionDetailsForUserOp): Promise<{ callData: string, callGasLimit: BigNumber }> {
@@ -193,10 +191,9 @@ export abstract class BaseAccountAPI {
   /**
    * return userOpHash for signing.
    * This value matches entryPoint.getUserOpHash (calculated off-chain, to avoid a view call)
-   * @param userOp userOperation, (signature field ignored)
+   * @param op userOperation, (signature field ignored)
    */
-  async getUserOpHash (userOp: UserOperationStruct): Promise<string> {
-    const op = await resolveProperties(userOp)
+  async getUserOpHash (op: UserOperation): Promise<string> {
     const chainId = await this.provider.getNetwork().then(net => net.chainId)
     return getUserOpHash(op, this.entryPointAddress, chainId)
   }
@@ -216,11 +213,11 @@ export abstract class BaseAccountAPI {
     return this.senderAddress
   }
 
-  async estimateCreationGas (initCode?: string): Promise<BigNumberish> {
-    if (initCode == null || initCode === '0x') return 0
-    const deployerAddress = initCode.substring(0, 42)
-    const deployerCallData = '0x' + initCode.substring(42)
-    return await this.provider.estimateGas({ to: deployerAddress, data: deployerCallData })
+  async estimateCreationGas (factoryParams: FactoryParams | null): Promise<BigNumberish> {
+    if (factoryParams == null) {
+      return 0
+    }
+    return await this.provider.estimateGas({ to: factoryParams.factory, data: factoryParams.factoryData })
   }
 
   /**
@@ -229,14 +226,14 @@ export abstract class BaseAccountAPI {
    * - if gas or nonce are missing, read them from the chain (note that we can't fill gaslimit before the account is created)
    * @param info
    */
-  async createUnsignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
+  async createUnsignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperation> {
     const {
       callData,
       callGasLimit
     } = await this.encodeUserOpCallDataAndGasLimit(info)
-    const initCode = await this.getInitCode()
+    const factoryParams = await this.getRequiredFactoryData()
 
-    const initGas = await this.estimateCreationGas(initCode)
+    const initGas = await this.estimateCreationGas(factoryParams)
     const verificationGasLimit = BigNumber.from(await this.getVerificationGasLimit())
       .add(initGas)
 
@@ -254,31 +251,34 @@ export abstract class BaseAccountAPI {
       }
     }
 
-    const partialUserOp: any = {
-      sender: this.getAccountAddress(),
-      nonce: info.nonce ?? this.getNonce(),
-      initCode,
+    let partialUserOp = {
+      sender: await this.getAccountAddress(),
+      nonce: info.nonce ?? await this.getNonce(),
+      factory: factoryParams?.factory,
+      factoryData: factoryParams?.factoryData,
       callData,
       callGasLimit,
       verificationGasLimit,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      paymasterAndData: '0x'
+      maxFeePerGas: maxFeePerGas as any,
+      maxPriorityFeePerGas: maxPriorityFeePerGas as any
     }
 
-    let paymasterAndData: string | undefined
     if (this.paymasterAPI != null) {
       // fill (partial) preVerificationGas (all except the cost of the generated paymasterAndData)
-      const userOpForPm = {
-        ...partialUserOp,
-        preVerificationGas: await this.getPreVerificationGas(partialUserOp)
+      const pmFields = await this.paymasterAPI.getTemporaryPaymasterData(partialUserOp)
+      if (pmFields != null) {
+        partialUserOp = {
+          ...partialUserOp,
+          paymaster: pmFields?.paymaster,
+          paymasterPostOpGasLimit: pmFields?.paymasterPostOpGasLimit,
+          paymasterVerificationGasLimit: pmFields?.paymasterVerificationGasLimit,
+          paymasterData: pmFields?.paymasterData
+        } as any
       }
-      paymasterAndData = await this.paymasterAPI.getPaymasterAndData(userOpForPm)
     }
-    partialUserOp.paymasterAndData = paymasterAndData ?? '0x'
     return {
       ...partialUserOp,
-      preVerificationGas: this.getPreVerificationGas(partialUserOp),
+      preVerificationGas: await this.getPreVerificationGas(partialUserOp),
       signature: ''
     }
   }
@@ -287,9 +287,9 @@ export abstract class BaseAccountAPI {
    * Sign the filled userOp.
    * @param userOp the UserOperation to sign (with signature field ignored)
    */
-  async signUserOp (userOp: UserOperationStruct): Promise<UserOperationStruct> {
+  async signUserOp (userOp: UserOperation): Promise<UserOperation> {
     const userOpHash = await this.getUserOpHash(userOp)
-    const signature = this.signUserOpHash(userOpHash)
+    const signature = await this.signUserOpHash(userOpHash)
     return {
       ...userOp,
       signature
@@ -300,7 +300,7 @@ export abstract class BaseAccountAPI {
    * helper method: create and sign a user operation.
    * @param info transaction details for the userOp
    */
-  async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperationStruct> {
+  async createSignedUserOp (info: TransactionDetailsForUserOp): Promise<UserOperation> {
     return await this.signUserOp(await this.createUnsignedUserOp(info))
   }
 

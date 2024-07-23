@@ -1,27 +1,37 @@
+import { ethers } from 'hardhat'
+import { SimpleAccountAPI } from '@account-abstraction/sdk'
+import { Signer, Wallet } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
+import { expect } from 'chai'
+import { JsonRpcProvider } from '@ethersproject/providers'
+
+import {
+  DeterministicDeployer,
+  IEntryPoint,
+  SimpleAccountFactory__factory,
+  deployEntryPoint,
+  resolveHexlify
+} from '@account-abstraction/utils'
+import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
+
 import { DebugMethodHandler } from '../src/DebugMethodHandler'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { BundlerConfig } from '../src/BundlerConfig'
-import { parseEther } from 'ethers/lib/utils'
 import { MempoolManager } from '../src/modules/MempoolManager'
-import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { BundleManager, SendBundleReturn } from '../src/modules/BundleManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
-import { ethers } from 'hardhat'
-import { EntryPoint, EntryPoint__factory, SimpleAccountFactory__factory } from '@account-abstraction/contracts'
-import { DeterministicDeployer, SimpleAccountAPI } from '@account-abstraction/sdk'
-import { Signer, Wallet } from 'ethers'
-import { resolveHexlify } from '@account-abstraction/utils'
-import { expect } from 'chai'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
+
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
+import { DepositManager } from '../src/modules/DepositManager'
 
 const provider = ethers.provider
 
 describe('#DebugMethodHandler', () => {
   let debugMethodHandler: DebugMethodHandler
-  let entryPoint: EntryPoint
-  let methodHandler: UserOpMethodHandler
+  let entryPoint: IEntryPoint
+  let methodHandler: MethodHandlerERC4337
   let smartAccountAPI: SimpleAccountAPI
   let signer: Signer
   const accountSigner = Wallet.createRandom()
@@ -29,10 +39,11 @@ describe('#DebugMethodHandler', () => {
   before(async () => {
     signer = await createSigner()
 
-    entryPoint = await new EntryPoint__factory(signer).deploy()
+    entryPoint = await deployEntryPoint(provider)
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
+      useRip7560Mode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -40,7 +51,7 @@ describe('#DebugMethodHandler', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
@@ -52,12 +63,13 @@ describe('#DebugMethodHandler', () => {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, repMgr, config.unsafe)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe)
     const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
-    const bundleMgr = new BundleManager(entryPoint, eventsManager, mempoolMgr, validMgr, repMgr,
+    const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, eventsManager, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr)
-    methodHandler = new UserOpMethodHandler(
+    const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+    methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,

@@ -3,7 +3,7 @@ import fs from 'fs'
 
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { Wallet, Signer } from 'ethers'
-import { BaseProvider, JsonRpcProvider } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 
 function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
@@ -33,7 +33,7 @@ export function getNetworkProvider (url: string): JsonRpcProvider {
   return new JsonRpcProvider(url)
 }
 
-export async function resolveConfiguration (programOpts: any): Promise<{ config: BundlerConfig, provider: BaseProvider, wallet: Signer }> {
+export async function resolveConfiguration (programOpts: any): Promise<{ config: BundlerConfig, provider: JsonRpcProvider, wallet: Signer }> {
   const commandLineParams = getCommandLineParams(programOpts)
   let fileConfig: Partial<BundlerConfig> = {}
   const configFileName = programOpts.config
@@ -49,7 +49,7 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
     return { config, provider, wallet: provider.getSigner() }
   }
 
-  const provider: BaseProvider = getNetworkProvider(config.network)
+  const provider = getNetworkProvider(config.network)
   let mnemonic: string
   let wallet: Wallet
   try {

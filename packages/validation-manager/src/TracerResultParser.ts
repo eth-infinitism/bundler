@@ -6,25 +6,22 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
-import {
-  IAccount__factory,
-  IEntryPoint,
-  IEntryPoint__factory,
-  IPaymaster__factory,
-  SenderCreator__factory
-} from '@account-abstraction/contracts'
 import { BundlerTracerResult } from './BundlerCollectorTracer'
 import {
+  IEntryPoint__factory,
+  IPaymaster__factory,
+  OperationBase,
+  RpcError,
+  SenderCreator__factory,
   StakeInfo,
   StorageMap,
-  UserOperation,
   ValidationErrors,
   mapOf,
   requireCond,
   toBytes32
 } from '@account-abstraction/utils'
 
-import { ValidationResult } from './ValidationManager'
+import { ValidationResult } from './IValidationManager'
 
 const debug = Debug('aa.handler.opcodes')
 
@@ -57,7 +54,6 @@ const abi = Object.values([
  * - entries are ordered by the return (so nested call appears before its outer call
  * - last entry is top-level return from "simulateValidation". it as ret and rettype, but no type or address
  * @param tracerResults
- * @param abi
  */
 function parseCallStack (
   tracerResults: BundlerTracerResult
@@ -167,11 +163,30 @@ function parseEntitySlots (stakeInfoEntities: { [addr: string]: StakeInfo | unde
   return entitySlots
 }
 
-// method-signature for calls from entryPoint
-const callsFromEntryPointMethodSigs: { [key: string]: string } = {
-  factory: SenderCreator__factory.createInterface().getSighash('createSender'),
-  account: IAccount__factory.createInterface().getSighash('validateUserOp'),
-  paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
+//
+// // method-signature for calls from entryPoint
+// const callsFromEntryPointMethodSigs1: { [key: string]: string } = {
+//   factory: SenderCreator__factory.createInterface().getSighash('createSender'),
+//   account: IAccount__factory.createInterface().getSighash('validateUserOp'),
+//   paymaster: IPaymaster__factory.createInterface().getSighash('validatePaymasterUserOp')
+// }
+//
+// // todo: use a selector for factory or refactor the tracer for RIP-7560
+// const callsFromEntryPointMethodSigs: { [key: string]: string } = {
+//   account: '0xbf45c166',
+//   paymaster: '0xe0e6183a',
+// }
+
+function getEntityTitle (userOp: OperationBase, entityAddress: string): string {
+  if (userOp.sender.toLowerCase() === entityAddress.toLowerCase()) {
+    return 'account'
+  } else if (userOp.factory?.toLowerCase() === entityAddress.toLowerCase()) {
+    return 'factory'
+  } else if (userOp.paymaster?.toLowerCase() === entityAddress.toLowerCase()) {
+    return 'paymaster'
+  } else {
+    throw new RpcError(`could not find entity name for address ${entityAddress}. This should not happen. This is a bug.`, 0)
+  }
 }
 
 /**
@@ -179,67 +194,75 @@ const callsFromEntryPointMethodSigs: { [key: string]: string } = {
  * @param userOp the userOperation that was used in this simulation
  * @param tracerResults the tracer return value
  * @param validationResult output from simulateValidation
- * @param entryPoint the entryPoint that hosted the "simulatedValidation" traced call.
+ * @param entryPointAddress the entryPoint that hosted the "simulatedValidation" traced call.
  * @return list of contract addresses referenced by this UserOp
  */
 export function tracerResultParser (
-  userOp: UserOperation,
+  userOp: OperationBase,
   tracerResults: BundlerTracerResult,
   validationResult: ValidationResult,
-  entryPoint: IEntryPoint
+  entryPointAddress: string
 ): [string[], StorageMap] {
   debug('=== simulation result:', inspect(tracerResults, true, 10, true))
   // todo: block access to no-code addresses (might need update to tracer)
 
-  const entryPointAddress = entryPoint.address.toLowerCase()
-
   // opcodes from [OP-011]
-  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'SELFBALANCE', 'BALANCE', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
-
+  const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
+  // opcodes allowed in staked entities [OP-080]
+  const opcodesOnlyInStakedEntities = new Set(['BALANCE', 'SELFBALANCE'])
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
   if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
     throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
-  const callStack = parseCallStack(tracerResults)
+  if (tracerResults.calls != null) {
+    const callStack = parseCallStack(tracerResults)
+    // [OP-052], [OP-053]
+    const callInfoEntryPoint = callStack.find(call =>
+      call.to?.toLowerCase() === entryPointAddress?.toLowerCase() && call.from?.toLowerCase() !== entryPointAddress?.toLowerCase() &&
+      (call.method !== '0x' && call.method !== 'depositTo'))
+    // [OP-054]
+    requireCond(callInfoEntryPoint == null,
+      `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
+      ValidationErrors.OpcodeValidation
+    )
 
-  // [OP-052], [OP-053]
-  const callInfoEntryPoint = callStack.find(call =>
-    call.to === entryPointAddress && call.from !== entryPointAddress &&
-    (call.method !== '0x' && call.method !== 'depositTo'))
-  // [OP-054]
-  requireCond(callInfoEntryPoint == null,
-    `illegal call into EntryPoint during validation ${callInfoEntryPoint?.method}`,
-    ValidationErrors.OpcodeValidation
-  )
-
-  // [OP-061]
-  const illegalNonZeroValueCall = callStack.find(
-    call =>
-      call.to !== entryPointAddress &&
-      !BigNumber.from(call.value ?? 0).eq(0))
-  requireCond(
-    illegalNonZeroValueCall == null,
-    'May not may CALL with value',
-    ValidationErrors.OpcodeValidation)
+    // [OP-061]
+    const illegalNonZeroValueCall = callStack.find(
+      call =>
+        call.to?.toLowerCase() !== entryPointAddress?.toLowerCase() &&
+        !BigNumber.from(call.value ?? 0).eq(0))
+    requireCond(
+      illegalNonZeroValueCall == null,
+      'May not may CALL with value',
+      ValidationErrors.OpcodeValidation)
+  }
 
   const sender = userOp.sender.toLowerCase()
   // stake info per "number" level (factory, sender, paymaster)
   // we only use stake info if we notice a memory reference that require stake
   const stakeInfoEntities = {
-    factory: validationResult.factoryInfo,
-    account: validationResult.senderInfo,
-    paymaster: validationResult.paymasterInfo
+    [sender]: validationResult.senderInfo
+  }
+  const factory = userOp.factory?.toLowerCase()
+  if (factory != null) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    stakeInfoEntities[factory] = validationResult.factoryInfo!
+  }
+  const paymaster = userOp.paymaster?.toLowerCase()
+  if (paymaster != null) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    stakeInfoEntities[paymaster] = validationResult.paymasterInfo!
   }
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
 
-  Object.entries(stakeInfoEntities).forEach(([entityTitle, entStakes]) => {
-    const entityAddr = (entStakes?.addr ?? '').toLowerCase()
-    const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelMethodSig === callsFromEntryPointMethodSigs[entityTitle])
+  Object.entries(stakeInfoEntities).forEach(([entityAddress, entStakes]) => {
+    const entityTitle = getEntityTitle(userOp, entityAddress)
+    const currentNumLevel = tracerResults.callsFromEntryPoint.find(info => info.topLevelTargetAddress.toLowerCase() === entityAddress.toLowerCase())
     if (currentNumLevel == null) {
-      if (entityTitle === 'account') {
+      if (entityAddress.toLowerCase() === userOp.sender.toLowerCase()) {
         // should never happen... only factory, paymaster are optional.
-        throw new Error('missing trace into validateUserOp')
+        throw new RpcError('missing trace into account validation', ValidationErrors.InvalidFields)
       }
       return
     }
@@ -251,9 +274,11 @@ export function tracerResultParser (
       `${entityTitle} internally reverts on oog`, ValidationErrors.OpcodeValidation)
 
     // opcodes from [OP-011]
-    Object.keys(opcodes).forEach(opcode =>
+    Object.keys(opcodes).forEach(opcode => {
       requireCond(!bannedOpCodes.has(opcode), `${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
-    )
+      // [OP-080]
+      requireCond(!opcodesOnlyInStakedEntities.has(opcode) || isStaked(entStakes), `unstaked ${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
+    })
     // [OP-031]
     if (entityTitle === 'factory') {
       requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entityTitle} with too many CREATE2`, ValidationErrors.OpcodeValidation)
@@ -263,16 +288,18 @@ export function tracerResultParser (
 
     Object.entries(access).forEach(([addr, {
       reads,
-      writes
+      writes,
+      transientReads,
+      transientWrites
     }]) => {
       // testing read/write access on contract "addr"
-      if (addr === sender) {
+      if (addr.toLowerCase() === sender.toLowerCase()) {
         // allowed to access sender's storage
         // [STO-010]
         return
       }
 
-      if (addr === entryPointAddress) {
+      if (addr.toLowerCase() === entryPointAddress.toLowerCase()) {
         // ignore storage access on entryPoint (balance/deposit of entities.
         // we block them on method calls: only allowed to deposit, never to read
         return
@@ -305,7 +332,7 @@ export function tracerResultParser (
 
       debug('dump keccak calculations and reads', {
         entityTitle,
-        entityAddr,
+        entityAddress,
         k: mapOf(tracerResults.keccak, k => keccak256(k)),
         reads
       })
@@ -313,33 +340,41 @@ export function tracerResultParser (
       // scan all slots. find a referenced slot
       // at the end of the scan, we will check if the entity has stake, and report that slot if not.
       let requireStakeSlot: string | undefined
-      [...Object.keys(writes), ...Object.keys(reads)].forEach(slot => {
+      [
+        ...Object.keys(writes),
+        ...Object.keys(reads),
+        ...Object.keys(transientWrites ?? {}),
+        ...Object.keys(transientReads ?? {})
+      ].forEach(slot => {
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
-          if (userOp.initCode.length > 2) {
+          if (userOp.factory != null) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
-            if (!(entityAddr === sender && isStaked(stakeInfoEntities.factory))) {
+            if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities[userOp.factory.toLowerCase()]))) {
               requireStakeSlot = slot
             }
           }
-        } else if (associatedWith(slot, entityAddr, entitySlots)) {
+        } else if (associatedWith(slot, entityAddress, entitySlots)) {
           // [STO-032]
           // accessing a slot associated with entityAddr (e.g. token.balanceOf(paymaster)
           requireStakeSlot = slot
-        } else if (addr === entityAddr) {
+        } else if (addr.toLowerCase() === entityAddress.toLowerCase()) {
           // [STO-031]
           // accessing storage member of entity itself requires stake.
           requireStakeSlot = slot
-        } else if (writes[slot] == null) {
+        } else if (writes[slot] == null && transientWrites[slot] == null) {
           // [STO-033]: staked entity have read-only access to any storage in non-entity contract.
           requireStakeSlot = slot
         } else {
           // accessing arbitrary storage of another contract is not allowed
-          const readWrite = Object.keys(writes).includes(addr) ? 'write to' : 'read from'
+          const isWrite = Object.keys(writes).includes(slot) || Object.keys(transientWrites ?? {}).includes(slot)
+          const isTransient = Object.keys(transientReads ?? {}).includes(slot) || Object.keys(transientWrites ?? {}).includes(slot)
+          const readWrite = isWrite ? 'write to' : 'read from'
+          const transientStr = isTransient ? 'transient ' : ''
           requireCond(false,
-            `${entityTitle} has forbidden ${readWrite} ${nameAddr(addr, entityTitle)} slot ${slot}`,
+            `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, entityTitle)} slot ${slot}`,
             ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
         }
       })
@@ -352,18 +387,9 @@ export function tracerResultParser (
 
         return title ?? addr
       }
-
       requireCondAndStake(requireStakeSlot != null, entStakes,
         `unstaked ${entityTitle} accessed ${nameAddr(addr, entityTitle)} slot ${requireStakeSlot}`)
     })
-
-    // [EREP-050]
-    if (entityTitle === 'paymaster') {
-      const validatePaymasterUserOp = callStack.find(call => call.method === 'validatePaymasterUserOp' && call.to === entityAddr)
-      const context = validatePaymasterUserOp?.return?.context
-      requireCondAndStake(context != null && context !== '0x', entStakes,
-        'unstaked paymaster must not return context')
-    }
 
     // check if the given entity is staked
     function isStaked (entStake?: StakeInfo): boolean {
@@ -401,7 +427,7 @@ export function tracerResultParser (
 
     let illegalEntryPointCodeAccess
     for (const addr of Object.keys(currentNumLevel.extCodeAccessInfo)) {
-      if (addr === entryPointAddress) {
+      if (addr.toLowerCase() === entryPointAddress.toLowerCase()) {
         illegalEntryPointCodeAccess = currentNumLevel.extCodeAccessInfo[addr]
         break
       }

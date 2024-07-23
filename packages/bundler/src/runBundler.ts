@@ -1,21 +1,26 @@
 import fs from 'fs'
 
 import { Command } from 'commander'
-import { erc4337RuntimeVersion, supportsRpcMethod } from '@account-abstraction/utils'
+import {
+  deployEntryPoint,
+  erc4337RuntimeVersion,
+  IEntryPoint,
+  RpcError,
+  supportsRpcMethod
+} from '@account-abstraction/utils'
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
-import { UserOpMethodHandler } from './UserOpMethodHandler'
-import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
+import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
-import { DeterministicDeployer } from '@account-abstraction/sdk'
 import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
-import { JsonRpcProvider } from '@ethersproject/providers'
 import { parseEther } from 'ethers/lib/utils'
+import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
+import { JsonRpcProvider } from '@ethersproject/providers'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -30,8 +35,11 @@ export let showStackTraces = false
 
 export async function connectContracts (
   wallet: Signer,
-  entryPointAddress: string): Promise<{ entryPoint: EntryPoint }> {
-  const entryPoint = EntryPoint__factory.connect(entryPointAddress, wallet)
+  deployNewEntryPoint: boolean = true): Promise<{ entryPoint?: IEntryPoint }> {
+  if (!deployNewEntryPoint) {
+    return { entryPoint: undefined }
+  }
+  const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
   return {
     entryPoint
   }
@@ -70,9 +78,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
+    .option('--debugRpc', 'enable debug rpc methods (auto-enabled for test node')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic <file>', 'create the mnemonic file')
+    .option('--useRip7560Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
@@ -98,10 +108,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   } = await provider.getNetwork()
 
   if (chainId === 31337 || chainId === 1337) {
-    await new DeterministicDeployer(provider as any).deterministicDeploy(EntryPoint__factory.bytecode)
+    if (config.debugRpc == null) {
+      console.log('== debugrpc was', config.debugRpc)
+      config.debugRpc = true
+    } else {
+      console.log('== debugrpc already st', config.debugRpc)
+    }
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
-      const signer = (provider as JsonRpcProvider).getSigner()
+      const signer = provider.getSigner()
       await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
     }
   }
@@ -110,15 +125,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await supportsDebugTraceCall(provider as any)) {
-    console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
+  if (!config.unsafe && !await supportsDebugTraceCall(provider as any, config.useRip7560Mode)) {
+    const requiredApi = config.useRip7560Mode ? 'eth_traceRip7560Validation' : 'debug_traceCall'
+    console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
     process.exit(1)
   }
 
   const {
     entryPoint
-  } = await connectContracts(wallet, config.entryPoint)
-
+  } = await connectContracts(wallet, !config.useRip7560Mode)
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config
@@ -129,19 +144,32 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
-  const methodHandler = new UserOpMethodHandler(
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, wallet)
+  const methodHandler = new MethodHandlerERC4337(
     execManager,
     provider,
     wallet,
     config,
-    entryPoint
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    entryPoint!
   )
+  const methodHandlerRip7560 = new MethodHandlerRIP7560(
+    execManager,
+    wallet.provider as JsonRpcProvider
+  )
+
   eventsManager.initEventListener()
-  const debugHandler = new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
+  const debugHandler = config.debugRpc ?? false
+    ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
+    : new Proxy({}, {
+      get (target: {}, method: string, receiver: any): any {
+        throw new RpcError(`method debug_bundler_${method} is not supported`, -32601)
+      }
+    }) as DebugMethodHandler
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    methodHandlerRip7560,
     debugHandler,
     config,
     provider,

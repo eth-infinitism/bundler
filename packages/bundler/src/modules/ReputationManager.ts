@@ -104,14 +104,15 @@ export class ReputationManager {
   /**
    * address seen in the mempool triggered by the
    * @param addr
+   * @param val increment value for "seen" status
    */
-  updateSeenStatus (addr?: string): void {
+  updateSeenStatus (addr?: string, val = 1): void {
     if (addr == null) {
       return
     }
     const entry = this._getOrCreate(addr)
-    entry.opsSeen++
-    debug('after seen++', addr, entry)
+    entry.opsSeen += val
+    debug('after seen+', val, addr, entry)
   }
 
   /**
@@ -202,9 +203,9 @@ export class ReputationManager {
   setReputation (reputations: ReputationDump): ReputationDump {
     reputations.forEach(rep => {
       this.entries[rep.address.toLowerCase()] = {
-        address: rep.address,
-        opsSeen: rep.opsSeen,
-        opsIncluded: rep.opsIncluded
+        address: rep.address.toLowerCase(),
+        opsSeen: BigNumber.from(rep.opsSeen).toNumber(),
+        opsIncluded: BigNumber.from(rep.opsIncluded).toNumber()
       }
     })
     return this.dump()

@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/sdk",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -18,9 +18,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.6.0",
-    "@account-abstraction/utils": "^0.6.0",
-    "@ethersproject/abstract-provider": "^5.7.0",
+    "@account-abstraction/utils": "^0.7.0",
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
@@ -34,6 +32,6 @@
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
     "@nomiclabs/hardhat-ethers": "^2.0.0",
     "chai": "^4.3.6",
-    "hardhat": "^2.11.0"
+    "hardhat": "^2.17.0"
   }
 }

@@ -16,7 +16,7 @@ contract TestRecursionAccount is TestRuleAccount {
     function runRule(string memory rule) public virtual override returns (uint) {
 
         if (eq(rule, "handleOps")) {
-            UserOperation[] memory ops = new UserOperation[](0);
+            PackedUserOperation[] memory ops = new PackedUserOperation[](0);
             ep.handleOps(ops, payable(address (1)));
             return 0;
         }
