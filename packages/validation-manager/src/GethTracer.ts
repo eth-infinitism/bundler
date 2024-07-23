@@ -3,6 +3,7 @@ import { BigNumber } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { resolveProperties } from 'ethers/lib/utils'
+import { OperationRIP7560, RpcError } from '@account-abstraction/utils'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 
 const debug = Debug('aa.tracer')
@@ -27,6 +28,14 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
   })
   // return applyTracer(ret, options)
   return ret
+}
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export async function eth_traceRip7560Validation (provider: JsonRpcProvider, tx: Deferrable<Partial<OperationRIP7560>>): Promise<TraceResult | any> {
+  const tx1 = await resolveProperties(tx)
+  return await provider.send('eth_traceRip7560Validation', [tx1, 'latest']).catch(e => {
+    throw new RpcError(e.error, -32000)
+  })
 }
 
 // a hack for network that doesn't have traceCall: mine the transaction, and use debug_traceTransaction

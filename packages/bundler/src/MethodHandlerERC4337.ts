@@ -22,7 +22,7 @@ import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from
 import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import { EventFragment } from '@ethersproject/abi'
 
-const HEX_REGEX = /^0x[a-fA-F\d]*$/i
+export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 /**
  * return value from estimateUserOpGas
@@ -52,7 +52,7 @@ export interface EstimateUserOpGasResult {
   callGasLimit: BigNumberish
 }
 
-export class UserOpMethodHandler {
+export class MethodHandlerERC4337 {
   constructor (
     readonly execManager: ExecutionManager,
     readonly provider: JsonRpcProvider,
@@ -84,7 +84,7 @@ export class UserOpMethodHandler {
       throw new Error(`The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.config.entryPoint}`)
     }
     // minimal sanity check: userOp exists, and all members are hex
-    requireCond(userOp1 != null, 'No UserOperation param')
+    requireCond(userOp1 != null, 'No UserOperation param', ValidationErrors.InvalidFields)
     const userOp = userOp1 as any
 
     const fields = ['sender', 'nonce', 'callData']

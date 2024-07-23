@@ -11,7 +11,7 @@ import {
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
-import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
@@ -19,6 +19,8 @@ import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
+import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
+import { JsonRpcProvider } from '@ethersproject/providers'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -33,7 +35,10 @@ export let showStackTraces = false
 
 export async function connectContracts (
   wallet: Signer,
-  entryPointAddress: string): Promise<{ entryPoint: IEntryPoint }> {
+  deployNewEntryPoint: boolean = true): Promise<{ entryPoint?: IEntryPoint }> {
+  if (!deployNewEntryPoint) {
+    return { entryPoint: undefined }
+  }
   const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
   return {
     entryPoint
@@ -77,6 +82,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic <file>', 'create the mnemonic file')
+    .option('--useRip7560Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
@@ -108,9 +114,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       console.log('== debugrpc already st', config.debugRpc)
     }
-    const ep = await deployEntryPoint(provider as any)
-    const addr = ep.address
-    console.log('deployed EntryPoint at', addr)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
       const signer = provider.getSigner()
@@ -122,15 +125,15 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await supportsDebugTraceCall(provider as any)) {
-    console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
+  if (!config.unsafe && !await supportsDebugTraceCall(provider as any, config.useRip7560Mode)) {
+    const requiredApi = config.useRip7560Mode ? 'eth_traceRip7560Validation' : 'debug_traceCall'
+    console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
     process.exit(1)
   }
 
   const {
     entryPoint
-  } = await connectContracts(wallet, config.entryPoint)
-
+  } = await connectContracts(wallet, !config.useRip7560Mode)
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config
@@ -141,14 +144,20 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
-  const methodHandler = new UserOpMethodHandler(
+  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, wallet)
+  const methodHandler = new MethodHandlerERC4337(
     execManager,
     provider,
     wallet,
     config,
-    entryPoint
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    entryPoint!
   )
+  const methodHandlerRip7560 = new MethodHandlerRIP7560(
+    execManager,
+    wallet.provider as JsonRpcProvider
+  )
+
   eventsManager.initEventListener()
   const debugHandler = config.debugRpc ?? false
     ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
@@ -160,6 +169,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    methodHandlerRip7560,
     debugHandler,
     config,
     provider,

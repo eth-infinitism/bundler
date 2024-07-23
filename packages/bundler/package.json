@@ -11,6 +11,7 @@
   "scripts": {
     "runop": "ts-node ./src/runner/runop.ts",
     "bundler": "TS_NODE_TRANSPILE_ONLY=1 ts-node ./src/exec.ts --config ./localconfig/bundler.config.json",
+    "bundler-rip7560": "ts-node ./src/exec.ts --config ./localconfig/bundler.rip7560.config.json",
     "clear": "rm -rf dist artifacts cache src/types",
     "hardhat-compile": "hardhat compile",
     "hardhat-node": "npx hardhat node --no-deploy",
@@ -51,10 +52,12 @@
     "@types/chai": "^4.2.0",
     "@types/mocha": "^9.1.0",
     "@types/node": "^16.4.12",
+    "@types/sinon": "^17.0.3",
     "body-parser": "^1.20.0",
     "chai": "^4.2.0",
     "hardhat": "^2.17.0",
     "hardhat-deploy": "^0.11.11",
+    "sinon": "^18.0.0",
     "solidity-coverage": "^0.7.21",
     "ts-node": ">=8.0.0",
     "typechain": "^8.1.0"

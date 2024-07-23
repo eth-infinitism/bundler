@@ -29,7 +29,7 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
@@ -39,7 +39,7 @@ describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
   let accountDeployerAddress: string
-  let methodHandler: UserOpMethodHandler
+  let methodHandler: MethodHandlerERC4337
   let provider: JsonRpcProvider
   let signer: Signer
   const accountSigner = Wallet.createRandom()
@@ -68,24 +68,25 @@ describe('UserOpMethodHandler', function () {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
-      minUnstakeDelay: 0
+      minUnstakeDelay: 0,
+      useRip7560Mode: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, config.unsafe)
-    const depositManager = new DepositManager(entryPoint, mempoolMgr)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
-    const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+    const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+    const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
     const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
-    methodHandler = new UserOpMethodHandler(
+    methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,

@@ -1,8 +1,8 @@
 import { TracerTest, TracerTest__factory } from '../src/types'
 import { ethers } from 'hardhat'
-import { debug_traceCall } from '../../validation-manager/src/GethTracer'
+import { debug_traceCall } from '@account-abstraction/validation-manager/src/GethTracer'
 import { expect } from 'chai'
-import { BundlerTracerResult, bundlerCollectorTracer } from '../../validation-manager/src/BundlerCollectorTracer'
+import { BundlerTracerResult, bundlerCollectorTracer } from '@account-abstraction/validation-manager/src/BundlerCollectorTracer'
 import { BytesLike } from 'ethers'
 
 const provider = ethers.provider

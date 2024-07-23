@@ -1,12 +1,13 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { ValidationManager } from '@account-abstraction/validation-manager'
-import { packUserOp, UserOperation } from '@account-abstraction/utils'
+import { OperationBase } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
-import { BundleManager, SendBundleReturn } from './BundleManager'
+import { SendBundleReturn } from './BundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
+import { IBundleManager } from './IBundleManager'
+import { IValidationManager } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
 
 const debug = Debug('aa.exec')
@@ -24,8 +25,8 @@ export class ExecutionManager {
 
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
-    private readonly bundleManager: BundleManager,
-    private readonly validationManager: ValidationManager,
+    private readonly bundleManager: IBundleManager,
+    private readonly validationManager: IValidationManager,
     private readonly depositManager: DepositManager
   ) {
   }
@@ -35,16 +36,16 @@ export class ExecutionManager {
    * @param userOp the UserOp to send.
    * @param entryPointInput the entryPoint passed through the RPC request.
    */
-  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<void> {
+  async sendUserOperation (userOp: OperationBase, entryPointInput: string): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
       const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
-      const userOpHash = await this.validationManager.entryPoint.getUserOpHash(packUserOp(userOp))
+      const userOpHash = await this.validationManager.getOperationHash(userOp)
       await this.depositManager.checkPaymasterDeposit(userOp)
       this.mempoolManager.addUserOp(userOp,
         userOpHash,
-        validationResult.returnInfo.prefund,
+        validationResult.returnInfo.prefund ?? 0,
         validationResult.referencedContracts,
         validationResult.senderInfo,
         validationResult.paymasterInfo,
@@ -94,9 +95,7 @@ export class ExecutionManager {
         // in "auto-bundling" mode (which implies auto-mining) also flush mempool from included UserOps
         await this.bundleManager.handlePastEvents()
       }
-
       this.depositManager.clearCache()
-
       return ret
     }
   }

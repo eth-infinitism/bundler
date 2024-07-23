@@ -1,5 +1,8 @@
-import { parseEther } from 'ethers/lib/utils'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { assert, expect } from 'chai'
+import { ethers } from 'hardhat'
+import { parseEther } from 'ethers/lib/utils'
+
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import {
   AddressZero,
@@ -12,10 +15,9 @@ import {
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { ethers } from 'hardhat'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { TestFakeWalletToken__factory } from '../src/types'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { EventsManager } from '../src/modules/EventsManager'
 import { createSigner } from './testUtils'
@@ -34,6 +36,7 @@ describe('#BundlerManager', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
+      useRip7560Mode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -41,7 +44,7 @@ describe('#BundlerManager', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any),
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
@@ -55,7 +58,7 @@ describe('#BundlerManager', () => {
     const mempoolMgr = new MempoolManager(repMgr)
     const validMgr = new ValidationManager(entryPoint, config.unsafe)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
-    bm = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
+    bm = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
 
   it('#getUserOpHashes', async () => {
@@ -77,13 +80,14 @@ describe('#BundlerManager', () => {
   })
 
   describe('createBundle', function () {
-    let methodHandler: UserOpMethodHandler
+    let methodHandler: MethodHandlerERC4337
     let bundleMgr: BundleManager
 
     before(async function () {
       const bundlerSigner = await createSigner()
       const _entryPoint = entryPoint.connect(bundlerSigner)
       const config: BundlerConfig = {
+        useRip7560Mode: false,
         beneficiary: await bundlerSigner.getAddress(),
         entryPoint: _entryPoint.address,
         gasFactor: '0.2',
@@ -91,7 +95,7 @@ describe('#BundlerManager', () => {
         mnemonic: '',
         network: '',
         port: '3000',
-        unsafe: !await supportsDebugTraceCall(provider as any),
+        unsafe: !await supportsDebugTraceCall(provider as any, false),
         conditionalRpc: false,
         autoBundleInterval: 0,
         autoBundleMempoolSize: 0,
@@ -103,13 +107,13 @@ describe('#BundlerManager', () => {
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
       const validMgr = new ValidationManager(_entryPoint, config.unsafe)
-      const depositManager = new DepositManager(entryPoint, mempoolMgr)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
-      bundleMgr = new BundleManager(_entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+      bundleMgr = new BundleManager(_entryPoint, _entryPoint.provider as JsonRpcProvider, _entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+      const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
       const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
       execManager.setAutoBundler(0, 1000)
 
-      methodHandler = new UserOpMethodHandler(
+      methodHandler = new MethodHandlerERC4337(
         execManager,
         provider,
         bundlerSigner,
@@ -119,7 +123,7 @@ describe('#BundlerManager', () => {
     })
 
     it('should not include a UserOp that accesses the storage of a different known sender', async function () {
-      if (!await supportsDebugTraceCall(ethers.provider)) {
+      if (!await supportsDebugTraceCall(ethers.provider, false)) {
         console.log('WARNING: opcode banning tests can only run with geth')
         this.skip()
       }
