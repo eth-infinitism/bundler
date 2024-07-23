@@ -1,8 +1,8 @@
 import { MempoolEntry, MempoolManager } from './MempoolManager'
 import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, Signer } from 'ethers'
 import { isAddress } from 'ethers/lib/utils'
-import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
@@ -33,12 +33,12 @@ export interface SendBundleReturn {
 
 export class BundleManager {
   readonly entryPoint: IEntryPoint
-  provider: JsonRpcProvider
-  signer: JsonRpcSigner
   mutex = new Mutex()
 
   constructor (
     _entryPoint: IEntryPoint | undefined,
+    readonly provider: JsonRpcProvider,
+    readonly signer: Signer,
     readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
     readonly validationManager: IValidationManager,
@@ -53,8 +53,6 @@ export class BundleManager {
   ) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.entryPoint = _entryPoint!
-    this.provider = this.entryPoint.provider as JsonRpcProvider
-    this.signer = this.entryPoint.signer as JsonRpcSigner
   }
 
   /**

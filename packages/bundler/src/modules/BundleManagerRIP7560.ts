@@ -1,20 +1,20 @@
 import Debug from 'debug'
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish, Signer } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 import {
-  getRIP7560TransactionHash,
-  IEntryPoint, OperationBase,
+  OperationBase,
   OperationRIP7560,
-  StorageMap
+  StorageMap,
+  getRIP7560TransactionHash
 } from '@account-abstraction/utils'
 import { IValidationManager } from '@account-abstraction/validation-manager'
 
+import { BundleManager, SendBundleReturn } from './BundleManager'
+import { EventsManager } from './EventsManager'
 import { IBundleManager } from './IBundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
-import { BundleManager, SendBundleReturn } from './BundleManager'
-import { EventsManager } from './EventsManager'
 
 const debug = Debug('aa.exec.cron')
 
@@ -23,24 +23,23 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
   lastScannedBlock: number = 0
 
   constructor (
-    _entryPoint: IEntryPoint | undefined,
-    readonly eventsManager: EventsManager,
-    readonly mempoolManager: MempoolManager,
-    readonly validationManager: IValidationManager,
-    readonly reputationManager: ReputationManager,
-    readonly beneficiary: string,
-    readonly minSignerBalance: BigNumberish,
-    readonly maxBundleGas: number,
-    readonly conditionalRpc: boolean,
-    readonly mergeToAccountRootHash: boolean = false,
-    readonly provider: JsonRpcProvider
+    provider: JsonRpcProvider,
+    signer: Signer,
+    eventsManager: EventsManager,
+    mempoolManager: MempoolManager,
+    validationManager: IValidationManager,
+    reputationManager: ReputationManager,
+    beneficiary: string,
+    minSignerBalance: BigNumberish,
+    maxBundleGas: number,
+    conditionalRpc: boolean,
+    mergeToAccountRootHash: boolean = false
   ) {
     super(
-      _entryPoint, eventsManager, mempoolManager, validationManager,
+      undefined, provider, signer, eventsManager, mempoolManager, validationManager,
       reputationManager, beneficiary, minSignerBalance, maxBundleGas,
       conditionalRpc, mergeToAccountRootHash
     )
-    this.provider = provider
   }
 
   async sendNextBundle (): Promise<SendBundleReturn | undefined> {

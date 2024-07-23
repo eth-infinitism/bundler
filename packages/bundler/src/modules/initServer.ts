@@ -35,12 +35,12 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   let bundleManager: IBundleManager
   if (!config.useRip7560Mode) {
     validationManager = new ValidationManager(entryPoint, config.unsafe)
-    bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
+    bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
     validationManager = new ValidationManagerRIP7560(entryPoint.provider as JsonRpcProvider, config.unsafe)
-    bundleManager = new BundleManagerRIP7560(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
-      config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false, entryPoint.provider as JsonRpcProvider)
+    bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
+      config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false)
   }
   const depositManager = new DepositManager(entryPoint, mempoolManager, bundleManager)
   const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager)
