@@ -126,14 +126,14 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     process.exit(1)
   }
   if (!config.unsafe && !await supportsDebugTraceCall(provider as any, config.useRip7560Mode)) {
-    const requiredApi = config.useRip7560Mode ? 'eth_traceRip7560Validation' : 'debug_traceCall'
+    const requiredApi = config.useRip7560Mode != null ? 'eth_traceRip7560Validation' : 'debug_traceCall'
     console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
     process.exit(1)
   }
 
   const {
     entryPoint
-  } = await connectContracts(wallet, !config.useRip7560Mode)
+  } = await connectContracts(wallet, config.useRip7560Mode == null)
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config

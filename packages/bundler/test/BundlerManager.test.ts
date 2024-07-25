@@ -36,7 +36,7 @@ describe('#BundlerManager', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
-      useRip7560Mode: false,
+      gethDevMode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -44,7 +44,7 @@ describe('#BundlerManager', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any, false),
+      unsafe: !await supportsDebugTraceCall(provider as any, undefined),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
@@ -87,7 +87,7 @@ describe('#BundlerManager', () => {
       const bundlerSigner = await createSigner()
       const _entryPoint = entryPoint.connect(bundlerSigner)
       const config: BundlerConfig = {
-        useRip7560Mode: false,
+        gethDevMode: false,
         beneficiary: await bundlerSigner.getAddress(),
         entryPoint: _entryPoint.address,
         gasFactor: '0.2',
@@ -95,7 +95,7 @@ describe('#BundlerManager', () => {
         mnemonic: '',
         network: '',
         port: '3000',
-        unsafe: !await supportsDebugTraceCall(provider as any, false),
+        unsafe: !await supportsDebugTraceCall(provider as any, undefined),
         conditionalRpc: false,
         autoBundleInterval: 0,
         autoBundleMempoolSize: 0,
@@ -123,7 +123,7 @@ describe('#BundlerManager', () => {
     })
 
     it('should not include a UserOp that accesses the storage of a different known sender', async function () {
-      if (!await supportsDebugTraceCall(ethers.provider, false)) {
+      if (!await supportsDebugTraceCall(ethers.provider, undefined)) {
         console.log('WARNING: opcode banning tests can only run with geth')
         this.skip()
       }

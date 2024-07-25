@@ -61,7 +61,7 @@ export class BundlerServer {
   }
 
   async _preflightCheck (): Promise<void> {
-    if (this.config.useRip7560Mode) {
+    if (this.config.useRip7560Mode != null) {
       // TODO: implement preflight checks for the RIP-7560 mode
       return
     }
@@ -173,7 +173,7 @@ export class BundlerServer {
     switch (method) {
       /** RIP-7560 specific RPC API */
       case 'eth_sendTransaction':
-        if (!this.config.useRip7560Mode) {
+        if (this.config.useRip7560Mode == null) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         if (params[0].sender != null) {
@@ -183,7 +183,7 @@ export class BundlerServer {
         }
         break
       case 'eth_getTransactionReceipt':
-        if (!this.config.useRip7560Mode) {
+        if (this.config.useRip7560Mode == null) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         result = await this.methodHandlerRip7560.getRIP7560TransactionReceipt(params[0])

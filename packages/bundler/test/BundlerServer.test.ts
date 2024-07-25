@@ -39,7 +39,7 @@ describe('BundleServer', function () {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any, false),
+      unsafe: !await supportsDebugTraceCall(provider as any, undefined),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
@@ -47,7 +47,7 @@ describe('BundleServer', function () {
       // minstake zero, since we don't fund deployer.
       minStake: '0',
       minUnstakeDelay: 0,
-      useRip7560Mode: false
+      gethDevMode: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)

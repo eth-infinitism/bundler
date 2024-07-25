@@ -43,7 +43,7 @@ describe('#DebugMethodHandler', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
-      useRip7560Mode: false,
+      gethDevMode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -51,7 +51,7 @@ describe('#DebugMethodHandler', () => {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any, false),
+      unsafe: !await supportsDebugTraceCall(provider as any, undefined),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,

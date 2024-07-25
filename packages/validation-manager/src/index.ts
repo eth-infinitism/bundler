@@ -11,13 +11,13 @@ export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
 
-export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7560Mode: boolean): Promise<boolean> {
+export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7560Mode: string | undefined): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
     p._clientVersion = await provider.send('web3_clientVersion', [])
   }
 
-  if (useRip7560Mode) {
+  if (useRip7560Mode != null) {
     // TODO: remove
     const defaultsForRip7560Tx: OperationRIP7560 = {
       accessList: [],
@@ -60,7 +60,7 @@ export async function checkRulesViolations (
   userOperation: UserOperation,
   entryPointAddress: string
 ): Promise<ValidateUserOpResult> {
-  const supportsTrace = await supportsDebugTraceCall(provider, false)
+  const supportsTrace = await supportsDebugTraceCall(provider, undefined)
   if (!supportsTrace) {
     throw new Error('This provider does not support stack tracing')
   }

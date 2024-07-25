@@ -33,7 +33,9 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     minSignerBalance: BigNumberish,
     maxBundleGas: number,
     conditionalRpc: boolean,
-    mergeToAccountRootHash: boolean = false
+    mergeToAccountRootHash: boolean,
+    readonly useRip7560Mode: string | undefined,
+    readonly gethDevMode: boolean
   ) {
     super(
       undefined, provider, signer, eventsManager, mempoolManager, validationManager,
