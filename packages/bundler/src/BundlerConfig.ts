@@ -1,6 +1,8 @@
 // TODO: consider adopting config-loading approach from hardhat to allow code in config file
 import ow from 'ow'
 
+// RIP-7560 EntyPoint address
+export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
 const MIN_UNSTAKE_DELAY = 86400
 const MIN_STAKE_VALUE = 1e18.toString()
 export interface BundlerConfig {
