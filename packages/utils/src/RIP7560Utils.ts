@@ -1,10 +1,11 @@
-import { BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 
 import { encode, type Input } from 'rlp'
-import { BN, bnToUnpaddedBuffer, toBuffer } from 'ethereumjs-util'
+import { toBuffer } from 'ethereumjs-util'
 import { hexlify, keccak256 } from 'ethers/lib/utils'
 
 import { OperationRIP7560 } from './interfaces/OperationRIP7560'
+import { AddressZero } from './ERC4337Utils'
 
 export function getRIP7560TransactionHash (op: OperationRIP7560, forSignature = true): string {
   if (!forSignature) {
@@ -14,23 +15,34 @@ export function getRIP7560TransactionHash (op: OperationRIP7560, forSignature = 
   return keccak256(rlpEncoded)
 }
 
+function nonZeroAddr(addr?: string): Buffer {
+  if (addr == null || addr === AddressZero) {
+    return Buffer.from([])
+  }
+  return toBuffer(addr)
+}
+
 function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string {
   const input: Input = []
+  console.log('op to encode:', op)
   input.push(bigNumberishToUnpaddedBuffer(op.chainId))
   input.push(bigNumberishToUnpaddedBuffer(op.maxPriorityFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.maxFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.callGasLimit))
   input.push(toBuffer(op.callData as string))
   input.push([]) // AccessList
-  input.push(toBuffer(op.sender.toString()))
+  input.push(nonZeroAddr(op.sender))
   input.push(toBuffer(op.signature as string)) // Signature
+  input.push(nonZeroAddr(op.paymaster))
   input.push(toBuffer(op.paymasterData as string))
+  input.push(nonZeroAddr(op.factory))
   input.push(toBuffer(op.factoryData as string))
   input.push(bigNumberishToUnpaddedBuffer(op.builderFee))
   input.push(bigNumberishToUnpaddedBuffer(op.verificationGasLimit))
   input.push(bigNumberishToUnpaddedBuffer(op.paymasterVerificationGasLimit ?? 0))
-  input.push(toBuffer('0x0000000000000000000000000000000000000000')) // to
-  input.push(bigNumberishToUnpaddedBuffer(0)) // nonce - ignored in geth
+  input.push(bigNumberishToUnpaddedBuffer(op.paymasterPostOpGasLimit ?? 0))
+  input.push(nonZeroAddr(undefined)) // to
+  input.push(bigNumberishToUnpaddedBuffer(op.nonce))
   input.push(bigNumberishToUnpaddedBuffer(0)) // value
   let rlpEncoded: any = encode(input)
   rlpEncoded = Buffer.from([4, ...rlpEncoded])
@@ -38,6 +50,9 @@ function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string 
 }
 
 function bigNumberishToUnpaddedBuffer (value: BigNumberish): Buffer {
-  const bnVal = new BN(value.toString().replace('0x', ''), 'hex')
-  return bnToUnpaddedBuffer(bnVal)
+  const b = BigNumber.from(value).toHexString()
+  if (b === '0x00') {
+    return Buffer.from([])
+  }
+  return Buffer.from(b.slice(2), 'hex')
 }
