@@ -11,6 +11,5 @@
   "minUnstakeDelay": 0 ,
   "autoBundleInterval": 3,
   "autoBundleMempoolSize": 10,
-  "useRip7560Mode": "PULL",
-  "gethDevMode": true
+  "useRip7560Mode": "PULL"
 }
