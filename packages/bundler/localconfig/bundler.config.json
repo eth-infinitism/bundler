@@ -10,5 +10,6 @@
   "minStake": "1" ,
   "minUnstakeDelay": 0 ,
   "autoBundleInterval": 3,
-  "autoBundleMempoolSize": 10
+  "autoBundleMempoolSize": 10,
+  "gethDevMode": false
 }
