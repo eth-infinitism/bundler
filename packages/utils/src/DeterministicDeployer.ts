@@ -67,7 +67,7 @@ export class DeterministicDeployer {
         to: DeterministicDeployer.deploymentSignerAddress,
         value: neededBalance,
         gasLimit: DeterministicDeployer.deploymentGasLimit
-      })
+      }).then(t=>t.wait())
     }
     await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
     if (!await this.isContractDeployed(DeterministicDeployer.proxyAddress)) {
