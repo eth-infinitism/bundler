@@ -46,12 +46,12 @@ export class BundlerServer {
     this.appPublic = express()
     this.appPrivate = express()
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.initializeExpressApp(this.appPublic, this.handleRpcPublic.bind(this))
+    this.initializeExpressApp(this.appPublic, this.getRpc(this.handleRpcPublic.bind(this)))
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.initializeExpressApp(this.appPrivate, this.handleRpcPrivate.bind(this))
+    this.initializeExpressApp(this.appPrivate, this.getRpc(this.handleRpcPrivate.bind(this)))
 
     this.httpServerPublic = this.appPublic.listen(this.config.publicApiPort)
-    this.httpServerPrivate = this.appPublic.listen(this.config.privateApiPort)
+    this.httpServerPrivate = this.appPrivate.listen(this.config.privateApiPort)
 
     this.startingPromise = this._preflightCheck()
   }
@@ -124,27 +124,32 @@ export class BundlerServer {
     res.send(`Account-Abstraction Bundler v.${erc4337RuntimeVersion}. please use "/rpc"`)
   }
 
-  async rpc (req: Request, res: Response): Promise<void> {
-    let resContent: any
-    if (Array.isArray(req.body)) {
-      resContent = []
-      for (const reqItem of req.body) {
-        resContent.push(await this.handleRpc(reqItem))
+  // TODO: I don't see how to elegantly combine express callbacks with classes so I ended up with this spaghetti.
+  //  This is temporary and probably should not be merged like that, we need to simplify the flow.
+  getRpc (handleRpc: any): any {
+    const rpc = async (req: Request, res: Response): Promise<void> => {
+      let resContent: any
+      if (Array.isArray(req.body)) {
+        resContent = []
+        for (const reqItem of req.body) {
+          resContent.push(await handleRpc(reqItem))
+        }
+      } else {
+        resContent = await handleRpc(req.body)
       }
-    } else {
-      resContent = await this.handleRpc(req.body)
-    }
 
-    try {
-      res.send(resContent)
-    } catch (err: any) {
-      const error = {
-        message: err.message,
-        data: err.data,
-        code: err.code
+      try {
+        res.send(resContent)
+      } catch (err: any) {
+        const error = {
+          message: err.message,
+          data: err.data,
+          code: err.code
+        }
+        this.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
       }
-      this.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
     }
+    return rpc.bind(this)
   }
 
   // TODO: deduplicate!
