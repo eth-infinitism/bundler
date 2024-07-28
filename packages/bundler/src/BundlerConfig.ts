@@ -10,7 +10,8 @@ export interface BundlerConfig {
   minBalance: string
   mnemonic: string
   network: string
-  port: string
+  publicApiPort: string
+  privateApiPort: string
   unsafe: boolean
   debugRpc?: boolean
   conditionalRpc: boolean
@@ -33,7 +34,8 @@ export const BundlerConfigShape = {
   minBalance: ow.string,
   mnemonic: ow.string,
   network: ow.string,
-  port: ow.string,
+  publicApiPort: ow.string,
+  privateApiPort: ow.string,
   unsafe: ow.boolean,
   debugRpc: ow.optional.boolean,
   conditionalRpc: ow.boolean,
@@ -51,7 +53,8 @@ export const BundlerConfigShape = {
 // TODO: consider if we want any default fields at all
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
 export const bundlerConfigDefault: Partial<BundlerConfig> = {
-  port: '3000',
+  publicApiPort: '3000',
+  privateApiPort: '3001',
   entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
   unsafe: false,
   conditionalRpc: false,

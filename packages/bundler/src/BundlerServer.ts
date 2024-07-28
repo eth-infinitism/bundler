@@ -7,12 +7,15 @@ import { parseEther } from 'ethers/lib/utils'
 import { Server } from 'http'
 
 import {
-  AddressZero, decodeRevertReason,
-  deepHexlify, IEntryPoint__factory,
-  erc4337RuntimeVersion,
-  packUserOp,
+  AddressZero,
+  IEntryPoint__factory,
   RpcError,
-  UserOperation
+  UserOperation,
+  ValidationErrors,
+  decodeRevertReason,
+  deepHexlify,
+  erc4337RuntimeVersion,
+  packUserOp
 } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
@@ -21,12 +24,15 @@ import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
+import { RequestHandler } from 'express-serve-static-core'
 
 const debug = Debug('aa.rpc')
 
 export class BundlerServer {
-  app: Express
-  private readonly httpServer: Server
+  readonly appPublic: Express
+  readonly appPrivate: Express
+  private readonly httpServerPublic: Server
+  private readonly httpServerPrivate: Server
   public silent = false
 
   constructor (
@@ -37,18 +43,27 @@ export class BundlerServer {
     readonly provider: Provider,
     readonly wallet: Signer
   ) {
-    this.app = express()
-    this.app.use(cors())
-    this.app.use(bodyParser.json())
-
-    this.app.get('/', this.intro.bind(this))
-    this.app.post('/', this.intro.bind(this))
-
+    this.appPublic = express()
+    this.appPrivate = express()
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.app.post('/rpc', this.rpc.bind(this))
+    this.initializeExpressApp(this.appPublic, this.handleRpcPublic.bind(this))
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.initializeExpressApp(this.appPrivate, this.handleRpcPrivate.bind(this))
 
-    this.httpServer = this.app.listen(this.config.port)
+    this.httpServerPublic = this.appPublic.listen(this.config.publicApiPort)
+    this.httpServerPrivate = this.appPublic.listen(this.config.privateApiPort)
+
     this.startingPromise = this._preflightCheck()
+  }
+
+  private initializeExpressApp (app: Express, handler: RequestHandler): void {
+    app.use(cors())
+    app.use(bodyParser.json())
+
+    app.get('/', this.intro.bind(this))
+    app.post('/', this.intro.bind(this))
+
+    app.post('/rpc', handler)
   }
 
   startingPromise: Promise<void>
@@ -58,7 +73,8 @@ export class BundlerServer {
   }
 
   async stop (): Promise<void> {
-    this.httpServer.close()
+    this.httpServerPublic.close()
+    this.httpServerPrivate.close()
   }
 
   async _preflightCheck (): Promise<void> {
@@ -129,6 +145,44 @@ export class BundlerServer {
       }
       this.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
     }
+  }
+
+  // TODO: deduplicate!
+  async handleRpcPublic (reqItem: any): Promise<any> {
+    const { method, jsonrpc, id } = reqItem
+
+    if (method === 'eth_getRip7560Bundle') {
+      const error = {
+        message: `requested RPC method (${method as string}) is not available`,
+        data: '',
+        code: ValidationErrors.InvalidRequest
+      }
+      return {
+        jsonrpc,
+        id,
+        error
+      }
+    }
+    return await this.handleRpc(reqItem)
+  }
+
+  // TODO: deduplicate!
+  async handleRpcPrivate (reqItem: any): Promise<any> {
+    const { method, jsonrpc, id } = reqItem
+
+    if (method !== 'eth_getRip7560Bundle') {
+      const error = {
+        message: `requested RPC method (${method as string}) is not available`,
+        data: '',
+        code: ValidationErrors.InvalidRequest
+      }
+      return {
+        jsonrpc,
+        id,
+        error
+      }
+    }
+    return await this.handleRpc(reqItem)
   }
 
   async handleRpc (reqItem: any): Promise<any> {

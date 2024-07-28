@@ -74,7 +74,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-    .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
+    .option('--publicApiPort <number>', `server listening port for public clients (default: ${bundlerConfigDefault.publicApiPort})`)
+    .option('--privateApiPort <number>', `server listening port for block builders (default: ${bundlerConfigDefault.privateApiPort})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
@@ -184,7 +185,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
         chainId: net.chainId
       }
     }))
-    console.log(`running on http://localhost:${config.port}/rpc`)
+    console.log(`public client API running on http://localhost:${config.publicApiPort}/rpc`)
+    console.log(`block builder API running on http://localhost:${config.privateApiPort}/rpc`)
   })
 
   return bundlerServer
