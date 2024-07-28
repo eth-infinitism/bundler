@@ -23,6 +23,7 @@ import { DebugMethodHandler } from './DebugMethodHandler'
 import Debug from 'debug'
 
 const debug = Debug('aa.rpc')
+
 export class BundlerServer {
   app: Express
   private readonly httpServer: Server
@@ -172,14 +173,21 @@ export class BundlerServer {
     let result: any
     switch (method) {
       /** RIP-7560 specific RPC API */
+      case 'eth_getRip7560Bundle': {
+        if (this.config.useRip7560Mode == null) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        const [bundle] = await this.methodHandlerRip7560.getRip7560Bundle(params[0], params[1], params[2])
+        result = { bundle, hello: 'hello!', validForBlock: 0 }
+        console.log('handleMethod eth_getRip7560Bundle:\n', result)
+        break
+      }
       case 'eth_sendTransaction':
         if (this.config.useRip7560Mode == null) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         if (params[0].sender != null) {
           result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0])
-        // } else {
-        //   result = await (this.provider as JsonRpcProvider).send(method, params)
         }
         break
       case 'eth_getTransactionReceipt':

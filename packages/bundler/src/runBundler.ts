@@ -82,7 +82,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic <file>', 'create the mnemonic file')
-    .option('--useRip7560Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
+    .option('--useRip7560Mode <string>', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
+    .option('--gethDevMode', 'Debug only - sends an extra zero-value transaction to trigger new block creation.')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces

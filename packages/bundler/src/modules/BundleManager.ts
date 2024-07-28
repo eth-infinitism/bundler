@@ -67,7 +67,8 @@ export class BundleManager {
       // first flush mempool from already-included UserOps, by actively scanning past events.
       await this.handlePastEvents()
 
-      const [bundle, storageMap] = await this.createBundle()
+      // TODO: pass correct bundle limit parameters!
+      const [bundle, storageMap] = await this.createBundle(0, 0, 0)
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
@@ -193,7 +194,11 @@ export class BundleManager {
     }
   }
 
-  async createBundle (): Promise<[OperationBase[], StorageMap]> {
+  async createBundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: OperationBase[] = []
 

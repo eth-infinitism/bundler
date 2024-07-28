@@ -1,8 +1,11 @@
+import { BigNumberish } from 'ethers'
 import { JsonRpcProvider, TransactionReceipt } from '@ethersproject/providers'
 import {
   AddressZero,
-  getRIP7560TransactionHash,
+  OperationBase,
   OperationRIP7560,
+  StorageMap,
+  getRIP7560TransactionHash,
   requireCond,
   tostr
 } from '@account-abstraction/utils'
@@ -24,6 +27,14 @@ export class MethodHandlerRIP7560 {
     console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${tostr(transaction.nonce)} Paymaster=${transaction.paymaster ?? ''}`)
     await this.execManager.sendUserOperation(transaction, '')
     return getRIP7560TransactionHash(transaction)
+  }
+
+  async getRip7560Bundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
+    return await this.execManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 
   async getRIP7560TransactionReceipt (txHash: string): Promise<RIP7560TransactionReceipt | null> {

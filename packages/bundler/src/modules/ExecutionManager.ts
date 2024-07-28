@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { OperationBase } from '@account-abstraction/utils'
+import { OperationBase, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
@@ -9,6 +9,7 @@ import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import { IValidationManager } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
+import { BigNumberish } from 'ethers'
 
 const debug = Debug('aa.exec')
 
@@ -98,5 +99,13 @@ export class ExecutionManager {
       this.depositManager.clearCache()
       return ret
     }
+  }
+
+  async createBundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
+    return await this.bundleManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 }
