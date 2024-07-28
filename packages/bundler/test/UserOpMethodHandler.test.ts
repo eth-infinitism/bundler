@@ -75,8 +75,7 @@ describe('UserOpMethodHandler', function () {
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
-      minUnstakeDelay: 0,
-      gethDevMode: false
+      minUnstakeDelay: 0
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)

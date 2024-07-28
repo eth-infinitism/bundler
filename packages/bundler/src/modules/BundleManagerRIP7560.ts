@@ -36,8 +36,7 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     maxBundleGas: number,
     conditionalRpc: boolean,
     mergeToAccountRootHash: boolean,
-    readonly useRip7560Mode: string | undefined,
-    readonly gethDevMode: boolean
+    readonly useRip7560Mode: string | undefined
   ) {
     super(
       undefined, provider, signer, eventsManager, mempoolManager, validationManager,
@@ -96,14 +95,6 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
       transactionHash: bundleHash,
       userOpHashes
     })
-
-    // TODO: this is extremely non elegant - create a different workaround
-    // if (this.useRip7560Mode === 'PULL' && this.gethDevMode) {
-    //   // force triggering a new block creation if using Geth in Dev Mode
-    //   setTimeout(() => {
-    //     this.signer.sendTransaction({ to: this.signer.getAddress() })
-    //   }, 100)
-    // }
 
     return [bundle, storageMap]
   }

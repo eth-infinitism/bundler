@@ -36,7 +36,6 @@ describe('#BundlerManager', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
-      gethDevMode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -87,7 +86,6 @@ describe('#BundlerManager', () => {
       const bundlerSigner = await createSigner()
       const _entryPoint = entryPoint.connect(bundlerSigner)
       const config: BundlerConfig = {
-        gethDevMode: false,
         beneficiary: await bundlerSigner.getAddress(),
         entryPoint: _entryPoint.address,
         gasFactor: '0.2',

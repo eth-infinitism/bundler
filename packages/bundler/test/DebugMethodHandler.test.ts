@@ -43,7 +43,6 @@ describe('#DebugMethodHandler', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
-      gethDevMode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
