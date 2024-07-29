@@ -1,12 +1,12 @@
-import { MempoolEntry, MempoolManager } from './MempoolManager'
-import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
-import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { isAddress } from 'ethers/lib/utils'
-import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
-import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { BigNumber, BigNumberish, Signer } from 'ethers'
+import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { Mutex } from 'async-mutex'
-import { GetUserOpHashes__factory } from '../types'
+import { isAddress } from 'ethers/lib/utils'
+
+import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
+
 import {
   AddressZero,
   IEntryPoint,
@@ -19,8 +19,12 @@ import {
   packUserOp,
   runContractScript
 } from '@account-abstraction/utils'
+
 import { EventsManager } from './EventsManager'
-import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import { GetUserOpHashes__factory } from '../types'
+import { IBundleManager } from './IBundleManager'
+import { MempoolEntry, MempoolManager } from './MempoolManager'
+import { ReputationManager, ReputationStatus } from './ReputationManager'
 
 const debug = Debug('aa.exec.cron')
 
@@ -31,7 +35,7 @@ export interface SendBundleReturn {
   userOpHashes: string[]
 }
 
-export class BundleManager {
+export class BundleManager implements IBundleManager {
   readonly entryPoint: IEntryPoint
   mutex = new Mutex()
 
@@ -215,9 +219,19 @@ export class BundleManager {
     const storageMap: StorageMap = {}
     let totalGas = BigNumber.from(0)
     debug('got mempool of ', entries.length)
+    let bundleGas = BigNumber.from(0)
     // eslint-disable-next-line no-labels
     mainLoop:
     for (const entry of entries) {
+      const maxBundleSizeNum = BigNumber.from(maxBundleSize).toNumber()
+      if (maxBundleSizeNum !== 0 && entries.length >= maxBundleSizeNum) {
+        debug('exiting after maxBundleSize is reached', maxBundleSize, entries.length)
+        break
+      }
+      if (BigNumber.from(entry.userOp.maxFeePerGas).lt(minBaseFee)) {
+        debug('skipping transaction not paying minBaseFee', minBaseFee, entry.userOp.maxFeePerGas)
+        continue
+      }
       const paymaster = entry.userOp.paymaster
       const factory = entry.userOp.factory
       const paymasterStatus = this.reputationManager.getStatus(paymaster)
@@ -295,6 +309,20 @@ export class BundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
+      const userOpGas =
+        BigNumber
+          .from((entry.userOp as UserOperation).preVerificationGas ?? 0)
+          .add(entry.userOp.callGasLimit)
+          .add(entry.userOp.verificationGasLimit)
+          .add(entry.userOp.paymasterVerificationGasLimit ?? 0)
+          .add(entry.userOp.paymasterPostOpGasLimit ?? 0)
+
+      const newBundleGas = userOpGas.add(bundleGas)
+      if (newBundleGas.gte(maxBundleGas)) {
+        debug('exiting after maxBundleGas is reached', maxBundleGas, bundleGas, userOpGas)
+        break
+      }
+      bundleGas = newBundleGas
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas

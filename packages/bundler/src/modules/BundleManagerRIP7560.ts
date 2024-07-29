@@ -2,6 +2,7 @@ import Debug from 'debug'
 import { BigNumber, BigNumberish, ethers, Signer } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { RLP } from '@ethereumjs/rlp'
+import { hexlify } from 'ethers/lib/utils'
 
 import {
   OperationBase,
@@ -13,14 +14,12 @@ import { IValidationManager } from '@account-abstraction/validation-manager'
 
 import { BundleManager, SendBundleReturn } from './BundleManager'
 import { EventsManager } from './EventsManager'
-import { IBundleManager } from './IBundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
-import { hexlify } from 'ethers/lib/utils'
 
 const debug = Debug('aa.exec.cron')
 
-export class BundleManagerRIP7560 extends BundleManager implements IBundleManager {
+export class BundleManagerRIP7560 extends BundleManager {
   sentBundles: SendBundleReturn[] = []
   lastScannedBlock: number = 0
 
