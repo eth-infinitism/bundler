@@ -237,7 +237,8 @@ export class BundlerServer {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         const [bundle] = await this.methodHandlerRip7560.getRip7560Bundle(params[0], params[1], params[2])
-        result = { bundle, hello: 'hello!', validForBlock: 0 }
+        // TODO: provide a correct value for 'validForBlock'
+        result = { bundle, validForBlock: 0 }
         console.log('handleMethod eth_getRip7560Bundle:\n', result)
         break
       }
