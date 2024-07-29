@@ -350,9 +350,7 @@ export function tracerResultParser (
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
-          console.log('WTF slot assoc with account', slot)
           if (userOp.factory != null && userOp.factory !== AddressZero) {
-            console.log('WTF with factory')
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
             if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities[userOp.factory.toLowerCase()]))) {

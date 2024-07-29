@@ -34,7 +34,6 @@ export class ValidationManagerRIP7560 implements IValidationManager {
       const traceResult = await this.traceValidation(transaction).catch(e => {
         throw e
       })
-      console.log('WTF after trace')
       // TODO alex shahaf add staked entities support
       const validationResult: ValidationResult = {
         returnInfo: { sigFailed: false, validAfter: 0, validUntil: 0 },
@@ -43,12 +42,10 @@ export class ValidationManagerRIP7560 implements IValidationManager {
         senderInfo: { stake: 0, addr: operation.sender, unstakeDelaySec: 0 }
       }
       console.log(JSON.stringify(traceResult))
-      console.log('WTF inside validate before parser')
       // this.parseValidationTracingResult(traceResult)
       // let contractAddresses: string[]
       // [contractAddresses, storageMap] =
       tracerResultParser(operation, traceResult, validationResult, AA_ENTRY_POINT)
-      console.log('WTF inside validate after parser')
       // TODO alex shahaf handle codehashes
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
