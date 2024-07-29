@@ -10,7 +10,8 @@ import {
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { eth_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
-import { AA_ENTRY_POINT } from '@account-abstraction/bundler/src/BundlerConfig'
+
+export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
 
 export class ValidationManagerRIP7560 implements IValidationManager {
   constructor (
