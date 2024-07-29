@@ -1,7 +1,6 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 import {
-  AddressZero,
   OperationBase,
   OperationRIP7560,
   ReferencedCodeHashes,
@@ -11,6 +10,8 @@ import {
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { eth_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
+
+export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
 
 export class ValidationManagerRIP7560 implements IValidationManager {
   constructor (
@@ -37,15 +38,15 @@ export class ValidationManagerRIP7560 implements IValidationManager {
       // TODO alex shahaf add staked entities support
       const validationResult: ValidationResult = {
         returnInfo: { sigFailed: false, validAfter: 0, validUntil: 0 },
-        factoryInfo: { stake: 0, addr: '', unstakeDelaySec: 0 },
-        paymasterInfo: { stake: 0, addr: '', unstakeDelaySec: 0 },
-        senderInfo: { stake: 0, addr: '', unstakeDelaySec: 0 }
+        factoryInfo: { stake: 0, addr: operation.factory ?? '', unstakeDelaySec: 0 },
+        paymasterInfo: { stake: 0, addr: operation.paymaster ?? '', unstakeDelaySec: 0 },
+        senderInfo: { stake: 0, addr: operation.sender, unstakeDelaySec: 0 }
       }
       console.log(JSON.stringify(traceResult))
       // this.parseValidationTracingResult(traceResult)
       // let contractAddresses: string[]
       // [contractAddresses, storageMap] =
-      tracerResultParser(operation, traceResult, validationResult, AddressZero)
+      tracerResultParser(operation, traceResult, validationResult, AA_ENTRY_POINT)
       // TODO alex shahaf handle codehashes
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {

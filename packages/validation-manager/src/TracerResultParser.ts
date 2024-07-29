@@ -18,7 +18,7 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32
+  toBytes32, AddressZero
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './IValidationManager'
@@ -350,7 +350,7 @@ export function tracerResultParser (
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
-          if (userOp.factory != null) {
+          if (userOp.factory != null && userOp.factory !== AddressZero) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
             if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities[userOp.factory.toLowerCase()]))) {
