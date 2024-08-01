@@ -10,6 +10,7 @@ import {
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { eth_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
+import debug from 'debug'
 
 export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
 
@@ -42,7 +43,7 @@ export class ValidationManagerRIP7560 implements IValidationManager {
         paymasterInfo: { stake: 0, addr: operation.paymaster ?? '', unstakeDelaySec: 0 },
         senderInfo: { stake: 0, addr: operation.sender, unstakeDelaySec: 0 }
       }
-      console.log(JSON.stringify(traceResult))
+      debug(`traceResult= ${JSON.stringify(traceResult)}`)
       // this.parseValidationTracingResult(traceResult)
       // let contractAddresses: string[]
       // [contractAddresses, storageMap] =
