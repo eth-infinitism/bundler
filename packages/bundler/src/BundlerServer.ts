@@ -236,9 +236,11 @@ export class BundlerServer {
         if (this.config.useRip7560Mode == null) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
-        const [bundle] = await this.methodHandlerRip7560.getRip7560Bundle(params[0], params[1], params[2])
+        const [bundle] = await this.methodHandlerRip7560.getRip7560Bundle(
+          params[0].MinBaseFee, params[0].MaxBundleGas, params[0].MaxBundleSize
+        )
         // TODO: provide a correct value for 'validForBlock'
-        result = { bundle, validForBlock: 0 }
+        result = { bundle, validForBlock: '0x0' }
         console.log('handleMethod eth_getRip7560Bundle:\n', result)
         break
       }

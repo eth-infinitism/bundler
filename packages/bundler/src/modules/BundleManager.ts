@@ -199,9 +199,9 @@ export class BundleManager implements IBundleManager {
   }
 
   async createBundle (
-    minBaseFee: BigNumberish,
-    maxBundleGas: BigNumberish,
-    maxBundleSize: BigNumberish
+    minBaseFee?: BigNumberish,
+    maxBundleGas?: BigNumberish,
+    maxBundleSize?: BigNumberish
   ): Promise<[OperationBase[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: OperationBase[] = []
@@ -223,12 +223,16 @@ export class BundleManager implements IBundleManager {
     // eslint-disable-next-line no-labels
     mainLoop:
     for (const entry of entries) {
-      const maxBundleSizeNum = BigNumber.from(maxBundleSize).toNumber()
+      const maxBundleSizeNum = BigNumber.from(maxBundleSize ?? 0).toNumber()
       if (maxBundleSizeNum !== 0 && entries.length >= maxBundleSizeNum) {
         debug('exiting after maxBundleSize is reached', maxBundleSize, entries.length)
         break
       }
-      if (BigNumber.from(entry.userOp.maxFeePerGas).lt(minBaseFee)) {
+      if (
+        minBaseFee != null &&
+        !BigNumber.from(minBaseFee).eq(0) &&
+        BigNumber.from(entry.userOp.maxFeePerGas).lt(minBaseFee)
+      ) {
         debug('skipping transaction not paying minBaseFee', minBaseFee, entry.userOp.maxFeePerGas)
         continue
       }
@@ -318,7 +322,10 @@ export class BundleManager implements IBundleManager {
           .add(entry.userOp.paymasterPostOpGasLimit ?? 0)
 
       const newBundleGas = userOpGas.add(bundleGas)
-      if (newBundleGas.gte(maxBundleGas)) {
+      if (
+        maxBundleGas != null &&
+        !BigNumber.from(maxBundleGas).eq(0) &&
+        newBundleGas.gte(maxBundleGas)) {
         debug('exiting after maxBundleGas is reached', maxBundleGas, bundleGas, userOpGas)
         break
       }
