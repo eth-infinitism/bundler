@@ -119,6 +119,7 @@ export class BundleManagerRIP7560 extends BundleManager {
       transactionHash: bundleHash,
       userOpHashes
     })
+
     return bundleHash
   }
 

@@ -43,7 +43,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false, config.rip7560Mode)
   }
   const depositManager = new DepositManager(entryPoint, mempoolManager, bundleManager)
-  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager)
+  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager, signer, config.gethDevMode)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])
   reputationManager.addBlacklist(...config.blacklist ?? [])

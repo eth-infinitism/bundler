@@ -53,6 +53,7 @@ describe('#BundlerManager', () => {
       minUnstakeDelay: 0,
       rip7560: false,
       rip7560Mode: 'PULL',
+      gethDevMode: false,
       conditionalRpc: false
     }
 
@@ -106,6 +107,7 @@ describe('#BundlerManager', () => {
         minStake: '0',
         rip7560: false,
         rip7560Mode: 'PULL',
+        gethDevMode: false,
         minUnstakeDelay: 0
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -114,7 +116,7 @@ describe('#BundlerManager', () => {
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, _entryPoint.provider as JsonRpcProvider, _entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
       const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
-      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager, _entryPoint.signer, false)
       execManager.setAutoBundler(0, 1000)
 
       methodHandler = new MethodHandlerERC4337(

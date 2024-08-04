@@ -9,7 +9,7 @@ import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import { IValidationManager } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
-import { BigNumberish } from 'ethers'
+import { BigNumberish, Signer } from 'ethers'
 
 const debug = Debug('aa.exec')
 
@@ -28,7 +28,9 @@ export class ExecutionManager {
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: IBundleManager,
     private readonly validationManager: IValidationManager,
-    private readonly depositManager: DepositManager
+    private readonly depositManager: DepositManager,
+    private readonly signer: Signer,
+    private readonly gethDevMode: boolean
   ) {
   }
 
@@ -90,6 +92,12 @@ export class ExecutionManager {
    */
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
+    if (this.gethDevMode && force) {
+      await this.signer.sendTransaction({
+        to: this.signer.getAddress(),
+        value: 1
+      })
+    }
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       const ret = await this.bundleManager.sendNextBundle()
       if (this.maxMempoolSize === 0) {

@@ -49,6 +49,7 @@ describe('BundleServer', function () {
       minStake: '0',
       rip7560: false,
       rip7560Mode: 'PULL',
+      gethDevMode: false,
       minUnstakeDelay: 0
     }
 
@@ -58,7 +59,7 @@ describe('BundleServer', function () {
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager, entryPoint.signer, false)
     const methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
