@@ -92,7 +92,7 @@ export class ExecutionManager {
    */
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
-    if (this.gethDevMode && force){
+    if (this.gethDevMode && force) {
       await this.signer.sendTransaction({
         to: this.signer.getAddress(),
         value: 1
