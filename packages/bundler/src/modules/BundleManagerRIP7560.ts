@@ -35,8 +35,7 @@ export class BundleManagerRIP7560 extends BundleManager {
     maxBundleGas: number,
     conditionalRpc: boolean,
     mergeToAccountRootHash: boolean,
-    readonly useRip7560Mode: string | undefined,
-    readonly gethDevMode: boolean
+    readonly useRip7560Mode: string | undefined
   ) {
     super(
       undefined, provider, signer, eventsManager, mempoolManager, validationManager,
@@ -120,13 +119,6 @@ export class BundleManagerRIP7560 extends BundleManager {
       transactionHash: bundleHash,
       userOpHashes
     })
-
-    if (this.gethDevMode){
-      await this.signer.sendTransaction({
-        to: this.signer.getAddress(),
-        value: 1
-      })
-    }
 
     return bundleHash
   }
