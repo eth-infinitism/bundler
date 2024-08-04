@@ -1,4 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers'
+import Debug from 'debug'
+
 import {
   ReferencedCodeHashes,
   RpcError,
@@ -6,19 +8,10 @@ import {
   ValidationErrors,
   requireCond, OperationBase
 } from '@account-abstraction/utils'
+import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
-import Debug from 'debug'
 
 const debug = Debug('aa.mempool')
-
-export interface MempoolEntry {
-  userOp: OperationBase
-  userOpHash: string
-  prefund: BigNumberish
-  referencedContracts: ReferencedCodeHashes
-  // aggregator, if one was found during simulation
-  aggregator?: string
-}
 
 type MempoolDump = OperationBase[]
 
@@ -75,13 +68,13 @@ export class MempoolManager {
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo
   ): void {
-    const entry: MempoolEntry = {
+    const entry = new MempoolEntry(
       userOp,
       userOpHash,
       prefund,
       referencedContracts,
-      aggregator: aggregatorInfo?.addr
-    }
+      aggregatorInfo?.addr
+    )
     const index = this._findBySenderNonce(userOp.sender, userOp.nonce)
     if (index !== -1) {
       const oldEntry = this.mempool[index]

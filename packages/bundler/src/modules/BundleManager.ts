@@ -23,7 +23,8 @@ import {
 import { EventsManager } from './EventsManager'
 import { GetUserOpHashes__factory } from '../types'
 import { IBundleManager } from './IBundleManager'
-import { MempoolEntry, MempoolManager } from './MempoolManager'
+import { MempoolEntry } from './MempoolEntry'
+import { MempoolManager } from './MempoolManager'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 
 const debug = Debug('aa.exec.cron')
@@ -313,20 +314,12 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-      const userOpGas =
-        BigNumber
-          .from((entry.userOp as UserOperation).preVerificationGas ?? 0)
-          .add(entry.userOp.callGasLimit)
-          .add(entry.userOp.verificationGasLimit)
-          .add(entry.userOp.paymasterVerificationGasLimit ?? 0)
-          .add(entry.userOp.paymasterPostOpGasLimit ?? 0)
-
-      const newBundleGas = userOpGas.add(bundleGas)
+      const newBundleGas = entry.userOpMaxGas.add(bundleGas)
       if (
         maxBundleGas != null &&
         !BigNumber.from(maxBundleGas).eq(0) &&
         newBundleGas.gte(maxBundleGas)) {
-        debug('exiting after maxBundleGas is reached', maxBundleGas, bundleGas, userOpGas)
+        debug('exiting after maxBundleGas is reached', maxBundleGas, bundleGas, entry.userOpMaxGas)
         break
       }
       bundleGas = newBundleGas
