@@ -1,6 +1,6 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
-import express, { Express, Response, Request } from 'express'
+import express, { Express, Response, Request, RequestHandler } from 'express'
 import { Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
@@ -24,7 +24,6 @@ import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
 import { DebugMethodHandler } from './DebugMethodHandler'
 
 import Debug from 'debug'
-import { RequestHandler } from 'express-serve-static-core'
 
 const debug = Debug('aa.rpc')
 
