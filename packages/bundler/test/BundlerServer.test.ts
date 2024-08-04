@@ -38,15 +38,17 @@ describe('BundleServer', function () {
       minBalance: '0',
       mnemonic: '',
       network: '',
-      publicApiPort: '3000',
+      port: '3000',
       privateApiPort: '3001',
-      unsafe: !await supportsDebugTraceCall(provider as any, undefined),
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
+      rip7560: false,
+      rip7560Mode: 'PULL',
       minUnstakeDelay: 0
     }
 

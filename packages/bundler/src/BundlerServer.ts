@@ -50,7 +50,7 @@ export class BundlerServer {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.initializeExpressApp(this.appPrivate, this.getRpc(this.handleRpcPrivate.bind(this)))
 
-    this.httpServerPublic = this.appPublic.listen(this.config.publicApiPort)
+    this.httpServerPublic = this.appPublic.listen(this.config.port)
     this.httpServerPrivate = this.appPrivate.listen(this.config.privateApiPort)
 
     this.startingPromise = this._preflightCheck()
@@ -78,7 +78,7 @@ export class BundlerServer {
   }
 
   async _preflightCheck (): Promise<void> {
-    if (this.config.useRip7560Mode != null) {
+    if (this.config.rip7560) {
       // TODO: implement preflight checks for the RIP-7560 mode
       return
     }
@@ -233,7 +233,7 @@ export class BundlerServer {
     switch (method) {
       /** RIP-7560 specific RPC API */
       case 'eth_getRip7560Bundle': {
-        if (this.config.useRip7560Mode == null) {
+        if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         const [bundle] = await this.methodHandlerRip7560.getRip7560Bundle(
@@ -245,7 +245,7 @@ export class BundlerServer {
         break
       }
       case 'eth_sendTransaction':
-        if (this.config.useRip7560Mode == null) {
+        if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         if (params[0].sender != null) {
@@ -253,7 +253,7 @@ export class BundlerServer {
         }
         break
       case 'eth_getTransactionReceipt':
-        if (this.config.useRip7560Mode == null) {
+        if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         result = await this.methodHandlerRip7560.getRIP7560TransactionReceipt(params[0])

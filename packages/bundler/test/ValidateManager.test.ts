@@ -147,10 +147,10 @@ describe('#ValidationManager', () => {
     await rulesFactory.create('')
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
-    const unsafe = !await supportsDebugTraceCall(provider, undefined)
+    const unsafe = !await supportsDebugTraceCall(provider, false)
     vm = new ValidationManager(entryPoint, unsafe)
 
-    if (!await supportsDebugTraceCall(ethers.provider, undefined)) {
+    if (!await supportsDebugTraceCall(ethers.provider, false)) {
       console.log('WARNING: opcode banning tests can only run with geth')
       this.skip()
     }

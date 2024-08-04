@@ -11,7 +11,7 @@ export interface BundlerConfig {
   minBalance: string
   mnemonic: string
   network: string
-  publicApiPort: string
+  port: string
   privateApiPort: string
   unsafe: boolean
   debugRpc?: boolean
@@ -24,7 +24,8 @@ export interface BundlerConfig {
   minUnstakeDelay: number
   autoBundleInterval: number
   autoBundleMempoolSize: number
-  useRip7560Mode?: string
+  rip7560: boolean
+  rip7560Mode: string
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -35,7 +36,7 @@ export const BundlerConfigShape = {
   minBalance: ow.string,
   mnemonic: ow.string,
   network: ow.string,
-  publicApiPort: ow.string,
+  port: ow.string,
   privateApiPort: ow.string,
   unsafe: ow.boolean,
   debugRpc: ow.optional.boolean,
@@ -48,13 +49,14 @@ export const BundlerConfigShape = {
   minUnstakeDelay: ow.number,
   autoBundleInterval: ow.number,
   autoBundleMempoolSize: ow.number,
-  useRip7560Mode: ow.optional.string
+  rip7560: ow.boolean,
+  rip7560Mode: ow.string.oneOf(['PULL', 'PUSH'])
 }
 
 // TODO: consider if we want any default fields at all
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
 export const bundlerConfigDefault: Partial<BundlerConfig> = {
-  publicApiPort: '3000',
+  port: '3000',
   privateApiPort: '3001',
   entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
   unsafe: false,

@@ -42,15 +42,17 @@ describe('#BundlerManager', () => {
       minBalance: '0',
       mnemonic: '',
       network: '',
-      publicApiPort: '3000',
+      port: '3000',
       privateApiPort: '3001',
-      unsafe: !await supportsDebugTraceCall(provider as any, undefined),
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
       minUnstakeDelay: 0,
+      rip7560: false,
+      rip7560Mode: 'PULL',
       conditionalRpc: false
     }
 
@@ -93,15 +95,17 @@ describe('#BundlerManager', () => {
         minBalance: '0',
         mnemonic: '',
         network: '',
-        publicApiPort: '3000',
+        port: '3000',
         privateApiPort: '3001',
-        unsafe: !await supportsDebugTraceCall(provider as any, undefined),
+        unsafe: !await supportsDebugTraceCall(provider as any, false),
         conditionalRpc: false,
         autoBundleInterval: 0,
         autoBundleMempoolSize: 0,
         maxBundleGas: 5e6,
         // minstake zero, since we don't fund deployer.
         minStake: '0',
+        rip7560: false,
+        rip7560Mode: 'PULL',
         minUnstakeDelay: 0
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -123,7 +127,7 @@ describe('#BundlerManager', () => {
     })
 
     it('should not include a UserOp that accesses the storage of a different known sender', async function () {
-      if (!await supportsDebugTraceCall(ethers.provider, undefined)) {
+      if (!await supportsDebugTraceCall(ethers.provider, false)) {
         console.log('WARNING: opcode banning tests can only run with geth')
         this.skip()
       }
