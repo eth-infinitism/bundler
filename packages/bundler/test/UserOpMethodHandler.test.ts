@@ -78,6 +78,7 @@ describe('UserOpMethodHandler', function () {
       minStake: '0',
       rip7560: false,
       rip7560Mode: 'PULL',
+      gethDevMode: false,
       minUnstakeDelay: 0
     }
 

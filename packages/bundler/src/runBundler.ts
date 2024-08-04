@@ -85,6 +85,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--createMnemonic <file>', 'create the mnemonic file')
     .option('--rip7560', 'Use this bundler as an RIP-7560 node', false)
     .option('--rip7560Mode <string>', 'PUSH mode sends bundles to node at an interval, PULL mode waits for node to query bundle', 'PULL')
+    .option('--gethDevMode', 'In PULL mode send 1 wei transaction to trigger block creation', false)
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces

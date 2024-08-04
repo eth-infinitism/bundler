@@ -53,6 +53,7 @@ describe('#BundlerManager', () => {
       minUnstakeDelay: 0,
       rip7560: false,
       rip7560Mode: 'PULL',
+      gethDevMode: false,
       conditionalRpc: false
     }
 
@@ -106,6 +107,7 @@ describe('#BundlerManager', () => {
         minStake: '0',
         rip7560: false,
         rip7560Mode: 'PULL',
+        gethDevMode: false,
         minUnstakeDelay: 0
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)

@@ -26,6 +26,7 @@ export interface BundlerConfig {
   autoBundleMempoolSize: number
   rip7560: boolean
   rip7560Mode: string
+  gethDevMode: boolean
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -50,7 +51,8 @@ export const BundlerConfigShape = {
   autoBundleInterval: ow.number,
   autoBundleMempoolSize: ow.number,
   rip7560: ow.boolean,
-  rip7560Mode: ow.string.oneOf(['PULL', 'PUSH'])
+  rip7560Mode: ow.string.oneOf(['PULL', 'PUSH']),
+  gethDevMode: ow.boolean
 }
 
 // TODO: consider if we want any default fields at all
