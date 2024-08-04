@@ -75,7 +75,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--publicApiPort <number>', `server listening port for public clients (default: ${bundlerConfigDefault.publicApiPort})`)
-    .option('--privateApiPort <number>', `server listening port for block builders (default: ${bundlerConfigDefault.privateApiPort})`)
+    .option('--privateApiPort <number>', `server listening port for block builder (default: ${bundlerConfigDefault.privateApiPort})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
