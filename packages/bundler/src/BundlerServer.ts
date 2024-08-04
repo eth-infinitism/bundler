@@ -156,7 +156,7 @@ export class BundlerServer {
   async handleRpcPublic (reqItem: any): Promise<any> {
     const { method, jsonrpc, id } = reqItem
 
-    if (method === 'eth_getRip7560Bundle') {
+    if (method === 'aa_getRip7560Bundle') {
       const error = {
         message: `requested RPC method (${method as string}) is not available`,
         data: '',
@@ -175,7 +175,7 @@ export class BundlerServer {
   async handleRpcPrivate (reqItem: any): Promise<any> {
     const { method, jsonrpc, id } = reqItem
 
-    if (method !== 'eth_getRip7560Bundle') {
+    if (method !== 'aa_getRip7560Bundle') {
       const error = {
         message: `requested RPC method (${method as string}) is not available`,
         data: '',
@@ -232,7 +232,7 @@ export class BundlerServer {
     let result: any
     switch (method) {
       /** RIP-7560 specific RPC API */
-      case 'eth_getRip7560Bundle': {
+      case 'aa_getRip7560Bundle': {
         if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
@@ -241,7 +241,6 @@ export class BundlerServer {
         )
         // TODO: provide a correct value for 'validForBlock'
         result = { bundle, validForBlock: '0x0' }
-        console.log('handleMethod eth_getRip7560Bundle:\n', result)
         break
       }
       case 'eth_sendTransaction':
