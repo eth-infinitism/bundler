@@ -56,7 +56,7 @@ export class ExecutionManager {
         validationResult.paymasterInfo,
         validationResult.factoryInfo,
         validationResult.aggregatorInfo)
-      if (this.rip7560 && this.useRip7560Mode === 'PUSH') {
+      if (!this.rip7560 || (this.rip7560 && this.useRip7560Mode === 'PUSH')) {
         await this.attemptBundle(false)
       }
     })
