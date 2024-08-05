@@ -30,6 +30,8 @@ export class ExecutionManager {
     private readonly validationManager: IValidationManager,
     private readonly depositManager: DepositManager,
     private readonly signer: Signer,
+    private readonly rip7560: boolean,
+    private readonly useRip7560Mode: string | undefined,
     private readonly gethDevMode: boolean
   ) {
   }
@@ -54,7 +56,9 @@ export class ExecutionManager {
         validationResult.paymasterInfo,
         validationResult.factoryInfo,
         validationResult.aggregatorInfo)
-      await this.attemptBundle(false)
+      if (this.rip7560 && this.useRip7560Mode === 'PUSH') {
+        await this.attemptBundle(false)
+      }
     })
   }
 
@@ -91,13 +95,15 @@ export class ExecutionManager {
    * @param force
    */
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
-    debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
-    if (this.gethDevMode && force) {
+    if (this.rip7560 && this.useRip7560Mode === 'PULL' && this.gethDevMode && force) {
+      debug('sending 1 wei transaction')
       await this.signer.sendTransaction({
         to: this.signer.getAddress(),
         value: 1
       })
+      return
     }
+    debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       const ret = await this.bundleManager.sendNextBundle()
       if (this.maxMempoolSize === 0) {

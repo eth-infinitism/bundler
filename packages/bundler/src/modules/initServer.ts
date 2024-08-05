@@ -40,14 +40,15 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   } else {
     validationManager = new ValidationManagerRIP7560(entryPoint.provider as JsonRpcProvider, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
-      config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false, config.rip7560Mode)
+      config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false)
   }
   const depositManager = new DepositManager(entryPoint, mempoolManager, bundleManager)
-  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager, signer, config.gethDevMode)
+  const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager, depositManager, signer, config.rip7560, config.rip7560Mode, config.gethDevMode)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])
   reputationManager.addBlacklist(...config.blacklist ?? [])
-  executionManager.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
-
+  if (config.rip7560 && config.rip7560Mode === 'PUSH') {
+    executionManager.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
+  }
   return [executionManager, eventsManager, reputationManager, mempoolManager]
 }

@@ -34,8 +34,7 @@ export class BundleManagerRIP7560 extends BundleManager {
     minSignerBalance: BigNumberish,
     maxBundleGas: number,
     conditionalRpc: boolean,
-    mergeToAccountRootHash: boolean,
-    readonly useRip7560Mode: string | undefined
+    mergeToAccountRootHash: boolean
   ) {
     super(
       undefined, provider, signer, eventsManager, mempoolManager, validationManager,
@@ -99,9 +98,6 @@ export class BundleManagerRIP7560 extends BundleManager {
   }
 
   async sendBundle (userOps: OperationBase[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
-    if (this.useRip7560Mode === 'PULL') {
-      return
-    }
     const creationBlock = await this.provider.getBlockNumber()
     const bundlerId = 'www.reference-bundler.fake'
     const userOpHashes: string[] = []
