@@ -97,10 +97,12 @@ export class ExecutionManager {
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
     if (this.rip7560 && this.useRip7560Mode === 'PULL' && this.gethDevMode && force) {
       debug('sending 1 wei transaction')
-      await this.signer.sendTransaction({
+      const result = await this.signer.sendTransaction({
         to: this.signer.getAddress(),
         value: 1
       })
+      const transactionReceipt = await result.wait()
+      await this.signer.provider?.getBlock(transactionReceipt.blockNumber!)
       return
     }
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
