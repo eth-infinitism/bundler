@@ -101,7 +101,17 @@ export class ExecutionManager {
         to: this.signer.getAddress(),
         value: 1
       })
-      await result.wait()
+      // wait up to 2 seconds for the transaction to be mined
+      for (let i = 0; ; i++) {
+        const rcpt = await this.signer.provider?.getTransactionReceipt(result.hash)
+        if (rcpt != null) {
+          break
+        }
+        if (i > 20) {
+          throw new Error('timed out waiting for transaction')
+        }
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
       return
     }
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
