@@ -24,7 +24,6 @@ function nonZeroAddr(addr?: string): Buffer {
 
 function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string {
   const input: Input = []
-  console.log('op to encode:', op)
   input.push(bigNumberishToUnpaddedBuffer(op.chainId))
   input.push(bigNumberishToUnpaddedBuffer(op.maxPriorityFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.maxFeePerGas))
