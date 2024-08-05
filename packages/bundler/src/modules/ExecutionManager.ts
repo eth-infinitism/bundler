@@ -101,8 +101,7 @@ export class ExecutionManager {
         to: this.signer.getAddress(),
         value: 1
       })
-      const transactionReceipt = await result.wait()
-      await this.signer.provider?.getBlock(transactionReceipt.blockNumber!)
+      await result.wait()
       return
     }
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
