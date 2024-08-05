@@ -36,7 +36,6 @@ describe('#BundlerManager', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
-      useRip7560Mode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -44,6 +43,7 @@ describe('#BundlerManager', () => {
       mnemonic: '',
       network: '',
       port: '3000',
+      privateApiPort: '3001',
       unsafe: !await supportsDebugTraceCall(provider as any, false),
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
@@ -51,6 +51,9 @@ describe('#BundlerManager', () => {
       // minstake zero, since we don't fund deployer.
       minStake: '0',
       minUnstakeDelay: 0,
+      rip7560: false,
+      rip7560Mode: 'PULL',
+      gethDevMode: false,
       conditionalRpc: false
     }
 
@@ -87,7 +90,6 @@ describe('#BundlerManager', () => {
       const bundlerSigner = await createSigner()
       const _entryPoint = entryPoint.connect(bundlerSigner)
       const config: BundlerConfig = {
-        useRip7560Mode: false,
         beneficiary: await bundlerSigner.getAddress(),
         entryPoint: _entryPoint.address,
         gasFactor: '0.2',
@@ -95,6 +97,7 @@ describe('#BundlerManager', () => {
         mnemonic: '',
         network: '',
         port: '3000',
+        privateApiPort: '3001',
         unsafe: !await supportsDebugTraceCall(provider as any, false),
         conditionalRpc: false,
         autoBundleInterval: 0,
@@ -102,6 +105,9 @@ describe('#BundlerManager', () => {
         maxBundleGas: 5e6,
         // minstake zero, since we don't fund deployer.
         minStake: '0',
+        rip7560: false,
+        rip7560Mode: 'PULL',
+        gethDevMode: false,
         minUnstakeDelay: 0
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -110,7 +116,7 @@ describe('#BundlerManager', () => {
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, _entryPoint.provider as JsonRpcProvider, _entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
       const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
-      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+      const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager, _entryPoint.signer, false, undefined, false)
       execManager.setAutoBundler(0, 1000)
 
       methodHandler = new MethodHandlerERC4337(

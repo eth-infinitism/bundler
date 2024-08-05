@@ -1,6 +1,8 @@
 import Debug from 'debug'
-import { BigNumber, BigNumberish, Signer } from 'ethers'
+import { BigNumber, BigNumberish, ethers, Signer } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
+import { RLP } from '@ethereumjs/rlp'
+import { hexlify } from 'ethers/lib/utils'
 
 import {
   OperationBase,
@@ -12,13 +14,12 @@ import { IValidationManager } from '@account-abstraction/validation-manager'
 
 import { BundleManager, SendBundleReturn } from './BundleManager'
 import { EventsManager } from './EventsManager'
-import { IBundleManager } from './IBundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
 
 const debug = Debug('aa.exec.cron')
 
-export class BundleManagerRIP7560 extends BundleManager implements IBundleManager {
+export class BundleManagerRIP7560 extends BundleManager {
   sentBundles: SendBundleReturn[] = []
   lastScannedBlock: number = 0
 
@@ -33,7 +34,7 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     minSignerBalance: BigNumberish,
     maxBundleGas: number,
     conditionalRpc: boolean,
-    mergeToAccountRootHash: boolean = false
+    mergeToAccountRootHash: boolean
   ) {
     super(
       undefined, provider, signer, eventsManager, mempoolManager, validationManager,
@@ -45,7 +46,8 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
   async sendNextBundle (): Promise<SendBundleReturn | undefined> {
     await this.handlePastEvents()
 
-    const [bundle] = await this.createBundle()
+    // TODO: pass correct bundle limit parameters!
+    const [bundle] = await this.createBundle(0, 0, 0)
     if (bundle.length === 0) {
       debug('sendNextBundle - no bundle to send')
     } else {
@@ -71,6 +73,30 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     }
   }
 
+  async createBundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
+    const [bundle, storageMap] = await super.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
+    if (bundle.length === 0) {
+      return [[], {}]
+    }
+    const bundleHash = this.computeBundleHash(bundle)
+
+    // TODO: deduplicate this code with the PUSH method
+    const userOpHashes: string[] = []
+    for (const transaction of bundle) {
+      userOpHashes.push(getRIP7560TransactionHash(transaction as OperationRIP7560))
+    }
+    this.sentBundles.push({
+      transactionHash: bundleHash,
+      userOpHashes
+    })
+
+    return [bundle, storageMap]
+  }
+
   async sendBundle (userOps: OperationBase[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
     const creationBlock = await this.provider.getBlockNumber()
     const bundlerId = 'www.reference-bundler.fake'
@@ -79,6 +105,7 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
     for (const transaction of userOps) {
       userOpHashes.push(getRIP7560TransactionHash(transaction as OperationRIP7560))
     }
+
     // const transactions = userOps.map(convertToGethNames)
     const bundleHash = await this.provider.send('eth_sendRip7560TransactionsBundle', [
       userOps, creationBlock + 1, bundlerId
@@ -88,10 +115,22 @@ export class BundleManagerRIP7560 extends BundleManager implements IBundleManage
       transactionHash: bundleHash,
       userOpHashes
     })
+
     return bundleHash
   }
 
   async getPaymasterBalance (paymaster: string): Promise<BigNumber> {
     return await this.provider.getBalance(paymaster)
+  }
+
+  private computeBundleHash (userOps: OperationBase[]): string {
+    const txids: string[] = []
+    for (const userOp of userOps) {
+      txids.push(getRIP7560TransactionHash(userOp as OperationRIP7560))
+    }
+    const bundleRlpEncoding = RLP.encode(txids)
+    const bundleHash = ethers.utils.keccak256(bundleRlpEncoding)
+    console.log('computeBundleHash', txids, hexlify(bundleHash))
+    return hexlify(bundleHash)
   }
 }

@@ -11,13 +11,13 @@ export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
 
-export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7560Mode: boolean): Promise<boolean> {
+export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560: boolean): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
     p._clientVersion = await provider.send('web3_clientVersion', [])
   }
 
-  if (useRip7560Mode) {
+  if (rip7560) {
     // TODO: remove
     const defaultsForRip7560Tx: OperationRIP7560 = {
       accessList: [],

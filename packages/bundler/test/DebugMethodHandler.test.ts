@@ -43,7 +43,6 @@ describe('#DebugMethodHandler', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
-      useRip7560Mode: false,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -51,6 +50,7 @@ describe('#DebugMethodHandler', () => {
       mnemonic: '',
       network: '',
       port: '3000',
+      privateApiPort: '3001',
       unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
@@ -58,6 +58,9 @@ describe('#DebugMethodHandler', () => {
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
+      rip7560: false,
+      rip7560Mode: 'PULL',
+      gethDevMode: false,
       minUnstakeDelay: 0
     }
 
@@ -68,7 +71,7 @@ describe('#DebugMethodHandler', () => {
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, eventsManager, mempoolMgr, validMgr, repMgr,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager, entryPoint.signer, false, undefined, false)
     methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,

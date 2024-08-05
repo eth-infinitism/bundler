@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { OperationBase } from '@account-abstraction/utils'
+import { OperationBase, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
@@ -9,6 +9,7 @@ import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import { IValidationManager } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
+import { BigNumberish, Signer } from 'ethers'
 
 const debug = Debug('aa.exec')
 
@@ -27,7 +28,11 @@ export class ExecutionManager {
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: IBundleManager,
     private readonly validationManager: IValidationManager,
-    private readonly depositManager: DepositManager
+    private readonly depositManager: DepositManager,
+    private readonly signer: Signer,
+    private readonly rip7560: boolean,
+    private readonly useRip7560Mode: string | undefined,
+    private readonly gethDevMode: boolean
   ) {
   }
 
@@ -51,7 +56,9 @@ export class ExecutionManager {
         validationResult.paymasterInfo,
         validationResult.factoryInfo,
         validationResult.aggregatorInfo)
-      await this.attemptBundle(false)
+      if (!this.rip7560 || (this.rip7560 && this.useRip7560Mode === 'PUSH')) {
+        await this.attemptBundle(false)
+      }
     })
   }
 
@@ -88,6 +95,25 @@ export class ExecutionManager {
    * @param force
    */
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
+    if (this.rip7560 && this.useRip7560Mode === 'PULL' && this.gethDevMode && force) {
+      debug('sending 1 wei transaction')
+      const result = await this.signer.sendTransaction({
+        to: this.signer.getAddress(),
+        value: 1
+      })
+      // wait up to 2 seconds for the transaction to be mined
+      for (let i = 0; ; i++) {
+        const rcpt = await this.signer.provider?.getTransactionReceipt(result.hash)
+        if (rcpt != null) {
+          break
+        }
+        if (i > 20) {
+          throw new Error('timed out waiting for transaction')
+        }
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      return
+    }
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       const ret = await this.bundleManager.sendNextBundle()
@@ -98,5 +124,13 @@ export class ExecutionManager {
       this.depositManager.clearCache()
       return ret
     }
+  }
+
+  async createBundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
+    return await this.bundleManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 }

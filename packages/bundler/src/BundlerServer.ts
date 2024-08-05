@@ -1,18 +1,21 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
-import express, { Express, Response, Request } from 'express'
+import express, { Express, Response, Request, RequestHandler } from 'express'
 import { Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { Server } from 'http'
 
 import {
-  AddressZero, decodeRevertReason,
-  deepHexlify, IEntryPoint__factory,
-  erc4337RuntimeVersion,
-  packUserOp,
+  AddressZero,
+  IEntryPoint__factory,
   RpcError,
-  UserOperation
+  UserOperation,
+  ValidationErrors,
+  decodeRevertReason,
+  deepHexlify,
+  erc4337RuntimeVersion,
+  packUserOp
 } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
@@ -23,9 +26,12 @@ import { DebugMethodHandler } from './DebugMethodHandler'
 import Debug from 'debug'
 
 const debug = Debug('aa.rpc')
+
 export class BundlerServer {
-  app: Express
-  private readonly httpServer: Server
+  readonly appPublic: Express
+  readonly appPrivate: Express
+  private readonly httpServerPublic: Server
+  private readonly httpServerPrivate: Server
   public silent = false
 
   constructor (
@@ -36,18 +42,27 @@ export class BundlerServer {
     readonly provider: Provider,
     readonly wallet: Signer
   ) {
-    this.app = express()
-    this.app.use(cors())
-    this.app.use(bodyParser.json())
-
-    this.app.get('/', this.intro.bind(this))
-    this.app.post('/', this.intro.bind(this))
-
+    this.appPublic = express()
+    this.appPrivate = express()
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.app.post('/rpc', this.rpc.bind(this))
+    this.initializeExpressApp(this.appPublic, this.getRpc(this.handleRpcPublic.bind(this)))
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.initializeExpressApp(this.appPrivate, this.getRpc(this.handleRpcPrivate.bind(this)))
 
-    this.httpServer = this.app.listen(this.config.port)
+    this.httpServerPublic = this.appPublic.listen(this.config.port)
+    this.httpServerPrivate = this.appPrivate.listen(this.config.privateApiPort)
+
     this.startingPromise = this._preflightCheck()
+  }
+
+  private initializeExpressApp (app: Express, handler: RequestHandler): void {
+    app.use(cors())
+    app.use(bodyParser.json())
+
+    app.get('/', this.intro.bind(this))
+    app.post('/', this.intro.bind(this))
+
+    app.post('/rpc', handler)
   }
 
   startingPromise: Promise<void>
@@ -57,11 +72,12 @@ export class BundlerServer {
   }
 
   async stop (): Promise<void> {
-    this.httpServer.close()
+    this.httpServerPublic.close()
+    this.httpServerPrivate.close()
   }
 
   async _preflightCheck (): Promise<void> {
-    if (this.config.useRip7560Mode) {
+    if (this.config.rip7560) {
       // TODO: implement preflight checks for the RIP-7560 mode
       return
     }
@@ -107,27 +123,70 @@ export class BundlerServer {
     res.send(`Account-Abstraction Bundler v.${erc4337RuntimeVersion}. please use "/rpc"`)
   }
 
-  async rpc (req: Request, res: Response): Promise<void> {
-    let resContent: any
-    if (Array.isArray(req.body)) {
-      resContent = []
-      for (const reqItem of req.body) {
-        resContent.push(await this.handleRpc(reqItem))
+  // TODO: I don't see how to elegantly combine express callbacks with classes so I ended up with this spaghetti.
+  //  This is temporary and probably should not be merged like that, we need to simplify the flow.
+  getRpc (handleRpc: any): any {
+    const rpc = async (req: Request, res: Response): Promise<void> => {
+      let resContent: any
+      if (Array.isArray(req.body)) {
+        resContent = []
+        for (const reqItem of req.body) {
+          resContent.push(await handleRpc(reqItem))
+        }
+      } else {
+        resContent = await handleRpc(req.body)
       }
-    } else {
-      resContent = await this.handleRpc(req.body)
-    }
 
-    try {
-      res.send(resContent)
-    } catch (err: any) {
-      const error = {
-        message: err.message,
-        data: err.data,
-        code: err.code
+      try {
+        res.send(resContent)
+      } catch (err: any) {
+        const error = {
+          message: err.message,
+          data: err.data,
+          code: err.code
+        }
+        this.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
       }
-      this.log('failed: ', 'rpc::res.send()', 'error:', JSON.stringify(error))
     }
+    return rpc.bind(this)
+  }
+
+  // TODO: deduplicate!
+  async handleRpcPublic (reqItem: any): Promise<any> {
+    const { method, jsonrpc, id } = reqItem
+
+    if (method === 'aa_getRip7560Bundle') {
+      const error = {
+        message: `requested RPC method (${method as string}) is not available`,
+        data: '',
+        code: ValidationErrors.InvalidRequest
+      }
+      return {
+        jsonrpc,
+        id,
+        error
+      }
+    }
+    return await this.handleRpc(reqItem)
+  }
+
+  // TODO: deduplicate!
+  async handleRpcPrivate (reqItem: any): Promise<any> {
+    const { method, jsonrpc, id } = reqItem
+
+    if (method !== 'aa_getRip7560Bundle') {
+      const error = {
+        message: `requested RPC method (${method as string}) is not available`,
+        data: '',
+        code: ValidationErrors.InvalidRequest
+      }
+      return {
+        jsonrpc,
+        id,
+        error
+      }
+    }
+    return await this.handleRpc(reqItem)
   }
 
   async handleRpc (reqItem: any): Promise<any> {
@@ -172,18 +231,27 @@ export class BundlerServer {
     let result: any
     switch (method) {
       /** RIP-7560 specific RPC API */
+      case 'aa_getRip7560Bundle': {
+        if (!this.config.rip7560) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        const [bundle] = await this.methodHandlerRip7560.getRip7560Bundle(
+          params[0].MinBaseFee, params[0].MaxBundleGas, params[0].MaxBundleSize
+        )
+        // TODO: provide a correct value for 'validForBlock'
+        result = { bundle, validForBlock: '0x0' }
+        break
+      }
       case 'eth_sendTransaction':
-        if (!this.config.useRip7560Mode) {
+        if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         if (params[0].sender != null) {
           result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0])
-        // } else {
-        //   result = await (this.provider as JsonRpcProvider).send(method, params)
         }
         break
       case 'eth_getTransactionReceipt':
-        if (!this.config.useRip7560Mode) {
+        if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         result = await this.methodHandlerRip7560.getRIP7560TransactionReceipt(params[0])
