@@ -415,7 +415,7 @@ export function tracerResultParser (
     let illegalZeroCodeAccess: any
     for (const addr of Object.keys(currentNumLevel.contractSize)) {
       // [OP-042]
-      if (addr !== sender && currentNumLevel.contractSize[addr].contractSize <= 2) {
+      if (addr !== sender && addr.toLowerCase() !== entryPointAddress.toLowerCase() && currentNumLevel.contractSize[addr].contractSize <= 2) {
         illegalZeroCodeAccess = currentNumLevel.contractSize[addr]
         illegalZeroCodeAccess.address = addr
         break
