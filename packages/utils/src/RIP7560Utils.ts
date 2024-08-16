@@ -40,8 +40,9 @@ function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string 
   input.push(bigNumberishToUnpaddedBuffer(op.verificationGasLimit))
   input.push(bigNumberishToUnpaddedBuffer(op.paymasterVerificationGasLimit ?? 0))
   input.push(bigNumberishToUnpaddedBuffer(op.paymasterPostOpGasLimit ?? 0))
+  input.push(bigNumberishToUnpaddedBuffer(op.bigNonce))
   input.push(nonZeroAddr(undefined)) // to
-  input.push(bigNumberishToUnpaddedBuffer(op.nonce))
+  // input.push(bigNumberishToUnpaddedBuffer(op.nonce))
   input.push(bigNumberishToUnpaddedBuffer(0)) // value
   let rlpEncoded: any = encode(input)
   rlpEncoded = Buffer.from([4, ...rlpEncoded])

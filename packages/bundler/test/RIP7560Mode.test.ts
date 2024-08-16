@@ -36,6 +36,7 @@ describe.skip('RIP7560Mode', function () {
       operationRIP7560 = {
         accessList: undefined,
         nonce: '0x0',
+        bigNonce: '0x0',
         sender: '0x0000000000000000000000000000000000000000',
         callGasLimit: '0x0',
         maxFeePerGas: '0x0',

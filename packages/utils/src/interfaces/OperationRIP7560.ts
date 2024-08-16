@@ -6,4 +6,5 @@ export interface OperationRIP7560 extends OperationBase {
   accessList: any
   value: BigNumberish
   builderFee: BigNumberish
+  bigNonce: BigNumberish
 }
