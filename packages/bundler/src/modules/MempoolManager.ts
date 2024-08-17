@@ -75,14 +75,15 @@ export class MempoolManager {
       referencedContracts,
       aggregatorInfo?.addr
     )
-    const index = this._findBySenderNonce(userOp.sender, userOp.nonce)
+    const nonceTODO = (entry.userOp as any).nonce ?? ((entry.userOp as any).bigNonce)
+    const index = this._findBySenderNonce(userOp.sender, nonceTODO)
     if (index !== -1) {
       const oldEntry = this.mempool[index]
       this.checkReplaceUserOp(oldEntry, entry)
-      debug('replace userOp', userOp.sender, userOp.nonce)
+      debug('replace userOp', userOp.sender, nonceTODO)
       this.mempool[index] = entry
     } else {
-      debug('add userOp', userOp.sender, userOp.nonce)
+      debug('add userOp', userOp.sender, nonceTODO)
       this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.checkMultipleRolesViolation(userOp)
       this.incrementEntryCount(userOp.sender)
@@ -196,7 +197,8 @@ export class MempoolManager {
   _findBySenderNonce (sender: string, nonce: BigNumberish): number {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
-      if (curOp.sender === sender && curOp.nonce === nonce) {
+      const nonceTODO = (curOp as any).nonce ?? ((curOp as any).bigNonce)
+      if (curOp.sender === sender && nonceTODO === nonce) {
         return i
       }
     }
@@ -222,11 +224,13 @@ export class MempoolManager {
     if (typeof userOpOrHash === 'string') {
       index = this._findByHash(userOpOrHash)
     } else {
-      index = this._findBySenderNonce(userOpOrHash.sender, userOpOrHash.nonce)
+      const nonceTODO = (userOpOrHash as any).nonce ?? ((userOpOrHash as any).bigNonce)
+      index = this._findBySenderNonce(userOpOrHash.sender, nonceTODO)
     }
     if (index !== -1) {
       const userOp = this.mempool[index].userOp
-      debug('removeUserOp', userOp.sender, userOp.nonce)
+      const nonceTODO = (userOp as any).nonce ?? ((userOp as any).bigNonce)
+      debug('removeUserOp', userOp.sender, nonceTODO)
       this.mempool.splice(index, 1)
       this.decrementEntryCount(userOp.sender)
       this.decrementEntryCount(userOp.paymaster)

@@ -35,7 +35,6 @@ describe.skip('RIP7560Mode', function () {
       // we stub the ValidationManagerRIP7560 so the values of these fields do not matter
       operationRIP7560 = {
         accessList: undefined,
-        nonce: '0x0',
         bigNonce: '0x0',
         sender: '0x0000000000000000000000000000000000000000',
         callGasLimit: '0x0',
