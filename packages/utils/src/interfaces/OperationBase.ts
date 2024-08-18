@@ -5,6 +5,7 @@ import { BigNumberish, BytesLike } from 'ethers'
  */
 export interface OperationBase {
   sender: string
+  nonce: BigNumberish
   callData: BytesLike
 
   factory?: string

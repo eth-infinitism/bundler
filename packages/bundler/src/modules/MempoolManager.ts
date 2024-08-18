@@ -2,11 +2,13 @@ import { BigNumber, BigNumberish } from 'ethers'
 import Debug from 'debug'
 
 import {
+  OperationBase,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
   ValidationErrors,
-  requireCond, OperationBase
+  getPackedNonce,
+  requireCond
 } from '@account-abstraction/utils'
 import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
@@ -75,15 +77,15 @@ export class MempoolManager {
       referencedContracts,
       aggregatorInfo?.addr
     )
-    const nonceTODO = (entry.userOp as any).nonce ?? ((entry.userOp as any).bigNonce)
-    const index = this._findBySenderNonce(userOp.sender, nonceTODO)
+    const packedNonce = getPackedNonce(entry.userOp)
+    const index = this._findBySenderNonce(userOp.sender, packedNonce)
     if (index !== -1) {
       const oldEntry = this.mempool[index]
       this.checkReplaceUserOp(oldEntry, entry)
-      debug('replace userOp', userOp.sender, nonceTODO)
+      debug('replace userOp', userOp.sender, packedNonce)
       this.mempool[index] = entry
     } else {
-      debug('add userOp', userOp.sender, nonceTODO)
+      debug('add userOp', userOp.sender, packedNonce)
       this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
       this.checkMultipleRolesViolation(userOp)
       this.incrementEntryCount(userOp.sender)
@@ -197,8 +199,8 @@ export class MempoolManager {
   _findBySenderNonce (sender: string, nonce: BigNumberish): number {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
-      const nonceTODO = (curOp as any).nonce ?? ((curOp as any).bigNonce)
-      if (curOp.sender === sender && nonceTODO === nonce) {
+      const packedNonce = getPackedNonce(curOp)
+      if (curOp.sender === sender && packedNonce === nonce) {
         return i
       }
     }
@@ -224,13 +226,13 @@ export class MempoolManager {
     if (typeof userOpOrHash === 'string') {
       index = this._findByHash(userOpOrHash)
     } else {
-      const nonceTODO = (userOpOrHash as any).nonce ?? ((userOpOrHash as any).bigNonce)
-      index = this._findBySenderNonce(userOpOrHash.sender, nonceTODO)
+      const packedNonce = getPackedNonce(userOpOrHash)
+      index = this._findBySenderNonce(userOpOrHash.sender, packedNonce)
     }
     if (index !== -1) {
       const userOp = this.mempool[index].userOp
-      const nonceTODO = (userOp as any).nonce ?? ((userOp as any).bigNonce)
-      debug('removeUserOp', userOp.sender, nonceTODO)
+      const packedNonce = getPackedNonce(userOp)
+      debug('removeUserOp', userOp.sender, packedNonce)
       this.mempool.splice(index, 1)
       this.decrementEntryCount(userOp.sender)
       this.decrementEntryCount(userOp.paymaster)
