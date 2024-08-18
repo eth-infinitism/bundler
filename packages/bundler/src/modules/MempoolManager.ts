@@ -200,7 +200,7 @@ export class MempoolManager {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
       const packedNonce = getPackedNonce(curOp)
-      if (curOp.sender === sender && packedNonce === nonce) {
+      if (curOp.sender === sender && packedNonce.eq(nonce)) {
         return i
       }
     }
