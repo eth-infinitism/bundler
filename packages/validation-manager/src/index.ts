@@ -25,6 +25,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
       chainId: '0x539',
       value: '0x0',
       sender: AddressZero,
+      nonceKey: '0x0',
       nonce: '0x0',
       callData: '0x',
       callGasLimit: '0x0',

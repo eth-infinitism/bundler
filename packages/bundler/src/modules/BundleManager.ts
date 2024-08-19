@@ -247,16 +247,16 @@ export class BundleManager implements IBundleManager {
       }
       // [GREP-020] - renamed from [SREP-030]
       if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
-        debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
+        debug('skipping throttled paymaster', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
       }
       // [GREP-020] - renamed from [SREP-030]
       if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
-        debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
+        debug('skipping throttled factory', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
       }
       if (senders.has(entry.userOp.sender)) {
-        debug('skipping already included sender', entry.userOp.sender, entry.userOp.nonce)
+        debug('skipping already included sender', entry.userOp.sender, (entry.userOp as any).nonce)
         // allow only a single UserOp per sender per bundle
         continue
       }

@@ -21,6 +21,7 @@ import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
 import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
 import { JsonRpcProvider } from '@ethersproject/providers'
+import { deployNonceManager } from '@account-abstraction/utils/dist/src/RIP7712NonceManagerUtils'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -132,6 +133,10 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     const requiredApi = config.rip7560 ? 'eth_traceRip7560Validation' : 'debug_traceCall'
     console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
     process.exit(1)
+  }
+
+  if (config.rip7560) {
+    await deployNonceManager(provider, wallet as any)
   }
 
   const {

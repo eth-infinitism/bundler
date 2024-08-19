@@ -5,9 +5,9 @@ import {
   OperationBase,
   OperationRIP7560,
   StorageMap,
+  getPackedNonce,
   getRIP7560TransactionHash,
-  requireCond,
-  tostr
+  requireCond
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { HEX_REGEX } from './MethodHandlerERC4337'
@@ -24,7 +24,7 @@ export class MethodHandlerRIP7560 {
 
   async sendRIP7560Transaction (transaction: OperationRIP7560): Promise<string> {
     await this._validateParameters(transaction)
-    console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${tostr(transaction.nonce)} Paymaster=${transaction.paymaster ?? ''}`)
+    console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${getPackedNonce(transaction).toHexString()} Paymaster=${transaction.paymaster ?? ''}`)
     await this.execManager.sendUserOperation(transaction, '')
     return getRIP7560TransactionHash(transaction)
   }

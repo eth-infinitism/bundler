@@ -112,6 +112,7 @@ export class ExecutionManager {
         }
         await new Promise(resolve => setTimeout(resolve, 50))
       }
+      await this.bundleManager.handlePastEvents()
       return
     }
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
