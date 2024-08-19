@@ -228,6 +228,5 @@ export function getPackedNonce (userOp: OperationBase): BigNumber {
   }
   const packed = ethers.utils.solidityPack(["uint192", "uint64"], [nonceKey, userOp.nonce])
   const bigNumberNonce = BigNumber.from(packed)
-  console.log('bigNumberNonce', bigNumberNonce.toHexString())
   return bigNumberNonce
 }
