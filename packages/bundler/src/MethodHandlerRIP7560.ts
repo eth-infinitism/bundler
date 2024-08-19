@@ -7,8 +7,7 @@ import {
   StorageMap,
   getPackedNonce,
   getRIP7560TransactionHash,
-  requireCond,
-  tostr
+  requireCond
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { HEX_REGEX } from './MethodHandlerERC4337'
