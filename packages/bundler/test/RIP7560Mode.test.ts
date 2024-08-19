@@ -44,12 +44,12 @@ describe.skip('RIP7560Mode', function () {
         factoryData: '0x',
         chainId: '0x0',
         value: '0x0',
-        signature: '0x',
+        authorizationData: '0x',
         verificationGasLimit: '0x0',
         paymasterVerificationGasLimit: '0x0',
         paymasterPostOpGasLimit: '0x0',
         builderFee: '0x0',
-        callData: '0x',
+        executionData: '0x',
         paymasterData: '0x'
       }
 

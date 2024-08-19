@@ -49,8 +49,7 @@ export class MethodHandlerRIP7560 {
     transaction.paymaster = transaction.paymaster ?? AddressZero
     transaction.paymasterData = transaction.paymasterData ?? '0x'
     transaction.callGasLimit = transaction.callGasLimit ?? (transaction as any).gas;
-    (transaction as any).gas = transaction.callGasLimit;
-    (transaction as any).data = transaction.callData
+    (transaction as any).gas = transaction.callGasLimit
     transaction.verificationGasLimit = transaction.verificationGasLimit ?? (transaction as any).validationGas
     transaction.paymasterVerificationGasLimit = transaction.paymasterVerificationGasLimit ?? (transaction as any).paymasterValidationGas
   }

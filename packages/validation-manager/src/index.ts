@@ -27,7 +27,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
       sender: AddressZero,
       nonceKey: '0x0',
       nonce: '0x0',
-      callData: '0x',
+      executionData: '0x',
       callGasLimit: '0x0',
       verificationGasLimit: '0x10000',
       maxFeePerGas: '0x100000000',
@@ -38,7 +38,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
       factoryData: '0x',
       paymasterVerificationGasLimit: '0x10000',
       paymasterPostOpGasLimit: '0x0',
-      signature: '0x'
+      authorizationData: '0x'
     };
 
     // TODO: align parameter names across 4337 and 7560

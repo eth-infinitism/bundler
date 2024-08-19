@@ -29,10 +29,10 @@ function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string 
   input.push(bigNumberishToUnpaddedBuffer(op.maxPriorityFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.maxFeePerGas))
   input.push(bigNumberishToUnpaddedBuffer(op.callGasLimit))
-  input.push(toBuffer(op.callData as string))
+  input.push(toBuffer(op.executionData as string))
   input.push([]) // AccessList
   input.push(nonZeroAddr(op.sender))
-  input.push(toBuffer(op.signature as string)) // Signature
+  input.push(toBuffer(op.authorizationData as string)) // Signature
   input.push(nonZeroAddr(op.paymaster))
   input.push(toBuffer(op.paymasterData as string))
   input.push(nonZeroAddr(op.factory))

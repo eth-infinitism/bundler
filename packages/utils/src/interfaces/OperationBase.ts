@@ -6,7 +6,6 @@ import { BigNumberish, BytesLike } from 'ethers'
 export interface OperationBase {
   sender: string
   nonce: BigNumberish
-  callData: BytesLike
 
   factory?: string
   factoryData?: BytesLike
@@ -22,5 +21,4 @@ export interface OperationBase {
   paymasterVerificationGasLimit?: BigNumberish
   paymasterPostOpGasLimit?: BigNumberish
 
-  signature: BytesLike
 }
