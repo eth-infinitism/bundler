@@ -70,6 +70,7 @@ export class DeterministicDeployer {
       }).then(t=>t.wait())
     }
     await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
+      .then(async (tx: string) => await this.provider.waitForTransaction(tx))
     if (!await this.isContractDeployed(DeterministicDeployer.proxyAddress)) {
       throw new Error('raw TX didn\'t deploy deployer!')
     }
