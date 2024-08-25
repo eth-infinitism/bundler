@@ -22,6 +22,7 @@ import { parseEther } from 'ethers/lib/utils'
 import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { deployNonceManager } from '@account-abstraction/utils/dist/src/RIP7712NonceManagerUtils'
+import { deployStakeManager } from '@account-abstraction/utils/dist/src/deployStakeManager'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -137,6 +138,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   if (config.rip7560) {
     await deployNonceManager(provider, wallet as any)
+    await deployStakeManager(provider, wallet as any)
   }
 
   const {
