@@ -2,7 +2,7 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import { Signer } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
-import { IEntryPoint__factory, IStakeManager__factory } from '@account-abstraction/utils'
+import { IEntryPoint__factory } from '@account-abstraction/utils'
 
 import { ExecutionManager } from './ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from './ReputationManager'
@@ -19,6 +19,7 @@ import { getNetworkProvider } from '../Config'
 import { BundleManagerRIP7560 } from './BundleManagerRIP7560'
 import { IBundleManager } from './IBundleManager'
 import { DepositManager } from './DepositManager'
+import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/src/types'
 
 /**
  * initialize server modules.
@@ -38,7 +39,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
-    const stakeManager = IStakeManager__factory.connect(AA_STAKE_MANAGER, signer)
+    const stakeManager = IRip7560StakeManager__factory.connect(AA_STAKE_MANAGER, signer)
     validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false)

@@ -4,7 +4,7 @@ import {
   OperationBase,
   OperationRIP7560,
   ReferencedCodeHashes,
-  getRIP7560TransactionHash, IStakeManager, StakeInfo
+  getRIP7560TransactionHash, StakeInfo
 } from '@account-abstraction/utils'
 
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
@@ -12,13 +12,14 @@ import { eth_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
 import debug from 'debug'
 import { isAddress } from 'ethers/lib/utils'
+import { IRip7560StakeManager } from '@account-abstraction/utils/dist/src/types'
 
 export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
-export const AA_STAKE_MANAGER = '0x5271A07b4516A6408E27395941b3D8FC04d96353'
+export const AA_STAKE_MANAGER = '0x570Aa568b6cf62ff08c6C3a3b3DB1a0438E871Fb'
 
 export class ValidationManagerRIP7560 implements IValidationManager {
   constructor (
-    readonly stakeManager: IStakeManager,
+    readonly stakeManager: IRip7560StakeManager,
     readonly provider: JsonRpcProvider,
     readonly unsafe: boolean
   ) {
@@ -29,39 +30,45 @@ export class ValidationManagerRIP7560 implements IValidationManager {
   }
 
   async _getStakesInfo (operation: OperationBase): Promise<{ senderInfo: StakeInfo, paymasterInfo: StakeInfo, factoryInfo: StakeInfo }> {
-    const senderTMI = await this.stakeManager.getDepositInfo(operation.sender)
-    const senderInfo = {
-      addr: operation.sender,
-      ...senderTMI
-    }
+    const addresses = [operation.sender]
     let paymasterInfo: StakeInfo = {
       addr: '',
       stake: 0,
       unstakeDelaySec: 0
-    }
-    if (operation.paymaster != null && isAddress(operation.paymaster)) {
-      const paymasterTMI = await this.stakeManager.getDepositInfo(operation.paymaster)
-      paymasterInfo = {
-        addr: operation.paymaster,
-        ...paymasterTMI
-      }
     }
     let factoryInfo: StakeInfo = {
       addr: '',
       stake: 0,
       unstakeDelaySec: 0
     }
+    if (operation.paymaster != null && isAddress(operation.paymaster)) {
+      addresses.push(operation.paymaster)
+    }
     if (operation.factory != null && isAddress(operation.factory)) {
-      const factoryTMI = await this.stakeManager.getDepositInfo(operation.factory)
-      factoryInfo = {
-        addr: operation.factory,
-        ...factoryTMI
+      addresses.push(operation.factory)
+    }
+    const stakesInfo = await this.stakeManager.getStakeInfo(addresses)
+    const senderInfo = {
+      addr: operation.sender,
+      ...stakesInfo[0]
+    }
+    if (operation.paymaster != null && isAddress(operation.paymaster)) {
+      paymasterInfo = {
+        addr: operation.paymaster,
+        ...stakesInfo[1]
       }
     }
+    if (operation.factory != null && isAddress(operation.factory)) {
+      factoryInfo = {
+        addr: operation.factory,
+        ...stakesInfo[addresses.length - 1]
+      }
+    }
+
     return {
+      senderInfo,
       factoryInfo,
-      paymasterInfo,
-      senderInfo
+      paymasterInfo
     }
   }
 
