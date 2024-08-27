@@ -29,18 +29,9 @@ export class ValidationManagerRIP7560 implements IValidationManager {
     // TODO
   }
 
-  async _getStakesInfo (operation: OperationBase): Promise<{ senderInfo: StakeInfo, paymasterInfo: StakeInfo, factoryInfo: StakeInfo }> {
+  async _getStakesInfo (operation: OperationBase): Promise<{ senderInfo: StakeInfo, paymasterInfo?: StakeInfo, factoryInfo?: StakeInfo }> {
     const addresses = [operation.sender]
-    let paymasterInfo: StakeInfo = {
-      addr: '',
-      stake: 0,
-      unstakeDelaySec: 0
-    }
-    let factoryInfo: StakeInfo = {
-      addr: '',
-      stake: 0,
-      unstakeDelaySec: 0
-    }
+    let paymasterInfo, factoryInfo
     if (operation.paymaster != null && isAddress(operation.paymaster)) {
       addresses.push(operation.paymaster)
     }
