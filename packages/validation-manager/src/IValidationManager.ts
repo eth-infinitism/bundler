@@ -24,6 +24,25 @@ export interface ValidateUserOpResult extends ValidationResult {
   storageMap: StorageMap
 }
 
+export const EmptyValidateUserOpResult: ValidateUserOpResult = {
+  returnInfo: {
+    preOpGas: 0,
+    sigFailed: false,
+    validAfter: 0,
+    validUntil: 0
+  },
+  senderInfo: {
+    addr: '',
+    stake: '0',
+    unstakeDelaySec: 0
+  },
+  referencedContracts: {
+    addresses: [],
+    hash: ''
+  },
+  storageMap: {}
+}
+
 export interface IValidationManager {
 
   validateInputParameters: (operation: OperationBase, entryPointInput?: string, requireSignature?: boolean, requireGasParams?: boolean) => void

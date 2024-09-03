@@ -61,6 +61,7 @@ export class MempoolManager {
   // replace existing, if any (and if new gas is higher)
   // reverts if unable to add UserOp to mempool (too many UserOps with this sender)
   addUserOp (
+    skipValidation: boolean,
     userOp: OperationBase,
     userOpHash: string,
     prefund: BigNumberish,
@@ -68,13 +69,14 @@ export class MempoolManager {
     senderInfo: StakeInfo,
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
-    aggregatorInfo?: StakeInfo
+    aggregatorInfo?: StakeInfo,
   ): void {
     const entry = new MempoolEntry(
       userOp,
       userOpHash,
       prefund,
       referencedContracts,
+      skipValidation,
       aggregatorInfo?.addr
     )
     const packedNonce = getPackedNonce(entry.userOp)
@@ -86,8 +88,10 @@ export class MempoolManager {
       this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, packedNonce)
-      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
-      this.checkMultipleRolesViolation(userOp)
+      if (!skipValidation) {
+        this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+        this.checkMultipleRolesViolation(userOp)
+      }
       this.incrementEntryCount(userOp.sender)
       if (userOp.paymaster != null) {
         this.incrementEntryCount(userOp.paymaster)

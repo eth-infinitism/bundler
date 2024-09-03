@@ -247,7 +247,15 @@ export class BundlerServer {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
         if (params[0].sender != null) {
-          result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0])
+          result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0], false)
+        }
+        break
+      case 'debug_bundler_sendTransactionSkipValidation':
+        if (!this.config.rip7560) {
+          throw new RpcError(`Method ${method} is not supported`, -32601)
+        }
+        if (params[0].sender != null) {
+          result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0], true)
         }
         break
       case 'eth_getTransactionReceipt':

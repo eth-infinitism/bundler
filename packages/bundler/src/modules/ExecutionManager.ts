@@ -1,13 +1,17 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { OperationBase, StorageMap } from '@account-abstraction/utils'
+import { OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
-import { IValidationManager } from '@account-abstraction/validation-manager'
+import {
+  EmptyValidateUserOpResult,
+  IValidationManager,
+  ValidateUserOpResult
+} from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
 import { BigNumberish, Signer } from 'ethers'
 
@@ -40,15 +44,21 @@ export class ExecutionManager {
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
    * @param entryPointInput the entryPoint passed through the RPC request.
+   * @param skipValidation if set to true we will not perform tracing and ERC-7562 rules compliance validation
    */
-  async sendUserOperation (userOp: OperationBase, entryPointInput: string): Promise<void> {
+  async sendUserOperation (userOp: OperationBase, entryPointInput: string, skipValidation: boolean): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
-      const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
+      let validationResult = EmptyValidateUserOpResult
+      if (!skipValidation) {
+        validationResult = await this.validationManager.validateUserOp(userOp, undefined)
+      }
       const userOpHash = await this.validationManager.getOperationHash(userOp)
       await this.depositManager.checkPaymasterDeposit(userOp)
-      this.mempoolManager.addUserOp(userOp,
+      this.mempoolManager.addUserOp(
+        skipValidation,
+        userOp,
         userOpHash,
         validationResult.returnInfo.prefund ?? 0,
         validationResult.referencedContracts,
