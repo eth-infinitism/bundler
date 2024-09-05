@@ -1,5 +1,5 @@
 import { OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
-import { BigNumberish } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 
 /**
  * result from successful validation
@@ -26,7 +26,8 @@ export interface ValidateUserOpResult extends ValidationResult {
 
 export const EmptyValidateUserOpResult: ValidateUserOpResult = {
   returnInfo: {
-    preOpGas: 0,
+    preOpGas: BigNumber.from(0),
+    prefund: BigNumber.from(0),
     sigFailed: false,
     validAfter: 0,
     validUntil: 0

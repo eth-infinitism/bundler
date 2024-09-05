@@ -1,7 +1,7 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request, RequestHandler } from 'express'
-import { Provider } from '@ethersproject/providers'
+import { JsonRpcProvider, Provider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { Server } from 'http'
@@ -257,6 +257,9 @@ export class BundlerServer {
         if (params[0].sender != null) {
           result = await this.methodHandlerRip7560.sendRIP7560Transaction(params[0], true)
         }
+        break
+      case 'eth_getRip7560TransactionDebugInfo':
+        result = await (this.provider as JsonRpcProvider).send('eth_getRip7560TransactionDebugInfo', [params[0]])
         break
       case 'eth_getTransactionReceipt':
         if (!this.config.rip7560) {

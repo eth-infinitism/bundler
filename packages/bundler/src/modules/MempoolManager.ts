@@ -69,7 +69,7 @@ export class MempoolManager {
     senderInfo: StakeInfo,
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
-    aggregatorInfo?: StakeInfo,
+    aggregatorInfo?: StakeInfo
   ): void {
     const entry = new MempoolEntry(
       userOp,

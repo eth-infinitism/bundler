@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
+import { OperationBase, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
@@ -9,8 +9,7 @@ import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import {
   EmptyValidateUserOpResult,
-  IValidationManager,
-  ValidateUserOpResult
+  IValidationManager
 } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
 import { BigNumberish, Signer } from 'ethers'
