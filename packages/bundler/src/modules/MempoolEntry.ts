@@ -9,6 +9,7 @@ export class MempoolEntry {
     readonly userOpHash: string,
     readonly prefund: BigNumberish,
     readonly referencedContracts: ReferencedCodeHashes,
+    readonly skipValidation: boolean,
     readonly aggregator?: string
   ) {
     this.userOpMaxGas = BigNumber

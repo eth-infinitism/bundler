@@ -5,7 +5,11 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import { Mutex } from 'async-mutex'
 import { isAddress } from 'ethers/lib/utils'
 
-import { IValidationManager, ValidateUserOpResult } from '@account-abstraction/validation-manager'
+import {
+  EmptyValidateUserOpResult,
+  IValidationManager,
+  ValidateUserOpResult
+} from '@account-abstraction/validation-manager'
 
 import {
   AddressZero,
@@ -260,10 +264,14 @@ export class BundleManager implements IBundleManager {
         // allow only a single UserOp per sender per bundle
         continue
       }
-      let validationResult: ValidateUserOpResult
+      let validationResult: ValidateUserOpResult = EmptyValidateUserOpResult
       try {
-        // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
-        validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
+        if (!entry.skipValidation) {
+          // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
+          validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
+        } else {
+          console.warn('Skipping second validation for an injected debug operation, id=', entry.userOpHash)
+        }
       } catch (e: any) {
         this._handleSecondValidationException(e, paymaster, entry)
         continue
