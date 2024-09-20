@@ -268,7 +268,7 @@ export class BundleManager implements IBundleManager {
       try {
         if (!entry.skipValidation) {
           // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
-          validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
+          validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.eip7702Tuples, entry.referencedContracts, false)
         } else {
           console.warn('Skipping second validation for an injected debug operation, id=', entry.userOpHash)
         }

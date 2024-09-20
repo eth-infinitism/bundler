@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { OperationBase, StorageMap } from '@account-abstraction/utils'
+import { EIP7702Tuple, OperationBase, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
@@ -42,16 +42,22 @@ export class ExecutionManager {
   /**
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
+   * @param eip7702Tuples the list of EIP-7702 code insertion tuples required for the UserOperation to succeed.
    * @param entryPointInput the entryPoint passed through the RPC request.
    * @param skipValidation if set to true we will not perform tracing and ERC-7562 rules compliance validation
    */
-  async sendUserOperation (userOp: OperationBase, entryPointInput: string, skipValidation: boolean): Promise<void> {
+  async sendUserOperation (
+    userOp: OperationBase,
+    eip7702Tuples: EIP7702Tuple[],
+    entryPointInput: string,
+    skipValidation: boolean
+  ): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
-      this.validationManager.validateInputParameters(userOp, entryPointInput)
+      this.validationManager.validateInputParameters(userOp, eip7702Tuples, entryPointInput)
       let validationResult = EmptyValidateUserOpResult
       if (!skipValidation) {
-        validationResult = await this.validationManager.validateUserOp(userOp, undefined)
+        validationResult = await this.validationManager.validateUserOp(userOp, eip7702Tuples)
       }
       const userOpHash = await this.validationManager.getOperationHash(userOp)
       await this.depositManager.checkPaymasterDeposit(userOp)
@@ -59,12 +65,8 @@ export class ExecutionManager {
         skipValidation,
         userOp,
         userOpHash,
-        validationResult.returnInfo.prefund ?? 0,
-        validationResult.referencedContracts,
-        validationResult.senderInfo,
-        validationResult.paymasterInfo,
-        validationResult.factoryInfo,
-        validationResult.aggregatorInfo)
+        eip7702Tuples,
+        validationResult)
       if (!this.rip7560 || (this.rip7560 && this.useRip7560Mode === 'PUSH')) {
         await this.attemptBundle(false)
       }

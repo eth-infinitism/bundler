@@ -1,6 +1,12 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-import { AddressZero, IEntryPoint__factory, OperationRIP7560, UserOperation } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  EIP7702Tuple,
+  IEntryPoint__factory,
+  OperationRIP7560,
+  UserOperation
+} from '@account-abstraction/utils'
 
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
@@ -38,7 +44,8 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
       factoryData: '0x',
       paymasterVerificationGasLimit: '0x10000',
       paymasterPostOpGasLimit: '0x0',
-      authorizationData: '0x'
+      authorizationData: '0x',
+      eip7702Tuples: []
     };
 
     // TODO: align parameter names across 4337 and 7560
@@ -58,6 +65,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
 
 export async function checkRulesViolations (
   provider: JsonRpcProvider,
+  eip7702Tuples: EIP7702Tuple[],
   userOperation: UserOperation,
   entryPointAddress: string
 ): Promise<ValidateUserOpResult> {
@@ -70,5 +78,5 @@ export async function checkRulesViolations (
     entryPoint,
     false
   )
-  return await validationManager.validateUserOp(userOperation)
+  return await validationManager.validateUserOp(userOperation, eip7702Tuples)
 }

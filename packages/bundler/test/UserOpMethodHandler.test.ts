@@ -155,6 +155,7 @@ describe('UserOpMethodHandler', function () {
       const ret = await methodHandler.estimateUserOperationGas(
         await resolveHexlify(op),
         entryPoint.address,
+        [],
         {
           [await op.sender]: {
             balance: toHex(1e18)

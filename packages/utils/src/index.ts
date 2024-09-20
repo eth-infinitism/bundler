@@ -1,3 +1,4 @@
+export { EIP7702Tuple } from './interfaces/EIP7702Tuple'
 export { UserOperation } from './interfaces/UserOperation'
 export { OperationBase } from './interfaces/OperationBase'
 export { OperationRIP7560 } from './interfaces/OperationRIP7560'

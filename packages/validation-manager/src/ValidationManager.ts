@@ -8,25 +8,26 @@ import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import {
   AddressZero,
   CodeHashGetter__factory,
+  EIP7702Tuple,
+  IEntryPoint,
+  IEntryPointSimulations__factory,
+  OperationBase,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
+  StakeInfoStructOutput,
   StorageMap,
   UserOperation,
   ValidationErrors,
+  ValidationResultStructOutput,
   decodeErrorReason,
+  decodeRevertReason,
   getAddr,
-  requireCond,
-  runContractScript,
+  mergeValidationDataValues,
   packUserOp,
   requireAddressAndFields,
-  decodeRevertReason,
-  mergeValidationDataValues,
-  IEntryPointSimulations__factory,
-  IEntryPoint,
-  ValidationResultStructOutput,
-  StakeInfoStructOutput,
-  OperationBase
+  requireCond,
+  runContractScript
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
@@ -170,11 +171,13 @@ export class ValidationManager implements IValidationManager {
    * should also handle unmodified memory, e.g. by referencing cached storage in the mempool
    * one item to check that was un-modified is the aggregator.
    * @param operation
+   * @param eip7702Tuples
    * @param previousCodeHashes
    * @param checkStakes
    */
   async validateUserOp (
     operation: OperationBase,
+    eip7702Tuples: EIP7702Tuple[],
     previousCodeHashes?: ReferencedCodeHashes,
     checkStakes = true
   ): Promise<ValidateUserOpResult> {
@@ -258,19 +261,24 @@ export class ValidationManager implements IValidationManager {
 
   /**
    * perform static checking on input parameters.
-   * @param userOp
+   * @param operation
+   * @param eip7702Tuples
    * @param entryPointInput
    * @param requireSignature
    * @param requireGasParams
    */
-  validateInputParameters (userOp: OperationBase, entryPointInput?: string, requireSignature = true, requireGasParams = true): void {
+  validateInputParameters (
+    operation: OperationBase,
+    eip7702Tuples: EIP7702Tuple[],
+    entryPointInput?: string,
+    requireSignature = true, requireGasParams = true): void {
     requireCond(entryPointInput != null, 'No entryPoint param', ValidationErrors.InvalidFields)
     requireCond(entryPointInput?.toLowerCase() === this.entryPoint.address.toLowerCase(),
       `The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.entryPoint.address}`,
       ValidationErrors.InvalidFields)
 
     // minimal sanity check: userOp exists, and all members are hex
-    requireCond(userOp != null, 'No UserOperation param', ValidationErrors.InvalidFields)
+    requireCond(operation != null, 'No UserOperation param', ValidationErrors.InvalidFields)
 
     const fields = ['sender', 'nonce', 'callData']
     if (requireSignature) {
@@ -280,21 +288,21 @@ export class ValidationManager implements IValidationManager {
       fields.push('preVerificationGas', 'verificationGasLimit', 'callGasLimit', 'maxFeePerGas', 'maxPriorityFeePerGas')
     }
     fields.forEach(key => {
-      const value: string = (userOp as any)[key]?.toString()
+      const value: string = (operation as any)[key]?.toString()
       requireCond(value != null,
-        'Missing userOp field: ' + key + ' ' + JSON.stringify(userOp),
+        'Missing userOp field: ' + key + ' ' + JSON.stringify(operation),
         ValidationErrors.InvalidFields)
       requireCond(value.match(HEX_REGEX) != null,
         `Invalid hex value for property ${key}:${value} in UserOp`,
         ValidationErrors.InvalidFields)
     })
 
-    requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
-    requireAddressAndFields(userOp, 'factory', ['factoryData'])
+    requireAddressAndFields(operation, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
+    requireAddressAndFields(operation, 'factory', ['factoryData'])
 
-    if ((userOp as UserOperation).preVerificationGas != null) {
-      const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
-      requireCond(BigNumber.from((userOp as UserOperation).preVerificationGas).gte(calcPreVerificationGas1),
+    if ((operation as UserOperation).preVerificationGas != null) {
+      const calcPreVerificationGas1 = calcPreVerificationGas(operation)
+      requireCond(BigNumber.from((operation as UserOperation).preVerificationGas).gte(calcPreVerificationGas1),
         `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
         ValidationErrors.InvalidFields)
     }

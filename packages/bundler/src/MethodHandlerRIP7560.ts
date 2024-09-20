@@ -25,7 +25,7 @@ export class MethodHandlerRIP7560 {
   async sendRIP7560Transaction (transaction: OperationRIP7560, skipValidation: boolean): Promise<string> {
     await this._validateParameters(transaction)
     console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${getPackedNonce(transaction).toHexString()} Paymaster=${transaction.paymaster ?? ''}`)
-    await this.execManager.sendUserOperation(transaction, '', skipValidation)
+    await this.execManager.sendUserOperation(transaction, [], '', skipValidation)
     return getRIP7560TransactionHash(transaction)
   }
 

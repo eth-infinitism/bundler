@@ -1,5 +1,12 @@
-import { OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
 import { BigNumber, BigNumberish } from 'ethers'
+
+import {
+  EIP7702Tuple,
+  OperationBase,
+  ReferencedCodeHashes,
+  StakeInfo,
+  StorageMap
+} from '@account-abstraction/utils'
 
 /**
  * result from successful validation
@@ -46,9 +53,9 @@ export const EmptyValidateUserOpResult: ValidateUserOpResult = {
 
 export interface IValidationManager {
 
-  validateInputParameters: (operation: OperationBase, entryPointInput?: string, requireSignature?: boolean, requireGasParams?: boolean) => void
+  validateInputParameters: (operation: OperationBase, eip7702Tuples: EIP7702Tuple[], entryPointInput?: string, requireSignature?: boolean, requireGasParams?: boolean) => void
 
-  validateUserOp: (userOp: OperationBase, previousCodeHashes?: ReferencedCodeHashes, checkStakes?: boolean) => Promise<ValidateUserOpResult>
+  validateUserOp: (userOp: OperationBase, eip7702Tuples: EIP7702Tuple[], previousCodeHashes?: ReferencedCodeHashes, checkStakes?: boolean) => Promise<ValidateUserOpResult>
 
   getOperationHash: (userOp: OperationBase) => Promise<string>
 

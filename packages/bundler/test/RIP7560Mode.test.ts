@@ -50,7 +50,8 @@ describe.skip('RIP7560Mode', function () {
         paymasterPostOpGasLimit: '0x0',
         builderFee: '0x0',
         executionData: '0x',
-        paymasterData: '0x'
+        paymasterData: '0x',
+        eip7702Tuples: []
       }
 
       // fund deployment of the EntryPoint contract

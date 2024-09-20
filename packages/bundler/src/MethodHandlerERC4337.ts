@@ -3,19 +3,25 @@ import { JsonRpcProvider, Log } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import {
-  RpcError,
-  ValidationErrors,
-  requireAddressAndFields,
-  packUserOp,
-  PackedUserOperation,
-  unpackUserOp,
-  simulationRpcParams,
-  decodeSimulateHandleOpResult,
   AddressZero,
+  EIP7702Tuple,
+  IEntryPoint,
+  PackedUserOperation,
+  RpcError,
+  UserOperation,
+  UserOperationEventEvent,
+  ValidationErrors,
   decodeRevertReason,
+  decodeSimulateHandleOpResult,
+  deepHexlify,
+  erc4337RuntimeVersion,
   mergeValidationDataValues,
-  UserOperationEventEvent, IEntryPoint, requireCond, deepHexlify, tostr, erc4337RuntimeVersion
-  , UserOperation
+  packUserOp,
+  requireAddressAndFields,
+  requireCond,
+  simulationRpcParams,
+  tostr,
+  unpackUserOp
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
@@ -77,7 +83,7 @@ export class MethodHandlerERC4337 {
     return beneficiary
   }
 
-  async _validateParameters (userOp1: UserOperation, entryPointInput: string, requireSignature = true, requireGasParams = true): Promise<void> {
+  async _validateParameters (userOp1: UserOperation, eip7702Tuples: EIP7702Tuple[], entryPointInput: string, requireSignature = true, requireGasParams = true): Promise<void> {
     requireCond(entryPointInput != null, 'No entryPoint param', -32602)
 
     if (entryPointInput?.toString().toLowerCase() !== this.config.entryPoint.toLowerCase()) {
@@ -107,9 +113,15 @@ export class MethodHandlerERC4337 {
    * eth_estimateUserOperationGas RPC api.
    * @param userOp1 input userOp (may have gas fields missing, so they can be estimated)
    * @param entryPointInput
+   * @param eip7702Tuples
    * @param stateOverride
    */
-  async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string, stateOverride?: StateOverride): Promise<EstimateUserOpGasResult> {
+  async estimateUserOperationGas (
+    userOp1: Partial<UserOperation>,
+    entryPointInput: string,
+    eip7702Tuples: EIP7702Tuple[] = [],
+    stateOverride?: StateOverride
+  ): Promise<EstimateUserOpGasResult> {
     const userOp: UserOperation = {
       // default values for missing fields.
       maxFeePerGas: 0,
@@ -119,7 +131,7 @@ export class MethodHandlerERC4337 {
       ...userOp1
     } as any
     // todo: checks the existence of parameters, but since we hexlify the inputs, it fails to validate
-    await this._validateParameters(deepHexlify(userOp), entryPointInput)
+    await this._validateParameters(deepHexlify(userOp), eip7702Tuples, entryPointInput)
     // todo: validation manager duplicate?
     const provider = this.provider
     const rpcParams = simulationRpcParams('simulateHandleOp', this.entryPoint.address, userOp, [AddressZero, '0x'],
@@ -163,11 +175,11 @@ export class MethodHandlerERC4337 {
     }
   }
 
-  async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
-    await this._validateParameters(userOp, entryPointInput)
+  async sendUserOperation (userOp: UserOperation, entryPointInput: string, eip7702Tuples: EIP7702Tuple[] = []): Promise<string> {
+    await this._validateParameters(userOp, eip7702Tuples, entryPointInput)
 
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''}`)
-    await this.execManager.sendUserOperation(userOp, entryPointInput, false)
+    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${eip7702Tuples.length}`)
+    await this.execManager.sendUserOperation(userOp, eip7702Tuples, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }
 
