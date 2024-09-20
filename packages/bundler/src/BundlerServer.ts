@@ -277,9 +277,15 @@ export class BundlerServer {
         result = await this.methodHandler.getSupportedEntryPoints()
         break
       case 'eth_sendUserOperation':
+        if (!this.config.eip7702Support && params[2] != null) {
+          throw new Error('EIP-7702 tuples are not supported')
+        }
         result = await this.methodHandler.sendUserOperation(params[0], params[1], params[2])
         break
       case 'eth_estimateUserOperationGas':
+        if (!this.config.eip7702Support && params[2] != null) {
+          throw new Error('EIP-7702 tuples are not supported')
+        }
         result = await this.methodHandler.estimateUserOperationGas(params[0], params[1], params[2])
         break
       case 'eth_getUserOperationReceipt':

@@ -27,6 +27,8 @@ export interface BundlerConfig {
   rip7560: boolean
   rip7560Mode: string
   gethDevMode: boolean
+
+  eip7702Support: boolean
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
@@ -52,7 +54,8 @@ export const BundlerConfigShape = {
   autoBundleMempoolSize: ow.number,
   rip7560: ow.boolean,
   rip7560Mode: ow.string.oneOf(['PULL', 'PUSH']),
-  gethDevMode: ow.boolean
+  gethDevMode: ow.boolean,
+  eip7702Support: ow.boolean
 }
 
 // TODO: consider if we want any default fields at all
@@ -64,5 +67,6 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   unsafe: false,
   conditionalRpc: false,
   minStake: MIN_STAKE_VALUE,
-  minUnstakeDelay: MIN_UNSTAKE_DELAY
+  minUnstakeDelay: MIN_UNSTAKE_DELAY,
+  eip7702Support: true
 }

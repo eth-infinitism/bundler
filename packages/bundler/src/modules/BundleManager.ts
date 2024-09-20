@@ -13,12 +13,14 @@ import {
 
 import {
   AddressZero,
+  EIP7702Tuple,
   IEntryPoint,
   OperationBase,
   RpcError,
   StorageMap,
   UserOperation,
   ValidationErrors,
+  getEip7702TupleSigner,
   mergeStorageMap,
   packUserOp,
   runContractScript
@@ -34,6 +36,9 @@ import { ReputationManager, ReputationStatus } from './ReputationManager'
 const debug = Debug('aa.exec.cron')
 
 const THROTTLED_ENTITY_BUNDLE_COUNT = 4
+
+const TX_TYPE_EIP_7702 = 4
+const TX_TYPE_EIP_1559 = 2
 
 export interface SendBundleReturn {
   transactionHash: string
@@ -77,12 +82,12 @@ export class BundleManager implements IBundleManager {
       await this.handlePastEvents()
 
       // TODO: pass correct bundle limit parameters!
-      const [bundle, storageMap] = await this.createBundle(0, 0, 0)
+      const [bundle, eip7702Tuples, storageMap] = await this.createBundle(0, 0, 0)
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
+        const ret = await this.sendBundle(bundle as UserOperation[], eip7702Tuples, beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -98,12 +103,13 @@ export class BundleManager implements IBundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
+  async sendBundle (userOps: UserOperation[], eip7702Tuples: EIP7702Tuple[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
       // TODO: estimate is not enough. should trace with validation rules, to prevent on-chain revert.
+      const type = eip7702Tuples.length > 0 ? TX_TYPE_EIP_7702 : TX_TYPE_EIP_1559
       const tx = await this.entryPoint.populateTransaction.handleOps(userOps.map(packUserOp), beneficiary, {
-        type: 2,
+        type,
         nonce: await this.signer.getTransactionCount(),
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
@@ -207,9 +213,10 @@ export class BundleManager implements IBundleManager {
     minBaseFee?: BigNumberish,
     maxBundleGas?: BigNumberish,
     maxBundleSize?: BigNumberish
-  ): Promise<[OperationBase[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: OperationBase[] = []
+    const eip7702TuplesBundle: EIP7702Tuple[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -331,13 +338,26 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
+      for (const eip7702Tuple of entry.eip7702Tuples) {
+        const bundleTuple = eip7702TuplesBundle
+          .find(it => {
+            return getEip7702TupleSigner(it) === getEip7702TupleSigner(eip7702Tuple)
+          })
+        if (bundleTuple != null && bundleTuple.address.toLowerCase() !== eip7702Tuple.address.toLowerCase()) {
+          debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
+          // eslint-disable-next-line no-labels
+          continue mainLoop
+        }
+      }
+
       const newBundleGas = entry.userOpMaxGas.add(bundleGas)
       bundleGas = newBundleGas
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
+      eip7702TuplesBundle.push(...entry.eip7702Tuples)
       totalGas = newTotalGas
     }
-    return [bundle, storageMap]
+    return [bundle, eip7702TuplesBundle, storageMap]
   }
 
   _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {

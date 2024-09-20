@@ -8,3 +8,7 @@ export interface EIP7702Tuple {
   r: BigNumberish,
   s: BigNumberish
 }
+
+export function getEip7702TupleSigner (tuple: EIP7702Tuple): string {
+  throw new Error('Not implemented')
+}

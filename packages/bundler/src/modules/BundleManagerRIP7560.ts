@@ -5,6 +5,7 @@ import { RLP } from '@ethereumjs/rlp'
 import { hexlify } from 'ethers/lib/utils'
 
 import {
+  EIP7702Tuple,
   OperationBase,
   OperationRIP7560,
   StorageMap,
@@ -51,7 +52,7 @@ export class BundleManagerRIP7560 extends BundleManager {
     if (bundle.length === 0) {
       debug('sendNextBundle - no bundle to send')
     } else {
-      return await this.sendBundle(bundle, '', {})
+      return await this.sendBundle(bundle, [], '', {})
     }
   }
 
@@ -77,10 +78,10 @@ export class BundleManagerRIP7560 extends BundleManager {
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ): Promise<[OperationBase[], StorageMap]> {
-    const [bundle, storageMap] = await super.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
+  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
+    const [bundle, _, storageMap] = await super.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
     if (bundle.length === 0) {
-      return [[], {}]
+      return [[], [], {}]
     }
     const bundleHash = this.computeBundleHash(bundle)
 
@@ -94,10 +95,10 @@ export class BundleManagerRIP7560 extends BundleManager {
       userOpHashes
     })
 
-    return [bundle, storageMap]
+    return [bundle, [], storageMap]
   }
 
-  async sendBundle (userOps: OperationBase[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
+  async sendBundle (userOps: OperationBase[], _eip7702Tuples: EIP7702Tuple[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
     const creationBlock = await this.provider.getBlockNumber()
     const bundlerId = 'www.reference-bundler.fake'
     const userOpHashes: string[] = []

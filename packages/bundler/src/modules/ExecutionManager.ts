@@ -142,7 +142,7 @@ export class ExecutionManager {
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ): Promise<[OperationBase[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
     return await this.bundleManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 }
