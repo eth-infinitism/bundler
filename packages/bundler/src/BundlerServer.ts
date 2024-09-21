@@ -3,7 +3,7 @@ import cors from 'cors'
 import express, { Express, Response, Request, RequestHandler } from 'express'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
+import { hexlify, parseEther } from 'ethers/lib/utils'
 import { Common, Hardfork } from '@ethereumjs/common'
 import { EOACodeEIP7702Transaction } from '@ethereumjs/tx'
 import { Server } from 'http'
@@ -250,8 +250,9 @@ export class BundlerServer {
           // NOTE: @ethereumjs/tx v5.4.0 has a 'tuple nonce' as an array - patch or wait for fix
           const common = Common.custom({ chainId: 1337, defaultHardfork: Hardfork.Cancun }, { eips: [7702] })
           const objectTx = EOACodeEIP7702Transaction.fromTxData(params[0], { common })
-          const encodedTx = objectTx.raw()
-          result = await this.provider.send('eth_sendRawTransaction', encodedTx)
+          const encodedTx = objectTx.serialize()
+          const rawTransaction = hexlify(encodedTx)
+          result = await this.provider.send('eth_sendRawTransaction', [rawTransaction])
           break
         }
         if (!this.config.rip7560) {
