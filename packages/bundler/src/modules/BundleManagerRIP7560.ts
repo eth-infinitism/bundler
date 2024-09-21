@@ -79,7 +79,7 @@ export class BundleManagerRIP7560 extends BundleManager {
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
   ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
-    const [bundle, _, storageMap] = await super.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
+    const [bundle, , storageMap] = await super.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
     if (bundle.length === 0) {
       return [[], [], {}]
     }

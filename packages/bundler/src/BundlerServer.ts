@@ -1,9 +1,11 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request, RequestHandler } from 'express'
-import { JsonRpcProvider, Provider } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
+import { Common, Hardfork } from '@ethereumjs/common'
+import { EOACodeEIP7702Transaction } from '@ethereumjs/tx'
 import { Server } from 'http'
 
 import {
@@ -39,7 +41,7 @@ export class BundlerServer {
     readonly methodHandlerRip7560: MethodHandlerRIP7560,
     readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
-    readonly provider: Provider,
+    readonly provider: JsonRpcProvider,
     readonly wallet: Signer
   ) {
     this.appPublic = express()
@@ -243,6 +245,15 @@ export class BundlerServer {
         break
       }
       case 'eth_sendTransaction':
+        if (params[0].authorizationList != null) {
+          console.log('eth_sendTransaction received EIP-7702 transaction', JSON.stringify(params[0]))
+          // NOTE: @ethereumjs/tx v5.4.0 has a 'tuple nonce' as an array - patch or wait for fix
+          const common = Common.custom({ chainId: 1337, defaultHardfork: Hardfork.Cancun }, { eips: [7702] })
+          const objectTx = EOACodeEIP7702Transaction.fromTxData(params[0], { common })
+          const encodedTx = objectTx.raw()
+          result = await this.provider.send('eth_sendRawTransaction', encodedTx)
+          break
+        }
         if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }
@@ -259,7 +270,7 @@ export class BundlerServer {
         }
         break
       case 'eth_getRip7560TransactionDebugInfo':
-        result = await (this.provider as JsonRpcProvider).send('eth_getRip7560TransactionDebugInfo', [params[0]])
+        result = await this.provider.send('eth_getRip7560TransactionDebugInfo', [params[0]])
         break
       case 'eth_getTransactionReceipt':
         if (!this.config.rip7560) {

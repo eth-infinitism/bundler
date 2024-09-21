@@ -39,6 +39,8 @@
     "ci": "env && yarn depcheck && yarn preprocess && yarn lerna-test"
   },
   "dependencies": {
+    "@ethereumjs/common": "^4.4.0",
+    "@ethereumjs/tx": "^5.4.0",
     "@typescript-eslint/eslint-plugin": "^5.33.0",
     "@typescript-eslint/parser": "^5.33.0",
     "depcheck": "^1.4.3",
