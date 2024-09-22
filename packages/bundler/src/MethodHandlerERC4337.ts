@@ -4,7 +4,6 @@ import { JsonRpcProvider, Log } from '@ethersproject/providers'
 import { BundlerConfig } from './BundlerConfig'
 import {
   AddressZero,
-  EIP7702Tuple,
   IEntryPoint,
   PackedUserOperation,
   RpcError,

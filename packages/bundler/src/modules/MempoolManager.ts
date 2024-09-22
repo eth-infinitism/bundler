@@ -2,7 +2,6 @@ import { BigNumber, BigNumberish } from 'ethers'
 import Debug from 'debug'
 
 import {
-  EIP7702Tuple,
   OperationBase,
   RpcError,
   StakeInfo,

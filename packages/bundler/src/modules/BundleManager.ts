@@ -348,7 +348,7 @@ export class BundleManager implements IBundleManager {
           // eslint-disable-next-line no-labels
           continue mainLoop
         }
-        if (existingAuthorization == null){
+        if (existingAuthorization == null) {
           // we should not add duplicate authorizations to the shared list
           sharedAuthorizationList.push(...entry.userOp.authorizationList)
         }
