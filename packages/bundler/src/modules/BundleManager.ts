@@ -216,7 +216,7 @@ export class BundleManager implements IBundleManager {
   ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: OperationBase[] = []
-    const eip7702TuplesBundle: EIP7702Tuple[] = []
+    const sharedAuthorizationList: EIP7702Tuple[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -275,7 +275,7 @@ export class BundleManager implements IBundleManager {
       try {
         if (!entry.skipValidation) {
           // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
-          validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.eip7702Tuples, entry.referencedContracts, false)
+          validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
         } else {
           console.warn('Skipping second validation for an injected debug operation, id=', entry.userOpHash)
         }
@@ -338,15 +338,19 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-      for (const eip7702Tuple of entry.eip7702Tuples) {
-        const bundleTuple = eip7702TuplesBundle
+      for (const eip7702Authorization of entry.userOp.authorizationList) {
+        const existingAuthorization = sharedAuthorizationList
           .find(it => {
-            return getEip7702TupleSigner(it) === getEip7702TupleSigner(eip7702Tuple)
+            return getEip7702TupleSigner(it) === getEip7702TupleSigner(eip7702Authorization)
           })
-        if (bundleTuple != null && bundleTuple.address.toLowerCase() !== eip7702Tuple.address.toLowerCase()) {
+        if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
           debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
           // eslint-disable-next-line no-labels
           continue mainLoop
+        }
+        if (existingAuthorization == null){
+          // we should not add duplicate authorizations to the shared list
+          sharedAuthorizationList.push(...entry.userOp.authorizationList)
         }
       }
 
@@ -354,10 +358,9 @@ export class BundleManager implements IBundleManager {
       bundleGas = newBundleGas
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
-      eip7702TuplesBundle.push(...entry.eip7702Tuples)
       totalGas = newTotalGas
     }
-    return [bundle, eip7702TuplesBundle, storageMap]
+    return [bundle, sharedAuthorizationList, storageMap]
   }
 
   _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {

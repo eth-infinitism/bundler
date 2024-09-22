@@ -97,7 +97,8 @@ export class BundlerServer {
       callGasLimit: 0,
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
-      signature: '0x'
+      signature: '0x',
+      authorizationList: []
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
     try {
@@ -292,7 +293,7 @@ export class BundlerServer {
         if (!this.config.eip7702Support && params[2] != null) {
           throw new Error('EIP-7702 tuples are not supported')
         }
-        result = await this.methodHandler.sendUserOperation(params[0], params[1], params[2])
+        result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
       case 'eth_estimateUserOperationGas':
         if (!this.config.eip7702Support && params[2] != null) {

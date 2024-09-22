@@ -42,22 +42,20 @@ export class ExecutionManager {
   /**
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
-   * @param eip7702Tuples the list of EIP-7702 code insertion tuples required for the UserOperation to succeed.
    * @param entryPointInput the entryPoint passed through the RPC request.
    * @param skipValidation if set to true we will not perform tracing and ERC-7562 rules compliance validation
    */
   async sendUserOperation (
     userOp: OperationBase,
-    eip7702Tuples: EIP7702Tuple[],
     entryPointInput: string,
     skipValidation: boolean
   ): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
-      this.validationManager.validateInputParameters(userOp, eip7702Tuples, entryPointInput)
+      this.validationManager.validateInputParameters(userOp, entryPointInput)
       let validationResult = EmptyValidateUserOpResult
       if (!skipValidation) {
-        validationResult = await this.validationManager.validateUserOp(userOp, eip7702Tuples)
+        validationResult = await this.validationManager.validateUserOp(userOp)
       }
       const userOpHash = await this.validationManager.getOperationHash(userOp)
       await this.depositManager.checkPaymasterDeposit(userOp)
@@ -65,7 +63,6 @@ export class ExecutionManager {
         skipValidation,
         userOp,
         userOpHash,
-        eip7702Tuples,
         validationResult)
       if (!this.rip7560 || (this.rip7560 && this.useRip7560Mode === 'PUSH')) {
         await this.attemptBundle(false)

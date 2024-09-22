@@ -1,7 +1,6 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 import {
-  EIP7702Tuple,
   OperationBase,
   OperationRIP7560,
   ReferencedCodeHashes,
@@ -27,7 +26,7 @@ export class ValidationManagerRIP7560 implements IValidationManager {
   ) {
   }
 
-  validateInputParameters (_operation: OperationBase, _eip7702Tuples: EIP7702Tuple[], _entryPointInput?: string): void {
+  validateInputParameters (_operation: OperationBase, _entryPointInput?: string): void {
     // TODO
   }
 
@@ -67,7 +66,6 @@ export class ValidationManagerRIP7560 implements IValidationManager {
 
   async validateUserOp (
     operation: OperationBase,
-    eip7702Tuples: EIP7702Tuple[],
     previousCodeHashes?: ReferencedCodeHashes
   ): Promise<ValidateUserOpResult> {
     const transaction = operation as OperationRIP7560

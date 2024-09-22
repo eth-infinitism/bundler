@@ -69,13 +69,11 @@ export class MempoolManager {
     skipValidation: boolean,
     userOp: OperationBase,
     userOpHash: string,
-    eip7702Tuples: EIP7702Tuple[],
     validationResult: ValidationResult
   ): void {
     const entry = new MempoolEntry(
       userOp,
       userOpHash,
-      eip7702Tuples,
       validationResult.returnInfo.prefund ?? 0,
       (validationResult as ValidateUserOpResult).referencedContracts,
       skipValidation,

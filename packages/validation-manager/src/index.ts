@@ -2,7 +2,6 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 
 import {
   AddressZero,
-  EIP7702Tuple,
   IEntryPoint__factory,
   OperationRIP7560,
   UserOperation
@@ -45,7 +44,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
       paymasterVerificationGasLimit: '0x10000',
       paymasterPostOpGasLimit: '0x0',
       authorizationData: '0x',
-      eip7702Tuples: []
+      authorizationList: []
     };
 
     // TODO: align parameter names across 4337 and 7560
@@ -65,7 +64,6 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
 
 export async function checkRulesViolations (
   provider: JsonRpcProvider,
-  eip7702Tuples: EIP7702Tuple[],
   userOperation: UserOperation,
   entryPointAddress: string
 ): Promise<ValidateUserOpResult> {
@@ -78,5 +76,5 @@ export async function checkRulesViolations (
     entryPoint,
     false
   )
-  return await validationManager.validateUserOp(userOperation, eip7702Tuples)
+  return await validationManager.validateUserOp(userOperation)
 }

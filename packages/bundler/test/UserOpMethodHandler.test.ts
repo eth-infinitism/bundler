@@ -156,7 +156,6 @@ describe('UserOpMethodHandler', function () {
       const ret = await methodHandler.estimateUserOperationGas(
         await resolveHexlify(op),
         entryPoint.address,
-        [],
         {
           [await op.sender]: {
             balance: toHex(1e18)
@@ -342,7 +341,8 @@ describe('UserOpMethodHandler', function () {
         preVerificationGas: 50000,
         maxFeePerGas: 1e6,
         maxPriorityFeePerGas: 1e6,
-        signature: Buffer.from('emit-msg')
+        signature: Buffer.from('emit-msg'),
+        authorizationList: []
       }
       await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})

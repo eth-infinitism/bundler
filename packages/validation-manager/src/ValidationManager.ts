@@ -8,7 +8,6 @@ import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import {
   AddressZero,
   CodeHashGetter__factory,
-  EIP7702Tuple,
   IEntryPoint,
   IEntryPointSimulations__factory,
   OperationBase,
@@ -177,7 +176,6 @@ export class ValidationManager implements IValidationManager {
    */
   async validateUserOp (
     operation: OperationBase,
-    eip7702Tuples: EIP7702Tuple[],
     previousCodeHashes?: ReferencedCodeHashes,
     checkStakes = true
   ): Promise<ValidateUserOpResult> {
@@ -269,7 +267,6 @@ export class ValidationManager implements IValidationManager {
    */
   validateInputParameters (
     operation: OperationBase,
-    eip7702Tuples: EIP7702Tuple[],
     entryPointInput?: string,
     requireSignature = true, requireGasParams = true): void {
     requireCond(entryPointInput != null, 'No entryPoint param', ValidationErrors.InvalidFields)

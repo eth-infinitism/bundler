@@ -26,10 +26,16 @@ export class MethodHandlerRIP7560 {
   async sendRIP7560Transaction (transaction: OperationRIP7560, skipValidation: boolean): Promise<string> {
     await this._validateParameters(transaction)
     console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${getPackedNonce(transaction).toHexString()} Paymaster=${transaction.paymaster ?? ''}`)
-    await this.execManager.sendUserOperation(transaction, [], '', skipValidation)
+    await this.execManager.sendUserOperation(transaction, '', skipValidation)
     return getRIP7560TransactionHash(transaction)
   }
 
+  /**
+   * @param minBaseFee
+   * @param maxBundleGas
+   * @param maxBundleSize
+   * @return EIP7702Tuple array is always empty as each individual RIP-7560 transaction performs its own authorizations
+   */
   async getRip7560Bundle (
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,

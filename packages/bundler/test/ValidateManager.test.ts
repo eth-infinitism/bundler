@@ -44,7 +44,8 @@ const cEmptyUserOp: UserOperation = {
   verificationGasLimit: 50000,
   maxFeePerGas: 0,
   maxPriorityFeePerGas: 0,
-  preVerificationGas: 0
+  preVerificationGas: 0,
+  authorizationList: []
 }
 
 describe('#ValidationManager', () => {
@@ -60,12 +61,12 @@ describe('#ValidationManager', () => {
 
   async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
     const userOp = await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress)
-    return { userOp, ...await vm.validateUserOp(userOp, []) }
+    return { userOp, ...await vm.validateUserOp(userOp) }
   }
 
   async function testExistingUserOp (validateRule: string = '', pmRule = ''): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
     const userOp = await existingStorageAccountUserOp(validateRule, pmRule)
-    return { userOp, ...await vm.validateUserOp(userOp, []) }
+    return { userOp, ...await vm.validateUserOp(userOp) }
   }
 
   async function existingStorageAccountUserOp (validateRule = '', pmRule = ''): Promise<UserOperation> {
@@ -233,7 +234,7 @@ describe('#ValidationManager', () => {
       const userOp = await createTestUserOp('', undefined, undefined, testTimeRangeAccountFactory.address)
       userOp.preVerificationGas = Math.floor(validAfterMs / 1000)
       userOp.maxPriorityFeePerGas = Math.floor(validUntilMs / 1000)
-      await vm.validateUserOp(userOp, [])
+      await vm.validateUserOp(userOp)
     }
 
     before(async () => {
@@ -346,7 +347,7 @@ describe('#ValidationManager', () => {
       paymasterPostOpGasLimit: 1e6,
       paymasterData: Buffer.from('postOp-context')
     }
-    await vm.validateUserOp(userOp, [])
+    await vm.validateUserOp(userOp)
   })
 
   it('should fail if validation recursively calls handleOps', async () => {
@@ -358,7 +359,7 @@ describe('#ValidationManager', () => {
       preVerificationGas: 50000
     }
     expect(
-      await vm.validateUserOp(op, [])
+      await vm.validateUserOp(op)
         .catch(e => e.message)
     ).to.match(/illegal call into EntryPoint/)
   })
@@ -374,14 +375,14 @@ describe('#ValidationManager', () => {
   describe('ValidationPackage', () => {
     it('should pass for a transaction that does not violate the rules', async () => {
       const userOp = await createTestUserOp()
-      const res = await checkRulesViolations(provider, [], userOp, entryPoint.address)
+      const res = await checkRulesViolations(provider, userOp, entryPoint.address)
       assert.equal(res.returnInfo.sigFailed, false)
     })
 
     it('should throw for a transaction that violates the rules', async () => {
       const userOp = await createTestUserOp('coinbase')
       await expect(
-        checkRulesViolations(provider, [], userOp, entryPoint.address)
+        checkRulesViolations(provider, userOp, entryPoint.address)
       ).to.be.revertedWith('account uses banned opcode: COINBASE')
     })
   })

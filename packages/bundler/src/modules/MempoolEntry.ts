@@ -1,5 +1,5 @@
 import { BigNumber, BigNumberish } from 'ethers'
-import { EIP7702Tuple, OperationBase, ReferencedCodeHashes, UserOperation } from '@account-abstraction/utils'
+import { OperationBase, ReferencedCodeHashes, UserOperation } from '@account-abstraction/utils'
 
 export class MempoolEntry {
   userOpMaxGas: BigNumber
@@ -7,7 +7,6 @@ export class MempoolEntry {
   constructor (
     readonly userOp: OperationBase,
     readonly userOpHash: string,
-    readonly eip7702Tuples: EIP7702Tuple[],
     readonly prefund: BigNumberish,
     readonly referencedContracts: ReferencedCodeHashes,
     readonly skipValidation: boolean,
