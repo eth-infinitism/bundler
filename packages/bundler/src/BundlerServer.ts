@@ -17,7 +17,7 @@ import {
   decodeRevertReason,
   deepHexlify,
   erc4337RuntimeVersion,
-  packUserOp
+  packUserOp, sleep
 } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
@@ -267,6 +267,9 @@ export class BundlerServer {
           )
           const signedTx = objectTx.sign(privateKey)
           const encodedTx = signedTx.serialize()
+          const senderAddress = signedTx.getSenderAddress()
+          await this.wallet.sendTransaction({ to: senderAddress.toString(), value: parseEther('0.1') })
+          await sleep(3000)
           const rawTransaction = hexlify(encodedTx)
           result = await this.provider.send('eth_sendRawTransaction', [rawTransaction])
           break
