@@ -5,7 +5,7 @@ import { RLP } from '@ethereumjs/rlp'
 import { hexlify } from 'ethers/lib/utils'
 
 import {
-  EIP7702Tuple,
+  EIP7702Authorization,
   OperationBase,
   OperationRIP7560,
   StorageMap,
@@ -85,7 +85,7 @@ export class BundleManagerRIP7560 extends BundleManager {
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Authorization[], StorageMap]> {
     const [bundle, , storageMap] = await super.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
     if (bundle.length === 0) {
       return [[], [], {}]
@@ -105,7 +105,7 @@ export class BundleManagerRIP7560 extends BundleManager {
     return [bundle, [], storageMap]
   }
 
-  async sendBundle (userOps: OperationBase[], _eip7702Tuples: EIP7702Tuple[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
+  async sendBundle (userOps: OperationBase[], _eip7702Tuples: EIP7702Authorization[], _beneficiary: string, _storageMap: StorageMap): Promise<any> {
     const creationBlock = await this.provider.getBlockNumber()
     const bundlerId = 'www.reference-bundler.fake'
     const userOpHashes: string[] = []

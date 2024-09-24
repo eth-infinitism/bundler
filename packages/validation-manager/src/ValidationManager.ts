@@ -8,6 +8,7 @@ import { calcPreVerificationGas } from '@account-abstraction/sdk'
 import {
   AddressZero,
   CodeHashGetter__factory,
+  EIP7702Authorization,
   IEntryPoint,
   IEntryPointSimulations__factory,
   OperationBase,
@@ -22,6 +23,7 @@ import {
   decodeErrorReason,
   decodeRevertReason,
   getAddr,
+  getEip7702AuthorizationSigner,
   mergeValidationDataValues,
   packUserOp,
   requireAddressAndFields,
@@ -112,13 +114,22 @@ export class ValidationManager implements IValidationManager {
     throw new Error(errorResult.errorName)
   }
 
-  async _geth_traceCall_SimulateValidation (operation: OperationBase): Promise<[ValidationResult, BundlerTracerResult]> {
+  async _geth_traceCall_SimulateValidation (
+    operation: OperationBase,
+    stateOverride: {[address: string]: {code: string}}
+  ): Promise<[ValidationResult, BundlerTracerResult]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
+    const stateOverrides = {
+      [this.entryPoint.address]: {
+        code: EntryPointSimulationsJson.deployedBytecode
+      },
+      ...stateOverride
+    }
     const tracerResult: BundlerTracerResult = await debug_traceCall(provider, {
       from: AddressZero,
       to: this.entryPoint.address,
@@ -126,11 +137,7 @@ export class ValidationManager implements IValidationManager {
       gasLimit: simulationGas
     }, {
       tracer: bundlerCollectorTracer,
-      stateOverrides: {
-        [this.entryPoint.address]: {
-          code: EntryPointSimulationsJson.deployedBytecode
-        }
-      }
+      stateOverrides
     })
 
     const lastResult = tracerResult.calls.slice(-1)[0]
@@ -170,7 +177,6 @@ export class ValidationManager implements IValidationManager {
    * should also handle unmodified memory, e.g. by referencing cached storage in the mempool
    * one item to check that was un-modified is the aggregator.
    * @param operation
-   * @param eip7702Tuples
    * @param previousCodeHashes
    * @param checkStakes
    */
@@ -192,10 +198,11 @@ export class ValidationManager implements IValidationManager {
       addresses: [],
       hash: ''
     }
+    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(userOp.authorizationList)
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
-      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
+      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp, stateOverrideForEip7702).catch(e => {
         throw e
       })
       let contractAddresses: string[]
@@ -242,6 +249,27 @@ export class ValidationManager implements IValidationManager {
       referencedContracts: codeHashes,
       storageMap
     }
+  }
+
+  async getAuthorizationsStateOverride(authorizations: EIP7702Authorization[]): Promise<{[address: string]: {code: string}}> {
+    const stateOverride: {[address: string]: {code: string}} = {}
+    // TODO: why don't we have 'provider' as a member in here?
+    const provider = this.entryPoint.provider as JsonRpcProvider
+    for (const authorization of authorizations) {
+      const sender = getEip7702AuthorizationSigner(authorization)
+      const currentDelegateeCode = await provider.getCode(sender)
+      const newDelegateeCode = await provider.getCode(authorization.address)
+      const noCurrentDelegation = currentDelegateeCode.length <= 2
+      // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
+      const changeDelegation = newDelegateeCode !== currentDelegateeCode
+      if (noCurrentDelegation || changeDelegation){
+        console.log('Adding state override:', {address: sender, code: newDelegateeCode.slice(0, 20)})
+        stateOverride[sender] = {
+          code: newDelegateeCode
+        }
+      }
+    }
+    return stateOverride
   }
 
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {

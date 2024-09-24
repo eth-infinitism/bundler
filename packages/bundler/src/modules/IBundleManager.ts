@@ -1,6 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers'
 
-import { EIP7702Tuple, OperationBase, StorageMap } from '@account-abstraction/utils'
+import { EIP7702Authorization, OperationBase, StorageMap } from '@account-abstraction/utils'
 
 export interface IBundleManager {
 
@@ -14,5 +14,5 @@ export interface IBundleManager {
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ) => Promise<[OperationBase[], EIP7702Tuple[], StorageMap]>
+  ) => Promise<[OperationBase[], EIP7702Authorization[], StorageMap]>
 }

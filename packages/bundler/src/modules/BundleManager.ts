@@ -13,14 +13,14 @@ import {
 
 import {
   AddressZero,
-  EIP7702Tuple,
+  EIP7702Authorization,
   IEntryPoint,
   OperationBase,
   RpcError,
   StorageMap,
   UserOperation,
   ValidationErrors,
-  getEip7702TupleSigner,
+  getEip7702AuthorizationSigner,
   mergeStorageMap,
   packUserOp,
   runContractScript
@@ -103,7 +103,7 @@ export class BundleManager implements IBundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], eip7702Tuples: EIP7702Tuple[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
+  async sendBundle (userOps: UserOperation[], eip7702Tuples: EIP7702Authorization[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
       // TODO: estimate is not enough. should trace with validation rules, to prevent on-chain revert.
@@ -213,10 +213,10 @@ export class BundleManager implements IBundleManager {
     minBaseFee?: BigNumberish,
     maxBundleGas?: BigNumberish,
     maxBundleSize?: BigNumberish
-  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Authorization[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: OperationBase[] = []
-    const sharedAuthorizationList: EIP7702Tuple[] = []
+    const sharedAuthorizationList: EIP7702Authorization[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -341,7 +341,7 @@ export class BundleManager implements IBundleManager {
       for (const eip7702Authorization of entry.userOp.authorizationList) {
         const existingAuthorization = sharedAuthorizationList
           .find(it => {
-            return getEip7702TupleSigner(it) === getEip7702TupleSigner(eip7702Authorization)
+            return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
           })
         if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
           debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')

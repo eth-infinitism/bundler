@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { EIP7702Tuple, OperationBase, StorageMap } from '@account-abstraction/utils'
+import { EIP7702Authorization, OperationBase, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
@@ -139,7 +139,7 @@ export class ExecutionManager {
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Authorization[], StorageMap]> {
     return await this.bundleManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 }

@@ -2,7 +2,7 @@ import { BigNumberish } from 'ethers'
 import { JsonRpcProvider, TransactionReceipt } from '@ethersproject/providers'
 import {
   AddressZero,
-  EIP7702Tuple,
+  EIP7702Authorization,
   OperationBase,
   OperationRIP7560,
   StorageMap,
@@ -40,7 +40,7 @@ export class MethodHandlerRIP7560 {
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ): Promise<[OperationBase[], EIP7702Tuple[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Authorization[], StorageMap]> {
     return await this.execManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 
