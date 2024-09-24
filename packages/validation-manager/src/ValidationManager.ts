@@ -116,7 +116,7 @@ export class ValidationManager implements IValidationManager {
 
   async _geth_traceCall_SimulateValidation (
     operation: OperationBase,
-    stateOverride: {[address: string]: {code: string}}
+    stateOverride: { [address: string]: { code: string } }
   ): Promise<[ValidationResult, BundlerTracerResult]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
@@ -251,8 +251,10 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
-  async getAuthorizationsStateOverride(authorizations: EIP7702Authorization[]): Promise<{[address: string]: {code: string}}> {
-    const stateOverride: {[address: string]: {code: string}} = {}
+  async getAuthorizationsStateOverride (
+    authorizations: EIP7702Authorization[]
+  ): Promise<{ [address: string]: { code: string } }> {
+    const stateOverride: { [address: string]: { code: string } } = {}
     // TODO: why don't we have 'provider' as a member in here?
     const provider = this.entryPoint.provider as JsonRpcProvider
     for (const authorization of authorizations) {
@@ -262,8 +264,8 @@ export class ValidationManager implements IValidationManager {
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
-      if (noCurrentDelegation || changeDelegation){
-        console.log('Adding state override:', {address: sender, code: newDelegateeCode.slice(0, 20)})
+      if (noCurrentDelegation || changeDelegation) {
+        console.log('Adding state override:', { address: sender, code: newDelegateeCode.slice(0, 20) })
         stateOverride[sender] = {
           code: newDelegateeCode
         }

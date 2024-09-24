@@ -1,8 +1,6 @@
 import { BigNumberish } from 'ethers'
 import RLP from 'rlp'
-import { toHex } from 'hardhat/internal/util/bigint'
-import { hashMessage, hexlify } from 'ethers/lib/utils'
-import { bytesToHex, ecrecover, hexToBytes, pubToAddress } from '@ethereumjs/util'
+import { bytesToHex, ecrecover, hexToBigInt, hexToBytes, pubToAddress } from '@ethereumjs/util'
 import { AddressZero } from '../ERC4337Utils'
 import { keccak256 } from '@ethersproject/keccak256'
 
@@ -27,11 +25,11 @@ export function getEip7702AuthorizationSigner (authorization: EIP7702Authorizati
     )
   ]
   const messageHash = keccak256(rlpEncode) as `0x${string}`
-  console.log(hexlify(rlpEncode))
-  console.log(messageHash)
+  // console.log('getEip7702AuthorizationSigner RLP:\n', hexlify(rlpEncode), rlpEncode.length)
+  // console.log('getEip7702AuthorizationSigner hash:\n', messageHash)
   const senderPubKey = ecrecover(
     hexToBytes(messageHash),
-    BigInt(authorization.yParity.toString()),
+    hexToBigInt(authorization.yParity.toString() as `0x${string}`),
     hexToBytes(authorization.r.toString() as `0x${string}`),
     hexToBytes(authorization.s.toString() as `0x${string}`)
   )

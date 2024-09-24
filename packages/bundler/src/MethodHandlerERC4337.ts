@@ -146,17 +146,26 @@ export class MethodHandlerERC4337 {
 
     const returnInfo = decodeSimulateHandleOpResult(ret)
 
-    const { validAfter, validUntil } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
+    const {
+      validAfter,
+      validUntil
+    } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
     const {
       preOpGas
     } = returnInfo
 
     // todo: use simulateHandleOp for this too...
-    const callGasLimit = await this.provider.estimateGas({
-      from: this.entryPoint.address,
-      to: userOp.sender,
-      data: userOp.callData
-    }).then(b => b.toNumber()).catch(err => {
+    const callGasLimit = await this.provider.send(
+      'eth_estimateGas', [
+        {
+          from: this.entryPoint.address,
+          to: userOp.sender,
+          data: userOp.callData,
+          // @ts-ignore
+          authorizationList: userOp.authorizationList
+        }
+      ]
+    ).then(b => b.toNumber()).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })

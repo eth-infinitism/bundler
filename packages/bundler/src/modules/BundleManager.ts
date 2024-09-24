@@ -1,9 +1,9 @@
 import Debug from 'debug'
-import { BigNumber, BigNumberish, Signer } from 'ethers'
+import { BigNumber, BigNumberish, PopulatedTransaction, Signer } from 'ethers'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { Mutex } from 'async-mutex'
-import { isAddress } from 'ethers/lib/utils'
+import { hexlify, isAddress } from 'ethers/lib/utils'
 
 import {
   EmptyValidateUserOpResult,
@@ -32,6 +32,10 @@ import { IBundleManager } from './IBundleManager'
 import { MempoolEntry } from './MempoolEntry'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { ChainConfig, Common, Hardfork, Mainnet } from '@ethereumjs/common'
+import { EOACode7702Transaction } from '@ethereumjs/tx'
+import { AuthorizationList, EOACode7702TxData } from '@ethereumjs/tx/src/types'
+import { PrefixedHexString } from '@ethereumjs/util'
 
 const debug = Debug('aa.exec.cron')
 
@@ -123,6 +127,11 @@ export class BundleManager implements IBundleManager {
           signedTx, { knownAccounts: storageMap }
         ])
         debug('eth_sendRawTransactionConditional ret=', ret)
+      } else if (tx.type === TX_TYPE_EIP_7702) {
+        const ethereumJsTx = await this._prepareEip7702Transaction(tx, eip7702Tuples)
+        const res = await this.provider.send('eth_sendRawTransaction', [ethereumJsTx])
+        const rcpt = await this.provider.getTransactionReceipt(res)
+        ret = rcpt.transactionHash
       } else {
         const resp = await this.signer.sendTransaction(tx)
         const rcpt = await resp.wait()
@@ -173,6 +182,75 @@ export class BundleManager implements IBundleManager {
       this.mempoolManager.removeUserOp(userOp)
       console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
     }
+  }
+
+  // TODO: this is a temporary patch until ethers.js adds EIP-7702 support
+  async _prepareEip7702Transaction (tx: PopulatedTransaction, eip7702Tuples: EIP7702Authorization[]): Promise<string> {
+    console.log('creating EIP-7702 transaction')
+    // TODO: read fields from the configuration
+    // @ts-ignore
+    const chain: ChainConfig = {
+      bootstrapNodes: [],
+      defaultHardfork: Hardfork.Prague,
+      // consensus: undefined,
+      // genesis: undefined,
+      hardforks: Mainnet.hardforks,
+      name: '',
+      chainId: 1337
+    }
+    const common = new Common({ chain, eips: [2718, 2929, 2930, 7702] })
+    const authorizationList: AuthorizationList = eip7702Tuples.map(it => {
+      const res = {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion,@typescript-eslint/no-base-to-string
+        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}` as PrefixedHexString,
+        address: it.address as PrefixedHexString,
+        nonce: it.nonce as PrefixedHexString,
+        yParity: it.yParity as PrefixedHexString,
+        r: it.r as PrefixedHexString,
+        s: it.s as PrefixedHexString
+      }
+      if (res.yParity === '0x0') {
+        // o, for fuck's sake!
+        res.yParity = '0x'
+      }
+      if (res.nonce === '0x0') {
+        throw new Error('ethereumjs/tx does not handle zero nonce!')
+      }
+      return res
+    })
+    const txData: EOACode7702TxData = {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      nonce: `0x${tx.nonce!.toString(16)}`,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      to: tx.to!.toString() as PrefixedHexString,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      value: '0x0',
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      data: tx.data!.toString() as PrefixedHexString,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      chainId: `0x${tx.chainId!.toString(16)}`,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas!.toHexString() as PrefixedHexString,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      maxFeePerGas: tx.maxPriorityFeePerGas!.toHexString() as PrefixedHexString,
+      accessList: [],
+      authorizationList
+    }
+    // TODO: not clear why but 'eth_estimateGas' gives an 'execution reverted' error
+    // txData.gasLimit = await this.provider.send('eth_estimateGas', [txData])
+    txData.gasLimit = `0x${(10000000).toString(16)}`
+    const objectTx = new EOACode7702Transaction(txData, { common })
+    const privateKey = Buffer.from(
+      // @ts-ignore
+      this.signer.privateKey.slice(2),
+      // 'e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109',
+      'hex'
+    )
+
+    const signedTx = objectTx.sign(privateKey)
+    const encodedTx = signedTx.serialize()
+    return hexlify(encodedTx)
+    // const senderAddress = signedTx.getSenderAddress().toString()
   }
 
   async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
@@ -257,11 +335,13 @@ export class BundleManager implements IBundleManager {
         continue
       }
       // [GREP-020] - renamed from [SREP-030]
+      // @ts-ignore
       if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled paymaster', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
       }
       // [GREP-020] - renamed from [SREP-030]
+      // @ts-ignore
       if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled factory', entry.userOp.sender, (entry.userOp as any).nonce)
         continue

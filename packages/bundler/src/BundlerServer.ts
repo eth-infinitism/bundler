@@ -3,9 +3,7 @@ import cors from 'cors'
 import express, { Express, Response, Request, RequestHandler } from 'express'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
-import { hexlify, parseEther } from 'ethers/lib/utils'
-import { ChainConfig, Common, Hardfork, Mainnet } from '@ethereumjs/common'
-import { EOACode7702Transaction } from '@ethereumjs/tx'
+import { parseEther } from 'ethers/lib/utils'
 import { Server } from 'http'
 
 import {
@@ -17,7 +15,7 @@ import {
   decodeRevertReason,
   deepHexlify,
   erc4337RuntimeVersion,
-  packUserOp, sleep
+  packUserOp
 } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
@@ -246,34 +244,6 @@ export class BundlerServer {
         break
       }
       case 'eth_sendTransaction':
-        if (params[0].authorizationList != null) {
-          console.log('eth_sendTransaction received EIP-7702 transaction', JSON.stringify(params[0]))
-          // NOTE: @ethereumjs/tx v5.4.0 has a 'tuple nonce' as an array - patch or wait for fix
-          // @ts-ignore
-          const chain: ChainConfig = {
-            bootstrapNodes: [],
-            defaultHardfork: Hardfork.Prague,
-            // consensus: undefined,
-            // genesis: undefined,
-            hardforks: Mainnet.hardforks,
-            name: '',
-            chainId: 1337
-          }
-          const common = new Common({ chain, eips: [2718, 2929, 2930, 7702] })
-          const objectTx = new EOACode7702Transaction(params[0], { common })
-          const privateKey = Buffer.from(
-            'e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109',
-            'hex'
-          )
-          const signedTx = objectTx.sign(privateKey)
-          const encodedTx = signedTx.serialize()
-          const senderAddress = signedTx.getSenderAddress().toString()
-          await this.wallet.sendTransaction({ to: senderAddress, value: parseEther('0.1') })
-          await sleep(3000)
-          const rawTransaction = hexlify(encodedTx)
-          result = await this.provider.send('eth_sendRawTransaction', [rawTransaction])
-          break
-        }
         if (!this.config.rip7560) {
           throw new RpcError(`Method ${method} is not supported`, -32601)
         }

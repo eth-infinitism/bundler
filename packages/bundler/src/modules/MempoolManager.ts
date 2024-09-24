@@ -277,7 +277,7 @@ export class MempoolManager {
     res.push(
       ...userOps.map(it => it.userOp.factory)
     )
-
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     return res.filter(it => it != null).map(it => (it as string).toLowerCase())
   }
 
