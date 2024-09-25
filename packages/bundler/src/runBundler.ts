@@ -142,10 +142,9 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       await deployStakeManager(provider, wallet as any)
     } catch (e: any) {
       console.warn(e)
-      if (!e.message.includes('replacement fee too low') && !e.message.includes('already known')) throw e
+      if (!(e.message as string).includes('replacement fee too low') && !(e.message as string).includes('already known')) throw e
     }
   }
-
 
   const {
     entryPoint
