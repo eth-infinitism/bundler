@@ -137,8 +137,13 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   }
 
   if (config.rip7560) {
-    await deployNonceManager(provider, wallet as any)
-    await deployStakeManager(provider, wallet as any)
+    try {
+      await deployNonceManager(provider, wallet as any)
+      await deployStakeManager(provider, wallet as any)
+    } catch (e: any) {
+      console.warn(e)
+      if (!(e.message as string).includes('replacement fee too low') && !(e.message as string).includes('already known')) throw e
+    }
   }
 
   const {
