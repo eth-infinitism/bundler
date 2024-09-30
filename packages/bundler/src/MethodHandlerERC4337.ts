@@ -19,7 +19,7 @@ import {
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 import { EventFragment } from '@ethersproject/abi'
 
 export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -58,7 +58,8 @@ export class MethodHandlerERC4337 {
     readonly provider: JsonRpcProvider,
     readonly signer: Signer,
     readonly config: BundlerConfig,
-    readonly entryPoint: IEntryPoint
+    readonly entryPoint: IEntryPoint,
+    readonly preVerificationGasCalculator: PreVerificationGasCalculator
   ) {
   }
 
@@ -152,7 +153,7 @@ export class MethodHandlerERC4337 {
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
 
-    const preVerificationGas = calcPreVerificationGas(userOp)
+    const preVerificationGas = this.preVerificationGasCalculator.estimatePreVerificationGas(userOp)
     const verificationGasLimit = BigNumber.from(preOpGas).toNumber()
     return {
       preVerificationGas,

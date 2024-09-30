@@ -6,7 +6,7 @@ import { BundlerConfig } from '../src/BundlerConfig'
 
 import { toHex } from 'hardhat/internal/util/bigint'
 import { Signer, Wallet } from 'ethers'
-import { SimpleAccountAPI } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
   SampleRecipient,
@@ -84,7 +84,8 @@ describe('UserOpMethodHandler', function () {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
@@ -94,7 +95,8 @@ describe('UserOpMethodHandler', function () {
       provider,
       signer,
       config,
-      entryPoint
+      entryPoint,
+      preVerificationGasCalculator
     )
   })
 
@@ -272,8 +274,7 @@ describe('UserOpMethodHandler', function () {
           provider,
           entryPointAddress: entryPoint.address,
           accountAddress,
-          owner: accountSigner,
-          overheads: { perUserOp: 0 }
+          owner: accountSigner
         })
         const op = await api.createSignedUserOp({
           data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),

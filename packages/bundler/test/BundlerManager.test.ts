@@ -22,6 +22,7 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { EventsManager } from '../src/modules/EventsManager'
 import { createSigner } from './testUtils'
 import { DepositManager } from '../src/modules/DepositManager'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
 describe('#BundlerManager', () => {
   let bm: BundleManager
@@ -59,7 +60,8 @@ describe('#BundlerManager', () => {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     bm = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
@@ -112,7 +114,8 @@ describe('#BundlerManager', () => {
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
-      const validMgr = new ValidationManager(_entryPoint, config.unsafe)
+      const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+      const validMgr = new ValidationManager(_entryPoint, config.unsafe, preVerificationGasCalculator)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, _entryPoint.provider as JsonRpcProvider, _entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
       const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
@@ -124,7 +127,8 @@ describe('#BundlerManager', () => {
         provider,
         bundlerSigner,
         config,
-        _entryPoint
+        _entryPoint,
+        preVerificationGasCalculator
       )
     })
 

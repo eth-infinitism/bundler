@@ -5,7 +5,6 @@ import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
 import { encodeUserOp, getUserOpHash, IEntryPoint, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
-import { calcPreVerificationGas, GasOverheads } from './calcPreVerificationGas'
 
 export interface FactoryParams {
   factory: string
@@ -16,7 +15,6 @@ export interface BaseApiParams {
   provider: Provider
   entryPointAddress: string
   accountAddress?: string
-  overheads?: Partial<GasOverheads>
   paymasterAPI?: PaymasterAPI
 }
 
@@ -45,7 +43,6 @@ export abstract class BaseAccountAPI {
   private readonly entryPointView: IEntryPoint
 
   provider: Provider
-  overheads?: Partial<GasOverheads>
   entryPointAddress: string
   accountAddress?: string
   paymasterAPI?: PaymasterAPI
@@ -56,7 +53,6 @@ export abstract class BaseAccountAPI {
    */
   protected constructor (params: BaseApiParams) {
     this.provider = params.provider
-    this.overheads = params.overheads
     this.entryPointAddress = params.entryPointAddress
     this.accountAddress = params.accountAddress
     this.paymasterAPI = params.paymasterAPI
@@ -150,14 +146,6 @@ export abstract class BaseAccountAPI {
    */
   async getVerificationGasLimit (): Promise<BigNumberish> {
     return 100000
-  }
-
-  /**
-   * should cover cost of putting calldata on-chain, and some overhead.
-   * actual overhead depends on the expected bundle size
-   */
-  async getPreVerificationGas (userOp: Partial<UserOperation>): Promise<number> {
-    return calcPreVerificationGas(userOp, this.overheads)
   }
 
   /**
@@ -278,7 +266,7 @@ export abstract class BaseAccountAPI {
     }
     return {
       ...partialUserOp,
-      preVerificationGas: await this.getPreVerificationGas(partialUserOp),
+      preVerificationGas: 0,
       signature: ''
     }
   }

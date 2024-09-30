@@ -22,6 +22,7 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { DepositManager } from '../src/modules/DepositManager'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
 describe('BundleServer', function () {
   let entryPoint: IEntryPoint
@@ -55,7 +56,8 @@ describe('BundleServer', function () {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
@@ -65,7 +67,8 @@ describe('BundleServer', function () {
       provider,
       signer,
       config,
-      entryPoint
+      entryPoint,
+      preVerificationGasCalculator
     )
     const None: any = {}
     server = new BundlerServer(methodHandler, None, None, None, None, None)
