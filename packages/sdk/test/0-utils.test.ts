@@ -63,7 +63,8 @@ describe('utils', () => {
         callData: '333',
         maxFeePerGas: 5,
         maxPriorityFeePerGas: 6,
-        signature: '777'
+        signature: '777',
+        authorizationList: []
       })).to.eql({
         sender: 'a',
         nonce: '0x01',
@@ -94,8 +95,8 @@ describe('utils', () => {
         paymaster,
         paymasterVerificationGasLimit: 8,
         paymasterPostOpGasLimit: 9,
-        paymasterData: '0xcafebabe'
-
+        paymasterData: '0xcafebabe',
+        authorizationList: []
       })).to.eql({
         sender: 'a',
         nonce: '0x01',

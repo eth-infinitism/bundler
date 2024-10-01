@@ -1,7 +1,7 @@
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express, { Express, Response, Request, RequestHandler } from 'express'
-import { JsonRpcProvider, Provider } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { Signer, utils } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { Server } from 'http'
@@ -39,7 +39,7 @@ export class BundlerServer {
     readonly methodHandlerRip7560: MethodHandlerRIP7560,
     readonly debugHandler: DebugMethodHandler,
     readonly config: BundlerConfig,
-    readonly provider: Provider,
+    readonly provider: JsonRpcProvider,
     readonly wallet: Signer
   ) {
     this.appPublic = express()
@@ -95,7 +95,8 @@ export class BundlerServer {
       callGasLimit: 0,
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
-      signature: '0x'
+      signature: '0x',
+      authorizationList: []
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
     try {
@@ -259,7 +260,7 @@ export class BundlerServer {
         }
         break
       case 'eth_getRip7560TransactionDebugInfo':
-        result = await (this.provider as JsonRpcProvider).send('eth_getRip7560TransactionDebugInfo', [params[0]])
+        result = await this.provider.send('eth_getRip7560TransactionDebugInfo', [params[0]])
         break
       case 'eth_getTransactionReceipt':
         if (!this.config.rip7560) {
@@ -277,9 +278,15 @@ export class BundlerServer {
         result = await this.methodHandler.getSupportedEntryPoints()
         break
       case 'eth_sendUserOperation':
+        if (!this.config.eip7702Support && params[2] != null) {
+          throw new Error('EIP-7702 tuples are not supported')
+        }
         result = await this.methodHandler.sendUserOperation(params[0], params[1])
         break
       case 'eth_estimateUserOperationGas':
+        if (!this.config.eip7702Support && params[2] != null) {
+          throw new Error('EIP-7702 tuples are not supported')
+        }
         result = await this.methodHandler.estimateUserOperationGas(params[0], params[1], params[2])
         break
       case 'eth_getUserOperationReceipt':

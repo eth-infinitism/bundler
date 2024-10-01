@@ -4,7 +4,8 @@ import {
   OperationBase,
   OperationRIP7560,
   ReferencedCodeHashes,
-  getRIP7560TransactionHash, StakeInfo
+  StakeInfo,
+  getRIP7560TransactionHash
 } from '@account-abstraction/utils'
 
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
@@ -63,7 +64,10 @@ export class ValidationManagerRIP7560 implements IValidationManager {
     }
   }
 
-  async validateUserOp (operation: OperationBase, previousCodeHashes?: ReferencedCodeHashes): Promise<ValidateUserOpResult> {
+  async validateUserOp (
+    operation: OperationBase,
+    previousCodeHashes?: ReferencedCodeHashes
+  ): Promise<ValidateUserOpResult> {
     const transaction = operation as OperationRIP7560
     // let storageMap: StorageMap = {}
     // let codeHashes: ReferencedCodeHashes = {

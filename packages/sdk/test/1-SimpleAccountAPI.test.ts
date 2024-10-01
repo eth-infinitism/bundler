@@ -53,7 +53,8 @@ describe('SimpleAccountAPI', () => {
       preVerificationGas: 7,
       maxFeePerGas: 8,
       maxPriorityFeePerGas: 9,
-      signature: '0xbbbb'
+      signature: '0xbbbb',
+      authorizationList: []
     }
     const hash = await api.getUserOpHash(userOp)
     const epHash = await entryPoint.getUserOpHash(packUserOp(userOp))

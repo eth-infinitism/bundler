@@ -1,5 +1,11 @@
-import { OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
 import { BigNumber, BigNumberish } from 'ethers'
+
+import {
+  OperationBase,
+  ReferencedCodeHashes,
+  StakeInfo,
+  StorageMap
+} from '@account-abstraction/utils'
 
 /**
  * result from successful validation

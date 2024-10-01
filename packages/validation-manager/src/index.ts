@@ -1,6 +1,11 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-import { AddressZero, IEntryPoint__factory, OperationRIP7560, UserOperation } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  IEntryPoint__factory,
+  OperationRIP7560,
+  UserOperation
+} from '@account-abstraction/utils'
 
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
@@ -38,7 +43,8 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
       factoryData: '0x',
       paymasterVerificationGasLimit: '0x10000',
       paymasterPostOpGasLimit: '0x0',
-      authorizationData: '0x'
+      authorizationData: '0x',
+      authorizationList: []
     };
 
     // TODO: align parameter names across 4337 and 7560

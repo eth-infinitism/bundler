@@ -260,7 +260,8 @@ export abstract class BaseAccountAPI {
       callGasLimit,
       verificationGasLimit,
       maxFeePerGas: maxFeePerGas as any,
-      maxPriorityFeePerGas: maxPriorityFeePerGas as any
+      maxPriorityFeePerGas: maxPriorityFeePerGas as any,
+      authorizationList: []
     }
 
     if (this.paymasterAPI != null) {

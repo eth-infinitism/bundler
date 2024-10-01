@@ -1,3 +1,4 @@
+export { EIP7702Authorization, getEip7702AuthorizationSigner } from './interfaces/EIP7702Authorization'
 export { UserOperation } from './interfaces/UserOperation'
 export { OperationBase } from './interfaces/OperationBase'
 export { OperationRIP7560 } from './interfaces/OperationRIP7560'

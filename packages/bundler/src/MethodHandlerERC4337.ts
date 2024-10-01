@@ -3,19 +3,24 @@ import { JsonRpcProvider, Log } from '@ethersproject/providers'
 
 import { BundlerConfig } from './BundlerConfig'
 import {
-  RpcError,
-  ValidationErrors,
-  requireAddressAndFields,
-  packUserOp,
-  PackedUserOperation,
-  unpackUserOp,
-  simulationRpcParams,
-  decodeSimulateHandleOpResult,
   AddressZero,
+  IEntryPoint,
+  PackedUserOperation,
+  RpcError,
+  UserOperation,
+  UserOperationEventEvent,
+  ValidationErrors,
   decodeRevertReason,
+  decodeSimulateHandleOpResult,
+  deepHexlify,
+  erc4337RuntimeVersion,
   mergeValidationDataValues,
-  UserOperationEventEvent, IEntryPoint, requireCond, deepHexlify, tostr, erc4337RuntimeVersion
-  , UserOperation
+  packUserOp,
+  requireAddressAndFields,
+  requireCond,
+  simulationRpcParams,
+  tostr,
+  unpackUserOp
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
@@ -109,7 +114,11 @@ export class MethodHandlerERC4337 {
    * @param entryPointInput
    * @param stateOverride
    */
-  async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string, stateOverride?: StateOverride): Promise<EstimateUserOpGasResult> {
+  async estimateUserOperationGas (
+    userOp1: Partial<UserOperation>,
+    entryPointInput: string,
+    stateOverride?: StateOverride
+  ): Promise<EstimateUserOpGasResult> {
     const userOp: UserOperation = {
       // default values for missing fields.
       maxFeePerGas: 0,
@@ -137,17 +146,26 @@ export class MethodHandlerERC4337 {
 
     const returnInfo = decodeSimulateHandleOpResult(ret)
 
-    const { validAfter, validUntil } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
+    const {
+      validAfter,
+      validUntil
+    } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
     const {
       preOpGas
     } = returnInfo
 
     // todo: use simulateHandleOp for this too...
-    const callGasLimit = await this.provider.estimateGas({
-      from: this.entryPoint.address,
-      to: userOp.sender,
-      data: userOp.callData
-    }).then(b => b.toNumber()).catch(err => {
+    const callGasLimit = await this.provider.send(
+      'eth_estimateGas', [
+        {
+          from: this.entryPoint.address,
+          to: userOp.sender,
+          data: userOp.callData,
+          // @ts-ignore
+          authorizationList: userOp.authorizationList
+        }
+      ]
+    ).then(b => b.toNumber()).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
@@ -166,7 +184,7 @@ export class MethodHandlerERC4337 {
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
     await this._validateParameters(userOp, entryPointInput)
 
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''}`)
+    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList.length}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }

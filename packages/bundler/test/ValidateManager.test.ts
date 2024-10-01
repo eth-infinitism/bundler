@@ -44,7 +44,8 @@ const cEmptyUserOp: UserOperation = {
   verificationGasLimit: 50000,
   maxFeePerGas: 0,
   maxPriorityFeePerGas: 0,
-  preVerificationGas: 0
+  preVerificationGas: 0,
+  authorizationList: []
 }
 
 describe('#ValidationManager', () => {
