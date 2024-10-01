@@ -11,6 +11,7 @@ import {
   deployEntryPoint
 } from '@account-abstraction/utils'
 import { supportsDebugTraceCall, ValidationManager } from '@account-abstraction/validation-manager'
+import { PreVerificationGasCalculator, MainnetConfig } from '@account-abstraction/sdk'
 
 import { BundlerServer } from '../src/BundlerServer'
 import { createSigner } from './testUtils'
@@ -22,7 +23,6 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { DepositManager } from '../src/modules/DepositManager'
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
 describe('BundleServer', function () {
   let entryPoint: IEntryPoint
@@ -33,6 +33,7 @@ describe('BundleServer', function () {
     entryPoint = await deployEntryPoint(provider)
 
     const config: BundlerConfig = {
+      chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -56,7 +57,7 @@ describe('BundleServer', function () {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
     const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)

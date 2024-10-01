@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { PreVerificationGasCalculator, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { MainnetConfig, PreVerificationGasCalculator, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { Signer, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { expect } from 'chai'
@@ -43,6 +43,7 @@ describe('#DebugMethodHandler', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
+      chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -66,7 +67,7 @@ describe('#DebugMethodHandler', () => {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
     const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const eventsManager = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, eventsManager, mempoolMgr, validMgr, repMgr,

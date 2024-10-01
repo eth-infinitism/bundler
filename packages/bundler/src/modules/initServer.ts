@@ -20,7 +20,7 @@ import { BundleManagerRIP7560 } from './BundleManagerRIP7560'
 import { IBundleManager } from './IBundleManager'
 import { DepositManager } from './DepositManager'
 import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/src/types'
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, ChainConfigs } from '@account-abstraction/sdk'
 
 /**
  * initialize server modules.
@@ -33,7 +33,8 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
-  const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+  const mergedPvgcConfig = Object.assign({}, ChainConfigs[config.chainId] ?? {}, config)
+  const preVerificationGasCalculator = new PreVerificationGasCalculator(mergedPvgcConfig)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {

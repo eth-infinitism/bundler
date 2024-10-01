@@ -6,7 +6,7 @@ import { BundlerConfig } from '../src/BundlerConfig'
 
 import { toHex } from 'hardhat/internal/util/bigint'
 import { Signer, Wallet } from 'ethers'
-import { PreVerificationGasCalculator, SimpleAccountAPI } from '@account-abstraction/sdk'
+import { MainnetConfig, PreVerificationGasCalculator, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
   SampleRecipient,
@@ -61,6 +61,7 @@ describe('UserOpMethodHandler', function () {
     sampleRecipient = await sampleRecipientFactory.deploy()
 
     const config: BundlerConfig = {
+      chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -84,7 +85,7 @@ describe('UserOpMethodHandler', function () {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
-    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
     const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)

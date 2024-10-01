@@ -293,10 +293,9 @@ export class ValidationManager implements IValidationManager {
     requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
     requireAddressAndFields(userOp, 'factory', ['factoryData'])
 
-    const preVerificationGas = (userOp as UserOperation).preVerificationGas
-    if (preVerificationGas != null) {
+    if ((userOp as UserOperation).preVerificationGas != null) {
       const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
-        this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation, preVerificationGas)
+        this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation)
       requireCond(isPreVerificationGasValid,
         `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}`,
         ValidationErrors.InvalidFields)

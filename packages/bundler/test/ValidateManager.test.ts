@@ -15,7 +15,7 @@ import {
   checkRulesViolations,
   supportsDebugTraceCall
 } from '@account-abstraction/validation-manager'
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, MainnetConfig } from '@account-abstraction/sdk'
 
 import {
   TestCoin,
@@ -77,11 +77,11 @@ describe('#ValidationManager', () => {
     const pmd = pmRule === ''
       ? {}
       : {
-          paymaster: paymaster.address,
-          paymasterVerificationGasLimit: 1e5,
-          paymasterPostOpGasLimit: 1e5,
-          paymasterData: Buffer.from(pmRule)
-        }
+        paymaster: paymaster.address,
+        paymasterVerificationGasLimit: 1e5,
+        paymasterPostOpGasLimit: 1e5,
+        paymasterData: Buffer.from(pmRule)
+      }
     const signature = hexlify(Buffer.from(validateRule))
     return {
       ...cEmptyUserOp,
@@ -103,11 +103,11 @@ describe('#ValidationManager', () => {
     const pmInfo = pmRule == null
       ? {}
       : {
-          paymaster: paymaster.address,
-          paymasterVerificationGasLimit: 1e6,
-          paymasterPostOpGasLimit: 1e6,
-          paymasterData: Buffer.from(pmRule)
-        }
+        paymaster: paymaster.address,
+        paymasterVerificationGasLimit: 1e6,
+        paymasterPostOpGasLimit: 1e6,
+        paymasterData: Buffer.from(pmRule)
+      }
     const signature = hexlify(Buffer.from(validateRule))
     const callinitCodeForAddr = await provider.call({
       to: factoryAddress,
@@ -153,7 +153,7 @@ describe('#ValidationManager', () => {
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
     const unsafe = !await supportsDebugTraceCall(provider, false)
-    const preVerificationGasCalculator = new PreVerificationGasCalculator(0, 0, 0, 0, 0, 0, 0, 0)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
     vm = new ValidationManager(entryPoint, unsafe, preVerificationGasCalculator)
 
     if (!await supportsDebugTraceCall(ethers.provider, false)) {
