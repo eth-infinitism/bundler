@@ -281,6 +281,7 @@ describe('UserOpMethodHandler', function () {
           data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
           target: sampleRecipient.address
         })
+        op.preVerificationGas = 1000
         try {
           await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
           throw new Error('expected to revert')

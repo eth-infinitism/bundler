@@ -298,7 +298,7 @@ export class ValidationManager implements IValidationManager {
       const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
         this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation)
       requireCond(isPreVerificationGasValid,
-        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${preVerificationGas}`,
+        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${(preVerificationGas as string).toString()}`,
         ValidationErrors.InvalidFields)
     }
   }
