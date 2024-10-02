@@ -70,7 +70,7 @@ export class PreVerificationGasCalculator {
     const minRequiredPreVerificationGas = this._calculate(userOp)
     return {
       minRequiredPreVerificationGas,
-      isPreVerificationGasValid: minRequiredPreVerificationGas <= parseInt(userOp.preVerificationGas.toString())
+      isPreVerificationGasValid: minRequiredPreVerificationGas <= parseInt((userOp.preVerificationGas as any).toString())
     }
   }
 
