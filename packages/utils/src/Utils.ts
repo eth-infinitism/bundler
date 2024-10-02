@@ -1,7 +1,7 @@
 // misc utilities for the various modules.
 
 import { BytesLike, ContractFactory, BigNumber, ethers } from 'ethers'
-import { defaultAbiCoder, hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
+import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 
@@ -226,7 +226,7 @@ export function getPackedNonce (userOp: OperationBase): BigNumber {
     // Either not RIP-7560 operation or not using RIP-7712 nonce
     return BigNumber.from(userOp.nonce)
   }
-  const packed = ethers.utils.solidityPack(["uint192", "uint64"], [nonceKey, userOp.nonce])
+  const packed = ethers.utils.solidityPack(['uint192', 'uint64'], [nonceKey, userOp.nonce])
   const bigNumberNonce = BigNumber.from(packed)
   return bigNumberNonce
 }
