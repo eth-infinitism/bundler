@@ -266,7 +266,7 @@ export abstract class BaseAccountAPI {
     }
     return {
       ...partialUserOp,
-      preVerificationGas: 0,
+      preVerificationGas: 60000,
       signature: ''
     }
   }
