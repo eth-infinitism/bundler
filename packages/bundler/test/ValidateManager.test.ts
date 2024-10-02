@@ -77,11 +77,11 @@ describe('#ValidationManager', () => {
     const pmd = pmRule === ''
       ? {}
       : {
-        paymaster: paymaster.address,
-        paymasterVerificationGasLimit: 1e5,
-        paymasterPostOpGasLimit: 1e5,
-        paymasterData: Buffer.from(pmRule)
-      }
+          paymaster: paymaster.address,
+          paymasterVerificationGasLimit: 1e5,
+          paymasterPostOpGasLimit: 1e5,
+          paymasterData: Buffer.from(pmRule)
+        }
     const signature = hexlify(Buffer.from(validateRule))
     return {
       ...cEmptyUserOp,
@@ -103,11 +103,11 @@ describe('#ValidationManager', () => {
     const pmInfo = pmRule == null
       ? {}
       : {
-        paymaster: paymaster.address,
-        paymasterVerificationGasLimit: 1e6,
-        paymasterPostOpGasLimit: 1e6,
-        paymasterData: Buffer.from(pmRule)
-      }
+          paymaster: paymaster.address,
+          paymasterVerificationGasLimit: 1e6,
+          paymasterPostOpGasLimit: 1e6,
+          paymasterData: Buffer.from(pmRule)
+        }
     const signature = hexlify(Buffer.from(validateRule))
     const callinitCodeForAddr = await provider.call({
       to: factoryAddress,
