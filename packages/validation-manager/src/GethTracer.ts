@@ -7,6 +7,10 @@ import { resolveProperties } from 'ethers/lib/utils'
 
 const debug = Debug('aa.tracer')
 
+// the name of the native tracer.
+// equivalent to the javascript "bundlerCollectorTracer".
+export const bundlerNativeTracerName = 'bundlerCollectorTracer'
+
 /**
  * a function returning a LogTracer.
  * the function's body must be "{ return {...} }"
@@ -16,11 +20,46 @@ const debug = Debug('aa.tracer')
  */
 type LogTracerFunc = () => LogTracer
 
+/**
+ * trace a transaction using the geth debug_traceCall method.
+ * @param provider the network node to trace on
+ * @param tx the transaction to trace
+ * @param options the trace options
+ * @param nativeTracerProvider if set, submit only preStateTracer to the network provider, and use this (second) provider with native tracer.
+ *  if null, then use javascript tracer on the first provider.
+ */
+
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions): Promise<TraceResult | any> {
+export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions, nativeTracerProvider?: JsonRpcProvider): Promise<TraceResult | any> {
   const tx1 = await resolveProperties(tx)
   const traceOptions = tracer2string(options)
-  const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
+  if (nativeTracerProvider != null) {
+    // there is a nativeTracerProvider: use it for the native tracer, but first we need preStateTracer from the main provider:
+    const preState: { [addr: string]: any } = await provider.send('debug_traceCall', [tx1, 'latest', { ...traceOptions, tracer: 'prestateTracer' }])
+
+    // fix prestate to be valid "state overrides"
+    // - convert nonce's to hex
+    // - rename storage to state
+    for (const key in preState) {
+      if (preState[key]?.nonce != null) {
+        preState[key].nonce = '0x' + (preState[key].nonce.toString(16) as string)
+      }
+      if (preState[key]?.storage != null) {
+        // rpc expects "state" instead...
+        preState[key].state = preState[key].storage
+        delete preState[key].storage
+      }
+    }
+
+    const ret = await nativeTracerProvider.send('debug_traceCall', [tx1, 'latest', {
+      tracer: bundlerNativeTracerName,
+      stateOverrides: preState
+    }])
+
+    return ret
+  }
+
+  let ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
     debug('ex=', e.error)
     debug('tracer=', traceOptions.tracer?.toString().split('\n').map((line, index) => `${index + 1}: ${line}`).join('\n'))
     throw e

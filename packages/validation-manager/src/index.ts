@@ -3,10 +3,19 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import { AddressZero, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
 
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
-import { debug_traceCall } from './GethTracer'
+import { debug_traceCall, bundlerNativeTracerName } from './GethTracer'
 import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
 
 export * from './ValidationManager'
+
+export async function supportsNativeTracer (provider: JsonRpcProvider, nativeTracer = bundlerNativeTracerName): Promise<boolean> {
+  try {
+    await provider.send('debug_traceCall', [{}, 'latest', { tracer: nativeTracer }])
+    return true
+  } catch (e) {
+    return false
+  }
+}
 
 export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promise<boolean> {
   const p = provider.send as any

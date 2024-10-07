@@ -18,10 +18,11 @@ import { DepositManager } from './DepositManager'
  * @param signer
  */
 export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
+  const tracerProvider = config.tracerRpcUrl == null ? undefined : getNetworkProvider(config.tracerRpcUrl)
   const entryPoint = IEntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
-  const validationManager = new ValidationManager(entryPoint, config.unsafe)
+  const validationManager = new ValidationManager(entryPoint, config.unsafe, tracerProvider)
   const depositManager = new DepositManager(entryPoint, mempoolManager)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,

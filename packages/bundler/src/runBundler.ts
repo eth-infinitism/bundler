@@ -15,7 +15,7 @@ import { UserOpMethodHandler } from './UserOpMethodHandler'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
-import { supportsDebugTraceCall } from '@account-abstraction/validation-manager'
+import { supportsDebugTraceCall, supportsNativeTracer } from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
@@ -72,7 +72,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
-    .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
+    .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires debug_traceCall)')
+    .option('--tracerRpcUrl <string>', 'run native tracer on this provider, and prestateTracer native tracer on network provider. requires unsafe=false')
     .option('--debugRpc', 'enable debug rpc methods (auto-enabled for test node')
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
@@ -122,9 +123,30 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await supportsDebugTraceCall(provider as any)) {
-    console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
-    process.exit(1)
+  if (config.unsafe) {
+    if (config.tracerRpcUrl != null) {
+      console.error('FATAL: --unsafe and --tracerRpcUrl are mutually exclusive')
+      process.exit(1)
+    }
+  } else {
+    if (config.tracerRpcUrl != null) {
+      // validate standard tracer supports "prestateTracer":
+      if (!await supportsNativeTracer(provider, 'prestateTracer')) {
+        console.error('FATAL: --tracerRpcUrl requires the network provider to support prestateTracer')
+        process.exit(1)
+      }
+      const tracerProvider = new ethers.providers.JsonRpcProvider(config.tracerRpcUrl)
+      if (!await supportsNativeTracer(tracerProvider)) {
+        console.error('FATAL: --tracerRpcUrl requires a provider to support bundlerCollectorTracer')
+        process.exit(1)
+      }
+    } else {
+      // check standard javascript tracer:
+      if (!await supportsDebugTraceCall(provider as any)) {
+        console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
+        process.exit(1)
+      }
+    }
   }
 
   const {
