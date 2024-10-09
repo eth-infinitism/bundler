@@ -204,5 +204,11 @@ export function sum (...args: BigNumberish[]): BigNumber {
  * @param userOp
  */
 export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
-  return sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0).mul(userOp.maxFeePerGas)
+  return sum(
+    userOp.preVerificationGas,
+    userOp.verificationGasLimit,
+    userOp.callGasLimit,
+    userOp.paymasterVerificationGasLimit ?? 0,
+    userOp.paymasterPostOpGasLimit ?? 0
+  ).mul(userOp.maxFeePerGas)
 }
