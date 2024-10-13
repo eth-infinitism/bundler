@@ -5,3 +5,6 @@ import "@account-abstraction/contracts/core/EntryPointSimulations.sol";
 import "@account-abstraction/contracts/interfaces/IStakeManager.sol";
 import "@account-abstraction/contracts/samples/SimpleAccountFactory.sol";
 import "@account-abstraction/contracts/samples/TokenPaymaster.sol";
+import "@account-abstraction/rip7560/contracts/predeploys/Rip7560StakeManager.sol";
+
+import {NonceManager as NonceManagerRIP7712} from "@account-abstraction/rip7560/contracts/predeploys/NonceManager.sol";

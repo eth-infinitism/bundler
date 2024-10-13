@@ -34,7 +34,7 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
 export async function eth_traceRip7560Validation (provider: JsonRpcProvider, tx: Deferrable<Partial<OperationRIP7560>>): Promise<TraceResult | any> {
   const tx1 = await resolveProperties(tx)
   return await provider.send('eth_traceRip7560Validation', [tx1, 'latest']).catch(e => {
-    throw new RpcError(e.error, -32000)
+    throw new RpcError(e?.error?.message ?? 'RPC error', e?.error?.code ?? -32000, e?.error?.data)
   })
 }
 
@@ -176,7 +176,7 @@ export interface LogCallFrame {
 export interface LogFrameResult {
   getGasUsed: () => number // - returns amount of gas used throughout the frame as a Number
   getOutput: () => Buffer // - returns the output as a buffer
-  getError: () => any // - returns an error if one occured during execution and undefined` otherwise
+  getError: () => any // - returns an error if one occurred during execution and undefined` otherwise
 }
 
 export interface LogOpCode {
@@ -214,7 +214,7 @@ export interface LogStep {
   getCost: () => number // returns the cost of the opcode as a Number
   getDepth: () => number // returns the execution depth as a Number
   getRefund: () => number // returns the amount to be refunded as a Number
-  getError: () => string | undefined //  returns information about the error if one occured, otherwise returns undefined
+  getError: () => string | undefined //  returns information about the error if one occurred, otherwise returns undefined
   // If error is non-empty, all other fields should be ignored.
 }
 

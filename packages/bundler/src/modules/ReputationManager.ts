@@ -11,6 +11,10 @@ const debug = Debug('aa.rep')
  * throttled entities are allowed minimal number of entries per bundle. banned entities are allowed none
  */
 
+const BAN_OPS_SEEN_PENALTY = 10000
+const SAME_SENDER_MEMPOOL_COUNT = 4
+const SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT = 10
+
 export enum ReputationStatus {
   OK, THROTTLED, BANNED
 }
@@ -183,8 +187,8 @@ export class ReputationManager {
     }
     // todo: what value to put? how long do we want this banning to hold?
     const entry = this._getOrCreate(addr)
-    // [SREP-050]
-    entry.opsSeen += 10000
+    // GREP-040 (was SREP-050) ban entity that failed bundle creation.
+    entry.opsSeen += BAN_OPS_SEEN_PENALTY
     entry.opsIncluded = 0
     debug('crashedHandleOps', addr, entry)
   }
@@ -254,12 +258,21 @@ export class ReputationManager {
   }
 
   /**
+   * @param title - the entity type
    * @param entity - the address of a non-sender unstaked entity.
    * @returns maxMempoolCount - the number of UserOperations this entity is allowed to have in the mempool.
    */
-  calculateMaxAllowedMempoolOpsUnstaked (entity: string): number {
+  calculateMaxAllowedMempoolOpsUnstaked (
+    title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
+    entity: string
+  ): number {
     entity = entity.toLowerCase()
-    const SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT = 10
+    if (title === 'account') {
+      // UREP-010: An unstaked sender is only allowed to have SAME_SENDER_MEMPOOL_COUNT
+      return SAME_SENDER_MEMPOOL_COUNT
+    }
+
+    // [UREP-020] unstaked entity reputation
     const entry = this.entries[entity]
     if (entry == null) {
       return SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT

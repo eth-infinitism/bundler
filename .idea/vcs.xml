@@ -3,5 +3,7 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/submodules/account-abstraction" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/rip7560" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/rip7560/lib/forge-std" vcs="Git" />
   </component>
 </project>

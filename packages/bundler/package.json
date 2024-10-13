@@ -28,6 +28,7 @@
     "@account-abstraction/sdk": "^0.7.0",
     "@account-abstraction/utils": "^0.7.0",
     "@account-abstraction/validation-manager": "^0.7.0",
+    "@ethereumjs/rlp": "^5.0.2",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@types/cors": "^2.8.12",

@@ -167,7 +167,7 @@ export class MethodHandlerERC4337 {
     await this._validateParameters(userOp, entryPointInput)
 
     console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''}`)
-    await this.execManager.sendUserOperation(userOp, entryPointInput)
+    await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }
 

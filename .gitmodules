@@ -2,3 +2,6 @@
 	path = submodules/account-abstraction
 	url = https://github.com/eth-infinitism/account-abstraction.git
 	branch = releases/v0.7
+[submodule "submodules/rip7560"]
+	path = submodules/rip7560
+	url = https://github.com/eth-infinitism/rip7560_contracts.git

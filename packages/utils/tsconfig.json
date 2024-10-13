@@ -1,6 +1,7 @@
 {
   "include": [
-    "./src/**/*.ts"
+    "./src/**/*.ts",
+    "./artifacts/**/*.json"
   ],
   "compilerOptions": {
     "outDir": "dist",

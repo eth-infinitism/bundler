@@ -11,13 +11,13 @@ export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
 
-export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7560Mode: boolean): Promise<boolean> {
+export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560: boolean): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
     p._clientVersion = await provider.send('web3_clientVersion', [])
   }
 
-  if (useRip7560Mode) {
+  if (rip7560) {
     // TODO: remove
     const defaultsForRip7560Tx: OperationRIP7560 = {
       accessList: [],
@@ -25,8 +25,9 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7
       chainId: '0x539',
       value: '0x0',
       sender: AddressZero,
+      nonceKey: '0x0',
       nonce: '0x0',
-      callData: '0x',
+      executionData: '0x',
       callGasLimit: '0x0',
       verificationGasLimit: '0x10000',
       maxFeePerGas: '0x100000000',
@@ -37,7 +38,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, useRip7
       factoryData: '0x',
       paymasterVerificationGasLimit: '0x10000',
       paymasterPostOpGasLimit: '0x0',
-      signature: '0x'
+      authorizationData: '0x'
     };
 
     // TODO: align parameter names across 4337 and 7560

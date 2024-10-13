@@ -1,10 +1,13 @@
+import { BigNumberish } from 'ethers'
 import { JsonRpcProvider, TransactionReceipt } from '@ethersproject/providers'
 import {
   AddressZero,
-  getRIP7560TransactionHash,
+  OperationBase,
   OperationRIP7560,
-  requireCond,
-  tostr
+  StorageMap,
+  getPackedNonce,
+  getRIP7560TransactionHash,
+  requireCond
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { HEX_REGEX } from './MethodHandlerERC4337'
@@ -19,11 +22,19 @@ export class MethodHandlerRIP7560 {
     readonly provider: JsonRpcProvider
   ) {}
 
-  async sendRIP7560Transaction (transaction: OperationRIP7560): Promise<string> {
+  async sendRIP7560Transaction (transaction: OperationRIP7560, skipValidation: boolean): Promise<string> {
     await this._validateParameters(transaction)
-    console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${tostr(transaction.nonce)} Paymaster=${transaction.paymaster ?? ''}`)
-    await this.execManager.sendUserOperation(transaction, '')
+    console.log(`RIP7560Transaction: Sender=${transaction.sender}  Nonce=${getPackedNonce(transaction).toHexString()} Paymaster=${transaction.paymaster ?? ''}`)
+    await this.execManager.sendUserOperation(transaction, '', skipValidation)
     return getRIP7560TransactionHash(transaction)
+  }
+
+  async getRip7560Bundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
+    return await this.execManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 
   async getRIP7560TransactionReceipt (txHash: string): Promise<RIP7560TransactionReceipt | null> {
@@ -38,8 +49,7 @@ export class MethodHandlerRIP7560 {
     transaction.paymaster = transaction.paymaster ?? AddressZero
     transaction.paymasterData = transaction.paymasterData ?? '0x'
     transaction.callGasLimit = transaction.callGasLimit ?? (transaction as any).gas;
-    (transaction as any).gas = transaction.callGasLimit;
-    (transaction as any).data = transaction.callData
+    (transaction as any).gas = transaction.callGasLimit
     transaction.verificationGasLimit = transaction.verificationGasLimit ?? (transaction as any).validationGas
     transaction.paymasterVerificationGasLimit = transaction.paymasterVerificationGasLimit ?? (transaction as any).paymasterValidationGas
   }

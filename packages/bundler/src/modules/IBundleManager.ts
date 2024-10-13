@@ -1,4 +1,6 @@
-import { BigNumber } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
+
+import { OperationBase, StorageMap } from '@account-abstraction/utils'
 
 export interface IBundleManager {
 
@@ -8,4 +10,9 @@ export interface IBundleManager {
 
   getPaymasterBalance: (paymaster: string) => Promise<BigNumber>
 
+  createBundle: (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ) => Promise<[OperationBase[], StorageMap]>
 }

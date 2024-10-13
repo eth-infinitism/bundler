@@ -18,7 +18,7 @@ import {
   ValidationErrors,
   mapOf,
   requireCond,
-  toBytes32
+  toBytes32, AddressZero
 } from '@account-abstraction/utils'
 
 import { ValidationResult } from './IValidationManager'
@@ -337,6 +337,7 @@ export function tracerResultParser (
         reads
       })
 
+      // [OP-070]: treat transient storage (TLOAD/TSTORE) just like storage.
       // scan all slots. find a referenced slot
       // at the end of the scan, we will check if the entity has stake, and report that slot if not.
       let requireStakeSlot: string | undefined
@@ -349,7 +350,7 @@ export function tracerResultParser (
         // slot associated with sender is allowed (e.g. token.balanceOf(sender)
         // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
         if (associatedWith(slot, sender, entitySlots)) {
-          if (userOp.factory != null) {
+          if (userOp.factory != null && userOp.factory !== AddressZero) {
             // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
             // [STO-022], [STO-021]
             if (!(entityAddress.toLowerCase() === sender.toLowerCase() && isStaked(stakeInfoEntities[userOp.factory.toLowerCase()]))) {
@@ -414,7 +415,7 @@ export function tracerResultParser (
     let illegalZeroCodeAccess: any
     for (const addr of Object.keys(currentNumLevel.contractSize)) {
       // [OP-042]
-      if (addr !== sender && currentNumLevel.contractSize[addr].contractSize <= 2) {
+      if (addr !== sender && addr.toLowerCase() !== entryPointAddress.toLowerCase() && currentNumLevel.contractSize[addr].contractSize <= 2) {
         illegalZeroCodeAccess = currentNumLevel.contractSize[addr]
         illegalZeroCodeAccess.address = addr
         break

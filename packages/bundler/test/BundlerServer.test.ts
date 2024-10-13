@@ -39,6 +39,7 @@ describe('BundleServer', function () {
       mnemonic: '',
       network: '',
       port: '3000',
+      privateApiPort: '3001',
       unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
@@ -46,8 +47,10 @@ describe('BundleServer', function () {
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
-      minUnstakeDelay: 0,
-      useRip7560Mode: false
+      rip7560: false,
+      rip7560Mode: 'PULL',
+      gethDevMode: false,
+      minUnstakeDelay: 0
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -56,7 +59,7 @@ describe('BundleServer', function () {
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager, entryPoint.signer, false, undefined, false)
     const methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,

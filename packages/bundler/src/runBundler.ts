@@ -21,6 +21,8 @@ import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
 import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
 import { JsonRpcProvider } from '@ethersproject/providers'
+import { deployNonceManager } from '@account-abstraction/utils/dist/src/RIP7712NonceManagerUtils'
+import { deployStakeManager } from '@account-abstraction/utils/dist/src/deployStakeManager'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -74,7 +76,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-    .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
+    .option('--port <number>', `server listening port for public clients (default: ${bundlerConfigDefault.port})`)
+    .option('--privateApiPort <number>', `server listening port for block builder (default: ${bundlerConfigDefault.privateApiPort})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires geth)')
@@ -82,7 +85,9 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic <file>', 'create the mnemonic file')
-    .option('--useRip7560Mode', 'Use this bundler for RIP-7560 node instead of ERC-4337 (experimental).')
+    .option('--rip7560', 'Use this bundler as an RIP-7560 node')
+    .option('--rip7560Mode <string>', 'PUSH mode sends bundles to node at an interval, PULL mode waits for node to query bundle')
+    .option('--gethDevMode', 'In PULL mode send 1 wei transaction to trigger block creation')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
@@ -125,15 +130,25 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     console.error('FATAL: --conditionalRpc requires a node that support eth_sendRawTransactionConditional')
     process.exit(1)
   }
-  if (!config.unsafe && !await supportsDebugTraceCall(provider as any, config.useRip7560Mode)) {
-    const requiredApi = config.useRip7560Mode ? 'eth_traceRip7560Validation' : 'debug_traceCall'
+  if (!config.unsafe && !await supportsDebugTraceCall(provider as any, config.rip7560)) {
+    const requiredApi = config.rip7560 ? 'eth_traceRip7560Validation' : 'debug_traceCall'
     console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
     process.exit(1)
   }
 
+  if (config.rip7560) {
+    try {
+      await deployNonceManager(provider, wallet as any)
+      await deployStakeManager(provider, wallet as any)
+    } catch (e: any) {
+      console.warn(e)
+      if (!(e.message as string).includes('replacement fee too low') && !(e.message as string).includes('already known')) throw e
+    }
+  }
+
   const {
     entryPoint
-  } = await connectContracts(wallet, !config.useRip7560Mode)
+  } = await connectContracts(wallet, !config.rip7560)
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config
@@ -184,7 +199,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
         chainId: net.chainId
       }
     }))
-    console.log(`running on http://localhost:${config.port}/rpc`)
+    console.log(`public client API running on http://localhost:${config.port}/rpc`)
+    console.log(`block builder API running on http://localhost:${config.privateApiPort}/rpc`)
   })
 
   return bundlerServer

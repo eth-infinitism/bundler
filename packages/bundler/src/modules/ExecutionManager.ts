@@ -1,14 +1,18 @@
 import Debug from 'debug'
 import { Mutex } from 'async-mutex'
-import { OperationBase } from '@account-abstraction/utils'
+import { OperationBase, StorageMap } from '@account-abstraction/utils'
 import { clearInterval } from 'timers'
 
 import { SendBundleReturn } from './BundleManager'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
-import { IValidationManager } from '@account-abstraction/validation-manager'
+import {
+  EmptyValidateUserOpResult,
+  IValidationManager
+} from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
+import { BigNumberish, Signer } from 'ethers'
 
 const debug = Debug('aa.exec')
 
@@ -27,7 +31,11 @@ export class ExecutionManager {
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: IBundleManager,
     private readonly validationManager: IValidationManager,
-    private readonly depositManager: DepositManager
+    private readonly depositManager: DepositManager,
+    private readonly signer: Signer,
+    private readonly rip7560: boolean,
+    private readonly useRip7560Mode: string | undefined,
+    private readonly gethDevMode: boolean
   ) {
   }
 
@@ -35,15 +43,21 @@ export class ExecutionManager {
    * send a user operation through the bundler.
    * @param userOp the UserOp to send.
    * @param entryPointInput the entryPoint passed through the RPC request.
+   * @param skipValidation if set to true we will not perform tracing and ERC-7562 rules compliance validation
    */
-  async sendUserOperation (userOp: OperationBase, entryPointInput: string): Promise<void> {
+  async sendUserOperation (userOp: OperationBase, entryPointInput: string, skipValidation: boolean): Promise<void> {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
-      const validationResult = await this.validationManager.validateUserOp(userOp, undefined)
+      let validationResult = EmptyValidateUserOpResult
+      if (!skipValidation) {
+        validationResult = await this.validationManager.validateUserOp(userOp, undefined)
+      }
       const userOpHash = await this.validationManager.getOperationHash(userOp)
       await this.depositManager.checkPaymasterDeposit(userOp)
-      this.mempoolManager.addUserOp(userOp,
+      this.mempoolManager.addUserOp(
+        skipValidation,
+        userOp,
         userOpHash,
         validationResult.returnInfo.prefund ?? 0,
         validationResult.referencedContracts,
@@ -51,7 +65,9 @@ export class ExecutionManager {
         validationResult.paymasterInfo,
         validationResult.factoryInfo,
         validationResult.aggregatorInfo)
-      await this.attemptBundle(false)
+      if (!this.rip7560 || (this.rip7560 && this.useRip7560Mode === 'PUSH')) {
+        await this.attemptBundle(false)
+      }
     })
   }
 
@@ -88,6 +104,26 @@ export class ExecutionManager {
    * @param force
    */
   async attemptBundle (force = true): Promise<SendBundleReturn | undefined> {
+    if (this.rip7560 && this.useRip7560Mode === 'PULL' && this.gethDevMode && force) {
+      debug('sending 1 wei transaction')
+      const result = await this.signer.sendTransaction({
+        to: this.signer.getAddress(),
+        value: 1
+      })
+      // wait up to 2 seconds for the transaction to be mined
+      for (let i = 0; ; i++) {
+        const rcpt = await this.signer.provider?.getTransactionReceipt(result.hash)
+        if (rcpt != null) {
+          break
+        }
+        if (i > 20) {
+          throw new Error('timed out waiting for transaction')
+        }
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      await this.bundleManager.handlePastEvents()
+      return
+    }
     debug('attemptBundle force=', force, 'count=', this.mempoolManager.count(), 'max=', this.maxMempoolSize)
     if (force || this.mempoolManager.count() >= this.maxMempoolSize) {
       const ret = await this.bundleManager.sendNextBundle()
@@ -98,5 +134,13 @@ export class ExecutionManager {
       this.depositManager.clearCache()
       return ret
     }
+  }
+
+  async createBundle (
+    minBaseFee: BigNumberish,
+    maxBundleGas: BigNumberish,
+    maxBundleSize: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
+    return await this.bundleManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 }
