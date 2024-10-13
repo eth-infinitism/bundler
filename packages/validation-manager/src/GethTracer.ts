@@ -59,7 +59,7 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
     return ret
   }
 
-  let ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
+  const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
     if (debug.enabled) {
       debug('ex=', e.error)
       debug('tracer=', traceOptions.tracer?.toString().split('\n').map((line, index) => `${index + 1}: ${line}`).join('\n'))
