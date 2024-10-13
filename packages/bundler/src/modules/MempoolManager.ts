@@ -15,6 +15,14 @@ import { ReputationManager } from './ReputationManager'
 
 const debug = Debug('aa.mempool')
 
+export interface MempoolEntry {
+  userOp: OperationBase
+  userOpHash: string
+  referencedContracts: ReferencedCodeHashes
+  // aggregator, if one was found during simulation
+  aggregator?: string
+}
+
 type MempoolDump = OperationBase[]
 
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
@@ -64,7 +72,6 @@ export class MempoolManager {
     skipValidation: boolean,
     userOp: OperationBase,
     userOpHash: string,
-    prefund: BigNumberish,
     referencedContracts: ReferencedCodeHashes,
     senderInfo: StakeInfo,
     paymasterInfo?: StakeInfo,
@@ -74,7 +81,6 @@ export class MempoolManager {
     const entry = new MempoolEntry(
       userOp,
       userOpHash,
-      prefund,
       referencedContracts,
       skipValidation,
       aggregatorInfo?.addr
