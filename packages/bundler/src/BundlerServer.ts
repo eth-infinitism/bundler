@@ -330,6 +330,12 @@ export class BundlerServer {
       case 'debug_bundler_getStakeStatus':
         result = await this.debugHandler.getStakeStatus(params[0], params[1])
         break
+      case 'debug_bundler_setConfiguration': {
+        const pvgc = await this.debugHandler._setConfiguration(params[0])
+        this.methodHandler.preVerificationGasCalculator = pvgc
+      }
+        result = {}
+        break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)
     }

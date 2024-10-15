@@ -3,7 +3,7 @@ import { BigNumber } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import {
   AddressZero,
@@ -50,6 +50,18 @@ export class ValidationManager implements IValidationManager {
     readonly unsafe: boolean,
     readonly preVerificationGasCalculator: PreVerificationGasCalculator
   ) {
+  }
+
+  _getDebugConfiguration (): {
+    configuration: PreVerificationGasCalculatorConfig
+    entryPoint: IEntryPoint
+    unsafe: boolean
+  } {
+    return {
+      configuration: this.preVerificationGasCalculator.config,
+      entryPoint: this.entryPoint,
+      unsafe: this.unsafe
+    }
   }
 
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
@@ -298,7 +310,7 @@ export class ValidationManager implements IValidationManager {
       const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
         this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation)
       requireCond(isPreVerificationGasValid,
-        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${(preVerificationGas as string).toString()}`,
+        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
         ValidationErrors.InvalidFields)
     }
   }

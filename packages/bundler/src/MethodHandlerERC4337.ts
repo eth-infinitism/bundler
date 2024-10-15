@@ -59,7 +59,7 @@ export class MethodHandlerERC4337 {
     readonly signer: Signer,
     readonly config: BundlerConfig,
     readonly entryPoint: IEntryPoint,
-    readonly preVerificationGasCalculator: PreVerificationGasCalculator
+    public preVerificationGasCalculator: PreVerificationGasCalculator
   ) {
   }
 

@@ -101,7 +101,9 @@ export class PreVerificationGasCalculator {
     const userOpSpecificOverhead = callDataCost + userOpDataWordsOverhead + this.config.perUserOpGasOverhead
     const userOpShareOfBundleCost = this.config.fixedGasOverhead / this.config.expectedBundleSize
 
-    return Math.round(userOpSpecificOverhead + userOpShareOfBundleCost)
+    const preVerificationGas = Math.round(userOpSpecificOverhead + userOpShareOfBundleCost)
+    console.log(`calculate preVerificationGas: ${preVerificationGas} callDataCost: ${callDataCost}`)
+    return preVerificationGas
   }
 
   _fillUserOpWithDummyData (userOp: Partial<UserOperation>): UserOperation {
