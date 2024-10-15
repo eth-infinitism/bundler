@@ -108,9 +108,9 @@ export class PreVerificationGasCalculator {
 
   _fillUserOpWithDummyData (userOp: Partial<UserOperation>): UserOperation {
     const filledUserOp: UserOperation = Object.assign({}, userOp) as UserOperation
-    filledUserOp.preVerificationGas = 21000 // dummy value
-    filledUserOp.signature = hexlify(Buffer.alloc(this.config.estimationSignatureSize, 0xff))
-    filledUserOp.paymasterData = hexlify(Buffer.alloc(this.config.estimationPaymasterDataSize, 0xff))
+    filledUserOp.preVerificationGas = filledUserOp.preVerificationGas ?? 21000
+    filledUserOp.signature = filledUserOp.signature ?? hexlify(Buffer.alloc(this.config.estimationSignatureSize, 0xff))
+    filledUserOp.paymasterData = filledUserOp.paymasterData ?? hexlify(Buffer.alloc(this.config.estimationPaymasterDataSize, 0xff))
     return filledUserOp
   }
 }
