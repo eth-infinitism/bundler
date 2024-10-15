@@ -1,18 +1,19 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
+import debug from 'debug'
+import { isAddress } from 'ethers/lib/utils'
 
 import {
   OperationBase,
   OperationRIP7560,
   ReferencedCodeHashes,
-  getRIP7560TransactionHash, StakeInfo
+  getRIP7560TransactionHash, StakeInfo, IEntryPoint
 } from '@account-abstraction/utils'
+import { IRip7560StakeManager } from '@account-abstraction/utils/dist/src/types'
+import { PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { eth_traceRip7560Validation } from './GethTracer'
 import { tracerResultParser } from './TracerResultParser'
-import debug from 'debug'
-import { isAddress } from 'ethers/lib/utils'
-import { IRip7560StakeManager } from '@account-abstraction/utils/dist/src/types'
 
 export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
 export const AA_STAKE_MANAGER = '0x570Aa568b6cf62ff08c6C3a3b3DB1a0438E871Fb'
@@ -25,11 +26,23 @@ export class ValidationManagerRIP7560 implements IValidationManager {
   ) {
   }
 
+  _getDebugConfiguration (): {
+    configuration: PreVerificationGasCalculatorConfig
+    entryPoint: IEntryPoint
+    unsafe: boolean
+  } {
+    throw new Error('Method not implemented.')
+  }
+
   validateInputParameters (_operation: OperationBase, _entryPointInput?: string): void {
     // TODO
   }
 
-  async _getStakesInfo (operation: OperationBase): Promise<{ senderInfo: StakeInfo, paymasterInfo?: StakeInfo, factoryInfo?: StakeInfo }> {
+  async _getStakesInfo (operation: OperationBase): Promise<{
+    senderInfo: StakeInfo
+    paymasterInfo?: StakeInfo
+    factoryInfo?: StakeInfo
+  }> {
     const addresses = [operation.sender]
     let paymasterInfo, factoryInfo
     if (operation.paymaster != null && isAddress(operation.paymaster)) {

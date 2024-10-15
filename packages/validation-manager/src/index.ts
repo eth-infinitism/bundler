@@ -6,6 +6,7 @@ import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
@@ -68,7 +69,8 @@ export async function checkRulesViolations (
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
   const validationManager = new ValidationManager(
     entryPoint,
-    false
+    false,
+    Object.assign({}) as PreVerificationGasCalculator
   )
   return await validationManager.validateUserOp(userOperation)
 }

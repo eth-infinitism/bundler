@@ -15,7 +15,7 @@ export function getRIP7560TransactionHash (op: OperationRIP7560, forSignature = 
   return keccak256(rlpEncoded)
 }
 
-function nonZeroAddr(addr?: string): Buffer {
+function nonZeroAddr (addr?: string): Buffer {
   if (addr == null || addr === AddressZero) {
     return Buffer.from([])
   }

@@ -1,5 +1,7 @@
-import { OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
 import { BigNumber, BigNumberish } from 'ethers'
+
+import { IEntryPoint, OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
+import { PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 /**
  * result from successful validation
@@ -52,4 +54,9 @@ export interface IValidationManager {
 
   getOperationHash: (userOp: OperationBase) => Promise<string>
 
+  _getDebugConfiguration: () => {
+    configuration: PreVerificationGasCalculatorConfig
+    entryPoint: IEntryPoint
+    unsafe: boolean
+  }
 }
