@@ -1,26 +1,34 @@
+import debug from 'debug'
 import { BigNumber, BigNumberish, Signer } from 'ethers'
 import { JsonRpcProvider, Log } from '@ethersproject/providers'
+import { EventFragment } from '@ethersproject/abi'
 
-import { BundlerConfig } from './BundlerConfig'
+import { MainnetConfig, PreVerificationGasCalculator } from '@account-abstraction/sdk'
+
 import {
-  RpcError,
-  ValidationErrors,
-  requireAddressAndFields,
-  packUserOp,
-  PackedUserOperation,
-  unpackUserOp,
-  simulationRpcParams,
-  decodeSimulateHandleOpResult,
   AddressZero,
+  IEntryPoint,
+  PackedUserOperation,
+  RpcError,
+  UserOperation,
+  UserOperationEventEvent,
+  ValidationErrors,
   decodeRevertReason,
+  decodeSimulateHandleOpResult,
+  deepHexlify,
+  erc4337RuntimeVersion,
   mergeValidationDataValues,
-  UserOperationEventEvent, IEntryPoint, requireCond, deepHexlify, tostr, erc4337RuntimeVersion
-  , UserOperation
+  packUserOp,
+  requireAddressAndFields,
+  requireCond,
+  simulationRpcParams,
+  tostr,
+  unpackUserOp
 } from '@account-abstraction/utils'
+import { BundlerConfig } from './BundlerConfig'
+
 import { ExecutionManager } from './modules/ExecutionManager'
 import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { MainnetConfig, PreVerificationGasCalculator } from '@account-abstraction/sdk'
-import { EventFragment } from '@ethersproject/abi'
 
 export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -169,7 +177,7 @@ export class MethodHandlerERC4337 {
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
     await this._validateParameters(userOp, entryPointInput)
 
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''}`)
+    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }
