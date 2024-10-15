@@ -101,7 +101,7 @@ describe('BundleServer', function () {
       callData: '0x',
       callGasLimit: 1e6,
       verificationGasLimit: 1e6,
-      preVerificationGas: 50000,
+      preVerificationGas: 60000,
       maxFeePerGas: 1e6,
       maxPriorityFeePerGas: 1e6,
       signature: '0x'

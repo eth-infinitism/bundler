@@ -140,7 +140,7 @@ describe('UserOpMethodHandler', function () {
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)
-      expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
+      expect(ret.callGasLimit).to.be.closeTo(1000, 50)
     })
 
     it('estimateUserOperationGas should estimate using state overrides', async function () {
