@@ -19,7 +19,7 @@ import {
 } from '@account-abstraction/utils'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
+import { MainnetConfig, PreVerificationGasCalculator } from '@account-abstraction/sdk'
 import { EventFragment } from '@ethersproject/abi'
 
 export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
@@ -144,7 +144,7 @@ export class MethodHandlerERC4337 {
     } = returnInfo
 
     // todo: use simulateHandleOp for this too...
-    const callGasLimit = await this.provider.estimateGas({
+    let callGasLimit = await this.provider.estimateGas({
       from: this.entryPoint.address,
       to: userOp.sender,
       data: userOp.callData
@@ -152,6 +152,8 @@ export class MethodHandlerERC4337 {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
+    // Results from 'estimateGas' assume making a standalone transaction and paying 21'000 gas extra for it
+    callGasLimit -= MainnetConfig.transactionGasStipend
 
     const preVerificationGas = this.preVerificationGasCalculator.estimatePreVerificationGas(userOp)
     const verificationGasLimit = BigNumber.from(preOpGas).toNumber()

@@ -198,7 +198,8 @@ export class BundlerServer {
     } = reqItem
     debug('>>', { jsonrpc, id, method, params })
     try {
-      const result = deepHexlify(await this.handleMethod(method, params))
+      const handleResult = await this.handleMethod(method, params)
+      const result = deepHexlify(handleResult)
       debug('sent', method, '-', result)
       debug('<<', { jsonrpc, id, result })
       return {

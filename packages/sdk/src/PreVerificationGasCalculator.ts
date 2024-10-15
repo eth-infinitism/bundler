@@ -3,6 +3,10 @@ import { arrayify, hexlify } from 'ethers/lib/utils'
 
 export interface PreVerificationGasCalculatorConfig {
   /**
+   * Cost of sending a basic transaction on the current chain.
+   */
+  readonly transactionGasStipend: number
+  /**
    * Gas overhead is added to entire 'handleOp' bundle.
    */
   readonly fixedGasOverhead: number
@@ -38,8 +42,9 @@ export interface PreVerificationGasCalculatorConfig {
 }
 
 export const MainnetConfig: PreVerificationGasCalculatorConfig = {
-  fixedGasOverhead: 21000,
-  perUserOpGasOverhead: 18300,
+  transactionGasStipend: 21000,
+  fixedGasOverhead: 38000,
+  perUserOpGasOverhead: 11000,
   perUserOpWordGasOverhead: 4,
   zeroByteGasCost: 4,
   nonZeroByteGasCost: 16,
