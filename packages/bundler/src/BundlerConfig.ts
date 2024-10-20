@@ -78,6 +78,20 @@ export const BundlerConfigShape = {
   estimationPaymasterDataSize: ow.optional.number
 }
 
+/**
+ * Only parameters in this object can be provided by a 'debug_bundler_setConfiguration' API.
+ */
+export const DebugBundlerConfigShape = {
+  fixedGasOverhead: ow.optional.number,
+  perUserOpGasOverhead: ow.optional.number,
+  perUserOpWordGasOverhead: ow.optional.number,
+  zeroByteGasCost: ow.optional.number,
+  nonZeroByteGasCost: ow.optional.number,
+  expectedBundleSize: ow.optional.number,
+  estimationSignatureSize: ow.optional.number,
+  estimationPaymasterDataSize: ow.optional.number
+}
+
 // TODO: consider if we want any default fields at all
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
 export const bundlerConfigDefault: Partial<BundlerConfig> = {

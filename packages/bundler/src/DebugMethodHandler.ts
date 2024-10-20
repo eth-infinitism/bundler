@@ -1,28 +1,14 @@
 import ow from 'ow'
 
 import { StakeInfo } from '@account-abstraction/utils'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
-import { BundlerConfig } from './BundlerConfig'
+import { BundlerConfig, DebugBundlerConfigShape } from './BundlerConfig'
 import { EventsManager } from './modules/EventsManager'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { MempoolManager } from './modules/MempoolManager'
 import { ReputationDump, ReputationManager } from './modules/ReputationManager'
 import { SendBundleReturn } from './modules/BundleManager'
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
-
-/**
- * Only parameters in this object can be provided by a 'debug_bundler_setConfiguration' API.
- */
-export const BundlerConfigShape = {
-  fixedGasOverhead: ow.optional.number,
-  perUserOpGasOverhead: ow.optional.number,
-  perUserOpWordGasOverhead: ow.optional.number,
-  zeroByteGasCost: ow.optional.number,
-  nonZeroByteGasCost: ow.optional.number,
-  expectedBundleSize: ow.optional.number,
-  estimationSignatureSize: ow.optional.number,
-  estimationPaymasterDataSize: ow.optional.number
-}
 
 export class DebugMethodHandler {
   constructor (
@@ -97,7 +83,7 @@ export class DebugMethodHandler {
   }
 
   async _setConfiguration (config: Partial<BundlerConfig>): Promise<PreVerificationGasCalculator> {
-    ow.object.exactShape(BundlerConfigShape)
+    ow.object.exactShape(DebugBundlerConfigShape)
     return await this.execManager._setConfiguration(config)
   }
 }
