@@ -15,6 +15,7 @@ import {
   checkRulesViolations,
   supportsDebugTraceCall
 } from '@account-abstraction/validation-manager'
+import { PreVerificationGasCalculator, MainnetConfig } from '@account-abstraction/sdk'
 
 import {
   TestCoin,
@@ -58,12 +59,16 @@ describe('#ValidationManager', () => {
   let rulesAccount: TestRulesAccount
   let storageAccount: TestStorageAccount
 
-  async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
+  async function testUserOp (validateRule: string = '', pmRule?: string, initFunc?: string, factoryAddress = opcodeFactory.address): Promise<ValidateUserOpResult & {
+    userOp: UserOperation
+  }> {
     const userOp = await createTestUserOp(validateRule, pmRule, initFunc, factoryAddress)
     return { userOp, ...await vm.validateUserOp(userOp) }
   }
 
-  async function testExistingUserOp (validateRule: string = '', pmRule = ''): Promise<ValidateUserOpResult & { userOp: UserOperation }> {
+  async function testExistingUserOp (validateRule: string = '', pmRule = ''): Promise<ValidateUserOpResult & {
+    userOp: UserOperation
+  }> {
     const userOp = await existingStorageAccountUserOp(validateRule, pmRule)
     return { userOp, ...await vm.validateUserOp(userOp) }
   }
@@ -148,7 +153,8 @@ describe('#ValidationManager', () => {
     await entryPoint.depositTo(rulesAccount.address, { value: parseEther('1') })
 
     const unsafe = !await supportsDebugTraceCall(provider, false)
-    vm = new ValidationManager(entryPoint, unsafe)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
+    vm = new ValidationManager(entryPoint, unsafe, preVerificationGasCalculator)
 
     if (!await supportsDebugTraceCall(ethers.provider, false)) {
       console.log('WARNING: opcode banning tests can only run with geth')
