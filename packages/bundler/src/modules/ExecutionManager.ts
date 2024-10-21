@@ -9,10 +9,12 @@ import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import {
   EmptyValidateUserOpResult,
-  IValidationManager
+  IValidationManager, ValidationManager
 } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
 import { BigNumberish, Signer } from 'ethers'
+import { BundlerConfig } from '../BundlerConfig'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
 const debug = Debug('aa.exec')
 
@@ -30,7 +32,7 @@ export class ExecutionManager {
   constructor (private readonly reputationManager: ReputationManager,
     private readonly mempoolManager: MempoolManager,
     private readonly bundleManager: IBundleManager,
-    private readonly validationManager: IValidationManager,
+    private validationManager: IValidationManager,
     private readonly depositManager: DepositManager,
     private readonly signer: Signer,
     private readonly rip7560: boolean,
@@ -142,5 +144,16 @@ export class ExecutionManager {
     maxBundleSize: BigNumberish
   ): Promise<[OperationBase[], StorageMap]> {
     return await this.bundleManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
+  }
+
+  async _setConfiguration (configOverrides: Partial<BundlerConfig>): Promise<PreVerificationGasCalculator> {
+    const { configuration, entryPoint, unsafe } = this.validationManager._getDebugConfiguration()
+    const pvgc = new PreVerificationGasCalculator(Object.assign({}, configuration, configOverrides))
+    this.validationManager = new ValidationManager(
+      entryPoint,
+      unsafe,
+      pvgc
+    )
+    return pvgc
   }
 }

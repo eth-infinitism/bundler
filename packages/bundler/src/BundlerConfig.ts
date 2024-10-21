@@ -4,7 +4,9 @@ import ow from 'ow'
 // RIP-7560 EntyPoint address
 const MIN_UNSTAKE_DELAY = 86400
 const MIN_STAKE_VALUE = 1e18.toString()
+
 export interface BundlerConfig {
+  chainId: number
   beneficiary: string
   entryPoint: string
   gasFactor: string
@@ -27,10 +29,21 @@ export interface BundlerConfig {
   rip7560: boolean
   rip7560Mode: string
   gethDevMode: boolean
+
+  // Config overrides for PreVerificationGas calculation
+  fixedGasOverhead?: number
+  perUserOpGasOverhead?: number
+  perUserOpWordGasOverhead?: number
+  zeroByteGasCost?: number
+  nonZeroByteGasCost?: number
+  expectedBundleSize?: number
+  estimationSignatureSize?: number
+  estimationPaymasterDataSize?: number
 }
 
 // TODO: implement merging config (args -> config.js -> default) and runtime shape validation
 export const BundlerConfigShape = {
+  chainId: ow.number,
   beneficiary: ow.string,
   entryPoint: ow.string,
   gasFactor: ow.string,
@@ -52,7 +65,31 @@ export const BundlerConfigShape = {
   autoBundleMempoolSize: ow.number,
   rip7560: ow.boolean,
   rip7560Mode: ow.string.oneOf(['PULL', 'PUSH']),
-  gethDevMode: ow.boolean
+  gethDevMode: ow.boolean,
+
+  // Config overrides for PreVerificationGas calculation
+  fixedGasOverhead: ow.optional.number,
+  perUserOpGasOverhead: ow.optional.number,
+  perUserOpWordGasOverhead: ow.optional.number,
+  zeroByteGasCost: ow.optional.number,
+  nonZeroByteGasCost: ow.optional.number,
+  expectedBundleSize: ow.optional.number,
+  estimationSignatureSize: ow.optional.number,
+  estimationPaymasterDataSize: ow.optional.number
+}
+
+/**
+ * Only parameters in this object can be provided by a 'debug_bundler_setConfiguration' API.
+ */
+export const DebugBundlerConfigShape = {
+  fixedGasOverhead: ow.optional.number,
+  perUserOpGasOverhead: ow.optional.number,
+  perUserOpWordGasOverhead: ow.optional.number,
+  zeroByteGasCost: ow.optional.number,
+  nonZeroByteGasCost: ow.optional.number,
+  expectedBundleSize: ow.optional.number,
+  estimationSignatureSize: ow.optional.number,
+  estimationPaymasterDataSize: ow.optional.number
 }
 
 // TODO: consider if we want any default fields at all

@@ -3,7 +3,7 @@ import { BigNumber } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import {
   AddressZero,
@@ -47,8 +47,21 @@ const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
 export class ValidationManager implements IValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
-    readonly unsafe: boolean
+    readonly unsafe: boolean,
+    readonly preVerificationGasCalculator: PreVerificationGasCalculator
   ) {
+  }
+
+  _getDebugConfiguration (): {
+    configuration: PreVerificationGasCalculatorConfig
+    entryPoint: IEntryPoint
+    unsafe: boolean
+  } {
+    return {
+      configuration: this.preVerificationGasCalculator.config,
+      entryPoint: this.entryPoint,
+      unsafe: this.unsafe
+    }
   }
 
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
@@ -292,10 +305,12 @@ export class ValidationManager implements IValidationManager {
     requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
     requireAddressAndFields(userOp, 'factory', ['factoryData'])
 
-    if ((userOp as UserOperation).preVerificationGas != null) {
-      const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
-      requireCond(BigNumber.from((userOp as UserOperation).preVerificationGas).gte(calcPreVerificationGas1),
-        `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
+    const preVerificationGas = (userOp as UserOperation).preVerificationGas
+    if (preVerificationGas != null) {
+      const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
+        this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation)
+      requireCond(isPreVerificationGasValid,
+        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
         ValidationErrors.InvalidFields)
     }
   }

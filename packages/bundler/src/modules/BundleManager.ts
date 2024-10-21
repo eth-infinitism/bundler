@@ -21,11 +21,10 @@ import {
   ValidationErrors,
   mergeStorageMap,
   packUserOp,
-  runContractScript
+  getUserOpHash
 } from '@account-abstraction/utils'
 
 import { EventsManager } from './EventsManager'
-import { GetUserOpHashes__factory } from '../types'
 import { IBundleManager } from './IBundleManager'
 import { MempoolEntry } from './MempoolEntry'
 import { MempoolManager } from './MempoolManager'
@@ -293,7 +292,16 @@ export class BundleManager implements IBundleManager {
       // which means we could "cram" more UserOps into a bundle.
       const userOpGasCost = BigNumber.from(validationResult.returnInfo.preOpGas).add(entry.userOp.callGasLimit)
       const newTotalGas = totalGas.add(userOpGasCost)
+      // TODO: reduce duplication here - some difference in logic but close enough
       if (newTotalGas.gt(this.maxBundleGas)) {
+        debug('exiting after config maxBundleGas is reached', this.maxBundleGas, bundleGas, entry.userOpMaxGas)
+        break
+      }
+      if (
+        maxBundleGas != null &&
+        !BigNumber.from(maxBundleGas).eq(0) &&
+        newTotalGas.gte(maxBundleGas)) {
+        debug('exiting after request maxBundleGas is reached', maxBundleGas, bundleGas, entry.userOpMaxGas)
         break
       }
 
@@ -323,13 +331,6 @@ export class BundleManager implements IBundleManager {
       mergeStorageMap(storageMap, validationResult.storageMap)
 
       const newBundleGas = entry.userOpMaxGas.add(bundleGas)
-      if (
-        maxBundleGas != null &&
-        !BigNumber.from(maxBundleGas).eq(0) &&
-        newBundleGas.gte(maxBundleGas)) {
-        debug('exiting after maxBundleGas is reached', maxBundleGas, bundleGas, entry.userOpMaxGas)
-        break
-      }
       bundleGas = newBundleGas
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
@@ -371,11 +372,8 @@ export class BundleManager implements IBundleManager {
 
   // helper function to get hashes of all UserOps
   async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
-    const { userOpHashes } = await runContractScript(this.entryPoint.provider,
-      new GetUserOpHashes__factory(),
-      [this.entryPoint.address, userOps.map(packUserOp)])
-
-    return userOpHashes
+    const network = await this.entryPoint.provider.getNetwork()
+    return userOps.map(it => getUserOpHash(it, this.entryPoint.address, network.chainId))
   }
 
   async getPaymasterBalance (paymaster: string): Promise<BigNumber> {
