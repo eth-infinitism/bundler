@@ -9,6 +9,7 @@ export const entryPointSalt = '0x90d8084deab30c2a37c45e8d47f49f2f7965183cb6990a9
 
 export async function deployNonceManager (provider: JsonRpcProvider, signer = provider.getSigner()): Promise<NonceManager> {
   const addr = await new DeterministicDeployer(provider, signer).deterministicDeploy(nonceManagerByteCode, entryPointSalt)
+  console.log("Deployed NonceManager contract at: ", addr)
   return NonceManager__factory.connect(addr, signer)
 }
 
