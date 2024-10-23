@@ -11,7 +11,7 @@ import {
 import { ethers, Wallet, Signer } from 'ethers'
 
 import { BundlerServer } from './BundlerServer'
-import { UserOpMethodHandler } from './UserOpMethodHandler'
+import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
@@ -19,6 +19,10 @@ import { supportsDebugTraceCall, supportsNativeTracer } from '@account-abstracti
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
+import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
+import { JsonRpcProvider } from '@ethersproject/providers'
+import { deployNonceManager } from '@account-abstraction/utils/dist/src/RIP7712NonceManagerUtils'
+import { deployStakeManager } from '@account-abstraction/utils/dist/src/deployStakeManager'
 
 // this is done so that console.log outputs BigNumber as hex string instead of unreadable object
 export const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -33,7 +37,10 @@ export let showStackTraces = false
 
 export async function connectContracts (
   wallet: Signer,
-  entryPointAddress: string): Promise<{ entryPoint: IEntryPoint }> {
+  deployNewEntryPoint: boolean = true): Promise<{ entryPoint?: IEntryPoint }> {
+  if (!deployNewEntryPoint) {
+    return { entryPoint: undefined }
+  }
   const entryPoint = await deployEntryPoint(wallet.provider as any, wallet as any)
   return {
     entryPoint
@@ -69,7 +76,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--network <string>', 'network name or url')
     .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
-    .option('--port <number>', `server listening port (default: ${bundlerConfigDefault.port})`)
+    .option('--port <number>', `server listening port for public clients (default: ${bundlerConfigDefault.port})`)
+    .option('--privateApiPort <number>', `server listening port for block builder (default: ${bundlerConfigDefault.privateApiPort})`)
     .option('--config <string>', 'path to config file', CONFIG_FILE_NAME)
     .option('--auto', 'automatic bundling (bypass config.autoBundleMempoolSize)', false)
     .option('--unsafe', 'UNSAFE mode: no storage or opcode checks (safe mode requires debug_traceCall)')
@@ -78,6 +86,9 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--conditionalRpc', 'Use eth_sendRawTransactionConditional RPC)')
     .option('--show-stack-traces', 'Show stack traces.')
     .option('--createMnemonic <file>', 'create the mnemonic file')
+    .option('--rip7560', 'Use this bundler as an RIP-7560 node')
+    .option('--rip7560Mode <string>', 'PUSH mode sends bundles to node at an interval, PULL mode waits for node to query bundle')
+    .option('--gethDevMode', 'In PULL mode send 1 wei transaction to trigger block creation')
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
@@ -109,9 +120,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       console.log('== debugrpc already st', config.debugRpc)
     }
-    const ep = await deployEntryPoint(provider as any)
-    const addr = ep.address
-    console.log('deployed EntryPoint at', addr)
     if ((await wallet.getBalance()).eq(0)) {
       console.log('=== testnet: fund signer')
       const signer = provider.getSigner()
@@ -143,16 +151,26 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     } else {
       // check standard javascript tracer:
       if (!await supportsDebugTraceCall(provider as any)) {
-        console.error('FATAL: full validation requires a node with debug_traceCall. for local UNSAFE mode: use --unsafe')
+        const requiredApi = config.rip7560 ? 'eth_traceRip7560Validation' : 'debug_traceCall'
+        console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
         process.exit(1)
       }
     }
   }
 
+  if (config.rip7560) {
+    try {
+      await deployNonceManager(provider, wallet as any)
+      await deployStakeManager(provider, wallet as any)
+    } catch (e: any) {
+      console.warn(e)
+      if (!(e.message as string).includes('replacement fee too low') && !(e.message as string).includes('already known')) throw e
+    }
+  }
+
   const {
     entryPoint
-  } = await connectContracts(wallet, config.entryPoint)
-
+  } = await connectContracts(wallet, !config.rip7560)
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config
@@ -163,14 +181,27 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
-  const methodHandler = new UserOpMethodHandler(
+  const [
+    execManager,
+    eventsManager,
+    reputationManager,
+    mempoolManager,
+    preVerificationGasCalculator
+  ] = initServer(execManagerConfig, wallet)
+  const methodHandler = new MethodHandlerERC4337(
     execManager,
     provider,
     wallet,
     config,
-    entryPoint
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    entryPoint!,
+    preVerificationGasCalculator
   )
+  const methodHandlerRip7560 = new MethodHandlerRIP7560(
+    execManager,
+    wallet.provider as JsonRpcProvider
+  )
+
   eventsManager.initEventListener()
   const debugHandler = config.debugRpc ?? false
     ? new DebugMethodHandler(execManager, eventsManager, reputationManager, mempoolManager)
@@ -182,6 +213,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   const bundlerServer = new BundlerServer(
     methodHandler,
+    methodHandlerRip7560,
     debugHandler,
     config,
     provider,
@@ -196,7 +228,8 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
         chainId: net.chainId
       }
     }))
-    console.log(`running on http://localhost:${config.port}/rpc`)
+    console.log(`public client API running on http://localhost:${config.port}/rpc`)
+    console.log(`block builder API running on http://localhost:${config.privateApiPort}/rpc`)
   })
 
   return bundlerServer

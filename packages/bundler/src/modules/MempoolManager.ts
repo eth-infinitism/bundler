@@ -1,29 +1,22 @@
 import { BigNumber, BigNumberish } from 'ethers'
+import Debug from 'debug'
+
 import {
+  OperationBase,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
-  UserOperation,
   ValidationErrors,
+  getPackedNonce,
   requireCond
 } from '@account-abstraction/utils'
+import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
-import Debug from 'debug'
 
 const debug = Debug('aa.mempool')
 
-export interface MempoolEntry {
-  userOp: UserOperation
-  userOpHash: string
-  prefund: BigNumberish
-  referencedContracts: ReferencedCodeHashes
-  // aggregator, if one was found during simulation
-  aggregator?: string
-}
+type MempoolDump = OperationBase[]
 
-type MempoolDump = UserOperation[]
-
-const SAME_SENDER_MEMPOOL_COUNT = 4
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
@@ -68,7 +61,8 @@ export class MempoolManager {
   // replace existing, if any (and if new gas is higher)
   // reverts if unable to add UserOp to mempool (too many UserOps with this sender)
   addUserOp (
-    userOp: UserOperation,
+    skipValidation: boolean,
+    userOp: OperationBase,
     userOpHash: string,
     prefund: BigNumberish,
     referencedContracts: ReferencedCodeHashes,
@@ -77,23 +71,27 @@ export class MempoolManager {
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo
   ): void {
-    const entry: MempoolEntry = {
+    const entry = new MempoolEntry(
       userOp,
       userOpHash,
       prefund,
       referencedContracts,
-      aggregator: aggregatorInfo?.addr
-    }
-    const index = this._findBySenderNonce(userOp.sender, userOp.nonce)
+      skipValidation,
+      aggregatorInfo?.addr
+    )
+    const packedNonce = getPackedNonce(entry.userOp)
+    const index = this._findBySenderNonce(userOp.sender, packedNonce)
     if (index !== -1) {
       const oldEntry = this.mempool[index]
       this.checkReplaceUserOp(oldEntry, entry)
-      debug('replace userOp', userOp.sender, userOp.nonce)
+      debug('replace userOp', userOp.sender, packedNonce)
       this.mempool[index] = entry
     } else {
-      debug('add userOp', userOp.sender, userOp.nonce)
-      this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
-      this.checkMultipleRolesViolation(userOp)
+      debug('add userOp', userOp.sender, packedNonce)
+      if (!skipValidation) {
+        this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+        this.checkMultipleRolesViolation(userOp)
+      }
       this.incrementEntryCount(userOp.sender)
       if (userOp.paymaster != null) {
         this.incrementEntryCount(userOp.paymaster)
@@ -106,7 +104,7 @@ export class MempoolManager {
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
 
-  private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation, senderInfo: StakeInfo): void {
+  private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo): void {
     try {
       this.reputationManager.checkStake('account', senderInfo)
       this.reputationManager.updateSeenStatus(userOp.sender)
@@ -125,22 +123,13 @@ export class MempoolManager {
     paymasterInfo?: StakeInfo,
     factoryInfo?: StakeInfo,
     aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo, SAME_SENDER_MEMPOOL_COUNT)
-
-    if (paymasterInfo != null) {
-      this.checkReputationStatus('paymaster', paymasterInfo)
-    }
-
-    if (factoryInfo != null) {
-      this.checkReputationStatus('deployer', factoryInfo)
-    }
-
-    if (aggregatorInfo != null) {
-      this.checkReputationStatus('aggregator', aggregatorInfo)
-    }
+    this.checkReputationStatus('account', senderInfo)
+    this.checkReputationStatus('paymaster', paymasterInfo)
+    this.checkReputationStatus('deployer', factoryInfo)
+    this.checkReputationStatus('aggregator', aggregatorInfo)
   }
 
-  private checkMultipleRolesViolation (userOp: UserOperation): void {
+  private checkMultipleRolesViolation (userOp: OperationBase): void {
     const knownEntities = this.getKnownEntities()
     requireCond(
       !knownEntities.includes(userOp.sender.toLowerCase()),
@@ -169,11 +158,14 @@ export class MempoolManager {
 
   private checkReputationStatus (
     title: 'account' | 'paymaster' | 'aggregator' | 'deployer',
-    stakeInfo: StakeInfo,
-    maxTxMempoolAllowedOverride?: number
+    stakeInfo?: StakeInfo
   ): void {
-    const maxTxMempoolAllowedEntity = maxTxMempoolAllowedOverride ??
-      this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(stakeInfo.addr)
+    if (stakeInfo == null) {
+      // entity missing from this userop.
+      return
+    }
+    const maxTxMempoolAllowedEntity = this.reputationManager.calculateMaxAllowedMempoolOpsUnstaked(title, stakeInfo.addr)
+    // GREP-010 A `BANNED` address is not allowed into the mempool
     this.reputationManager.checkBanned(title, stakeInfo)
     const entryCount = this.entryCount(stakeInfo.addr) ?? 0
     if (entryCount > THROTTLED_ENTITY_MEMPOOL_COUNT) {
@@ -199,7 +191,7 @@ export class MempoolManager {
   getSortedForInclusion (): MempoolEntry[] {
     const copy = Array.from(this.mempool)
 
-    function cost (op: UserOperation): number {
+    function cost (op: OperationBase): number {
       // TODO: need to consult basefee and maxFeePerGas
       return BigNumber.from(op.maxPriorityFeePerGas).toNumber()
     }
@@ -211,7 +203,8 @@ export class MempoolManager {
   _findBySenderNonce (sender: string, nonce: BigNumberish): number {
     for (let i = 0; i < this.mempool.length; i++) {
       const curOp = this.mempool[i].userOp
-      if (curOp.sender === sender && curOp.nonce === nonce) {
+      const packedNonce = getPackedNonce(curOp)
+      if (curOp.sender === sender && packedNonce.eq(nonce)) {
         return i
       }
     }
@@ -232,16 +225,18 @@ export class MempoolManager {
    * remove UserOp from mempool. either it is invalid, or was included in a block
    * @param userOpOrHash
    */
-  removeUserOp (userOpOrHash: UserOperation | string): void {
+  removeUserOp (userOpOrHash: OperationBase | string): void {
     let index: number
     if (typeof userOpOrHash === 'string') {
       index = this._findByHash(userOpOrHash)
     } else {
-      index = this._findBySenderNonce(userOpOrHash.sender, userOpOrHash.nonce)
+      const packedNonce = getPackedNonce(userOpOrHash)
+      index = this._findBySenderNonce(userOpOrHash.sender, packedNonce)
     }
     if (index !== -1) {
       const userOp = this.mempool[index].userOp
-      debug('removeUserOp', userOp.sender, userOp.nonce)
+      const packedNonce = getPackedNonce(userOp)
+      debug('removeUserOp', userOp.sender, packedNonce)
       this.mempool.splice(index, 1)
       this.decrementEntryCount(userOp.sender)
       this.decrementEntryCount(userOp.paymaster)
@@ -293,5 +288,17 @@ export class MempoolManager {
 
   getMempool (): MempoolEntry[] {
     return this.mempool
+  }
+
+  // GREP-010 A `BANNED` address is not allowed into the mempool
+  removeBannedAddr (addr: string): void {
+    // scan mempool in reverse. remove any UserOp where address is any entity
+    for (let i = this.mempool.length - 1; i >= 0; i--) {
+      const mempoolEntry = this.mempool[i]
+      const userOp = mempoolEntry.userOp
+      if (userOp.sender === addr || userOp.paymaster === addr || userOp.factory === addr) {
+        this.removeUserOp(mempoolEntry.userOpHash)
+      }
+    }
   }
 }

@@ -6,7 +6,7 @@ import { BundlerConfig } from '../src/BundlerConfig'
 
 import { toHex } from 'hardhat/internal/util/bigint'
 import { Signer, Wallet } from 'ethers'
-import { SimpleAccountAPI } from '@account-abstraction/sdk'
+import { MainnetConfig, PreVerificationGasCalculator, SimpleAccountAPI } from '@account-abstraction/sdk'
 import { postExecutionDump } from '@account-abstraction/utils/dist/src/postExecCheck'
 import {
   SampleRecipient,
@@ -29,7 +29,7 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { BundlerReputationParams, ReputationManager } from '../src/modules/ReputationManager'
 import { MempoolManager } from '../src/modules/MempoolManager'
 import { BundleManager } from '../src/modules/BundleManager'
-import { UserOpMethodHandler } from '../src/UserOpMethodHandler'
+import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
@@ -39,7 +39,7 @@ describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
 
   let accountDeployerAddress: string
-  let methodHandler: UserOpMethodHandler
+  let methodHandler: MethodHandlerERC4337
   let provider: JsonRpcProvider
   let signer: Signer
   const accountSigner = Wallet.createRandom()
@@ -61,6 +61,7 @@ describe('UserOpMethodHandler', function () {
     sampleRecipient = await sampleRecipientFactory.deploy()
 
     const config: BundlerConfig = {
+      chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -68,29 +69,35 @@ describe('UserOpMethodHandler', function () {
       mnemonic: '',
       network: '',
       port: '3000',
-      unsafe: !await supportsDebugTraceCall(provider as any),
+      privateApiPort: '3001',
+      unsafe: !await supportsDebugTraceCall(provider as any, false),
       conditionalRpc: false,
       autoBundleInterval: 0,
       autoBundleMempoolSize: 0,
       maxBundleGas: 5e6,
       // minstake zero, since we don't fund deployer.
       minStake: '0',
+      rip7560: false,
+      rip7560Mode: 'PULL',
+      gethDevMode: false,
       minUnstakeDelay: 0
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe)
-    const depositManager = new DepositManager(entryPoint, mempoolMgr)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
-    const bundleMgr = new BundleManager(entryPoint, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
-    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager)
-    methodHandler = new UserOpMethodHandler(
+    const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
+    const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
+    const execManager = new ExecutionManager(repMgr, mempoolMgr, bundleMgr, validMgr, depositManager, entryPoint.signer, false, undefined, false)
+    methodHandler = new MethodHandlerERC4337(
       execManager,
       provider,
       signer,
       config,
-      entryPoint
+      entryPoint,
+      preVerificationGasCalculator
     )
   })
 
@@ -133,7 +140,7 @@ describe('UserOpMethodHandler', function () {
       // execution should be quite low.
       // (NOTE: actual execution should revert: it only succeeds because the wallet is NOT deployed yet,
       // and estimation doesn't perform full deploy-validate-execute cycle)
-      expect(ret.callGasLimit).to.be.closeTo(25000, 10000)
+      expect(ret.callGasLimit).to.be.closeTo(1000, 50)
     })
 
     it('estimateUserOperationGas should estimate using state overrides', async function () {
@@ -268,13 +275,13 @@ describe('UserOpMethodHandler', function () {
           provider,
           entryPointAddress: entryPoint.address,
           accountAddress,
-          owner: accountSigner,
-          overheads: { perUserOp: 0 }
+          owner: accountSigner
         })
         const op = await api.createSignedUserOp({
           data: sampleRecipient.interface.encodeFunctionData('something', [helloWorld]),
           target: sampleRecipient.address
         })
+        op.preVerificationGas = 1000
         try {
           await methodHandler.sendUserOperation(await resolveHexlify(op), entryPoint.address)
           throw new Error('expected to revert')

@@ -1,11 +1,15 @@
 // misc utilities for the various modules.
 
-import { BytesLike, ContractFactory, BigNumber } from 'ethers'
+import { BytesLike, ContractFactory, BigNumber, ethers } from 'ethers'
 import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
-import { NotPromise, UserOperation } from './ERC4337Utils'
+
+import { NotPromise } from './ERC4337Utils'
 import { PackedUserOperationStruct } from './soltypes'
+import { UserOperation } from './interfaces/UserOperation'
+import { OperationBase } from './interfaces/OperationBase'
+import { OperationRIP7560 } from './interfaces/OperationRIP7560'
 
 export interface SlotMap {
   [slot: string]: string
@@ -28,7 +32,15 @@ export interface StakeInfo {
 export type PackedUserOperation = NotPromise<PackedUserOperationStruct>
 
 export enum ValidationErrors {
+
+  // standard EIP-1474 errors:
+  ParseError = -32700,
+  InvalidRequest = -32600,
+  MethodNotFound = -32601,
   InvalidFields = -32602,
+  InternalError = -32603,
+
+  // ERC-4337 errors:
   SimulateValidation = -32500,
   SimulatePaymasterValidation = -32501,
   OpcodeValidation = -32502,
@@ -51,7 +63,7 @@ export interface ReferencedCodeHashes {
 
 export class RpcError extends Error {
   // error codes from: https://eips.ethereum.org/EIPS/eip-1474
-  constructor (msg: string, readonly code?: number, readonly data: any = undefined) {
+  constructor (msg: string, readonly code: number, readonly data: any = undefined) {
     super(msg)
   }
 }
@@ -60,7 +72,7 @@ export function tostr (s: BigNumberish): string {
   return BigNumber.from(s).toString()
 }
 
-export function requireCond (cond: boolean, msg: string, code?: number, data: any = undefined): void {
+export function requireCond (cond: boolean, msg: string, code: number, data: any = undefined): void {
   if (!cond) {
     throw new RpcError(msg, code, data)
   }
@@ -68,7 +80,7 @@ export function requireCond (cond: boolean, msg: string, code?: number, data: an
 
 // verify that either address field exist along with "mustFields",
 // or address field is missing, and none of the must (or optional) field also exists
-export function requireAddressAndFields (userOp: UserOperation, addrField: string, mustFields: string[], optionalFields: string[] = []): void {
+export function requireAddressAndFields (userOp: OperationBase, addrField: string, mustFields: string[], optionalFields: string[] = []): void {
   const op = userOp as any
   const addr = op[addrField]
   if (addr == null) {
@@ -199,16 +211,27 @@ export function sum (...args: BigNumberish[]): BigNumber {
 }
 
 /**
- * calculate the maximum verification cost of a UserOperation.
- * the cost is the sum of the verification gas limits, multiplied by the maxFeePerGas.
+ * calculate the maximum cost of a UserOperation.
+ * the cost is the sum of the verification gas limits and call gas limit, multiplied by the maxFeePerGas.
  * @param userOp
  */
 export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
+  const preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
   return sum(
-    userOp.preVerificationGas,
+    preVerificationGas ?? 0,
     userOp.verificationGasLimit,
     userOp.callGasLimit,
     userOp.paymasterVerificationGasLimit ?? 0,
     userOp.paymasterPostOpGasLimit ?? 0
   ).mul(userOp.maxFeePerGas)
+
+export function getPackedNonce (userOp: OperationBase): BigNumber {
+  const nonceKey = (userOp as OperationRIP7560).nonceKey
+  if (nonceKey == null || BigNumber.from(nonceKey).eq(0)) {
+    // Either not RIP-7560 operation or not using RIP-7712 nonce
+    return BigNumber.from(userOp.nonce)
+  }
+  const packed = ethers.utils.solidityPack(['uint192', 'uint64'], [nonceKey, userOp.nonce])
+  const bigNumberNonce = BigNumber.from(packed)
+  return bigNumberNonce
 }

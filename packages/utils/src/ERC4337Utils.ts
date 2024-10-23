@@ -12,6 +12,7 @@ import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/I
 import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
 import Debug from 'debug'
 import { PackedUserOperation } from './Utils'
+import { UserOperation } from './interfaces/UserOperation'
 
 const debug = Debug('aa.utils')
 
@@ -27,25 +28,6 @@ export const AddressZero = ethers.constants.AddressZero
 // reverse "Deferrable" or "PromiseOrValue" fields
 export type NotPromise<T> = {
   [P in keyof T]: Exclude<T[P], Promise<any>>
-}
-
-export interface UserOperation {
-
-  sender: string
-  nonce: BigNumberish
-  factory?: string
-  factoryData?: BytesLike
-  callData: BytesLike
-  callGasLimit: BigNumberish
-  verificationGasLimit: BigNumberish
-  preVerificationGas: BigNumberish
-  maxFeePerGas: BigNumberish
-  maxPriorityFeePerGas: BigNumberish
-  paymaster?: string
-  paymasterVerificationGasLimit?: BigNumberish
-  paymasterPostOpGasLimit?: BigNumberish
-  paymasterData?: BytesLike
-  signature: BytesLike
 }
 
 // todo: remove this wrapper method?

@@ -1,12 +1,13 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
-import { AddressZero, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
+import { AddressZero, IEntryPoint__factory, OperationRIP7560, UserOperation } from '@account-abstraction/utils'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
-import { bundlerCollectorTracer } from './BundlerCollectorTracer'
-import { debug_traceCall, bundlerNativeTracerName } from './GethTracer'
-import { ValidateUserOpResult, ValidationManager } from './ValidationManager'
+import { bundlerNativeTracerName, debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
 
 export * from './ValidationManager'
+export * from './ValidationManagerRIP7560'
+export * from './IValidationManager'
 
 export async function supportsNativeTracer (provider: JsonRpcProvider, nativeTracer = bundlerNativeTracerName): Promise<boolean> {
   try {
@@ -17,12 +18,44 @@ export async function supportsNativeTracer (provider: JsonRpcProvider, nativeTra
   }
 }
 
-export async function supportsDebugTraceCall (provider: JsonRpcProvider): Promise<boolean> {
+export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560: boolean): Promise<boolean> {
   const p = provider.send as any
   if (p._clientVersion == null) {
     p._clientVersion = await provider.send('web3_clientVersion', [])
   }
 
+  if (rip7560) {
+    // TODO: remove
+    const defaultsForRip7560Tx: OperationRIP7560 = {
+      accessList: [],
+      builderFee: '0x0',
+      chainId: '0x539',
+      value: '0x0',
+      sender: AddressZero,
+      nonceKey: '0x0',
+      nonce: '0x0',
+      executionData: '0x',
+      callGasLimit: '0x0',
+      verificationGasLimit: '0x10000',
+      maxFeePerGas: '0x100000000',
+      maxPriorityFeePerGas: '0x100000000',
+      paymaster: AddressZero,
+      paymasterData: '0x',
+      factory: AddressZero,
+      factoryData: '0x',
+      paymasterVerificationGasLimit: '0x10000',
+      paymasterPostOpGasLimit: '0x0',
+      authorizationData: '0x'
+    };
+
+    // TODO: align parameter names across 4337 and 7560
+    (defaultsForRip7560Tx as any).deployer = defaultsForRip7560Tx.factory;
+    (defaultsForRip7560Tx as any).deployerData = defaultsForRip7560Tx.factoryData
+    // make sure we can trace a call.
+    const ret = await eth_traceRip7560Validation(provider, defaultsForRip7560Tx
+    ).catch(e => e)
+    return ret.traceResults != null
+  }
   // make sure we can trace a call.
   const ret = await debug_traceCall(provider,
     { from: AddressZero, to: AddressZero, data: '0x' },
@@ -35,14 +68,15 @@ export async function checkRulesViolations (
   userOperation: UserOperation,
   entryPointAddress: string
 ): Promise<ValidateUserOpResult> {
-  const supportsTrace = await supportsDebugTraceCall(provider)
+  const supportsTrace = await supportsDebugTraceCall(provider, false)
   if (!supportsTrace) {
     throw new Error('This provider does not support stack tracing')
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
   const validationManager = new ValidationManager(
     entryPoint,
-    false
+    false,
+    Object.assign({}) as PreVerificationGasCalculator
   )
   return await validationManager.validateUserOp(userOperation)
 }

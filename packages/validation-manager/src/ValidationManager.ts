@@ -1,7 +1,9 @@
-import { BigNumber, BigNumberish } from 'ethers'
+import { BigNumber } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
+
+import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import {
   AddressZero,
@@ -23,44 +25,21 @@ import {
   IEntryPointSimulations__factory,
   IEntryPoint,
   ValidationResultStructOutput,
-  StakeInfoStructOutput
+  StakeInfoStructOutput,
+  OperationBase
 } from '@account-abstraction/utils'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
 
 import { tracerResultParser } from './TracerResultParser'
 import { BundlerTracerResult, bundlerCollectorTracer, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
+import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 
 const debug = Debug('aa.mgr.validate')
 
 // how much time into the future a UserOperation must be valid in order to be accepted
 const VALID_UNTIL_FUTURE_SECONDS = 30
-
-/**
- * result from successful simulateValidation, after some parsing.
- */
-export interface ValidationResult {
-  returnInfo: {
-    preOpGas: BigNumberish
-    prefund: BigNumberish
-    sigFailed: boolean
-    validAfter: number
-    validUntil: number
-  }
-
-  senderInfo: StakeInfo
-  factoryInfo?: StakeInfo
-  paymasterInfo?: StakeInfo
-  aggregatorInfo?: StakeInfo
-}
-
-export interface ValidateUserOpResult extends ValidationResult {
-
-  referencedContracts: ReferencedCodeHashes
-  storageMap: StorageMap
-}
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
@@ -69,15 +48,29 @@ const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
  * ValidationManager is responsible for validating UserOperations.
  * @param entryPoint - the entryPoint contract
  * @param unsafe - if true, skip tracer for validation rules (validate only through eth_call)
+ * @param preVerificationGasCalculator - helper to calculate the correct 'preVerificationGas' for the current network conditions
  * @param providerForTracer - if provided, use it for native bundlerCollectorTracer, and use main provider with "preStateTracer"
  *  (relevant only if unsafe=false)
  */
-export class ValidationManager {
+export class ValidationManager implements IValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean,
+    readonly preVerificationGasCalculator: PreVerificationGasCalculator,
     readonly providerForTracer?: JsonRpcProvider
   ) {
+  }
+
+  _getDebugConfiguration (): {
+    configuration: PreVerificationGasCalculatorConfig
+    entryPoint: IEntryPoint
+    unsafe: boolean
+  } {
+    return {
+      configuration: this.preVerificationGasCalculator.config,
+      entryPoint: this.entryPoint,
+      unsafe: this.unsafe
+    }
   }
 
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
@@ -141,7 +134,8 @@ export class ValidationManager {
     throw new Error(errorResult.errorName)
   }
 
-  async _geth_traceCall_SimulateValidation (userOp: UserOperation): Promise<[ValidationResult, BundlerTracerResult]> {
+  async _geth_traceCall_SimulateValidation (operation: OperationBase): Promise<[ValidationResult, BundlerTracerResult]> {
+    const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
 
@@ -195,11 +189,18 @@ export class ValidationManager {
 
   /**
    * validate UserOperation.
-   * should also handle unmodified memory (e.g. by referencing cached storage in the mempool
-   * one item to check that was un-modified is the aggregator..
-   * @param userOp
+   * should also handle unmodified memory, e.g. by referencing cached storage in the mempool
+   * one item to check that was un-modified is the aggregator.
+   * @param operation
+   * @param previousCodeHashes
+   * @param checkStakes
    */
-  async validateUserOp (userOp: UserOperation, previousCodeHashes?: ReferencedCodeHashes, checkStakes = true): Promise<ValidateUserOpResult> {
+  async validateUserOp (
+    operation: OperationBase,
+    previousCodeHashes?: ReferencedCodeHashes,
+    checkStakes = true
+  ): Promise<ValidateUserOpResult> {
+    const userOp = operation as UserOperation
     if (previousCodeHashes != null && previousCodeHashes.addresses.length > 0) {
       const { hash: codeHashes } = await this.getCodeHashes(previousCodeHashes.addresses)
       // [COD-010]
@@ -219,7 +220,7 @@ export class ValidationManager {
         throw e
       })
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint)
+      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint.address)
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
@@ -284,9 +285,9 @@ export class ValidationManager {
    * @param requireSignature
    * @param requireGasParams
    */
-  validateInputParameters (userOp: UserOperation, entryPointInput: string, requireSignature = true, requireGasParams = true): void {
+  validateInputParameters (userOp: OperationBase, entryPointInput?: string, requireSignature = true, requireGasParams = true): void {
     requireCond(entryPointInput != null, 'No entryPoint param', ValidationErrors.InvalidFields)
-    requireCond(entryPointInput.toLowerCase() === this.entryPoint.address.toLowerCase(),
+    requireCond(entryPointInput?.toLowerCase() === this.entryPoint.address.toLowerCase(),
       `The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.entryPoint.address}`,
       ValidationErrors.InvalidFields)
 
@@ -313,9 +314,17 @@ export class ValidationManager {
     requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
     requireAddressAndFields(userOp, 'factory', ['factoryData'])
 
-    const calcPreVerificationGas1 = calcPreVerificationGas(userOp)
-    requireCond(BigNumber.from(userOp.preVerificationGas).gte(calcPreVerificationGas1),
-      `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
-      ValidationErrors.InvalidFields)
+    const preVerificationGas = (userOp as UserOperation).preVerificationGas
+    if (preVerificationGas != null) {
+      const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
+        this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation)
+      requireCond(isPreVerificationGasValid,
+        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
+        ValidationErrors.InvalidFields)
+    }
+  }
+
+  async getOperationHash (userOp: OperationBase): Promise<string> {
+    return await this.entryPoint.getUserOpHash(packUserOp(userOp as UserOperation))
   }
 }

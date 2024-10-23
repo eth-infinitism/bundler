@@ -52,7 +52,7 @@ export interface ExitInfo {
 }
 
 export interface TopLevelCallInfo {
-  topLevelMethodSig: string
+  // topLevelMethodSig: string
   topLevelTargetAddress: string
   opcodes: { [opcode: string]: number }
   access: { [address: string]: AccessInfo }
@@ -214,18 +214,39 @@ export function bundlerCollectorTracer (): BundlerCollectorTracer {
         this.lastThreeOpcodes = []
       }
 
+      if (
+        this.currentLevel != null &&
+        // TODO: This is a hardcoded address of SenderCreator immutable member in EntryPoint. Any change in EntryPoint's code
+        //  requires a change of this address
+        this.currentLevel.topLevelTargetAddress.toLowerCase() === '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c' &&
+        log.getDepth() === 2
+      ) {
+        if (opcode === 'CALL' || opcode === 'STATICCALL') {
+          const addr = toAddress(log.stack.peek(1).toString(16))
+          const topLevelTargetAddress = toHex(addr)
+          this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
+            // topLevelMethodSig,
+            topLevelTargetAddress,
+            access: {},
+            opcodes: {},
+            extCodeAccessInfo: {},
+            contractSize: {}
+          }
+          this.topLevelCallCounter++
+        }
+      }
       if (log.getDepth() === 1) {
         if (opcode === 'CALL' || opcode === 'STATICCALL') {
           // stack.peek(0) - gas
           const addr = toAddress(log.stack.peek(1).toString(16))
           const topLevelTargetAddress = toHex(addr)
           // stack.peek(2) - value
-          const ofs = parseInt(log.stack.peek(3).toString())
+          // const ofs = parseInt(log.stack.peek(3).toString())
           // stack.peek(4) - len
-          const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
+          // const topLevelMethodSig = toHex(log.memory.slice(ofs, ofs + 4))
 
           this.currentLevel = this.callsFromEntryPoint[this.topLevelCallCounter] = {
-            topLevelMethodSig,
+            // topLevelMethodSig,
             topLevelTargetAddress,
             access: {},
             opcodes: {},

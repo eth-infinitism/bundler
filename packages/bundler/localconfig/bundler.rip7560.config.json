@@ -8,12 +8,12 @@
   "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
-  "maxBundleGas": 5e6,
+  "maxBundleGas": 30e6,
   "minStake": "1",
   "minUnstakeDelay": 0,
   "autoBundleInterval": 3,
   "autoBundleMempoolSize": 10,
-  "rip7560": false,
+  "rip7560": true,
   "rip7560Mode": "PULL",
   "gethDevMode": true
 }

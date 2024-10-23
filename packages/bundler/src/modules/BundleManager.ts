@@ -1,20 +1,34 @@
-import { MempoolEntry, MempoolManager } from './MempoolManager'
-import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
-import { BigNumber, BigNumberish } from 'ethers'
-import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
-import { ReputationManager, ReputationStatus } from './ReputationManager'
-import { Mutex } from 'async-mutex'
-import { GetUserOpHashes__factory } from '../types'
-import {
-  UserOperation,
-  StorageMap,
-  mergeStorageMap,
-  runContractScript,
-  packUserOp, IEntryPoint, RpcError, ValidationErrors
-} from '@account-abstraction/utils'
-import { EventsManager } from './EventsManager'
+import { BigNumber, BigNumberish, Signer } from 'ethers'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import { JsonRpcProvider } from '@ethersproject/providers'
+import { Mutex } from 'async-mutex'
+import { isAddress } from 'ethers/lib/utils'
+
+import {
+  EmptyValidateUserOpResult,
+  IValidationManager,
+  ValidateUserOpResult
+} from '@account-abstraction/validation-manager'
+
+import {
+  AddressZero,
+  IEntryPoint,
+  OperationBase,
+  RpcError,
+  StorageMap,
+  UserOperation,
+  ValidationErrors,
+  mergeStorageMap,
+  packUserOp,
+  getUserOpHash
+} from '@account-abstraction/utils'
+
+import { EventsManager } from './EventsManager'
+import { IBundleManager } from './IBundleManager'
+import { MempoolEntry } from './MempoolEntry'
+import { MempoolManager } from './MempoolManager'
+import { ReputationManager, ReputationStatus } from './ReputationManager'
 
 const debug = Debug('aa.exec.cron')
 
@@ -25,16 +39,17 @@ export interface SendBundleReturn {
   userOpHashes: string[]
 }
 
-export class BundleManager {
-  provider: JsonRpcProvider
-  signer: JsonRpcSigner
+export class BundleManager implements IBundleManager {
+  readonly entryPoint: IEntryPoint
   mutex = new Mutex()
 
   constructor (
-    readonly entryPoint: IEntryPoint,
+    _entryPoint: IEntryPoint | undefined,
+    readonly provider: JsonRpcProvider,
+    readonly signer: Signer,
     readonly eventsManager: EventsManager,
     readonly mempoolManager: MempoolManager,
-    readonly validationManager: ValidationManager,
+    readonly validationManager: IValidationManager,
     readonly reputationManager: ReputationManager,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
@@ -44,8 +59,8 @@ export class BundleManager {
     // in conditionalRpc: always put root hash (not specific storage slots) for "sender" entries
     readonly mergeToAccountRootHash: boolean = false
   ) {
-    this.provider = entryPoint.provider as JsonRpcProvider
-    this.signer = entryPoint.signer as JsonRpcSigner
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    this.entryPoint = _entryPoint!
   }
 
   /**
@@ -60,12 +75,13 @@ export class BundleManager {
       // first flush mempool from already-included UserOps, by actively scanning past events.
       await this.handlePastEvents()
 
-      const [bundle, storageMap] = await this.createBundle()
+      // TODO: pass correct bundle limit parameters!
+      const [bundle, storageMap] = await this.createBundle(0, 0, 0)
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle, beneficiary, storageMap)
+        const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -142,6 +158,7 @@ export class BundleManager {
 
       const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
+        this.mempoolManager.removeBannedAddr(addr)
         this.reputationManager.crashedHandleOps(addr)
       } else {
         console.error(`Failed handleOps, but no entity to blame. reason=${reasonStr}`)
@@ -185,9 +202,13 @@ export class BundleManager {
     }
   }
 
-  async createBundle (): Promise<[UserOperation[], StorageMap]> {
+  async createBundle (
+    minBaseFee?: BigNumberish,
+    maxBundleGas?: BigNumberish,
+    maxBundleSize?: BigNumberish
+  ): Promise<[OperationBase[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
-    const bundle: UserOperation[] = []
+    const bundle: OperationBase[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -202,9 +223,23 @@ export class BundleManager {
     const storageMap: StorageMap = {}
     let totalGas = BigNumber.from(0)
     debug('got mempool of ', entries.length)
+    let bundleGas = BigNumber.from(0)
     // eslint-disable-next-line no-labels
     mainLoop:
     for (const entry of entries) {
+      const maxBundleSizeNum = BigNumber.from(maxBundleSize ?? 0).toNumber()
+      if (maxBundleSizeNum !== 0 && entries.length >= maxBundleSizeNum) {
+        debug('exiting after maxBundleSize is reached', maxBundleSize, entries.length)
+        break
+      }
+      if (
+        minBaseFee != null &&
+        !BigNumber.from(minBaseFee).eq(0) &&
+        BigNumber.from(entry.userOp.maxFeePerGas).lt(minBaseFee)
+      ) {
+        debug('skipping transaction not paying minBaseFee', minBaseFee, entry.userOp.maxFeePerGas)
+        continue
+      }
       const paymaster = entry.userOp.paymaster
       const factory = entry.userOp.factory
       const paymasterStatus = this.reputationManager.getStatus(paymaster)
@@ -215,23 +250,27 @@ export class BundleManager {
       }
       // [GREP-020] - renamed from [SREP-030]
       if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
-        debug('skipping throttled paymaster', entry.userOp.sender, entry.userOp.nonce)
+        debug('skipping throttled paymaster', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
       }
       // [GREP-020] - renamed from [SREP-030]
       if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
-        debug('skipping throttled factory', entry.userOp.sender, entry.userOp.nonce)
+        debug('skipping throttled factory', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
       }
       if (senders.has(entry.userOp.sender)) {
-        debug('skipping already included sender', entry.userOp.sender, entry.userOp.nonce)
+        debug('skipping already included sender', entry.userOp.sender, (entry.userOp as any).nonce)
         // allow only a single UserOp per sender per bundle
         continue
       }
-      let validationResult: ValidateUserOpResult
+      let validationResult: ValidateUserOpResult = EmptyValidateUserOpResult
       try {
-        // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
-        validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
+        if (!entry.skipValidation) {
+          // re-validate UserOp. no need to check stake, since it cannot be reduced between first and 2nd validation
+          validationResult = await this.validationManager.validateUserOp(entry.userOp, entry.referencedContracts, false)
+        } else {
+          console.warn('Skipping second validation for an injected debug operation, id=', entry.userOpHash)
+        }
       } catch (e: any) {
         this._handleSecondValidationException(e, paymaster, entry)
         continue
@@ -253,23 +292,34 @@ export class BundleManager {
       // which means we could "cram" more UserOps into a bundle.
       const userOpGasCost = BigNumber.from(validationResult.returnInfo.preOpGas).add(entry.userOp.callGasLimit)
       const newTotalGas = totalGas.add(userOpGasCost)
+      // TODO: reduce duplication here - some difference in logic but close enough
       if (newTotalGas.gt(this.maxBundleGas)) {
+        debug('exiting after config maxBundleGas is reached', this.maxBundleGas, bundleGas, entry.userOpMaxGas)
+        break
+      }
+      if (
+        maxBundleGas != null &&
+        !BigNumber.from(maxBundleGas).eq(0) &&
+        newTotalGas.gte(maxBundleGas)) {
+        debug('exiting after request maxBundleGas is reached', maxBundleGas, bundleGas, entry.userOpMaxGas)
         break
       }
 
-      if (paymaster != null) {
+      if (paymaster != null && isAddress(paymaster) && paymaster.toLowerCase() !== AddressZero) {
         if (paymasterDeposit[paymaster] == null) {
-          paymasterDeposit[paymaster] = await this.entryPoint.balanceOf(paymaster)
+          paymasterDeposit[paymaster] = await this.getPaymasterBalance(paymaster)
         }
-        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (paymasterDeposit[paymaster].lt(validationResult.returnInfo.prefund!)) {
           // not enough balance in paymaster to pay for all UserOps
           // (but it passed validation, so it can sponsor them separately
           continue
         }
         stakedEntityCount[paymaster] = (stakedEntityCount[paymaster] ?? 0) + 1
-        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund)
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        paymasterDeposit[paymaster] = paymasterDeposit[paymaster].sub(validationResult.returnInfo.prefund!)
       }
-      if (factory != null) {
+      if (factory != null && isAddress(factory)) {
         stakedEntityCount[factory] = (stakedEntityCount[factory] ?? 0) + 1
       }
 
@@ -280,6 +330,8 @@ export class BundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
+      const newBundleGas = entry.userOpMaxGas.add(bundleGas)
+      bundleGas = newBundleGas
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas
@@ -320,10 +372,11 @@ export class BundleManager {
 
   // helper function to get hashes of all UserOps
   async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
-    const { userOpHashes } = await runContractScript(this.entryPoint.provider,
-      new GetUserOpHashes__factory(),
-      [this.entryPoint.address, userOps.map(packUserOp)])
+    const network = await this.entryPoint.provider.getNetwork()
+    return userOps.map(it => getUserOpHash(it, this.entryPoint.address, network.chainId))
+  }
 
-    return userOpHashes
+  async getPaymasterBalance (paymaster: string): Promise<BigNumber> {
+    return await this.entryPoint.balanceOf(paymaster)
   }
 }
