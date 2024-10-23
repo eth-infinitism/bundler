@@ -44,11 +44,20 @@ const VALID_UNTIL_FUTURE_SECONDS = 30
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
 
+/**
+ * ValidationManager is responsible for validating UserOperations.
+ * @param entryPoint - the entryPoint contract
+ * @param unsafe - if true, skip tracer for validation rules (validate only through eth_call)
+ * @param preVerificationGasCalculator - helper to calculate the correct 'preVerificationGas' for the current network conditions
+ * @param providerForTracer - if provided, use it for native bundlerCollectorTracer, and use main provider with "preStateTracer"
+ *  (relevant only if unsafe=false)
+ */
 export class ValidationManager implements IValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean,
-    readonly preVerificationGasCalculator: PreVerificationGasCalculator
+    readonly preVerificationGasCalculator: PreVerificationGasCalculator,
+    readonly providerForTracer?: JsonRpcProvider
   ) {
   }
 
@@ -144,7 +153,7 @@ export class ValidationManager implements IValidationManager {
           code: EntryPointSimulationsJson.deployedBytecode
         }
       }
-    })
+    }, this.providerForTracer)
 
     const lastResult = tracerResult.calls.slice(-1)[0]
     const data = (lastResult as ExitInfo).data

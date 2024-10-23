@@ -16,6 +16,7 @@ export interface BundlerConfig {
   port: string
   privateApiPort: string
   unsafe: boolean
+  tracerRpcUrl?: string
   debugRpc?: boolean
   conditionalRpc: boolean
 
@@ -53,6 +54,7 @@ export const BundlerConfigShape = {
   port: ow.string,
   privateApiPort: ow.string,
   unsafe: ow.boolean,
+  tracerRpcUrl: ow.optional.string,
   debugRpc: ow.optional.boolean,
   conditionalRpc: ow.boolean,
 

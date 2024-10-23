@@ -1,16 +1,25 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
 
 import { AddressZero, IEntryPoint__factory, OperationRIP7560, UserOperation } from '@account-abstraction/utils'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
+import { bundlerNativeTracerName, debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
-import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
-import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
+
+export async function supportsNativeTracer (provider: JsonRpcProvider, nativeTracer = bundlerNativeTracerName): Promise<boolean> {
+  try {
+    await provider.send('debug_traceCall', [{}, 'latest', { tracer: nativeTracer }])
+    return true
+  } catch (e) {
+    return false
+  }
+}
 
 export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560: boolean): Promise<boolean> {
   const p = provider.send as any

@@ -38,7 +38,8 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {
-    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
+    const tracerProvider = config.tracerRpcUrl == null ? undefined : getNetworkProvider(config.tracerRpcUrl)
+    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, tracerProvider)
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
