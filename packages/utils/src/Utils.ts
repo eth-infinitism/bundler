@@ -215,7 +215,7 @@ export function sum (...args: BigNumberish[]): BigNumber {
  * the cost is the sum of the verification gas limits and call gas limit, multiplied by the maxFeePerGas.
  * @param userOp
  */
-export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
+export function getUserOpMaxCost (userOp: OperationBase): BigNumber {
   const preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
   return sum(
     preVerificationGas ?? 0,
