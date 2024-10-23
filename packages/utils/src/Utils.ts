@@ -224,6 +224,7 @@ export function getUserOpMaxCost (userOp: UserOperation): BigNumber {
     userOp.paymasterVerificationGasLimit ?? 0,
     userOp.paymasterPostOpGasLimit ?? 0
   ).mul(userOp.maxFeePerGas)
+}
 
 export function getPackedNonce (userOp: OperationBase): BigNumber {
   const nonceKey = (userOp as OperationRIP7560).nonceKey

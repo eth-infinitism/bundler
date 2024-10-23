@@ -150,7 +150,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       }
     } else {
       // check standard javascript tracer:
-      if (!await supportsDebugTraceCall(provider as any)) {
+      if (!await supportsDebugTraceCall(provider as any, config.rip7560)) {
         const requiredApi = config.rip7560 ? 'eth_traceRip7560Validation' : 'debug_traceCall'
         console.error(`FATAL: full validation requires a node with ${requiredApi}. for local UNSAFE mode: use --unsafe`)
         process.exit(1)
