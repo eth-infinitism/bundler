@@ -143,12 +143,12 @@
     crc-32 "^1.2.0"
     ethereumjs-util "^7.1.5"
 
-"@ethereumjs/common@^4.4.0", "@ethereumjs/common@file:ethereumjs-common-4.4.0.tgz":
-  version "4.4.0"
-  resolved "file:ethereumjs-common-4.4.0.tgz#28e1f315cc5e8711d48d6e60b518f4d8dc7ba08e"
+"@ethereumjs/common@^5.0.0-alpha.1":
+  version "5.0.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/common/-/common-5.0.0-alpha.1.tgz#88810604bba00e3e6de43b5fbe8f5d0b1aaeca60"
+  integrity sha512-g8Cw+nGcaFLCd9YUk7o3Pc+X0Ggdzq8mKdXmisBbdpnLkzXVSENHL+ufEPyzIqbi9ay4bC5DBpfY/AkCLHaiJw==
   dependencies:
-    "@ethereumjs/util" "^9.1.0"
-    ethereum-cryptography "^3.0.0"
+    "@ethereumjs/util" "^10.0.0-alpha.1"
 
 "@ethereumjs/rlp@^4.0.1":
   version "4.0.1"
@@ -159,6 +159,11 @@
   version "5.0.2"
   resolved "https://registry.yarnpkg.com/@ethereumjs/rlp/-/rlp-5.0.2.tgz#c89bd82f2f3bec248ab2d517ae25f5bbc4aac842"
   integrity sha512-DziebCdg4JpGlEqEdGgXmjqcFoJi+JGulUXwEjsZGAscAQ7MyD/7LE/GVCP29vEQxKc7AAwjT3A2ywHp2xfoCA==
+
+"@ethereumjs/rlp@^6.0.0-alpha.1":
+  version "6.0.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/rlp/-/rlp-6.0.0-alpha.1.tgz#d362f65730b14ac082896cdc2be19b35455fc428"
+  integrity sha512-l5If8J5PTEv8kuKbxv414y1n3e6gQUl4GlaG0job9Gqh9PWqbkZCL5TZ7K79TA2+TF/qnr5mUMfmHKBKT7ZULg==
 
 "@ethereumjs/tx@3.3.2":
   version "3.3.2"
@@ -176,13 +181,22 @@
     "@ethereumjs/common" "^2.6.4"
     ethereumjs-util "^7.1.5"
 
-"@ethereumjs/tx@file:ethereumjs-tx-5.4.0.tgz":
-  version "5.4.0"
-  resolved "file:ethereumjs-tx-5.4.0.tgz#b9ca930f15f434a39c625d68a2652e4f9adf9783"
+"@ethereumjs/tx@^6.0.0-alpha.1":
+  version "6.0.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/tx/-/tx-6.0.0-alpha.1.tgz#13dbccf9237161bb129d6797b534983de5591f91"
+  integrity sha512-Y74FRD8d3mkh70Yl5XwjLUyfmv11huhJrrwhWJSccFbUDvHFMN1kzJ7E/h5xjIF2bqKaBHIjYbtVOEt4gKrCyQ==
   dependencies:
-    "@ethereumjs/common" "^4.4.0"
-    "@ethereumjs/rlp" "^5.0.2"
-    "@ethereumjs/util" "^9.1.0"
+    "@ethereumjs/common" "^5.0.0-alpha.1"
+    "@ethereumjs/rlp" "^6.0.0-alpha.1"
+    "@ethereumjs/util" "^10.0.0-alpha.1"
+    ethereum-cryptography "^3.0.0"
+
+"@ethereumjs/util@^10.0.0-alpha.1":
+  version "10.0.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/util/-/util-10.0.0-alpha.1.tgz#718ecbfc5ce493f878bf9771eae2479e305bc68e"
+  integrity sha512-D2HinI9AGviGNYoCbZjRje+b6a5CsDbWAUSOSTdFzhBduxNjCBWcnJdYWEmMG5+tknJsH3vbhr81Mhj1BR823g==
+  dependencies:
+    "@ethereumjs/rlp" "^6.0.0-alpha.1"
     ethereum-cryptography "^3.0.0"
 
 "@ethereumjs/util@^8.1.0":
@@ -193,21 +207,6 @@
     "@ethereumjs/rlp" "^4.0.1"
     ethereum-cryptography "^2.0.0"
     micro-ftch "^0.3.1"
-
-"@ethereumjs/util@^9.1.0":
-  version "9.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/util/-/util-9.1.0.tgz#75e3898a3116d21c135fa9e29886565609129bce"
-  integrity sha512-XBEKsYqLGXLah9PNJbgdkigthkG7TAGvlD/sH12beMXEyHDyigfcbdvHhmLyDWgDyOJn4QwiQUaF7yeuhnjdog==
-  dependencies:
-    "@ethereumjs/rlp" "^5.0.2"
-    ethereum-cryptography "^2.2.1"
-
-"@ethereumjs/util@file:ethereumjs-util-9.1.0.tgz":
-  version "9.1.0"
-  resolved "file:ethereumjs-util-9.1.0.tgz#ed550c8a5daeaf8b8e40b524dc8c6f9679086ea3"
-  dependencies:
-    "@ethereumjs/rlp" "^5.0.2"
-    ethereum-cryptography "^3.0.0"
 
 "@ethersproject/abi@5.7.0", "@ethersproject/abi@^5.0.9", "@ethersproject/abi@^5.1.2", "@ethersproject/abi@^5.6.3", "@ethersproject/abi@^5.7.0":
   version "5.7.0"
@@ -5335,7 +5334,7 @@ ethereum-cryptography@^1.0.3:
     "@scure/bip32" "1.1.5"
     "@scure/bip39" "1.1.1"
 
-ethereum-cryptography@^2.0.0, ethereum-cryptography@^2.1.2, ethereum-cryptography@^2.2.1:
+ethereum-cryptography@^2.0.0, ethereum-cryptography@^2.1.2:
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/ethereum-cryptography/-/ethereum-cryptography-2.2.1.tgz#58f2810f8e020aecb97de8c8c76147600b0b8ccf"
   integrity sha512-r/W8lkHSiTLxUxW8Rf3u4HGB0xQweG2RyETjywylKZSzLWoWAijRz8WCuOtJ6wah+avllXBqZuk29HCCvhEIRg==

@@ -39,9 +39,9 @@
     "ci": "env && yarn depcheck && yarn preprocess && yarn lerna-test"
   },
   "dependencies": {
-    "@ethereumjs/common": "file:ethereumjs-common-4.4.0.tgz",
-    "@ethereumjs/tx": "file:ethereumjs-tx-5.4.0.tgz",
-    "@ethereumjs/util": "file:ethereumjs-util-9.1.0.tgz",
+    "@ethereumjs/common": "^5.0.0-alpha.1",
+    "@ethereumjs/tx": "^6.0.0-alpha.1",
+    "@ethereumjs/util": "^10.0.0-alpha.1",
     "@scure/bip32": "^1.5.0",
     "@typescript-eslint/eslint-plugin": "^5.33.0",
     "@typescript-eslint/parser": "^5.33.0",
