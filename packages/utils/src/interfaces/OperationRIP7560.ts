@@ -1,6 +1,5 @@
 import { OperationBase } from './OperationBase'
 import { BigNumberish, BytesLike } from 'ethers'
-import { EIP7702Authorization } from './EIP7702Authorization'
 
 export interface OperationRIP7560 extends OperationBase {
   chainId: BigNumberish

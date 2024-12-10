@@ -258,15 +258,21 @@ export class ValidationManager implements IValidationManager {
     // TODO: why don't we have 'provider' as a member in here?
     const provider = this.entryPoint.provider as JsonRpcProvider
     for (const authorization of authorizations) {
-      const sender = getEip7702AuthorizationSigner(authorization)
-      const currentDelegateeCode = await provider.getCode(sender)
+      const authSigner = getEip7702AuthorizationSigner(authorization)
+      const nonce = await provider.getTransactionCount(authSigner)
+      const authNonce: any = authorization.nonce
+      if (nonce !== BigNumber.from(authNonce.replace(/0x$/, '0x0')).toNumber()) {
+        continue
+      }
+      const currentDelegateeCode = await provider.getCode(authSigner)
       const newDelegateeCode = await provider.getCode(authorization.address)
+      // TODO should be: hexConcat(['0xef0100', authorization.address])
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
       if (noCurrentDelegation || changeDelegation) {
-        console.log('Adding state override:', { address: sender, code: newDelegateeCode.slice(0, 20) })
-        stateOverride[sender] = {
+        console.log('Adding state override:', { address: authSigner, code: newDelegateeCode.slice(0, 20) })
+        stateOverride[authSigner] = {
           code: newDelegateeCode
         }
       }

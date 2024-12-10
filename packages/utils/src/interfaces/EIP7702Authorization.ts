@@ -1,16 +1,22 @@
 import { BigNumberish } from 'ethers'
 import RLP from 'rlp'
-import { bytesToHex, ecrecover, hexToBigInt, hexToBytes, pubToAddress } from '@ethereumjs/util'
+import { bytesToHex, ecrecover, hexToBigInt, hexToBytes, PrefixedHexString, pubToAddress } from '@ethereumjs/util'
 import { AddressZero } from '../ERC4337Utils'
 import { keccak256 } from '@ethersproject/keccak256'
+import { hexlify } from 'ethers/lib/utils'
 
 export interface EIP7702Authorization {
-  chainId: BigNumberish,
-  address: string,
-  nonce: BigNumberish,
-  yParity: BigNumberish,
-  r: BigNumberish,
+  chainId: BigNumberish
+  address: string
+  nonce: BigNumberish
+  yParity: BigNumberish
+  r: BigNumberish
   s: BigNumberish
+}
+
+export function toRlpHex (s: any): PrefixedHexString {
+  // remove leading zeros (also, 0x0 returned as 0x)
+  return s.toString().replace(/0x0*/, '0x') as PrefixedHexString
 }
 
 export function getEip7702AuthorizationSigner (authorization: EIP7702Authorization): string {
@@ -18,9 +24,9 @@ export function getEip7702AuthorizationSigner (authorization: EIP7702Authorizati
     5,
     ...RLP.encode(
       [
-        authorization.chainId.toString(),
-        authorization.address.toString(),
-        authorization.nonce.toString()
+        toRlpHex(authorization.chainId),
+        toRlpHex(authorization.address),
+        toRlpHex(authorization.nonce)
       ]
     )
   ]

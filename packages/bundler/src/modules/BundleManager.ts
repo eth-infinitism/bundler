@@ -36,6 +36,7 @@ import { ChainConfig, Common, Hardfork, Mainnet } from '@ethereumjs/common'
 import { EOACode7702Transaction } from '@ethereumjs/tx'
 import { AuthorizationList, EOACode7702TxData } from '@ethereumjs/tx/src/types'
 import { PrefixedHexString } from '@ethereumjs/util'
+import { toRlpHex } from '@account-abstraction/utils/dist/src/interfaces/EIP7702Authorization'
 
 const debug = Debug('aa.exec.cron')
 
@@ -199,22 +200,16 @@ export class BundleManager implements IBundleManager {
       chainId: 1337
     }
     const common = new Common({ chain, eips: [2718, 2929, 2930, 7702] })
+
     const authorizationList: AuthorizationList = eip7702Tuples.map(it => {
       const res = {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion,@typescript-eslint/no-base-to-string
         chainId: `0x${parseInt(it.chainId.toString()).toString(16)}` as PrefixedHexString,
         address: it.address as PrefixedHexString,
-        nonce: it.nonce as PrefixedHexString,
-        yParity: it.yParity as PrefixedHexString,
+        nonce: toRlpHex(it.nonce as PrefixedHexString),
+        yParity: toRlpHex(it.yParity as PrefixedHexString),
         r: it.r as PrefixedHexString,
         s: it.s as PrefixedHexString
-      }
-      if (res.yParity === '0x0') {
-        // o, for fuck's sake!
-        res.yParity = '0x'
-      }
-      if (res.nonce === '0x0') {
-        throw new Error('ethereumjs/tx does not handle zero nonce!')
       }
       return res
     })
