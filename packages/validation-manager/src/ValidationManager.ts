@@ -276,7 +276,7 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getAuthorizationsStateOverride (
-    authorizations: EIP7702Authorization[]
+    authorizations: EIP7702Authorization[] = []
   ): Promise<{ [address: string]: { code: string } }> {
     const stateOverride: { [address: string]: { code: string } } = {}
     // TODO: why don't we have 'provider' as a member in here?

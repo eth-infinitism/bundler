@@ -1,7 +1,8 @@
 import debug from 'debug'
 import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { JsonRpcProvider, Log } from '@ethersproject/providers'
 import { EventFragment } from '@ethersproject/abi'
+import { JsonRpcProvider, Log } from '@ethersproject/providers'
+import { toNumber } from '@nomicfoundation/hardhat-network-helpers/dist/src/utils'
 
 import { MainnetConfig, PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
@@ -172,7 +173,7 @@ export class MethodHandlerERC4337 {
           authorizationList: userOp.authorizationList
         }
       ]
-    ).then(b => b.toNumber()).catch(err => {
+    ).then(b => toNumber(b)).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
@@ -196,7 +197,7 @@ export class MethodHandlerERC4337 {
     }
     await this._validateParameters(userOp, entryPointInput)
 
-    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList.length}`)
+    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList?.length}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }
