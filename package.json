@@ -20,7 +20,7 @@
     "runop": "yarn --cwd packages/bundler runop",
     "runop-goerli": "yarn runop --network goerli --unsafe",
     "create-all-deps": "jq '.dependencies,.devDependencies' packages/*/package.json |sort  -u > all.deps",
-    "depcheck": "lerna exec --no-bail --stream --parallel -- npx depcheck --ignores @account-abstraction/contracts,@openzeppelin/contracts,@uniswap/v3-periphery",
+    "depcheck": "lerna exec --no-bail --stream --parallel --ignore \"@account-abstraction/contracts\" -- npx depcheck --ignores=\"@account-abstraction/contracts,@openzeppelin/contracts,@uniswap/v3-periphery\"",
     "hardhat-node": "lerna run hardhat-node --stream --no-prefix --",
     "hardhat-deploy": "lerna run hardhat-deploy --stream --no-prefix --",
     "lerna-clear": "lerna run clear",
