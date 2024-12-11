@@ -187,7 +187,7 @@ export class BundleManager implements IBundleManager {
 
   // TODO: this is a temporary patch until ethers.js adds EIP-7702 support
   async _prepareEip7702Transaction (tx: PopulatedTransaction, eip7702Tuples: EIP7702Authorization[]): Promise<string> {
-    console.log('creating EIP-7702 transaction')
+    debug('creating EIP-7702 transaction')
     // TODO: read fields from the configuration
     // @ts-ignore
     const chain: ChainConfig = {
@@ -238,14 +238,12 @@ export class BundleManager implements IBundleManager {
     const privateKey = Buffer.from(
       // @ts-ignore
       this.signer.privateKey.slice(2),
-      // 'e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109',
       'hex'
     )
 
     const signedTx = objectTx.sign(privateKey)
     const encodedTx = signedTx.serialize()
     return hexlify(encodedTx)
-    // const senderAddress = signedTx.getSenderAddress().toString()
   }
 
   async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
@@ -424,13 +422,11 @@ export class BundleManager implements IBundleManager {
           continue mainLoop
         }
         if (existingAuthorization == null) {
-          // we should not add duplicate authorizations to the shared list
           sharedAuthorizationList.push(...entry.userOp.authorizationList)
         }
       }
 
-      const newBundleGas = entry.userOpMaxGas.add(bundleGas)
-      bundleGas = newBundleGas
+      bundleGas = bundleGas.add(entry.userOpMaxGas)
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas

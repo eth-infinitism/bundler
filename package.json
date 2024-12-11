@@ -42,7 +42,6 @@
     "@ethereumjs/common": "^5.0.0-alpha.1",
     "@ethereumjs/tx": "^6.0.0-alpha.1",
     "@ethereumjs/util": "^10.0.0-alpha.1",
-    "@scure/bip32": "^1.5.0",
     "@typescript-eslint/eslint-plugin": "^5.33.0",
     "@typescript-eslint/parser": "^5.33.0",
     "depcheck": "^1.4.3",

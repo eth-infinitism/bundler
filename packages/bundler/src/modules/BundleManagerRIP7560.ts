@@ -79,7 +79,8 @@ export class BundleManagerRIP7560 extends BundleManager {
    * @param minBaseFee
    * @param maxBundleGas
    * @param maxBundleSize
-   * @return EIP7702Tuple array is always empty as each individual RIP-7560 transaction performs its own authorizations
+   * @return An array of transactions included in the bundle.
+   * @return The EIP7702Authorization array is always empty as each individual RIP-7560 transaction performs its own authorizations.
    */
   async createBundle (
     minBaseFee: BigNumberish,

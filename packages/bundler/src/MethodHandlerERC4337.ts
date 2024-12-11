@@ -119,6 +119,9 @@ export class MethodHandlerERC4337 {
     entryPointInput: string,
     stateOverride?: StateOverride
   ): Promise<EstimateUserOpGasResult> {
+    if (!this.config.eip7702Support && userOp1.authorizationList != null && userOp1.authorizationList.length !== 0) {
+      throw new Error('EIP-7702 tuples are not supported')
+    }
     const userOp: UserOperation = {
       // default values for missing fields.
       maxFeePerGas: 0,
@@ -182,6 +185,9 @@ export class MethodHandlerERC4337 {
   }
 
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
+    if (!this.config.eip7702Support && userOp.authorizationList != null && userOp.authorizationList.length !== 0) {
+      throw new Error('EIP-7702 tuples are not supported')
+    }
     await this._validateParameters(userOp, entryPointInput)
 
     console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList.length}`)
