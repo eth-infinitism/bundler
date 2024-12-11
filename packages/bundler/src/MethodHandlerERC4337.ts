@@ -1,7 +1,10 @@
+import debug from 'debug'
 import { BigNumber, BigNumberish, Signer } from 'ethers'
 import { JsonRpcProvider, Log } from '@ethersproject/providers'
+import { EventFragment } from '@ethersproject/abi'
 
-import { BundlerConfig } from './BundlerConfig'
+import { MainnetConfig, PreVerificationGasCalculator } from '@account-abstraction/sdk'
+
 import {
   AddressZero,
   IEntryPoint,
@@ -22,10 +25,10 @@ import {
   tostr,
   unpackUserOp
 } from '@account-abstraction/utils'
+import { BundlerConfig } from './BundlerConfig'
+
 import { ExecutionManager } from './modules/ExecutionManager'
 import { StateOverride, UserOperationByHashResponse, UserOperationReceipt } from './RpcTypes'
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
-import { EventFragment } from '@ethersproject/abi'
 
 export const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
@@ -63,7 +66,8 @@ export class MethodHandlerERC4337 {
     readonly provider: JsonRpcProvider,
     readonly signer: Signer,
     readonly config: BundlerConfig,
-    readonly entryPoint: IEntryPoint
+    readonly entryPoint: IEntryPoint,
+    public preVerificationGasCalculator: PreVerificationGasCalculator
   ) {
   }
 
@@ -158,7 +162,7 @@ export class MethodHandlerERC4337 {
     } = returnInfo
 
     // todo: use simulateHandleOp for this too...
-    const callGasLimit = await this.provider.send(
+    let callGasLimit = await this.provider.send(
       'eth_estimateGas', [
         {
           from: this.entryPoint.address,
@@ -172,8 +176,10 @@ export class MethodHandlerERC4337 {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
+    // Results from 'estimateGas' assume making a standalone transaction and paying 21'000 gas extra for it
+    callGasLimit -= MainnetConfig.transactionGasStipend
 
-    const preVerificationGas = calcPreVerificationGas(userOp)
+    const preVerificationGas = this.preVerificationGasCalculator.estimatePreVerificationGas(userOp)
     const verificationGasLimit = BigNumber.from(preOpGas).toNumber()
     return {
       preVerificationGas,
@@ -190,7 +196,7 @@ export class MethodHandlerERC4337 {
     }
     await this._validateParameters(userOp, entryPointInput)
 
-    console.log(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList.length}`)
+    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList.length}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }

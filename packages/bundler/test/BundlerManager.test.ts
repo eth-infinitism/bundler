@@ -11,6 +11,7 @@ import {
   UserOperation,
   deployEntryPoint, IEntryPoint, DeterministicDeployer
 } from '@account-abstraction/utils'
+import { PreVerificationGasCalculator, MainnetConfig } from '@account-abstraction/sdk'
 
 import { ValidationManager, supportsDebugTraceCall } from '@account-abstraction/validation-manager'
 import { MempoolManager } from '../src/modules/MempoolManager'
@@ -36,6 +37,7 @@ describe('#BundlerManager', () => {
     DeterministicDeployer.init(provider)
 
     const config: BundlerConfig = {
+      chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -60,7 +62,8 @@ describe('#BundlerManager', () => {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     bm = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   })
@@ -92,6 +95,7 @@ describe('#BundlerManager', () => {
       const bundlerSigner = await createSigner()
       const _entryPoint = entryPoint.connect(bundlerSigner)
       const config: BundlerConfig = {
+        chainId: 1337,
         beneficiary: await bundlerSigner.getAddress(),
         entryPoint: _entryPoint.address,
         gasFactor: '0.2',
@@ -115,7 +119,8 @@ describe('#BundlerManager', () => {
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
-      const validMgr = new ValidationManager(_entryPoint, config.unsafe)
+      const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
+      const validMgr = new ValidationManager(_entryPoint, config.unsafe, preVerificationGasCalculator)
       const evMgr = new EventsManager(_entryPoint, mempoolMgr, repMgr)
       bundleMgr = new BundleManager(_entryPoint, _entryPoint.provider as JsonRpcProvider, _entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
       const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
@@ -127,7 +132,8 @@ describe('#BundlerManager', () => {
         provider,
         bundlerSigner,
         config,
-        _entryPoint
+        _entryPoint,
+        preVerificationGasCalculator
       )
     })
 

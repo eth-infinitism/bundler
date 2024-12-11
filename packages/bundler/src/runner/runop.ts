@@ -63,10 +63,7 @@ class Runner {
       entryPointAddress: this.entryPointAddress,
       factoryAddress: accountDeployer,
       owner: this.accountOwner,
-      index: this.index,
-      overheads: {
-        // perUserOp: 100000
-      }
+      index: this.index
     })
     return this
   }

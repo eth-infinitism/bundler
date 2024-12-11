@@ -1,4 +1,5 @@
 {
+  "chainId": 1337,
   "gasFactor": "1",
   "port": "3000",
   "privateApiPort": "3001",
@@ -8,8 +9,8 @@
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 30e6,
-  "minStake": "1" ,
-  "minUnstakeDelay": 0 ,
+  "minStake": "1",
+  "minUnstakeDelay": 0,
   "autoBundleInterval": 3,
   "autoBundleMempoolSize": 10,
   "rip7560": true,

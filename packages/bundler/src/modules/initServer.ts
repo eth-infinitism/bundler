@@ -20,6 +20,7 @@ import { BundleManagerRIP7560 } from './BundleManagerRIP7560'
 import { IBundleManager } from './IBundleManager'
 import { DepositManager } from './DepositManager'
 import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/src/types'
+import { PreVerificationGasCalculator, ChainConfigs } from '@account-abstraction/sdk'
 
 /**
  * initialize server modules.
@@ -27,15 +28,18 @@ import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/s
  * @param config
  * @param signer
  */
-export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
+export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager, PreVerificationGasCalculator] {
   const entryPoint = IEntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
+  const mergedPvgcConfig = Object.assign({}, ChainConfigs[config.chainId] ?? {}, config)
+  const preVerificationGasCalculator = new PreVerificationGasCalculator(mergedPvgcConfig)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {
-    validationManager = new ValidationManager(entryPoint, config.unsafe)
+    const tracerProvider = config.tracerRpcUrl == null ? undefined : getNetworkProvider(config.tracerRpcUrl)
+    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, tracerProvider)
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
@@ -52,5 +56,5 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   if (config.rip7560 && config.rip7560Mode === 'PUSH') {
     executionManager.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
   }
-  return [executionManager, eventsManager, reputationManager, mempoolManager]
+  return [executionManager, eventsManager, reputationManager, mempoolManager, preVerificationGasCalculator]
 }

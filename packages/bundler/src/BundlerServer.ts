@@ -199,7 +199,8 @@ export class BundlerServer {
     } = reqItem
     debug('>>', { jsonrpc, id, method, params })
     try {
-      const result = deepHexlify(await this.handleMethod(method, params))
+      const handleResult = await this.handleMethod(method, params)
+      const result = deepHexlify(handleResult)
       debug('sent', method, '-', result)
       debug('<<', { jsonrpc, id, result })
       return {
@@ -330,6 +331,12 @@ export class BundlerServer {
         break
       case 'debug_bundler_getStakeStatus':
         result = await this.debugHandler.getStakeStatus(params[0], params[1])
+        break
+      case 'debug_bundler_setConfiguration': {
+        const pvgc = await this.debugHandler._setConfiguration(params[0])
+        this.methodHandler.preVerificationGasCalculator = pvgc
+      }
+        result = {}
         break
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)

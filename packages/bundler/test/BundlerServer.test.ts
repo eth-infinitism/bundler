@@ -11,6 +11,7 @@ import {
   deployEntryPoint
 } from '@account-abstraction/utils'
 import { supportsDebugTraceCall, ValidationManager } from '@account-abstraction/validation-manager'
+import { PreVerificationGasCalculator, MainnetConfig } from '@account-abstraction/sdk'
 
 import { BundlerServer } from '../src/BundlerServer'
 import { createSigner } from './testUtils'
@@ -32,6 +33,7 @@ describe('BundleServer', function () {
     entryPoint = await deployEntryPoint(provider)
 
     const config: BundlerConfig = {
+      chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
       gasFactor: '0.2',
@@ -56,7 +58,8 @@ describe('BundleServer', function () {
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe)
+    const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)
@@ -66,7 +69,8 @@ describe('BundleServer', function () {
       provider,
       signer,
       config,
-      entryPoint
+      entryPoint,
+      preVerificationGasCalculator
     )
     const None: any = {}
     server = new BundlerServer(methodHandler, None, None, None, None, None)
@@ -98,7 +102,7 @@ describe('BundleServer', function () {
       callData: '0x',
       callGasLimit: 1e6,
       verificationGasLimit: 1e6,
-      preVerificationGas: 50000,
+      preVerificationGas: 60000,
       maxFeePerGas: 1e6,
       maxPriorityFeePerGas: 1e6,
       signature: '0x'

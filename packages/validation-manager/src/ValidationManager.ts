@@ -3,7 +3,7 @@ import { BigNumber } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
-import { calcPreVerificationGas } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import {
   AddressZero,
@@ -46,11 +46,33 @@ const VALID_UNTIL_FUTURE_SECONDS = 30
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
 
+/**
+ * ValidationManager is responsible for validating UserOperations.
+ * @param entryPoint - the entryPoint contract
+ * @param unsafe - if true, skip tracer for validation rules (validate only through eth_call)
+ * @param preVerificationGasCalculator - helper to calculate the correct 'preVerificationGas' for the current network conditions
+ * @param providerForTracer - if provided, use it for native bundlerCollectorTracer, and use main provider with "preStateTracer"
+ *  (relevant only if unsafe=false)
+ */
 export class ValidationManager implements IValidationManager {
   constructor (
     readonly entryPoint: IEntryPoint,
-    readonly unsafe: boolean
+    readonly unsafe: boolean,
+    readonly preVerificationGasCalculator: PreVerificationGasCalculator,
+    readonly providerForTracer?: JsonRpcProvider
   ) {
+  }
+
+  _getDebugConfiguration (): {
+    configuration: PreVerificationGasCalculatorConfig
+    entryPoint: IEntryPoint
+    unsafe: boolean
+  } {
+    return {
+      configuration: this.preVerificationGasCalculator.config,
+      entryPoint: this.entryPoint,
+      unsafe: this.unsafe
+    }
   }
 
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
@@ -138,7 +160,9 @@ export class ValidationManager implements IValidationManager {
     }, {
       tracer: bundlerCollectorTracer,
       stateOverrides
-    })
+    },
+    this.providerForTracer
+    )
 
     const lastResult = tracerResult.calls.slice(-1)[0]
     const data = (lastResult as ExitInfo).data
@@ -296,7 +320,6 @@ export class ValidationManager implements IValidationManager {
   /**
    * perform static checking on input parameters.
    * @param operation
-   * @param eip7702Tuples
    * @param entryPointInput
    * @param requireSignature
    * @param requireGasParams
@@ -333,10 +356,12 @@ export class ValidationManager implements IValidationManager {
     requireAddressAndFields(operation, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
     requireAddressAndFields(operation, 'factory', ['factoryData'])
 
-    if ((operation as UserOperation).preVerificationGas != null) {
-      const calcPreVerificationGas1 = calcPreVerificationGas(operation)
-      requireCond(BigNumber.from((operation as UserOperation).preVerificationGas).gte(calcPreVerificationGas1),
-        `preVerificationGas too low: expected at least ${calcPreVerificationGas1}`,
+    const preVerificationGas = (operation as UserOperation).preVerificationGas
+    if (preVerificationGas != null) {
+      const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
+        this.preVerificationGasCalculator.validatePreVerificationGas(operation as UserOperation)
+      requireCond(isPreVerificationGasValid,
+        `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
         ValidationErrors.InvalidFields)
     }
   }

@@ -67,7 +67,7 @@ export class DeterministicDeployer {
         to: DeterministicDeployer.deploymentSignerAddress,
         value: neededBalance,
         gasLimit: DeterministicDeployer.deploymentGasLimit
-      }).then(t=>t.wait())
+      }).then(async t => await t.wait())
     }
     const tx = await this.provider.send('eth_sendRawTransaction', [DeterministicDeployer.deploymentTransaction])
     await this.provider.waitForTransaction(tx)

@@ -23,11 +23,10 @@ import {
   getEip7702AuthorizationSigner,
   mergeStorageMap,
   packUserOp,
-  runContractScript
+  getUserOpHash
 } from '@account-abstraction/utils'
 
 import { EventsManager } from './EventsManager'
-import { GetUserOpHashes__factory } from '../types'
 import { IBundleManager } from './IBundleManager'
 import { MempoolEntry } from './MempoolEntry'
 import { MempoolManager } from './MempoolManager'
@@ -467,11 +466,8 @@ export class BundleManager implements IBundleManager {
 
   // helper function to get hashes of all UserOps
   async getUserOpHashes (userOps: UserOperation[]): Promise<string[]> {
-    const { userOpHashes } = await runContractScript(this.entryPoint.provider,
-      new GetUserOpHashes__factory(),
-      [this.entryPoint.address, userOps.map(packUserOp)])
-
-    return userOpHashes
+    const network = await this.entryPoint.provider.getNetwork()
+    return userOps.map(it => getUserOpHash(it, this.entryPoint.address, network.chainId))
   }
 
   async getPaymasterBalance (paymaster: string): Promise<BigNumber> {

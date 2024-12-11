@@ -30,7 +30,6 @@ export type NotPromise<T> = {
   [P in keyof T]: Exclude<T[P], Promise<any>>
 }
 
-
 // todo: remove this wrapper method?
 export function packAccountGasLimits (validationGasLimit: BigNumberish, callGasLimit: BigNumberish): string {
   return packUint(validationGasLimit, callGasLimit)

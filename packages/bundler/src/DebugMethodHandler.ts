@@ -1,9 +1,14 @@
-import { ExecutionManager } from './modules/ExecutionManager'
-import { ReputationDump, ReputationManager } from './modules/ReputationManager'
-import { MempoolManager } from './modules/MempoolManager'
-import { SendBundleReturn } from './modules/BundleManager'
-import { EventsManager } from './modules/EventsManager'
+import ow from 'ow'
+
 import { StakeInfo } from '@account-abstraction/utils'
+import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
+
+import { BundlerConfig, DebugBundlerConfigShape } from './BundlerConfig'
+import { EventsManager } from './modules/EventsManager'
+import { ExecutionManager } from './modules/ExecutionManager'
+import { MempoolManager } from './modules/MempoolManager'
+import { ReputationDump, ReputationManager } from './modules/ReputationManager'
+import { SendBundleReturn } from './modules/BundleManager'
 
 export class DebugMethodHandler {
   constructor (
@@ -75,5 +80,10 @@ export class DebugMethodHandler {
       isStaked: boolean
     }> {
     return await this.repManager.getStakeStatus(address, entryPoint)
+  }
+
+  async _setConfiguration (config: Partial<BundlerConfig>): Promise<PreVerificationGasCalculator> {
+    ow.object.exactShape(DebugBundlerConfigShape)
+    return await this.execManager._setConfiguration(config)
   }
 }

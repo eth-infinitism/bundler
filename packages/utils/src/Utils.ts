@@ -1,7 +1,7 @@
 // misc utilities for the various modules.
 
 import { BytesLike, ContractFactory, BigNumber, ethers } from 'ethers'
-import { defaultAbiCoder, hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
+import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 
@@ -217,7 +217,13 @@ export function sum (...args: BigNumberish[]): BigNumber {
  */
 export function getUserOpMaxCost (userOp: OperationBase): BigNumber {
   const preVerificationGas: BigNumberish = (userOp as UserOperation).preVerificationGas
-  return sum(preVerificationGas ?? 0, userOp.verificationGasLimit, userOp.callGasLimit, userOp.paymasterVerificationGasLimit ?? 0, userOp.paymasterPostOpGasLimit ?? 0).mul(userOp.maxFeePerGas)
+  return sum(
+    preVerificationGas ?? 0,
+    userOp.verificationGasLimit,
+    userOp.callGasLimit,
+    userOp.paymasterVerificationGasLimit ?? 0,
+    userOp.paymasterPostOpGasLimit ?? 0
+  ).mul(userOp.maxFeePerGas)
 }
 
 export function getPackedNonce (userOp: OperationBase): BigNumber {
@@ -226,7 +232,7 @@ export function getPackedNonce (userOp: OperationBase): BigNumber {
     // Either not RIP-7560 operation or not using RIP-7712 nonce
     return BigNumber.from(userOp.nonce)
   }
-  const packed = ethers.utils.solidityPack(["uint192", "uint64"], [nonceKey, userOp.nonce])
+  const packed = ethers.utils.solidityPack(['uint192', 'uint64'], [nonceKey, userOp.nonce])
   const bigNumberNonce = BigNumber.from(packed)
   return bigNumberNonce
 }
