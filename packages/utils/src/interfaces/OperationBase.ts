@@ -22,5 +22,5 @@ export interface OperationBase {
   verificationGasLimit: BigNumberish
   paymasterVerificationGasLimit?: BigNumberish
   paymasterPostOpGasLimit?: BigNumberish
-  authorizationList: EIP7702Authorization[]
+  authorizationList?: EIP7702Authorization[]
 }

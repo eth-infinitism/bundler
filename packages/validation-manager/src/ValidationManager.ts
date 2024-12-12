@@ -222,7 +222,7 @@ export class ValidationManager implements IValidationManager {
       addresses: [],
       hash: ''
     }
-    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(userOp.authorizationList)
+    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(userOp.authorizationList ?? [])
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
