@@ -23,7 +23,7 @@ import {
   getEip7702AuthorizationSigner,
   mergeStorageMap,
   packUserOp,
-  getUserOpHash
+  getUserOpHash, getAuthorizationList
 } from '@account-abstraction/utils'
 
 import { EventsManager } from './EventsManager'
@@ -410,7 +410,8 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-      for (const eip7702Authorization of entry.userOp.authorizationList ?? []) {
+      const authorizationList = getAuthorizationList(entry.userOp)
+      for (const eip7702Authorization of authorizationList) {
         const existingAuthorization = sharedAuthorizationList
           .find(it => {
             return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
@@ -420,8 +421,8 @@ export class BundleManager implements IBundleManager {
           // eslint-disable-next-line no-labels
           continue mainLoop
         }
-        if (existingAuthorization == null && entry.userOp.authorizationList != null) {
-          sharedAuthorizationList.push(...entry.userOp.authorizationList)
+        if (existingAuthorization == null && authorizationList.length > 0) {
+          sharedAuthorizationList.push(...authorizationList)
         }
       }
 

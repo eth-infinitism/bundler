@@ -124,7 +124,7 @@ export class MethodHandlerERC4337 {
     entryPointInput: string,
     stateOverride?: StateOverride
   ): Promise<EstimateUserOpGasResult> {
-    if (!this.config.eip7702Support && userOp1.authorizationList != null && userOp1.authorizationList.length !== 0) {
+    if (!this.config.eip7702Support && userOp1.eip7712auth != null) {
       throw new Error('EIP-7702 tuples are not supported')
     }
     const userOp: UserOperation = {
@@ -192,12 +192,12 @@ export class MethodHandlerERC4337 {
   }
 
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
-    if (!this.config.eip7702Support && userOp.authorizationList != null && userOp.authorizationList.length !== 0) {
+    if (!this.config.eip7702Support && userOp.eip7712auth != null) {
       throw new Error('EIP-7702 tuples are not supported')
     }
     await this._validateParameters(userOp, entryPointInput)
 
-    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList?.length}`)
+    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} ${userOp.eip7712auth != null ? 'eip-7702 auth' : ''}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }

@@ -174,8 +174,7 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
     callGasLimit,
     maxFeePerGas,
     maxPriorityFeePerGas,
-    signature: packed.signature,
-    authorizationList: []
+    signature: packed.signature
   }
   if (packed.initCode != null && packed.initCode.length > 2) {
     const factory = hexDataSlice(packed.initCode, 0, 20)

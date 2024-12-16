@@ -1,7 +1,5 @@
 import { BigNumberish, BytesLike } from 'ethers'
 
-import { EIP7702Authorization } from './EIP7702Authorization'
-
 /**
  * The operation interface that is shared by ERC-4337 and RIP-7560 types.
  */
@@ -22,5 +20,4 @@ export interface OperationBase {
   verificationGasLimit: BigNumberish
   paymasterVerificationGasLimit?: BigNumberish
   paymasterPostOpGasLimit?: BigNumberish
-  authorizationList?: EIP7702Authorization[]
 }
