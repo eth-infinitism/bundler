@@ -81,8 +81,9 @@ export class MempoolManager {
     )
     const packedNonce = getPackedNonce(entry.userOp)
     const index = this._findBySenderNonce(userOp.sender, packedNonce)
+    let oldEntry: MempoolEntry | undefined
     if (index !== -1) {
-      const oldEntry = this.mempool[index]
+      oldEntry = this.mempool[index]
       this.checkReplaceUserOp(oldEntry, entry)
       debug('replace userOp', userOp.sender, packedNonce)
       this.mempool[index] = entry
@@ -101,19 +102,22 @@ export class MempoolManager {
       }
       this.mempool.push(entry)
     }
+    if (oldEntry != null) {
+      this.updateSeenStatus(oldEntry.aggregator, oldEntry.userOp, senderInfo, -1)
+    }
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
 
-  private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo): void {
+  private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo, val = 1): void {
     try {
       this.reputationManager.checkStake('account', senderInfo)
       this.reputationManager.updateSeenStatus(userOp.sender)
     } catch (e: any) {
       if (!(e instanceof RpcError)) throw e
     }
-    this.reputationManager.updateSeenStatus(aggregator)
-    this.reputationManager.updateSeenStatus(userOp.paymaster)
-    this.reputationManager.updateSeenStatus(userOp.factory)
+    this.reputationManager.updateSeenStatus(aggregator, val)
+    this.reputationManager.updateSeenStatus(userOp.paymaster, val)
+    this.reputationManager.updateSeenStatus(userOp.factory, val)
   }
 
   // TODO: de-duplicate code
