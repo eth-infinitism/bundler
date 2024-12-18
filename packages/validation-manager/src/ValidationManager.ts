@@ -26,7 +26,7 @@ import {
   IEntryPoint,
   ValidationResultStructOutput,
   StakeInfoStructOutput,
-  OperationBase, OperationRIP7560
+  OperationBase, OperationRIP7560, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
@@ -35,6 +35,7 @@ import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
+import { Interface } from 'ethers/lib/utils'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -154,15 +155,11 @@ export class ValidationManager implements IValidationManager {
       }
     }, this.providerForTracer)
 
-    // console.log('wtf tracerResult', tracerResult)
-    // console.log('wtf decoded simulateValidation result', entryPointSimulations.decodeFunctionResult('simulateValidation', tracerResult.output))
-    // console.log('wtf decodeRevertReason', decodeRevertReason(tracerResult.output, false))
 
     // const lastResult = tracerResult.calls.slice(-1)[0]
     // const data = (lastResult as ExitInfo).data
     const data = tracerResult.output
     if (tracerResult.error != null && (tracerResult.error as string).includes('execution reverted')) {
-      console.log('wtf got revert')
       throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
     }
     // // Hack to handle SELFDESTRUCT until we fix entrypoint
@@ -226,9 +223,8 @@ export class ValidationManager implements IValidationManager {
       })
       console.log('wtf validation res', res)
       // todo fix
-      // console.log('wtf tracer res')
-      // console.dir(tracerResult, { depth: null })
       this.convertTracerResult(tracerResult, userOp)
+      console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
       [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint.address)
       // if no previous contract hashes, then calculate hashes of contracts
@@ -341,7 +337,6 @@ export class ValidationManager implements IValidationManager {
   // todo fix rest of the code to work with the new tracer result instead of adjusting it here
   convertTracerResult (tracerResult: any, userOp: UserOperation): BundlerTracerResult {
     const SENDER_CREATOR = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'.toLowerCase()
-    this.addFirstCall(tracerResult)
     // Before flattening we add top level addresses for calls from EntryPoint and from SENDER_CREATOR
     tracerResult.calls.forEach((call: {calls: any, to: any, topLevelTargetAddress: any}) => {
       call.topLevelTargetAddress = call.to
@@ -352,16 +347,13 @@ export class ValidationManager implements IValidationManager {
       }
     })
     tracerResult.calls = this.flattenCalls(tracerResult.calls)
-    tracerResult.calls.forEach((call: { to: any, from: any, opcodes: any, usedOpcodes: any, access: any, accessedSlots: any, extCodeAccessInfo: any, outOfGas: any, oog: any }) => {
-      // console.log('wtf is call.usedOpcodes', call.usedOpcodes)
+    tracerResult.calls.forEach((call: { topLevelTargetAddress: any, method: any, input: any, to: any, from: any, opcodes: any, usedOpcodes: any, access: any, accessedSlots: any, extCodeAccessInfo: any, outOfGas: any, oog: any }) => {
       call.opcodes = {}
       if (call.usedOpcodes != null) {
         Object.keys(call.usedOpcodes).forEach((opcode: string) => {
           call.opcodes[this.getOpcodeName(parseInt(opcode))] = 1
         })
       }
-      // console.log('wtf is call.opcodes', call.opcodes)
-      // call.topLevelTargetAddress = call.to
 
       if (call.access == null) {
         call.access = {}
@@ -390,31 +382,44 @@ export class ValidationManager implements IValidationManager {
       }
       call.extCodeAccessInfo = newExtCode
       call.oog = call.outOfGas
+
+      // Adding method name
+      if (call.topLevelTargetAddress == null && call.to.toLowerCase() === this.entryPoint.address.toLowerCase()) {
+        if (call.input.length <= 2) {
+          call.method = '0x'
+        } else {
+          const abi = Object.values([
+            ...SenderCreator__factory.abi,
+            ...IEntryPoint__factory.abi,
+            ...IPaymaster__factory.abi
+          ].reduce((set, entry) => {
+            const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
+            // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
+            return {
+              ...set,
+              [key]: entry
+            }
+          }, {})) as any
+          const xfaces = new Interface(abi)
+
+          function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
+            try {
+              return x()
+            } catch {
+              return def
+            }
+          }
+          const methodSig = call.input.slice(0, 10)
+          const method = callCatch(() => xfaces.getFunction(methodSig), methodSig)
+          call.method = method.name
+        }
+      }
     })
     // TODO: This is a hardcoded address of SenderCreator immutable member in EntryPoint. Any change in EntryPoint's code
     //  requires a change of this address.
-    // TODO remove this BS
     tracerResult.callsFromEntryPoint = tracerResult.calls.filter((call: { from: string }) => call.from.toLowerCase() === this.entryPoint.address.toLowerCase() || call.from.toLowerCase() === SENDER_CREATOR)
 
     return tracerResult
-  }
-
-  addFirstCall (tracerRes: any): void {
-    if (!Array.isArray(tracerRes.calls) || tracerRes.calls.length === 0) {
-      throw new Error("The 'calls' array must exist and have at least one element.")
-    }
-    const commonFields = Object.keys(tracerRes.calls[0])
-    // console.log('wtf commonFields', commonFields)
-    const topLevelCall = commonFields.reduce((call: any, field) => {
-      if (tracerRes[field] !== undefined) {
-        call[field] = tracerRes[field]
-      }
-      return call
-    }, {})
-    // console.log('wtf topLevelCall', topLevelCall)
-
-    // Insert the new object as the first element in the `calls` array
-    tracerRes.calls.splice(0, 0, topLevelCall)
   }
 
   flattenCalls (calls: any[]): any[] {

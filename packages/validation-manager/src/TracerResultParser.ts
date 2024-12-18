@@ -6,7 +6,7 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
-import { BundlerTracerResult, TopLevelCallInfo } from './BundlerCollectorTracer'
+import { BundlerTracerResult, MethodInfo, TopLevelCallInfo } from './BundlerCollectorTracer'
 import {
   IEntryPoint__factory,
   IPaymaster__factory,
@@ -216,7 +216,7 @@ export function tracerResultParser (
     throw new Error('Unexpected traceCall result: no calls from entrypoint.')
   }
   if (tracerResults.calls != null) {
-    const callStack = parseCallStack(tracerResults)
+    const callStack = tracerResults.calls.filter((call: any) => call.topLevelTargetAddress == null) as MethodInfo[]
     // [OP-052], [OP-053]
     const callInfoEntryPoint = callStack.find(call =>
       call.to?.toLowerCase() === entryPointAddress?.toLowerCase() && call.from?.toLowerCase() !== entryPointAddress?.toLowerCase() &&
@@ -256,16 +256,10 @@ export function tracerResultParser (
   }
 
   const entitySlots: { [addr: string]: Set<string> } = parseEntitySlots(stakeInfoEntities, tracerResults.keccak)
-  console.log('wtf is tracerResult callsFromEntryPoint', tracerResults.callsFromEntryPoint)
-  // console.dir(tracerResults.callsFromEntryPoint, { depth: null })
-  // console.log('wtf ###############################################')
-  // console.log('wtf is entitySlots', entitySlots)
-  // console.log('wtf is stakeInfoEntities', stakeInfoEntities)
-  // console.log('wtf is tracerResult calls', tracerResults.calls)
   Object.entries(stakeInfoEntities).forEach(([entityAddress, entStakes]) => {
     const entityTitle = getEntityTitle(userOp, entityAddress)
     const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter(
-      info => info.topLevelTargetAddress != null && info.topLevelTargetAddress.toLowerCase() === entityAddress.toLowerCase())
+      call => call.topLevelTargetAddress != null && call.topLevelTargetAddress.toLowerCase() === entityAddress.toLowerCase())
     entityCallsFromEntryPoint.forEach((entityCall) => {
       if (entityCall == null) {
         if (entityAddress.toLowerCase() === userOp.sender.toLowerCase()) {
@@ -291,13 +285,6 @@ export function tracerResultParser (
 function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string, entityTitle: string, entStakes: StakeInfo, entitySlots: { [addr: string]: Set<string> }, userOp: UserOperation, stakeInfoEntities: {[addr: string]: StakeInfo}, entryPointAddress: string, tracerResults: BundlerTracerResult): void {
   const opcodes = entityCall.opcodes
   const access = entityCall.access
-  // if (entityAddress.toLowerCase() === userOp.paymaster?.toLowerCase()) {
-  //   // console.log('wtf is paymaster access', access)
-  //   console.log('wtf is tracerResult paymaster currentNumLevel')
-  //   console.dir(entityCall, { depth: null })
-  //   // console.log('wtf is all tracerResults')
-  //   // console.dir(tracerResults, { depth: null })
-  // }
 
   // [OP-020]
   requireCond(!(entityCall.oog ?? false),
@@ -354,9 +341,6 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
     ].forEach(slot => {
       // slot associated with sender is allowed (e.g. token.balanceOf(sender)
       // but during initial UserOp (where there is an initCode), it is allowed only for staked entity
-      // if (addr.toLowerCase() === userOp.paymaster?.toLowerCase()) {
-      //   console.log('wtf is paymaster, slot ,entity', addr, slot, entityAddress.toLowerCase())
-      // }
       if (associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)) {
         if (userOp.factory != null && userOp.factory !== AddressZero) {
           // special case: account.validateUserOp is allowed to use assoc storage if factory is staked.
@@ -424,7 +408,7 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
   let illegalZeroCodeAccess: any
   for (const addr of Object.keys(entityCall.contractSize)) {
     // [OP-042]
-    if (addr !== userOp.sender.toLowerCase() && addr.toLowerCase() !== entryPointAddress.toLowerCase() && entityCall.contractSize[addr].contractSize <= 2) {
+    if (addr.toLowerCase() !== userOp.sender.toLowerCase() && addr.toLowerCase() !== entryPointAddress.toLowerCase() && entityCall.contractSize[addr].contractSize <= 2) {
       illegalZeroCodeAccess = entityCall.contractSize[addr]
       illegalZeroCodeAccess.address = addr
       break
