@@ -11,6 +11,7 @@ const debug = Debug('aa.tracer')
 // the name of the native tracer.
 // equivalent to the javascript "bundlerCollectorTracer".
 export const bundlerNativeTracerName = 'bundlerCollectorTracer'
+export const GethNativeTracerName = 'erc7562Tracer'
 
 /**
  * a function returning a LogTracer.
@@ -26,16 +27,17 @@ type LogTracerFunc = () => LogTracer
  * @param provider the network node to trace on
  * @param tx the transaction to trace
  * @param options the trace options
- * @param nativeTracerProvider if set, submit only preStateTracer to the network provider, and use this (second) provider with native tracer.
+ * @param prestateTracerProvider if set, submit only preStateTracer to the network provider, and use this (second) provider with native tracer.
  *  if null, then use javascript tracer on the first provider.
  */
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions, nativeTracerProvider?: JsonRpcProvider): Promise<TraceResult | any> {
+export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions, prestateTracerProvider?: JsonRpcProvider): Promise<TraceResult | any> {
   const tx1 = await resolveProperties(tx)
-  const traceOptions = tracer2string(options)
-  if (nativeTracerProvider != null) {
-    // there is a nativeTracerProvider: use it for the native tracer, but first we need preStateTracer from the main provider:
+  let traceOptions: TraceOptions
+  if (prestateTracerProvider != null) {
+    traceOptions = tracer2string(options)
+    // there is a prestateTracerProvider: use it for the native tracer, but first we need preStateTracer from the main provider:
     const preState: { [addr: string]: any } = await provider.send('debug_traceCall', [tx1, 'latest', { ...traceOptions, tracer: 'prestateTracer' }])
 
     // fix prestate to be valid "state overrides"
@@ -52,12 +54,17 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
       }
     }
 
-    const ret = await nativeTracerProvider.send('debug_traceCall', [tx1, 'latest', {
+    const ret = await prestateTracerProvider.send('debug_traceCall', [tx1, 'latest', {
       tracer: bundlerNativeTracerName,
       stateOverrides: preState
     }])
 
     return ret
+  } else if (options.tracer != null) {
+    traceOptions = tracer2string(options)
+  } else {
+    traceOptions = options
+    traceOptions.tracer = GethNativeTracerName
   }
 
   const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
