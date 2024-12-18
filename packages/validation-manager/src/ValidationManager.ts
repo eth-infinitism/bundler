@@ -28,7 +28,7 @@ import {
   packUserOp,
   requireAddressAndFields,
   requireCond,
-  runContractScript
+  runContractScript, getAuthorizationList
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
@@ -222,7 +222,7 @@ export class ValidationManager implements IValidationManager {
       addresses: [],
       hash: ''
     }
-    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(userOp.authorizationList ?? [])
+    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(getAuthorizationList(userOp))
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
