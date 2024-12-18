@@ -422,9 +422,6 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
 
   // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
   let illegalZeroCodeAccess: any
-  if (userOp.factory?.toLowerCase() === entityAddress.toLowerCase()) {
-    console.log('wtf contract size', entityCall.contractSize)
-  }
   for (const addr of Object.keys(entityCall.contractSize)) {
     // [OP-042]
     if (addr !== userOp.sender.toLowerCase() && addr.toLowerCase() !== entryPointAddress.toLowerCase() && entityCall.contractSize[addr].contractSize <= 2) {
