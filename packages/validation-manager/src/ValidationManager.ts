@@ -226,7 +226,9 @@ export class ValidationManager implements IValidationManager {
       })
       console.log('wtf validation res', res)
       // todo fix
-      this.convertTracerResult(tracerResult)
+      // console.log('wtf tracer res')
+      // console.dir(tracerResult, { depth: null })
+      this.convertTracerResult(tracerResult, userOp)
       let contractAddresses: string[]
       [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint.address)
       // if no previous contract hashes, then calculate hashes of contracts
@@ -337,10 +339,20 @@ export class ValidationManager implements IValidationManager {
   }
 
   // todo fix rest of the code to work with the new tracer result instead of adjusting it here
-  convertTracerResult (tracerResult: any): BundlerTracerResult {
+  convertTracerResult (tracerResult: any, userOp: UserOperation): BundlerTracerResult {
+    const SENDER_CREATOR = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'.toLowerCase()
     this.addFirstCall(tracerResult)
+    // Before flattening we add top level addresses for calls from EntryPoint and from SENDER_CREATOR
+    tracerResult.calls.forEach((call: {calls: any, to: any, topLevelTargetAddress: any}) => {
+      call.topLevelTargetAddress = call.to
+      if (call.to.toLowerCase() === SENDER_CREATOR && call.calls != null) {
+        call.calls.forEach((subcall: any) => {
+          subcall.topLevelTargetAddress = subcall.to
+        })
+      }
+    })
     tracerResult.calls = this.flattenCalls(tracerResult.calls)
-    tracerResult.calls.forEach((call: { opcodes: any, usedOpcodes: any, topLevelTargetAddress: any, to: any, access: any, accessedSlots: any, extCodeAccessInfo: any, outOfGas: any, oog: any }) => {
+    tracerResult.calls.forEach((call: { to: any, from: any, opcodes: any, usedOpcodes: any, access: any, accessedSlots: any, extCodeAccessInfo: any, outOfGas: any, oog: any }) => {
       // console.log('wtf is call.usedOpcodes', call.usedOpcodes)
       call.opcodes = {}
       if (call.usedOpcodes != null) {
@@ -349,7 +361,7 @@ export class ValidationManager implements IValidationManager {
         })
       }
       // console.log('wtf is call.opcodes', call.opcodes)
-      call.topLevelTargetAddress = call.to
+      // call.topLevelTargetAddress = call.to
 
       if (call.access == null) {
         call.access = {}
@@ -370,12 +382,19 @@ export class ValidationManager implements IValidationManager {
       if (call.extCodeAccessInfo == null) {
         call.extCodeAccessInfo = {}
       }
+      const newExtCode: any = {}
+      if (Array.isArray(call.extCodeAccessInfo)) {
+        call.extCodeAccessInfo.forEach((addr: any) => {
+          newExtCode[addr] = 1
+        })
+      }
+      call.extCodeAccessInfo = newExtCode
       call.oog = call.outOfGas
     })
     // TODO: This is a hardcoded address of SenderCreator immutable member in EntryPoint. Any change in EntryPoint's code
     //  requires a change of this address.
     // TODO remove this BS
-    tracerResult.callsFromEntryPoint = tracerResult.calls // .filter((call: { from: string }) => call.from.toLowerCase() === this.entryPoint.address.toLowerCase() || call.from.toLowerCase() === '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c')
+    tracerResult.callsFromEntryPoint = tracerResult.calls.filter((call: { from: string }) => call.from.toLowerCase() === this.entryPoint.address.toLowerCase() || call.from.toLowerCase() === SENDER_CREATOR)
 
     return tracerResult
   }
