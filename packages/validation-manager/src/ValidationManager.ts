@@ -155,7 +155,6 @@ export class ValidationManager implements IValidationManager {
       }
     }, this.providerForTracer)
 
-
     // const lastResult = tracerResult.calls.slice(-1)[0]
     // const data = (lastResult as ExitInfo).data
     const data = tracerResult.output
@@ -221,9 +220,10 @@ export class ValidationManager implements IValidationManager {
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
         throw e
       })
-      // console.log('wtf validation res', res)
+      // console.log('validation res', res)
       // todo fix
       this.convertTracerResult(tracerResult, userOp)
+      // console.log('tracer res')
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
       [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint.address)
@@ -351,7 +351,7 @@ export class ValidationManager implements IValidationManager {
       call.opcodes = {}
       if (call.usedOpcodes != null) {
         Object.keys(call.usedOpcodes).forEach((opcode: string) => {
-          call.opcodes[this.getOpcodeName(parseInt(opcode))] = 1
+          call.opcodes[this.getOpcodeName(parseInt(opcode))] = call.usedOpcodes[opcode]
         })
       }
 
@@ -388,7 +388,7 @@ export class ValidationManager implements IValidationManager {
         if (call.input.length <= 2) {
           call.method = '0x'
         } else {
-          const abi = Object.values([
+          const mergedAbi = Object.values([
             ...SenderCreator__factory.abi,
             ...IEntryPoint__factory.abi,
             ...IPaymaster__factory.abi
@@ -400,7 +400,7 @@ export class ValidationManager implements IValidationManager {
               [key]: entry
             }
           }, {})) as any
-          const xfaces = new Interface(abi)
+          const AbiInterfaces = new Interface(mergedAbi)
 
           function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
             try {
@@ -410,7 +410,7 @@ export class ValidationManager implements IValidationManager {
             }
           }
           const methodSig = call.input.slice(0, 10)
-          const method = callCatch(() => xfaces.getFunction(methodSig), methodSig)
+          const method = callCatch(() => AbiInterfaces.getFunction(methodSig), methodSig)
           call.method = method.name
         }
       }
@@ -419,7 +419,6 @@ export class ValidationManager implements IValidationManager {
     //  requires a change of this address.
     // TODO check why the filter fails test_ban_user_op_access_other_ops_sender_in_bundle
     tracerResult.callsFromEntryPoint = tracerResult.calls // .filter((call: { from: string }) => call.from.toLowerCase() === this.entryPoint.address.toLowerCase() || call.from.toLowerCase() === SENDER_CREATOR)
-    // console.log('wtf calls NOT from EntryPoint', tracerResult.calls.filter((call: { from: string }) => !(call.from.toLowerCase() === this.entryPoint.address.toLowerCase() || call.from.toLowerCase() === SENDER_CREATOR)))
 
     return tracerResult
   }

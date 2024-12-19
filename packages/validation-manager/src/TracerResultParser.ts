@@ -2,17 +2,14 @@
 // where xxx is OP/STO/COD/EP/SREP/EREP/UREP/ALT, and ### is a number
 // the validation rules are defined in erc-aa-validation.md
 import Debug from 'debug'
-import { BigNumber, BigNumberish } from 'ethers'
-import { hexZeroPad, Interface, keccak256 } from 'ethers/lib/utils'
+import { BigNumber } from 'ethers'
+import { hexZeroPad, keccak256 } from 'ethers/lib/utils'
 import { inspect } from 'util'
 
-import { BundlerTracerResult, MethodInfo, TopLevelCallInfo } from './BundlerCollectorTracer'
+import { AccessInfo, BundlerTracerResult, MethodInfo, TopLevelCallInfo } from './BundlerCollectorTracer'
 import {
-  IEntryPoint__factory,
-  IPaymaster__factory,
   OperationBase,
   RpcError,
-  SenderCreator__factory,
   StakeInfo,
   StorageMap,
   ValidationErrors,
@@ -24,102 +21,6 @@ import {
 import { ValidationResult } from './IValidationManager'
 
 const debug = Debug('aa.handler.opcodes')
-
-interface CallEntry {
-  to: string
-  from: string
-  type: string // call opcode
-  method: string // parsed method, or signash if unparsed
-  revert?: any // parsed output from REVERT
-  return?: any // parsed method output.
-  value?: BigNumberish
-}
-
-const abi = Object.values([
-  ...SenderCreator__factory.abi,
-  ...IEntryPoint__factory.abi,
-  ...IPaymaster__factory.abi
-].reduce((set, entry) => {
-  const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
-  // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
-  return {
-    ...set,
-    [key]: entry
-  }
-}, {})) as any
-
-/**
- * parse all call operation in the trace.
- * notes:
- * - entries are ordered by the return (so nested call appears before its outer call
- * - last entry is top-level return from "simulateValidation". it as ret and rettype, but no type or address
- * @param tracerResults
- */
-function parseCallStack (
-  tracerResults: BundlerTracerResult
-): CallEntry[] {
-  const xfaces = new Interface(abi)
-
-  function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
-    try {
-      return x()
-    } catch {
-      return def
-    }
-  }
-
-  const out: CallEntry[] = []
-  const stack: any[] = []
-  tracerResults.calls
-    .filter(x => !x.type.startsWith('depth'))
-    .forEach(c => {
-      if (c.type.match(/REVERT|RETURN/) != null) {
-        const top = stack.splice(-1)[0] ?? {
-          type: 'top',
-          method: 'validateUserOp'
-        }
-        const returnData: string = (c as any).data
-        if (top.type.match(/CREATE/) != null) {
-          out.push({
-            to: top.to,
-            from: top.from,
-            type: top.type,
-            method: '',
-            return: `len=${returnData.length}`
-          })
-        } else {
-          const method = callCatch(() => xfaces.getFunction(top.method), top.method)
-          if (c.type === 'REVERT') {
-            const parsedError = callCatch(() => xfaces.parseError(returnData), returnData)
-            out.push({
-              to: top.to,
-              from: top.from,
-              type: top.type,
-              method: method.name,
-              value: top.value,
-              revert: parsedError
-            })
-          } else {
-            const ret = callCatch(() => xfaces.decodeFunctionResult(method, returnData), returnData)
-            out.push({
-              to: top.to,
-              from: top.from,
-              type: top.type,
-              value: top.value,
-              method: method.name ?? method,
-              return: ret
-            })
-          }
-        }
-      } else {
-        stack.push(c)
-      }
-    })
-
-  // TODO: verify that stack is empty at the end.
-
-  return out
-}
 
 /**
  * slots associated with each entity.
@@ -367,42 +268,14 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
         const readWrite = isWrite ? 'write to' : 'read from'
         const transientStr = isTransient ? 'transient ' : ''
         requireCond(false,
-          `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, entityTitle)} slot ${slot}`,
+          `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, stakeInfoEntities)} slot ${slot}`,
           ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
       }
     })
 
-    // if addr is current account/paymaster/factory, then return that title
-    // otherwise, return addr as-is
-    function nameAddr (addr: string, currentEntity: string): string {
-      const [title] = Object.entries(stakeInfoEntities).find(([title, info]) =>
-        info?.addr.toLowerCase() === addr.toLowerCase()) ?? []
-
-      return title ?? addr
-    }
-
     requireCondAndStake(requireStakeSlot != null, entStakes,
-      `unstaked ${entityTitle} accessed ${nameAddr(addr, entityTitle)} slot ${requireStakeSlot}`)
+      `unstaked ${entityTitle} accessed ${nameAddr(addr, stakeInfoEntities)} slot ${requireStakeSlot}`, entityTitle, access)
   })
-
-  // check if the given entity is staked
-  function isStaked (entStake?: StakeInfo): boolean {
-    return entStake != null && BigNumber.from(1).lte(entStake.stake) && BigNumber.from(1).lte(entStake.unstakeDelaySec)
-  }
-
-  // helper method: if condition is true, then entity must be staked.
-  function requireCondAndStake (cond: boolean, entStake: StakeInfo | undefined, failureMessage: string): void {
-    if (!cond) {
-      return
-    }
-    if (entStake == null) {
-      throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
-    }
-    requireCond(isStaked(entStake),
-      failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStakes?.addr })
-
-    // TODO: check real minimum stake values
-  }
 
   // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
   let illegalZeroCodeAccess: any
@@ -432,11 +305,40 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
     `${entityTitle} accesses EntryPoint contract address ${entryPointAddress} with opcode ${illegalEntryPointCodeAccess}`,
     ValidationErrors.OpcodeValidation)
 
+  // Recursively handling all subcalls to check validation rules
   if (entityCall.calls != null) {
     entityCall.calls.forEach((call: any) => {
       processEntityCall(call, entityAddress, entityTitle, entStakes, entitySlots, userOp, stakeInfoEntities, entryPointAddress, tracerResults)
     })
   }
+}
+
+// helper method: if condition is true, then entity must be staked.
+function requireCondAndStake (cond: boolean, entStake: StakeInfo | undefined, failureMessage: string, entityTitle: string, access: { [address: string]: AccessInfo }): void {
+  if (!cond) {
+    return
+  }
+  if (entStake == null) {
+    throw new Error(`internal: ${entityTitle} not in userOp, but has storage accesses in ${JSON.stringify(access)}`)
+  }
+  requireCond(isStaked(entStake),
+    failureMessage, ValidationErrors.OpcodeValidation, { [entityTitle]: entStake?.addr })
+
+  // TODO: check real minimum stake values
+}
+
+// check if the given entity is staked
+function isStaked (entStake?: StakeInfo): boolean {
+  return entStake != null && BigNumber.from(1).lte(entStake.stake) && BigNumber.from(1).lte(entStake.unstakeDelaySec)
+}
+
+// if addr is current account/paymaster/factory, then return that title
+// otherwise, return addr as-is
+function nameAddr (addr: string, stakeInfoEntities: {[addr: string]: StakeInfo}): string {
+  const [title] = Object.entries(stakeInfoEntities).find(([title, info]) =>
+    info?.addr.toLowerCase() === addr.toLowerCase()) ?? []
+
+  return title ?? addr
 }
 
 // return true if the given slot is associated with the given address, given the known keccak operations:
