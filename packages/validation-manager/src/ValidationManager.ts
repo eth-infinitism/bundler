@@ -26,12 +26,12 @@ import {
   IEntryPoint,
   ValidationResultStructOutput,
   StakeInfoStructOutput,
-  OperationBase, OperationRIP7560, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
+  OperationBase, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
-import { BundlerTracerResult, ExitInfo } from './BundlerCollectorTracer'
-import { debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
+import { BundlerTracerResult } from './BundlerCollectorTracer'
+import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
