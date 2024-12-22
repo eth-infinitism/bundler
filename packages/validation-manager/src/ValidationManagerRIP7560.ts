@@ -3,10 +3,12 @@ import debug from 'debug'
 import { isAddress } from 'ethers/lib/utils'
 
 import {
+  IEntryPoint,
   OperationBase,
   OperationRIP7560,
   ReferencedCodeHashes,
-  getRIP7560TransactionHash, StakeInfo, IEntryPoint
+  StakeInfo,
+  getRIP7560TransactionHash
 } from '@account-abstraction/utils'
 import { IRip7560StakeManager } from '@account-abstraction/utils/dist/src/types'
 import { PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
@@ -76,7 +78,10 @@ export class ValidationManagerRIP7560 implements IValidationManager {
     }
   }
 
-  async validateUserOp (operation: OperationBase, previousCodeHashes?: ReferencedCodeHashes): Promise<ValidateUserOpResult> {
+  async validateUserOp (
+    operation: OperationBase,
+    previousCodeHashes?: ReferencedCodeHashes
+  ): Promise<ValidateUserOpResult> {
     const transaction = operation as OperationRIP7560
     // let storageMap: StorageMap = {}
     // let codeHashes: ReferencedCodeHashes = {

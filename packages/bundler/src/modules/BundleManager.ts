@@ -1,9 +1,9 @@
 import Debug from 'debug'
-import { BigNumber, BigNumberish, Signer } from 'ethers'
+import { BigNumber, BigNumberish, PopulatedTransaction, Signer } from 'ethers'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { Mutex } from 'async-mutex'
-import { isAddress } from 'ethers/lib/utils'
+import { hexlify, isAddress } from 'ethers/lib/utils'
 
 import {
   EmptyValidateUserOpResult,
@@ -13,12 +13,14 @@ import {
 
 import {
   AddressZero,
+  EIP7702Authorization,
   IEntryPoint,
   OperationBase,
   RpcError,
   StorageMap,
   UserOperation,
   ValidationErrors,
+  getEip7702AuthorizationSigner,
   mergeStorageMap,
   packUserOp,
   getUserOpHash
@@ -29,10 +31,18 @@ import { IBundleManager } from './IBundleManager'
 import { MempoolEntry } from './MempoolEntry'
 import { MempoolManager } from './MempoolManager'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
+import { ChainConfig, Common, Hardfork, Mainnet } from '@ethereumjs/common'
+import { EOACode7702Transaction } from '@ethereumjs/tx'
+import { AuthorizationList, EOACode7702TxData } from '@ethereumjs/tx/src/types'
+import { PrefixedHexString } from '@ethereumjs/util'
+import { toRlpHex } from '@account-abstraction/utils/dist/src/interfaces/EIP7702Authorization'
 
 const debug = Debug('aa.exec.cron')
 
 const THROTTLED_ENTITY_BUNDLE_COUNT = 4
+
+const TX_TYPE_EIP_7702 = 4
+const TX_TYPE_EIP_1559 = 2
 
 export interface SendBundleReturn {
   transactionHash: string
@@ -76,12 +86,12 @@ export class BundleManager implements IBundleManager {
       await this.handlePastEvents()
 
       // TODO: pass correct bundle limit parameters!
-      const [bundle, storageMap] = await this.createBundle(0, 0, 0)
+      const [bundle, eip7702Tuples, storageMap] = await this.createBundle(0, 0, 0)
       if (bundle.length === 0) {
         debug('sendNextBundle - no bundle to send')
       } else {
         const beneficiary = await this._selectBeneficiary()
-        const ret = await this.sendBundle(bundle as UserOperation[], beneficiary, storageMap)
+        const ret = await this.sendBundle(bundle as UserOperation[], eip7702Tuples, beneficiary, storageMap)
         debug(`sendNextBundle exit - after sent a bundle of ${bundle.length} `)
         return ret
       }
@@ -97,12 +107,13 @@ export class BundleManager implements IBundleManager {
    * after submitting the bundle, remove all UserOps from the mempool
    * @return SendBundleReturn the transaction and UserOp hashes on successful transaction, or null on failed transaction
    */
-  async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
+  async sendBundle (userOps: UserOperation[], eip7702Tuples: EIP7702Authorization[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
       // TODO: estimate is not enough. should trace with validation rules, to prevent on-chain revert.
+      const type = eip7702Tuples.length > 0 ? TX_TYPE_EIP_7702 : TX_TYPE_EIP_1559
       const tx = await this.entryPoint.populateTransaction.handleOps(userOps.map(packUserOp), beneficiary, {
-        type: 2,
+        type,
         nonce: await this.signer.getTransactionCount(),
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
         maxFeePerGas: feeData.maxFeePerGas ?? 0
@@ -116,6 +127,11 @@ export class BundleManager implements IBundleManager {
           signedTx, { knownAccounts: storageMap }
         ])
         debug('eth_sendRawTransactionConditional ret=', ret)
+      } else if (tx.type === TX_TYPE_EIP_7702) {
+        const ethereumJsTx = await this._prepareEip7702Transaction(tx, eip7702Tuples)
+        const res = await this.provider.send('eth_sendRawTransaction', [ethereumJsTx])
+        const rcpt = await this.provider.getTransactionReceipt(res)
+        ret = rcpt.transactionHash
       } else {
         const resp = await this.signer.sendTransaction(tx)
         const rcpt = await resp.wait()
@@ -168,6 +184,67 @@ export class BundleManager implements IBundleManager {
     }
   }
 
+  // TODO: this is a temporary patch until ethers.js adds EIP-7702 support
+  async _prepareEip7702Transaction (tx: PopulatedTransaction, eip7702Tuples: EIP7702Authorization[]): Promise<string> {
+    debug('creating EIP-7702 transaction')
+    // TODO: read fields from the configuration
+    // @ts-ignore
+    const chain: ChainConfig = {
+      bootstrapNodes: [],
+      defaultHardfork: Hardfork.Prague,
+      // consensus: undefined,
+      // genesis: undefined,
+      hardforks: Mainnet.hardforks,
+      name: '',
+      chainId: 1337
+    }
+    const common = new Common({ chain, eips: [2718, 2929, 2930, 7702] })
+
+    const authorizationList: AuthorizationList = eip7702Tuples.map(it => {
+      const res = {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion,@typescript-eslint/no-base-to-string
+        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}` as PrefixedHexString,
+        address: it.address as PrefixedHexString,
+        nonce: toRlpHex(it.nonce as PrefixedHexString),
+        yParity: toRlpHex(it.yParity as PrefixedHexString),
+        r: it.r as PrefixedHexString,
+        s: it.s as PrefixedHexString
+      }
+      return res
+    })
+    const txData: EOACode7702TxData = {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      nonce: `0x${tx.nonce!.toString(16)}`,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      to: tx.to!.toString() as PrefixedHexString,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      value: '0x0',
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      data: tx.data!.toString() as PrefixedHexString,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      chainId: `0x${tx.chainId!.toString(16)}`,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas!.toHexString() as PrefixedHexString,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      maxFeePerGas: tx.maxPriorityFeePerGas!.toHexString() as PrefixedHexString,
+      accessList: [],
+      authorizationList
+    }
+    // TODO: not clear why but 'eth_estimateGas' gives an 'execution reverted' error
+    // txData.gasLimit = await this.provider.send('eth_estimateGas', [txData])
+    txData.gasLimit = `0x${(10000000).toString(16)}`
+    const objectTx = new EOACode7702Transaction(txData, { common })
+    const privateKey = Buffer.from(
+      // @ts-ignore
+      this.signer.privateKey.slice(2),
+      'hex'
+    )
+
+    const signedTx = objectTx.sign(privateKey)
+    const encodedTx = signedTx.serialize()
+    return hexlify(encodedTx)
+  }
+
   async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
     if (reasonStr.startsWith('AA3')) {
       // [EREP-030] A staked account is accountable for failure in any entity
@@ -206,9 +283,10 @@ export class BundleManager implements IBundleManager {
     minBaseFee?: BigNumberish,
     maxBundleGas?: BigNumberish,
     maxBundleSize?: BigNumberish
-  ): Promise<[OperationBase[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Authorization[], StorageMap]> {
     const entries = this.mempoolManager.getSortedForInclusion()
     const bundle: OperationBase[] = []
+    const sharedAuthorizationList: EIP7702Authorization[] = []
 
     // paymaster deposit should be enough for all UserOps in the bundle.
     const paymasterDeposit: { [paymaster: string]: BigNumber } = {}
@@ -249,11 +327,13 @@ export class BundleManager implements IBundleManager {
         continue
       }
       // [GREP-020] - renamed from [SREP-030]
+      // @ts-ignore
       if (paymaster != null && (paymasterStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[paymaster] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled paymaster', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
       }
       // [GREP-020] - renamed from [SREP-030]
+      // @ts-ignore
       if (factory != null && (deployerStatus === ReputationStatus.THROTTLED ?? (stakedEntityCount[factory] ?? 0) > THROTTLED_ENTITY_BUNDLE_COUNT)) {
         debug('skipping throttled factory', entry.userOp.sender, (entry.userOp as any).nonce)
         continue
@@ -330,13 +410,41 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-      const newBundleGas = entry.userOpMaxGas.add(bundleGas)
-      bundleGas = newBundleGas
+      const mergeOk = this.mergeEip7702Authorizations(entry, sharedAuthorizationList)
+      if (!mergeOk) {
+        debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
+        continue
+      }
+
+      bundleGas = bundleGas.add(entry.userOpMaxGas)
       senders.add(entry.userOp.sender)
       bundle.push(entry.userOp)
       totalGas = newTotalGas
     }
-    return [bundle, storageMap]
+    return [bundle, sharedAuthorizationList, storageMap]
+  }
+
+  /**
+   * Merges the EIP-7702 authorizations from the given mempool entry into the provided authorization list.
+   *
+   * @param {MempoolEntry} entry - The mempool entry containing a list of UserOperation authorizations to be checked.
+   * @param {EIP7702Authorization[]} authList - The list of existing EIP-7702 authorizations to update.
+   * @return {boolean} - Returns `true` if the authorizations were successfully merged, otherwise `false`.
+   */
+  mergeEip7702Authorizations (entry: MempoolEntry, authList: EIP7702Authorization[]): boolean {
+    for (const eip7702Authorization of entry.userOp.authorizationList ?? []) {
+      const existingAuthorization = authList
+        .find(it => {
+          return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
+        })
+      if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
+        return false
+      }
+      if (existingAuthorization == null && entry.userOp.authorizationList != null) {
+        authList.push(...entry.userOp.authorizationList)
+      }
+    }
+    return true
   }
 
   _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
