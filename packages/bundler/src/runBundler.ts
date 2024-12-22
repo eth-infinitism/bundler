@@ -143,7 +143,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
         console.error('FATAL: --tracerRpcUrl requires the network provider to support prestateTracer')
         process.exit(1)
       }
-      const tracerProvider = new ethers.providers.JsonRpcProvider(config.tracerRpcUrl)
     } else {
       // check standard javascript tracer:
       if (!await supportsDebugTraceCall(provider as any, config.rip7560)) {
