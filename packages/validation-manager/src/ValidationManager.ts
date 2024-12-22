@@ -32,7 +32,7 @@ import {
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
-import { BundlerTracerResult, ExitInfo } from './BundlerCollectorTracer'
+import { bundlerCollectorTracer, BundlerTracerResult, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
@@ -153,20 +153,24 @@ export class ValidationManager implements IValidationManager {
       },
       ...stateOverride
     }
+    let tracer
+    if (!this.usingErc7562NativeTracer()) {
+      tracer = bundlerCollectorTracer
+    }
     const tracerResult = await debug_traceCall(provider, {
       from: AddressZero,
       to: this.entryPoint.address,
       data: simulateCall,
       gasLimit: simulationGas
     }, {
-      // tracer: bundlerCollectorTracer,
+      tracer,
       stateOverrides
     },
     this.providerForTracer
     )
 
     let data: any
-    if (this.providerForTracer != null) {
+    if (!this.usingErc7562NativeTracer()) {
       // Using preState tracer + JS tracer
       const lastResult = tracerResult.calls.slice(-1)[0]
       data = (lastResult as ExitInfo).data
@@ -242,7 +246,9 @@ export class ValidationManager implements IValidationManager {
       })
       // console.log('validation res', res)
       // todo fix
-      this.convertTracerResult(tracerResult, userOp)
+      if (this.usingErc7562NativeTracer()) {
+        this.convertTracerResult(tracerResult, userOp)
+      }
       // console.log('tracer res')
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
@@ -527,5 +533,9 @@ export class ValidationManager implements IValidationManager {
       0xFE: 'INVALID'
     }
     return opcodeNames[opcodeNumber] ?? opcodeNumber
+  }
+
+  usingErc7562NativeTracer (): boolean {
+    return this.providerForTracer == null
   }
 }
