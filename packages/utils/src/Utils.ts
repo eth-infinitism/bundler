@@ -171,7 +171,7 @@ export function mergeStorageMap (mergedStorageMap: StorageMap, validationStorage
       if (mergedStorageMap[addr] == null) {
         slots = mergedStorageMap[addr] = {}
       } else {
-        slots = mergedStorageMap[addr] as SlotMap
+        slots = mergedStorageMap[addr]
       }
 
       Object.entries(validationEntry).forEach(([slot, val]) => {

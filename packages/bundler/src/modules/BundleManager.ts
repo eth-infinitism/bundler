@@ -410,11 +410,11 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-        const mergeOk = this.mergeEip7702Authorizations(entry, sharedAuthorizationList)
-        if (!mergeOk) {
-          debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
-          continue
-        }
+      const mergeOk = this.mergeEip7702Authorizations(entry, sharedAuthorizationList)
+      if (!mergeOk) {
+        debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
+        continue
+      }
 
       bundleGas = bundleGas.add(entry.userOpMaxGas)
       senders.add(entry.userOp.sender)
