@@ -4,6 +4,7 @@ import { Deferrable } from '@ethersproject/properties'
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { resolveProperties } from 'ethers/lib/utils'
 import { OperationRIP7560, RpcError } from '@account-abstraction/utils'
+import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 // from:https://geth.ethereum.org/docs/rpc/ns-debug#javascript-based-tracing
 
 const debug = Debug('aa.tracer')
@@ -53,12 +54,11 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
         delete preState[key].storage
       }
     }
-
+    traceOptions.tracer = getTracerBodyString(bundlerCollectorTracer)
+    traceOptions.stateOverrides = preState
     const ret = await prestateTracerProvider.send('debug_traceCall', [tx1, 'latest', {
-      tracer: bundlerJSTracerName,
-      stateOverrides: preState
+      ...traceOptions
     }])
-
     return ret
   } else if (options.tracer != null) {
     traceOptions = tracer2string(options)
@@ -66,7 +66,6 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
     traceOptions = options
     traceOptions.tracer = GethNativeTracerName
   }
-
   const ret = await provider.send('debug_traceCall', [tx1, 'latest', traceOptions]).catch(e => {
     if (debug.enabled) {
       debug('ex=', e.error)

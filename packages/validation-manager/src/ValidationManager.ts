@@ -30,7 +30,7 @@ import {
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
-import { BundlerTracerResult } from './BundlerCollectorTracer'
+import { bundlerCollectorTracer, BundlerTracerResult, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
@@ -142,12 +142,17 @@ export class ValidationManager implements IValidationManager {
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
+    // let tracer: any
+    // if (this.providerForTracer != null) {
+    //   tracer = bundlerCollectorTracer
+    // }
     const tracerResult = await debug_traceCall(provider, {
       from: AddressZero,
       to: this.entryPoint.address,
       data: simulateCall,
       gasLimit: simulationGas
     }, {
+      // tracer,
       stateOverrides: {
         [this.entryPoint.address]: {
           code: EntryPointSimulationsJson.deployedBytecode
@@ -155,11 +160,20 @@ export class ValidationManager implements IValidationManager {
       }
     }, this.providerForTracer)
 
-    // const lastResult = tracerResult.calls.slice(-1)[0]
-    // const data = (lastResult as ExitInfo).data
-    const data = tracerResult.output
-    if (tracerResult.error != null && (tracerResult.error as string).includes('execution reverted')) {
-      throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
+    let data: any
+    if (this.providerForTracer != null) {
+      // Using preState tracer + JS tracer
+      const lastResult = tracerResult.calls.slice(-1)[0]
+      data = (lastResult as ExitInfo).data
+      if (lastResult.type === 'REVERT') {
+        throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
+      }
+    } else {
+      // Using Native tracer
+      data = tracerResult.output
+      if (tracerResult.error != null && (tracerResult.error as string).includes('execution reverted')) {
+        throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
+      }
     }
     // // Hack to handle SELFDESTRUCT until we fix entrypoint
     // if (data === '0x') {
