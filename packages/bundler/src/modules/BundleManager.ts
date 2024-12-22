@@ -410,20 +410,11 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-      for (const eip7702Authorization of entry.userOp.authorizationList ?? []) {
-        const existingAuthorization = sharedAuthorizationList
-          .find(it => {
-            return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
-          })
-        if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
+        const mergeOk = this.mergeEip7702Authorizations(entry, sharedAuthorizationList)
+        if (!mergeOk) {
           debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
-          // eslint-disable-next-line no-labels
-          continue mainLoop
+          continue
         }
-        if (existingAuthorization == null && entry.userOp.authorizationList != null) {
-          sharedAuthorizationList.push(...entry.userOp.authorizationList)
-        }
-      }
 
       bundleGas = bundleGas.add(entry.userOpMaxGas)
       senders.add(entry.userOp.sender)
@@ -431,6 +422,29 @@ export class BundleManager implements IBundleManager {
       totalGas = newTotalGas
     }
     return [bundle, sharedAuthorizationList, storageMap]
+  }
+
+  /**
+   * Merges the EIP-7702 authorizations from the given mempool entry into the provided authorization list.
+   *
+   * @param {MempoolEntry} entry - The mempool entry containing a list of UserOperation authorizations to be checked.
+   * @param {EIP7702Authorization[]} authList - The list of existing EIP-7702 authorizations to update.
+   * @return {boolean} - Returns `true` if the authorizations were successfully merged, otherwise `false`.
+   */
+  mergeEip7702Authorizations (entry: MempoolEntry, authList: EIP7702Authorization[]): boolean {
+    for (const eip7702Authorization of entry.userOp.authorizationList ?? []) {
+      const existingAuthorization = authList
+        .find(it => {
+          return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
+        })
+      if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
+        return false
+      }
+      if (existingAuthorization == null && entry.userOp.authorizationList != null) {
+        authList.push(...entry.userOp.authorizationList)
+      }
+    }
+    return true
   }
 
   _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
