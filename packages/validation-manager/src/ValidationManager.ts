@@ -8,25 +8,27 @@ import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from
 import {
   AddressZero,
   CodeHashGetter__factory,
+  EIP7702Authorization,
+  IEntryPoint,
+  IEntryPointSimulations__factory,
+  OperationBase,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
+  StakeInfoStructOutput,
   StorageMap,
   UserOperation,
   ValidationErrors,
+  ValidationResultStructOutput,
   decodeErrorReason,
+  decodeRevertReason,
   getAddr,
-  requireCond,
-  runContractScript,
+  getEip7702AuthorizationSigner,
+  mergeValidationDataValues,
   packUserOp,
   requireAddressAndFields,
-  decodeRevertReason,
-  mergeValidationDataValues,
-  IEntryPointSimulations__factory,
-  IEntryPoint,
-  ValidationResultStructOutput,
-  StakeInfoStructOutput,
-  OperationBase
+  requireCond,
+  runContractScript
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
@@ -134,13 +136,22 @@ export class ValidationManager implements IValidationManager {
     throw new Error(errorResult.errorName)
   }
 
-  async _geth_traceCall_SimulateValidation (operation: OperationBase): Promise<[ValidationResult, BundlerTracerResult]> {
+  async _geth_traceCall_SimulateValidation (
+    operation: OperationBase,
+    stateOverride: { [address: string]: { code: string } }
+  ): Promise<[ValidationResult, BundlerTracerResult]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
+    const stateOverrides = {
+      [this.entryPoint.address]: {
+        code: EntryPointSimulationsJson.deployedBytecode
+      },
+      ...stateOverride
+    }
     const tracerResult: BundlerTracerResult = await debug_traceCall(provider, {
       from: AddressZero,
       to: this.entryPoint.address,
@@ -148,12 +159,10 @@ export class ValidationManager implements IValidationManager {
       gasLimit: simulationGas
     }, {
       tracer: bundlerCollectorTracer,
-      stateOverrides: {
-        [this.entryPoint.address]: {
-          code: EntryPointSimulationsJson.deployedBytecode
-        }
-      }
-    }, this.providerForTracer)
+      stateOverrides
+    },
+    this.providerForTracer
+    )
 
     const lastResult = tracerResult.calls.slice(-1)[0]
     const data = (lastResult as ExitInfo).data
@@ -213,10 +222,11 @@ export class ValidationManager implements IValidationManager {
       addresses: [],
       hash: ''
     }
+    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(userOp.authorizationList ?? [])
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
-      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
+      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp, stateOverrideForEip7702).catch(e => {
         throw e
       })
       let contractAddresses: string[]
@@ -265,6 +275,35 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
+  async getAuthorizationsStateOverride (
+    authorizations: EIP7702Authorization[] = []
+  ): Promise<{ [address: string]: { code: string } }> {
+    const stateOverride: { [address: string]: { code: string } } = {}
+    // TODO: why don't we have 'provider' as a member in here?
+    const provider = this.entryPoint.provider as JsonRpcProvider
+    for (const authorization of authorizations) {
+      const authSigner = getEip7702AuthorizationSigner(authorization)
+      const nonce = await provider.getTransactionCount(authSigner)
+      const authNonce: any = authorization.nonce
+      if (nonce !== BigNumber.from(authNonce.replace(/0x$/, '0x0')).toNumber()) {
+        continue
+      }
+      const currentDelegateeCode = await provider.getCode(authSigner)
+      const newDelegateeCode = await provider.getCode(authorization.address)
+      // TODO should be: hexConcat(['0xef0100', authorization.address])
+      const noCurrentDelegation = currentDelegateeCode.length <= 2
+      // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
+      const changeDelegation = newDelegateeCode !== currentDelegateeCode
+      if (noCurrentDelegation || changeDelegation) {
+        console.log('Adding state override:', { address: authSigner, code: newDelegateeCode.slice(0, 20) })
+        stateOverride[authSigner] = {
+          code: newDelegateeCode
+        }
+      }
+    }
+    return stateOverride
+  }
+
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
     const { hash } = await runContractScript(
       this.entryPoint.provider,
@@ -280,19 +319,22 @@ export class ValidationManager implements IValidationManager {
 
   /**
    * perform static checking on input parameters.
-   * @param userOp
+   * @param operation
    * @param entryPointInput
    * @param requireSignature
    * @param requireGasParams
    */
-  validateInputParameters (userOp: OperationBase, entryPointInput?: string, requireSignature = true, requireGasParams = true): void {
+  validateInputParameters (
+    operation: OperationBase,
+    entryPointInput?: string,
+    requireSignature = true, requireGasParams = true): void {
     requireCond(entryPointInput != null, 'No entryPoint param', ValidationErrors.InvalidFields)
     requireCond(entryPointInput?.toLowerCase() === this.entryPoint.address.toLowerCase(),
       `The EntryPoint at "${entryPointInput}" is not supported. This bundler uses ${this.entryPoint.address}`,
       ValidationErrors.InvalidFields)
 
     // minimal sanity check: userOp exists, and all members are hex
-    requireCond(userOp != null, 'No UserOperation param', ValidationErrors.InvalidFields)
+    requireCond(operation != null, 'No UserOperation param', ValidationErrors.InvalidFields)
 
     const fields = ['sender', 'nonce', 'callData']
     if (requireSignature) {
@@ -302,22 +344,22 @@ export class ValidationManager implements IValidationManager {
       fields.push('preVerificationGas', 'verificationGasLimit', 'callGasLimit', 'maxFeePerGas', 'maxPriorityFeePerGas')
     }
     fields.forEach(key => {
-      const value: string = (userOp as any)[key]?.toString()
+      const value: string = (operation as any)[key]?.toString()
       requireCond(value != null,
-        'Missing userOp field: ' + key + ' ' + JSON.stringify(userOp),
+        'Missing userOp field: ' + key + ' ' + JSON.stringify(operation),
         ValidationErrors.InvalidFields)
       requireCond(value.match(HEX_REGEX) != null,
         `Invalid hex value for property ${key}:${value} in UserOp`,
         ValidationErrors.InvalidFields)
     })
 
-    requireAddressAndFields(userOp, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
-    requireAddressAndFields(userOp, 'factory', ['factoryData'])
+    requireAddressAndFields(operation, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
+    requireAddressAndFields(operation, 'factory', ['factoryData'])
 
-    const preVerificationGas = (userOp as UserOperation).preVerificationGas
+    const preVerificationGas = (operation as UserOperation).preVerificationGas
     if (preVerificationGas != null) {
       const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
-        this.preVerificationGasCalculator.validatePreVerificationGas(userOp as UserOperation)
+        this.preVerificationGasCalculator.validatePreVerificationGas(operation as UserOperation)
       requireCond(isPreVerificationGasValid,
         `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
         ValidationErrors.InvalidFields)

@@ -80,7 +80,8 @@ describe('UserOpMethodHandler', function () {
       rip7560: false,
       rip7560Mode: 'PULL',
       gethDevMode: false,
-      minUnstakeDelay: 0
+      minUnstakeDelay: 0,
+      eip7702Support: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -202,6 +203,7 @@ describe('UserOpMethodHandler', function () {
       // sendUserOperation is async, even in auto-mining. need to wait for it.
       const event = await waitFor(async () => await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(userOpHash)).then(ret => ret?.[0]))
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
       const transactionReceipt = await event!.getTransactionReceipt()
       assert.isNotNull(transactionReceipt)
       const logs = transactionReceipt.logs.filter(log => log.address === entryPoint.address)
@@ -343,7 +345,8 @@ describe('UserOpMethodHandler', function () {
         preVerificationGas: 50000,
         maxFeePerGas: 1e6,
         maxPriorityFeePerGas: 1e6,
-        signature: Buffer.from('emit-msg')
+        signature: Buffer.from('emit-msg'),
+        authorizationList: []
       }
       await entryPoint.depositTo(acc.address, { value: parseEther('1') })
       // await signer.sendTransaction({to:acc.address, value: parseEther('1')})

@@ -52,7 +52,8 @@ describe('BundleServer', function () {
       rip7560: false,
       rip7560Mode: 'PULL',
       gethDevMode: false,
-      minUnstakeDelay: 0
+      minUnstakeDelay: 0,
+      eip7702Support: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)

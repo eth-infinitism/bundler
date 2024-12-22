@@ -3,13 +3,17 @@ import Debug from 'debug'
 
 import {
   OperationBase,
-  ReferencedCodeHashes,
   RpcError,
   StakeInfo,
   ValidationErrors,
   getPackedNonce,
   requireCond
 } from '@account-abstraction/utils'
+import {
+  ValidateUserOpResult,
+  ValidationResult
+} from '@account-abstraction/validation-manager'
+
 import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
 
@@ -64,20 +68,15 @@ export class MempoolManager {
     skipValidation: boolean,
     userOp: OperationBase,
     userOpHash: string,
-    prefund: BigNumberish,
-    referencedContracts: ReferencedCodeHashes,
-    senderInfo: StakeInfo,
-    paymasterInfo?: StakeInfo,
-    factoryInfo?: StakeInfo,
-    aggregatorInfo?: StakeInfo
+    validationResult: ValidationResult
   ): void {
     const entry = new MempoolEntry(
       userOp,
       userOpHash,
-      prefund,
-      referencedContracts,
+      validationResult.returnInfo.prefund ?? 0,
+      (validationResult as ValidateUserOpResult).referencedContracts,
       skipValidation,
-      aggregatorInfo?.addr
+      validationResult.aggregatorInfo?.addr
     )
     const packedNonce = getPackedNonce(entry.userOp)
     const index = this._findBySenderNonce(userOp.sender, packedNonce)
@@ -89,7 +88,7 @@ export class MempoolManager {
     } else {
       debug('add userOp', userOp.sender, packedNonce)
       if (!skipValidation) {
-        this.checkReputation(senderInfo, paymasterInfo, factoryInfo, aggregatorInfo)
+        this.checkReputation(validationResult)
         this.checkMultipleRolesViolation(userOp)
       }
       this.incrementEntryCount(userOp.sender)
@@ -101,7 +100,7 @@ export class MempoolManager {
       }
       this.mempool.push(entry)
     }
-    this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
+    this.updateSeenStatus(validationResult.aggregatorInfo?.addr, userOp, validationResult.senderInfo)
   }
 
   private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo): void {
@@ -116,17 +115,13 @@ export class MempoolManager {
     this.reputationManager.updateSeenStatus(userOp.factory)
   }
 
-  // TODO: de-duplicate code
-  // TODO 2: use configuration parameters instead of hard-coded constants
   private checkReputation (
-    senderInfo: StakeInfo,
-    paymasterInfo?: StakeInfo,
-    factoryInfo?: StakeInfo,
-    aggregatorInfo?: StakeInfo): void {
-    this.checkReputationStatus('account', senderInfo)
-    this.checkReputationStatus('paymaster', paymasterInfo)
-    this.checkReputationStatus('deployer', factoryInfo)
-    this.checkReputationStatus('aggregator', aggregatorInfo)
+    validationResult: ValidationResult
+  ): void {
+    this.checkReputationStatus('account', validationResult.senderInfo)
+    this.checkReputationStatus('paymaster', validationResult.paymasterInfo)
+    this.checkReputationStatus('deployer', validationResult.factoryInfo)
+    this.checkReputationStatus('aggregator', validationResult.aggregatorInfo)
   }
 
   private checkMultipleRolesViolation (userOp: OperationBase): void {
@@ -282,7 +277,7 @@ export class MempoolManager {
     res.push(
       ...userOps.map(it => it.userOp.factory)
     )
-
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     return res.filter(it => it != null).map(it => (it as string).toLowerCase())
   }
 
