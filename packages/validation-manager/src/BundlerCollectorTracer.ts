@@ -59,6 +59,7 @@ export interface TopLevelCallInfo {
   contractSize: { [addr: string]: ContractSizeInfo }
   extCodeAccessInfo: { [addr: string]: string }
   oog?: boolean
+  calls?: []
 }
 
 /**
