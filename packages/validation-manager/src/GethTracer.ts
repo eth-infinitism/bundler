@@ -10,7 +10,7 @@ const debug = Debug('aa.tracer')
 
 // the name of the native tracer.
 // equivalent to the javascript "bundlerCollectorTracer".
-export const bundlerNativeTracerName = 'bundlerCollectorTracer'
+export const bundlerJSTracerName = 'bundlerCollectorTracer'
 export const GethNativeTracerName = 'erc7562Tracer'
 
 /**
@@ -55,7 +55,7 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
     }
 
     const ret = await prestateTracerProvider.send('debug_traceCall', [tx1, 'latest', {
-      tracer: bundlerNativeTracerName,
+      tracer: bundlerJSTracerName,
       stateOverrides: preState
     }])
 

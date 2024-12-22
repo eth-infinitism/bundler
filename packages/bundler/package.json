@@ -12,6 +12,7 @@
     "runop": "ts-node ./src/runner/runop.ts",
     "bundler": "TS_NODE_TRANSPILE_ONLY=1 ts-node ./src/exec.ts --config ./localconfig/bundler.config.json",
     "bundler-rip7560": "ts-node ./src/exec.ts --config ./localconfig/bundler.rip7560.config.json",
+    "bundler-eip7702": "ts-node ./src/exec.ts --config ./localconfig/bundler.eip7702.config.json",
     "clear": "rm -rf dist artifacts cache src/types",
     "hardhat-compile": "hardhat compile",
     "hardhat-node": "npx hardhat node --no-deploy",
