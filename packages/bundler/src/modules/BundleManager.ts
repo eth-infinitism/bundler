@@ -102,6 +102,33 @@ export class BundleManager implements IBundleManager {
     await this.eventsManager.handlePastEvents()
   }
 
+  // parse revert from FailedOp(index,str) or FailedOpWithRevert(uint256 opIndex, string reason, bytes inner);
+  // return undefined values on failure. to parse
+  parseFailedOpRevert (e: any): { opIndex?: number, reasonStr?: string } {
+    let parsedError: ErrorDescription
+    try {
+      let data = e.data?.data ?? e.data
+      // geth error body, packed in ethers exception object
+      const body = e?.error?.error?.body
+      if (body != null) {
+        const jsonBody = JSON.parse(body)
+        data = jsonBody.error.data?.data ?? jsonBody.error.data
+      }
+
+      parsedError = this.entryPoint.interface.parseError(data)
+    } catch (e1) {
+      return { opIndex: undefined, reasonStr: undefined }
+    }
+    const {
+      opIndex,
+      reason
+    } = parsedError.args
+    return {
+      opIndex,
+      reasonStr: reason.toString()
+    }
+  }
+
   /**
    * submit a bundle.
    * after submitting the bundle, remove all UserOps from the mempool
@@ -149,28 +176,16 @@ export class BundleManager implements IBundleManager {
         userOpHashes: hashes
       }
     } catch (e: any) {
-      let parsedError: ErrorDescription
-      try {
-        let data = e.data?.data ?? e.data
-        // geth error body, packed in ethers exception object
-        const body = e?.error?.error?.body
-        if (body != null) {
-          const jsonbody = JSON.parse(body)
-          data = jsonbody.error.data?.data ?? jsonbody.error.data
-        }
-
-        parsedError = this.entryPoint.interface.parseError(data)
-      } catch (e1) {
+      const {
+        opIndex,
+        reasonStr
+      } = this.parseFailedOpRevert(e)
+      if (opIndex == null || reasonStr == null) {
         this.checkFatal(e)
         console.warn('Failed handleOps, but non-FailedOp error', e)
         return
       }
-      const {
-        opIndex,
-        reason
-      } = parsedError.args
       const userOp = userOps[opIndex]
-      const reasonStr: string = reason.toString()
 
       const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
@@ -447,13 +462,26 @@ export class BundleManager implements IBundleManager {
     return true
   }
 
-  _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
+  async _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
     debug('failed 2nd validation:', e.message)
     // EREP-015: special case: if it is account/factory failure, then decreases paymaster's opsSeen
     if (paymaster != null && this._isAccountOrFactoryError(e)) {
       debug('don\'t blame paymaster', paymaster, ' for account/factory failure', e.message)
       this.reputationManager.updateSeenStatus(paymaster, -1)
     }
+
+    const {
+      opIndex,
+      reasonStr
+    } = this.parseFailedOpRevert(e)
+    if (opIndex == null || reasonStr == null) {
+      this.checkFatal(e)
+      console.warn('Failed handleOps, but non-FailedOp error', e)
+      return
+    }
+
+    const addr = await this._findEntityToBlame(reasonStr, entry.userOp as UserOperation)
+
     // failed validation. don't try anymore this userop
     this.mempoolManager.removeUserOp(entry.userOp)
   }
