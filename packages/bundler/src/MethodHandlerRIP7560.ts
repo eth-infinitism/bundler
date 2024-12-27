@@ -2,6 +2,7 @@ import { BigNumberish } from 'ethers'
 import { JsonRpcProvider, TransactionReceipt } from '@ethersproject/providers'
 import {
   AddressZero,
+  EIP7702Authorization,
   OperationBase,
   OperationRIP7560,
   StorageMap,
@@ -29,11 +30,18 @@ export class MethodHandlerRIP7560 {
     return getRIP7560TransactionHash(transaction)
   }
 
+  /**
+   * @param minBaseFee
+   * @param maxBundleGas
+   * @param maxBundleSize
+   * @return An array of transactions included in the bundle.
+   * @return The EIP7702Authorization array is always empty as each individual RIP-7560 transaction performs its own authorizations.
+   */
   async getRip7560Bundle (
     minBaseFee: BigNumberish,
     maxBundleGas: BigNumberish,
     maxBundleSize: BigNumberish
-  ): Promise<[OperationBase[], StorageMap]> {
+  ): Promise<[OperationBase[], EIP7702Authorization[], StorageMap]> {
     return await this.execManager.createBundle(minBaseFee, maxBundleGas, maxBundleSize)
   }
 

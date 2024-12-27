@@ -1,6 +1,12 @@
 import { BigNumber, BigNumberish } from 'ethers'
 
-import { IEntryPoint, OperationBase, ReferencedCodeHashes, StakeInfo, StorageMap } from '@account-abstraction/utils'
+import {
+  IEntryPoint,
+  OperationBase,
+  ReferencedCodeHashes,
+  StakeInfo,
+  StorageMap
+} from '@account-abstraction/utils'
 import { PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 /**

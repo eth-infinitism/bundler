@@ -1,7 +1,8 @@
 import debug from 'debug'
 import { BigNumber, BigNumberish, Signer } from 'ethers'
-import { JsonRpcProvider, Log } from '@ethersproject/providers'
 import { EventFragment } from '@ethersproject/abi'
+import { JsonRpcProvider, Log } from '@ethersproject/providers'
+import { toNumber } from '@nomicfoundation/hardhat-network-helpers/dist/src/utils'
 
 import { MainnetConfig, PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
@@ -118,7 +119,14 @@ export class MethodHandlerERC4337 {
    * @param entryPointInput
    * @param stateOverride
    */
-  async estimateUserOperationGas (userOp1: Partial<UserOperation>, entryPointInput: string, stateOverride?: StateOverride): Promise<EstimateUserOpGasResult> {
+  async estimateUserOperationGas (
+    userOp1: Partial<UserOperation>,
+    entryPointInput: string,
+    stateOverride?: StateOverride
+  ): Promise<EstimateUserOpGasResult> {
+    if (!this.config.eip7702Support && userOp1.authorizationList != null && userOp1.authorizationList.length !== 0) {
+      throw new Error('EIP-7702 tuples are not supported')
+    }
     const userOp: UserOperation = {
       // default values for missing fields.
       maxFeePerGas: 0,
@@ -146,17 +154,26 @@ export class MethodHandlerERC4337 {
 
     const returnInfo = decodeSimulateHandleOpResult(ret)
 
-    const { validAfter, validUntil } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
+    const {
+      validAfter,
+      validUntil
+    } = mergeValidationDataValues(returnInfo.accountValidationData, returnInfo.paymasterValidationData)
     const {
       preOpGas
     } = returnInfo
 
     // todo: use simulateHandleOp for this too...
-    let callGasLimit = await this.provider.estimateGas({
-      from: this.entryPoint.address,
-      to: userOp.sender,
-      data: userOp.callData
-    }).then(b => b.toNumber()).catch(err => {
+    let callGasLimit = await this.provider.send(
+      'eth_estimateGas', [
+        {
+          from: this.entryPoint.address,
+          to: userOp.sender,
+          data: userOp.callData,
+          // @ts-ignore
+          authorizationList: userOp.authorizationList
+        }
+      ]
+    ).then(b => toNumber(b)).catch(err => {
       const message = err.message.match(/reason="(.*?)"/)?.at(1) ?? 'execution reverted'
       throw new RpcError(message, ValidationErrors.UserOperationReverted)
     })
@@ -175,9 +192,12 @@ export class MethodHandlerERC4337 {
   }
 
   async sendUserOperation (userOp: UserOperation, entryPointInput: string): Promise<string> {
+    if (!this.config.eip7702Support && userOp.authorizationList != null && userOp.authorizationList.length !== 0) {
+      throw new Error('EIP-7702 tuples are not supported')
+    }
     await this._validateParameters(userOp, entryPointInput)
 
-    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''}`)
+    debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} EIP-7702TuplesSize=${userOp.authorizationList?.length}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
     return await this.entryPoint.getUserOpHash(packUserOp(userOp))
   }

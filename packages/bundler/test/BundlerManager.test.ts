@@ -56,7 +56,8 @@ describe('#BundlerManager', () => {
       rip7560: false,
       rip7560Mode: 'PULL',
       gethDevMode: false,
-      conditionalRpc: false
+      conditionalRpc: false,
+      eip7702Support: false
     }
 
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
@@ -77,7 +78,8 @@ describe('#BundlerManager', () => {
       verificationGasLimit: 7,
       maxFeePerGas: 8,
       maxPriorityFeePerGas: 9,
-      preVerificationGas: 10
+      preVerificationGas: 10,
+      authorizationList: []
     }
 
     const hash = await entryPoint.getUserOpHash(packUserOp(userOp))
@@ -112,7 +114,8 @@ describe('#BundlerManager', () => {
         rip7560: false,
         rip7560Mode: 'PULL',
         gethDevMode: false,
-        minUnstakeDelay: 0
+        minUnstakeDelay: 0,
+        eip7702Support: false
       }
       const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
       const mempoolMgr = new MempoolManager(repMgr)
@@ -158,7 +161,8 @@ describe('#BundlerManager', () => {
         verificationGasLimit: '0x50000',
         maxFeePerGas: '0x0',
         maxPriorityFeePerGas: '0x0',
-        preVerificationGas: '0x50000'
+        preVerificationGas: '0x50000',
+        authorizationList: []
       }
       const userOp1: UserOperation = {
         ...cEmptyUserOp,

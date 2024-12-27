@@ -31,6 +31,7 @@ export interface BundlerConfig {
   rip7560Mode: string
   gethDevMode: boolean
 
+  eip7702Support: boolean
   // Config overrides for PreVerificationGas calculation
   fixedGasOverhead?: number
   perUserOpGasOverhead?: number
@@ -68,6 +69,7 @@ export const BundlerConfigShape = {
   rip7560: ow.boolean,
   rip7560Mode: ow.string.oneOf(['PULL', 'PUSH']),
   gethDevMode: ow.boolean,
+  eip7702Support: ow.boolean,
 
   // Config overrides for PreVerificationGas calculation
   fixedGasOverhead: ow.optional.number,
@@ -103,5 +105,6 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   unsafe: false,
   conditionalRpc: false,
   minStake: MIN_STAKE_VALUE,
-  minUnstakeDelay: MIN_UNSTAKE_DELAY
+  minUnstakeDelay: MIN_UNSTAKE_DELAY,
+  eip7702Support: true
 }
