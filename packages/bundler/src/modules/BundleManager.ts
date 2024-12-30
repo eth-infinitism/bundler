@@ -105,6 +105,15 @@ export class BundleManager implements IBundleManager {
   // parse revert from FailedOp(index,str) or FailedOpWithRevert(uint256 opIndex, string reason, bytes inner);
   // return undefined values on failure. to parse
   parseFailedOpRevert (e: any): { opIndex?: number, reasonStr?: string } {
+    if (e.message != null) {
+      const match = e.message.match(/FailedOp\w*\((\d+),"(.*?)"/)
+      if (match != null) {
+        return {
+          opIndex: parseInt(match[1]),
+          reasonStr: match[2]
+        }
+      }
+    }
     let parsedError: ErrorDescription
     try {
       let data = e.data?.data ?? e.data
@@ -189,6 +198,9 @@ export class BundleManager implements IBundleManager {
 
       const addr = await this._findEntityToBlame(reasonStr, userOp)
       if (addr != null) {
+        this.reputationManager.updateSeenStatus(userOp.sender, -1)
+        this.reputationManager.updateSeenStatus(userOp.paymaster, -1)
+        this.reputationManager.updateSeenStatus(userOp.factory, -1)
         this.mempoolManager.removeBannedAddr(addr)
         this.reputationManager.crashedHandleOps(addr)
       } else {
@@ -263,11 +275,15 @@ export class BundleManager implements IBundleManager {
   async _findEntityToBlame (reasonStr: string, userOp: UserOperation): Promise<string | undefined> {
     if (reasonStr.startsWith('AA3')) {
       // [EREP-030] A staked account is accountable for failure in any entity
+      console.log(`${reasonStr}: staked account ${await this.isAccountStaked(userOp)} ? sender ${userOp.sender} : pm ${userOp.paymaster}`)
       return await this.isAccountStaked(userOp) ? userOp.sender : userOp.paymaster
     } else if (reasonStr.startsWith('AA2')) {
       // [EREP-020] A staked factory is "accountable" for account
+      // [EREP-015]: paymaster is not blamed for account/factory failure
+      console.log(`${reasonStr}: staked factory ${await this.isFactoryStaked(userOp)} ? factory ${userOp.factory} : sender ${userOp.sender}`)
       return await this.isFactoryStaked(userOp) ? userOp.factory : userOp.sender
     } else if (reasonStr.startsWith('AA1')) {
+      // [EREP-015]: paymaster is not blamed for account/factory failure
       // (can't have staked account during its creation)
       return userOp.factory
     }
@@ -367,7 +383,7 @@ export class BundleManager implements IBundleManager {
           console.warn('Skipping second validation for an injected debug operation, id=', entry.userOpHash)
         }
       } catch (e: any) {
-        this._handleSecondValidationException(e, paymaster, entry)
+        await this._handleSecondValidationException(e, paymaster, entry)
         continue
       }
 
@@ -462,13 +478,8 @@ export class BundleManager implements IBundleManager {
     return true
   }
 
-  async _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): void {
+  async _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): Promise<void> {
     debug('failed 2nd validation:', e.message)
-    // EREP-015: special case: if it is account/factory failure, then decreases paymaster's opsSeen
-    if (paymaster != null && this._isAccountOrFactoryError(e)) {
-      debug('don\'t blame paymaster', paymaster, ' for account/factory failure', e.message)
-      this.reputationManager.updateSeenStatus(paymaster, -1)
-    }
 
     const {
       opIndex,
@@ -476,11 +487,19 @@ export class BundleManager implements IBundleManager {
     } = this.parseFailedOpRevert(e)
     if (opIndex == null || reasonStr == null) {
       this.checkFatal(e)
-      console.warn('Failed handleOps, but non-FailedOp error', e)
+      console.warn('Failed validation, but non-FailedOp error', e)
+      this.mempoolManager.removeUserOp(entry.userOp)
       return
     }
 
     const addr = await this._findEntityToBlame(reasonStr, entry.userOp as UserOperation)
+    if (addr !== null) {
+      // undo all "updateSeen" of all entities, and only blame "addr":
+      this.reputationManager.updateSeenStatus(entry.userOp.sender, -1)
+      this.reputationManager.updateSeenStatus(entry.userOp.paymaster, -1)
+      this.reputationManager.updateSeenStatus(entry.userOp.factory, -1)
+      this.reputationManager.updateSeenStatus(addr, 1)
+    }
 
     // failed validation. don't try anymore this userop
     this.mempoolManager.removeUserOp(entry.userOp)

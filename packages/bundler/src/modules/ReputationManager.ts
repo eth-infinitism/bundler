@@ -115,7 +115,7 @@ export class ReputationManager {
       return
     }
     const entry = this._getOrCreate(addr)
-    entry.opsSeen += val
+    entry.opsSeen = Math.max(0, entry.opsSeen + val)
     debug('after seen+', val, addr, entry)
   }
 
