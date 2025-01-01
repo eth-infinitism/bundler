@@ -103,7 +103,7 @@ export class BundleManager implements IBundleManager {
   }
 
   // parse revert from FailedOp(index,str) or FailedOpWithRevert(uint256 opIndex, string reason, bytes inner);
-  // return undefined values on failure. to parse
+  // return undefined values on failure.
   parseFailedOpRevert (e: any): { opIndex?: number, reasonStr?: string } {
     if (e.message != null) {
       const match = e.message.match(/FailedOp\w*\((\d+),"(.*?)"/)
