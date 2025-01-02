@@ -3,7 +3,6 @@ import RLP from 'rlp'
 import { bytesToHex, ecrecover, hexToBigInt, hexToBytes, PrefixedHexString, pubToAddress } from '@ethereumjs/util'
 import { AddressZero } from '../ERC4337Utils'
 import { keccak256 } from '@ethersproject/keccak256'
-import { hexlify } from 'ethers/lib/utils'
 
 export interface EIP7702Authorization {
   chainId: BigNumberish
@@ -31,12 +30,13 @@ export function getEip7702AuthorizationSigner (authorization: EIP7702Authorizati
     )
   ]
   const messageHash = keccak256(rlpEncode) as `0x${string}`
-  // console.log('getEip7702AuthorizationSigner RLP:\n', hexlify(rlpEncode), rlpEncode.length)
-  // console.log('getEip7702AuthorizationSigner hash:\n', messageHash)
   const senderPubKey = ecrecover(
     hexToBytes(messageHash),
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     hexToBigInt(authorization.yParity.toString() as `0x${string}`),
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     hexToBytes(authorization.r.toString() as `0x${string}`),
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     hexToBytes(authorization.s.toString() as `0x${string}`)
   )
   const sender = bytesToHex(pubToAddress(senderPubKey))

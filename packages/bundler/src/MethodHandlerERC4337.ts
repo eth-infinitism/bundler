@@ -24,7 +24,7 @@ import {
   requireCond,
   simulationRpcParams,
   tostr,
-  unpackUserOp
+  unpackUserOp, getAuthorizationList
 } from '@account-abstraction/utils'
 import { BundlerConfig } from './BundlerConfig'
 
@@ -170,7 +170,7 @@ export class MethodHandlerERC4337 {
           to: userOp.sender,
           data: userOp.callData,
           // @ts-ignore
-          authorizationList: userOp.authorizationList
+          authorizationList: getAuthorizationList(userOp)
         }
       ]
     ).then(b => toNumber(b)).catch(err => {

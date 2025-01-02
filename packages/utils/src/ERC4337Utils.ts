@@ -200,7 +200,7 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
 
 /**
  * abi-encode the userOperation
- * @param op a PackedUserOp
+ * @param op1 a PackedUserOp
  * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */
