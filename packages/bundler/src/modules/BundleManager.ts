@@ -23,7 +23,7 @@ import {
   getEip7702AuthorizationSigner,
   mergeStorageMap,
   packUserOp,
-  getUserOpHash
+  getUserOpHash, getAuthorizationList
 } from '@account-abstraction/utils'
 
 import { EventsManager } from './EventsManager'
@@ -230,7 +230,7 @@ export class BundleManager implements IBundleManager {
     const authorizationList: AuthorizationList = eip7702Tuples.map(it => {
       const res = {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion,@typescript-eslint/no-base-to-string
-        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}` as PrefixedHexString,
+        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}`.replace(/0x0*/, '0x'),
         address: it.address as PrefixedHexString,
         nonce: toRlpHex(it.nonce as PrefixedHexString),
         yParity: toRlpHex(it.yParity as PrefixedHexString),
@@ -441,10 +441,20 @@ export class BundleManager implements IBundleManager {
       }
       mergeStorageMap(storageMap, validationResult.storageMap)
 
-      const mergeOk = this.mergeEip7702Authorizations(entry, sharedAuthorizationList)
-      if (!mergeOk) {
-        debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
-        continue
+      const authorizationList = getAuthorizationList(entry.userOp)
+      for (const eip7702Authorization of authorizationList) {
+        const existingAuthorization = sharedAuthorizationList
+          .find(it => {
+            return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
+          })
+        if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
+          debug('unable to add bundle as it relies on an EIP-7702 tuple that conflicts with other UserOperations')
+          // eslint-disable-next-line no-labels
+          continue mainLoop
+        }
+        if (existingAuthorization == null && authorizationList.length > 0) {
+          sharedAuthorizationList.push(...authorizationList)
+        }
       }
 
       bundleGas = bundleGas.add(entry.userOpMaxGas)
@@ -463,7 +473,8 @@ export class BundleManager implements IBundleManager {
    * @return {boolean} - Returns `true` if the authorizations were successfully merged, otherwise `false`.
    */
   mergeEip7702Authorizations (entry: MempoolEntry, authList: EIP7702Authorization[]): boolean {
-    for (const eip7702Authorization of entry.userOp.authorizationList ?? []) {
+    // TODO: need to replace
+    for (const eip7702Authorization of getAuthorizationList(entry.userOp)) {
       const existingAuthorization = authList
         .find(it => {
           return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
@@ -471,9 +482,9 @@ export class BundleManager implements IBundleManager {
       if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
         return false
       }
-      if (existingAuthorization == null && entry.userOp.authorizationList != null) {
-        authList.push(...entry.userOp.authorizationList)
-      }
+      // if (existingAuthorization == null && entry.userOp.authorizationList != null) {
+      //   authList.push(...getAuthorizationList(entry.userOp))
+      // }
     }
     return true
   }

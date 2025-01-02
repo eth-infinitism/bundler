@@ -174,8 +174,7 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
     callGasLimit,
     maxFeePerGas,
     maxPriorityFeePerGas,
-    signature: packed.signature,
-    authorizationList: []
+    signature: packed.signature
   }
   if (packed.initCode != null && packed.initCode.length > 2) {
     const factory = hexDataSlice(packed.initCode, 0, 20)
@@ -201,7 +200,7 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
 
 /**
  * abi-encode the userOperation
- * @param op a PackedUserOp
+ * @param op1 a PackedUserOp
  * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */

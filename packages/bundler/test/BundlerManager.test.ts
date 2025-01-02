@@ -78,8 +78,7 @@ describe('#BundlerManager', () => {
       verificationGasLimit: 7,
       maxFeePerGas: 8,
       maxPriorityFeePerGas: 9,
-      preVerificationGas: 10,
-      authorizationList: []
+      preVerificationGas: 10
     }
 
     const hash = await entryPoint.getUserOpHash(packUserOp(userOp))
@@ -161,8 +160,7 @@ describe('#BundlerManager', () => {
         verificationGasLimit: '0x50000',
         maxFeePerGas: '0x0',
         maxPriorityFeePerGas: '0x0',
-        preVerificationGas: '0x50000',
-        authorizationList: []
+        preVerificationGas: '0x50000'
       }
       const userOp1: UserOperation = {
         ...cEmptyUserOp,

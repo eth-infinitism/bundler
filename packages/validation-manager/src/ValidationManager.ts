@@ -11,6 +11,7 @@ import {
   EIP7702Authorization,
   IEntryPoint,
   IEntryPointSimulations__factory,
+  OperationBase,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
@@ -27,8 +28,7 @@ import {
   packUserOp,
   requireAddressAndFields,
   requireCond,
-  runContractScript,
-  OperationBase, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
+  runContractScript, getAuthorizationList, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
 } from '@account-abstraction/utils'
 
 import { tracerResultParser } from './TracerResultParser'
@@ -237,7 +237,18 @@ export class ValidationManager implements IValidationManager {
       addresses: [],
       hash: ''
     }
-    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(userOp.authorizationList ?? [])
+    const authorizationList = getAuthorizationList(userOp)
+    if (authorizationList.length > 0) {
+      // relevant only for RIP-7562...
+      requireCond(authorizationList.length === 1, 'Only one authorization is supported', ValidationErrors.InvalidFields)
+
+      const currentChainId = BigNumber.from((this.entryPoint.provider as any)._network.chainId)
+      const authChainId = BigNumber.from(authorizationList[0].chainId)
+      requireCond(authChainId.eq(BigNumber.from(0)) ||
+        authChainId.eq(currentChainId), `Invalid chainId in authorization`, ValidationErrors.InvalidFields)
+      requireCond(getEip7702AuthorizationSigner(authorizationList[0]).toLowerCase() === userOp.sender.toLowerCase(), 'Authorization signer is not sender', ValidationErrors.InvalidFields)
+    }
+    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let tracerResult: BundlerTracerResult
