@@ -230,7 +230,7 @@ export class BundleManager implements IBundleManager {
     const authorizationList: AuthorizationList = eip7702Tuples.map(it => {
       const res = {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion,@typescript-eslint/no-base-to-string
-        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}`.replace(/0x0*/, '0x'),
+        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}`.replace(/0x0*/, '0x') as PrefixedHexString,
         address: it.address as PrefixedHexString,
         nonce: toRlpHex(it.nonce as PrefixedHexString),
         yParity: toRlpHex(it.yParity as PrefixedHexString),

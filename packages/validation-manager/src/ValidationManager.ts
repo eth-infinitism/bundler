@@ -245,7 +245,7 @@ export class ValidationManager implements IValidationManager {
       const currentChainId = BigNumber.from((this.entryPoint.provider as any)._network.chainId)
       const authChainId = BigNumber.from(authorizationList[0].chainId)
       requireCond(authChainId.eq(BigNumber.from(0)) ||
-        authChainId.eq(currentChainId), `Invalid chainId in authorization`, ValidationErrors.InvalidFields)
+        authChainId.eq(currentChainId), 'Invalid chainId in authorization', ValidationErrors.InvalidFields)
       requireCond(getEip7702AuthorizationSigner(authorizationList[0]).toLowerCase() === userOp.sender.toLowerCase(), 'Authorization signer is not sender', ValidationErrors.InvalidFields)
     }
     const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
