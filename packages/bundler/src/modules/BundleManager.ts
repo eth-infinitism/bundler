@@ -228,38 +228,36 @@ export class BundleManager implements IBundleManager {
     const common = new Common({ chain, eips: [2718, 2929, 2930, 7702] })
 
     const authorizationList: AuthorizationList = eip7702Tuples.map(it => {
-      const res = {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion,@typescript-eslint/no-base-to-string
-        chainId: `0x${parseInt(it.chainId.toString()).toString(16)}`.replace(/0x0*/, '0x') as PrefixedHexString,
-        address: it.address as PrefixedHexString,
-        nonce: toRlpHex(it.nonce as PrefixedHexString),
-        yParity: toRlpHex(it.yParity as PrefixedHexString),
-        r: it.r as PrefixedHexString,
-        s: it.s as PrefixedHexString
+      return {
+        chainId: toRlpHex(it.chainId),
+        address: toRlpHex(it.address),
+        nonce: toRlpHex(it.nonce),
+        yParity: toRlpHex(it.yParity),
+        r: toRlpHex(it.r),
+        s: toRlpHex(it.s)
       }
-      return res
     })
     const txData: EOACode7702TxData = {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      nonce: `0x${tx.nonce!.toString(16)}`,
+      nonce: hexlify(tx.nonce!) as PrefixedHexString,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      to: tx.to!.toString() as PrefixedHexString,
+      to: hexlify(tx.to!) as PrefixedHexString,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       value: '0x0',
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      data: tx.data!.toString() as PrefixedHexString,
+      data: hexlify(tx.data!) as PrefixedHexString,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      chainId: `0x${tx.chainId!.toString(16)}`,
+      chainId: hexlify(tx.chainId!) as PrefixedHexString,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      maxPriorityFeePerGas: tx.maxPriorityFeePerGas!.toHexString() as PrefixedHexString,
+      maxPriorityFeePerGas: hexlify(tx.maxPriorityFeePerGas!) as PrefixedHexString,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      maxFeePerGas: tx.maxPriorityFeePerGas!.toHexString() as PrefixedHexString,
+      maxFeePerGas: hexlify(tx.maxPriorityFeePerGas!) as PrefixedHexString,
       accessList: [],
       authorizationList
     }
     // TODO: not clear why but 'eth_estimateGas' gives an 'execution reverted' error
     // txData.gasLimit = await this.provider.send('eth_estimateGas', [txData])
-    txData.gasLimit = `0x${(10000000).toString(16)}`
+    txData.gasLimit = 10_000_000
     const objectTx = new EOACode7702Transaction(txData, { common })
     const privateKey = Buffer.from(
       // @ts-ignore
@@ -463,30 +461,6 @@ export class BundleManager implements IBundleManager {
       totalGas = newTotalGas
     }
     return [bundle, sharedAuthorizationList, storageMap]
-  }
-
-  /**
-   * Merges the EIP-7702 authorizations from the given mempool entry into the provided authorization list.
-   *
-   * @param {MempoolEntry} entry - The mempool entry containing a list of UserOperation authorizations to be checked.
-   * @param {EIP7702Authorization[]} authList - The list of existing EIP-7702 authorizations to update.
-   * @return {boolean} - Returns `true` if the authorizations were successfully merged, otherwise `false`.
-   */
-  mergeEip7702Authorizations (entry: MempoolEntry, authList: EIP7702Authorization[]): boolean {
-    // TODO: need to replace
-    for (const eip7702Authorization of getAuthorizationList(entry.userOp)) {
-      const existingAuthorization = authList
-        .find(it => {
-          return getEip7702AuthorizationSigner(it) === getEip7702AuthorizationSigner(eip7702Authorization)
-        })
-      if (existingAuthorization != null && existingAuthorization.address.toLowerCase() !== eip7702Authorization.address.toLowerCase()) {
-        return false
-      }
-      // if (existingAuthorization == null && entry.userOp.authorizationList != null) {
-      //   authList.push(...getAuthorizationList(entry.userOp))
-      // }
-    }
-    return true
   }
 
   async _handleSecondValidationException (e: any, paymaster: string | undefined, entry: MempoolEntry): Promise<void> {

@@ -56,12 +56,14 @@ const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
  *  (relevant only if unsafe=false)
  */
 export class ValidationManager implements IValidationManager {
+  private readonly provider: JsonRpcProvider
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean,
     readonly preVerificationGasCalculator: PreVerificationGasCalculator,
     readonly providerForTracer?: JsonRpcProvider
   ) {
+    this.provider = this.entryPoint.provider as JsonRpcProvider
   }
 
   _getDebugConfiguration (): {
@@ -118,8 +120,7 @@ export class ValidationManager implements IValidationManager {
       }
     }
     try {
-      const provider = this.entryPoint.provider as JsonRpcProvider
-      const simulationResult = await provider.send('eth_call', [tx, 'latest', stateOverride])
+      const simulationResult = await this.provider.send('eth_call', [tx, 'latest', stateOverride])
       const [res] = entryPointSimulations.decodeFunctionResult('simulateValidation', simulationResult) as ValidationResultStructOutput[]
 
       return this.parseValidationResult(userOp, res)
@@ -242,10 +243,10 @@ export class ValidationManager implements IValidationManager {
       // relevant only for RIP-7562...
       requireCond(authorizationList.length === 1, 'Only one authorization is supported', ValidationErrors.InvalidFields)
 
-      const currentChainId = BigNumber.from((this.entryPoint.provider as any)._network.chainId)
+      const chainId = await this.provider.getNetwork().then(n => n.chainId)
       const authChainId = BigNumber.from(authorizationList[0].chainId)
       requireCond(authChainId.eq(BigNumber.from(0)) ||
-        authChainId.eq(currentChainId), 'Invalid chainId in authorization', ValidationErrors.InvalidFields)
+        authChainId.eq(chainId), 'Invalid chainId in authorization', ValidationErrors.InvalidFields)
       requireCond(getEip7702AuthorizationSigner(authorizationList[0]).toLowerCase() === userOp.sender.toLowerCase(), 'Authorization signer is not sender', ValidationErrors.InvalidFields)
     }
     const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
@@ -312,17 +313,15 @@ export class ValidationManager implements IValidationManager {
     authorizations: EIP7702Authorization[] = []
   ): Promise<{ [address: string]: { code: string } }> {
     const stateOverride: { [address: string]: { code: string } } = {}
-    // TODO: why don't we have 'provider' as a member in here?
-    const provider = this.entryPoint.provider as JsonRpcProvider
     for (const authorization of authorizations) {
       const authSigner = getEip7702AuthorizationSigner(authorization)
-      const nonce = await provider.getTransactionCount(authSigner)
+      const nonce = await this.provider.getTransactionCount(authSigner)
       const authNonce: any = authorization.nonce
       if (nonce !== BigNumber.from(authNonce.replace(/0x$/, '0x0')).toNumber()) {
         continue
       }
-      const currentDelegateeCode = await provider.getCode(authSigner)
-      const newDelegateeCode = await provider.getCode(authorization.address)
+      const currentDelegateeCode = await this.provider.getCode(authSigner)
+      const newDelegateeCode = await this.provider.getCode(authorization.address)
       // TODO should be: hexConcat(['0xef0100', authorization.address])
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
