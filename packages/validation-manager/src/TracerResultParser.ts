@@ -91,7 +91,8 @@ function getEntityTitle (userOp: OperationBase, entityAddress: string): string {
 }
 
 // opcodes from [OP-011]
-const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'ORIGIN', 'GAS', 'CREATE', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
+// (CREATE, CREATE2 have special rules, OP-031, OP-032)
+const bannedOpCodes = new Set(['GASPRICE', 'GASLIMIT', 'DIFFICULTY', 'TIMESTAMP', 'BASEFEE', 'BLOCKHASH', 'NUMBER', 'ORIGIN', 'GAS', 'COINBASE', 'SELFDESTRUCT', 'RANDOM', 'PREVRANDAO', 'INVALID'])
 // opcodes allowed in staked entities [OP-080]
 const opcodesOnlyInStakedEntities = new Set(['BALANCE', 'SELFBALANCE'])
 
@@ -183,7 +184,7 @@ export function tracerResultParser (
   return [addresses, storageMap]
 }
 
-function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string, entityTitle: string, entStakes: StakeInfo, entitySlots: { [addr: string]: Set<string> }, userOp: UserOperation, stakeInfoEntities: {[addr: string]: StakeInfo}, entryPointAddress: string, tracerResults: BundlerTracerResult): void {
+function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string, entityTitle: string, entStakes: StakeInfo, entitySlots: { [addr: string]: Set<string> }, userOp: UserOperation, stakeInfoEntities: {[addr: string]: StakeInfo}, entryPointAddress: string, tracerResults: BundlerTracerResult, depth = 0): void {
   const opcodes = entityCall.opcodes
   const access = entityCall.access
 
@@ -198,12 +199,38 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
     requireCond(!opcodesOnlyInStakedEntities.has(opcode) || isStaked(entStakes),
       `unstaked ${entityTitle} uses banned opcode: ${opcode}`, ValidationErrors.OpcodeValidation)
   })
-  // [OP-031]
-  if (entityTitle === 'factory') {
-    requireCond((opcodes.CREATE2 ?? 0) <= 1, `${entityTitle} with too many CREATE2`, ValidationErrors.OpcodeValidation)
-  } else {
-    requireCond(opcodes.CREATE2 == null, `${entityTitle} uses banned opcode: CREATE2`, ValidationErrors.OpcodeValidation)
+
+  if (entityCall.type === 'CREATE') {
+    // CREATE is allowed only from the entity (factory, account) itself, not from inner contract
+    // top-level is "handleOps" (or simulateValidation) itself
+    requireCond(depth === 1,
+      `${entityTitle} uses banned opcode: CREATE from inner call depth=${depth}`, ValidationErrors.OpcodeValidation)
+
+    // [OP-032] If there is a `factory` (even unstaked), the `sender` contract is allowed to use `CREATE` opcode
+    requireCond(
+      (entityTitle === 'account' && userOp.factory != null) ||
+      (entityTitle === 'factory' && isStaked(entStakes)),
+        `${entityTitle} uses banned opcode: CREATE`, ValidationErrors.OpcodeValidation
+    )
   }
+  if (entityCall.type === 'CREATE2') {
+    const factory = userOp.factory?.toLowerCase() ?? ''
+    const factoryStaked = isStaked(stakeInfoEntities[factory])
+    console.log(`=== CREATE2: title:${entityTitle} factory-staked:${factoryStaked} callfromsender:${entityCall.from === userOp.sender.toLowerCase()}`)
+    console.log({
+      stakeInfoEntities,
+      userOp
+    })
+    requireCond(
+      (entityTitle === 'account' && factoryStaked && entityCall.from === userOp.sender.toLowerCase()) || // OP-032
+      (entityTitle === 'factory' && (
+        entityCall.to === userOp.sender.toLowerCase() ||
+        (entityCall.from === userOp.factory && isStaked(entStakes))
+      )),
+      `${entityTitle} uses banned opcode: CREATE2`, ValidationErrors.OpcodeValidation
+    )
+  }
+
   Object.entries(access).forEach(([addr, {
     reads,
     writes,
@@ -308,7 +335,7 @@ function processEntityCall (entityCall: TopLevelCallInfo, entityAddress: string,
   // Recursively handling all subcalls to check validation rules
   if (entityCall.calls != null) {
     entityCall.calls.forEach((call: any) => {
-      processEntityCall(call, entityAddress, entityTitle, entStakes, entitySlots, userOp, stakeInfoEntities, entryPointAddress, tracerResults)
+      processEntityCall(call, entityAddress, entityTitle, entStakes, entitySlots, userOp, stakeInfoEntities, entryPointAddress, tracerResults, depth + 1)
     })
   }
 }
