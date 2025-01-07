@@ -7,6 +7,8 @@ import { hexlify, keccak256 } from 'ethers/lib/utils'
 import { OperationRIP7560 } from './interfaces/OperationRIP7560'
 import { AddressZero } from './ERC4337Utils'
 
+export const RIP7560_TRANSACTION_TYPE = 5
+
 export function getRIP7560TransactionHash (op: OperationRIP7560, forSignature = true): string {
   if (!forSignature) {
     throw new Error('not implemented')
@@ -43,7 +45,7 @@ function rlpEncodeRip7560Tx (op: OperationRIP7560, forSignature = true): string 
   input.push(bigNumberishToUnpaddedBuffer(op.paymasterPostOpGasLimit ?? 0))
   input.push(bigNumberishToUnpaddedBuffer(op.nonceKey))
   let rlpEncoded: any = encode(input)
-  rlpEncoded = Buffer.from([4, ...rlpEncoded])
+  rlpEncoded = Buffer.from([RIP7560_TRANSACTION_TYPE, ...rlpEncoded])
   return hexlify(rlpEncoded)
 }
 
