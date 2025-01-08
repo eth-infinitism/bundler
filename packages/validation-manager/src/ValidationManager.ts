@@ -244,10 +244,14 @@ export class ValidationManager implements IValidationManager {
       requireCond(authorizationList.length === 1, 'Only one authorization is supported', ValidationErrors.InvalidFields)
 
       const chainId = await this.provider.getNetwork().then(n => n.chainId)
-      const authChainId = BigNumber.from(authorizationList[0].chainId)
-      requireCond(authChainId.eq(BigNumber.from(0)) ||
-        authChainId.eq(chainId), 'Invalid chainId in authorization', ValidationErrors.InvalidFields)
-      requireCond(getEip7702AuthorizationSigner(authorizationList[0]).toLowerCase() === userOp.sender.toLowerCase(), 'Authorization signer is not sender', ValidationErrors.InvalidFields)
+
+      // list is required to be of size=1. for completeness, we still scan it as a list.
+      for (const authorization of authorizationList) {
+        const authChainId = BigNumber.from(authorization.chainId)
+        requireCond(authChainId.eq(BigNumber.from(0)) ||
+          authChainId.eq(chainId), 'Invalid chainId in authorization', ValidationErrors.InvalidFields)
+        requireCond(getEip7702AuthorizationSigner(authorizationList[0]).toLowerCase() === userOp.sender.toLowerCase(), 'Authorization signer is not sender', ValidationErrors.InvalidFields)
+      }
     }
     const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
     let storageMap: StorageMap = {}
