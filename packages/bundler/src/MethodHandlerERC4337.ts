@@ -162,6 +162,7 @@ export class MethodHandlerERC4337 {
       preOpGas
     } = returnInfo
 
+    const authorizationList = getAuthorizationList(userOp)
     // todo: use simulateHandleOp for this too...
     let callGasLimit = await this.provider.send(
       'eth_estimateGas', [
@@ -170,7 +171,7 @@ export class MethodHandlerERC4337 {
           to: userOp.sender,
           data: userOp.callData,
           // @ts-ignore
-          authorizationList: getAuthorizationList(userOp)
+          authorizationList: authorizationList.length === 0 ? null : authorizationList
         }
       ]
     ).then(b => toNumber(b)).catch(err => {
