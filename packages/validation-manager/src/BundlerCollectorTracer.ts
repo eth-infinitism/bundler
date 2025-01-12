@@ -60,6 +60,9 @@ export interface TopLevelCallInfo {
   extCodeAccessInfo: { [addr: string]: string }
   oog?: boolean
   calls?: []
+  type?: string
+  to?: string
+  from?: string
 }
 
 /**

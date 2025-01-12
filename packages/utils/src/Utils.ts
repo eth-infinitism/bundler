@@ -10,6 +10,7 @@ import { PackedUserOperationStruct } from './soltypes'
 import { UserOperation } from './interfaces/UserOperation'
 import { OperationBase } from './interfaces/OperationBase'
 import { OperationRIP7560 } from './interfaces/OperationRIP7560'
+import { EIP7702Authorization } from './interfaces/EIP7702Authorization'
 
 export interface SlotMap {
   [slot: string]: string
@@ -235,4 +236,13 @@ export function getPackedNonce (userOp: OperationBase): BigNumber {
   const packed = ethers.utils.solidityPack(['uint192', 'uint64'], [nonceKey, userOp.nonce])
   const bigNumberNonce = BigNumber.from(packed)
   return bigNumberNonce
+}
+
+export function getAuthorizationList (op: OperationBase): EIP7702Authorization[] {
+  const userOp = op as UserOperation
+  if (userOp.eip7702auth != null) {
+    return [userOp.eip7702auth]
+  } else {
+    return (op as OperationRIP7560).authorizationList ?? []
+  }
 }
