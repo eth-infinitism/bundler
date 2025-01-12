@@ -240,7 +240,7 @@ export class ValidationManager implements IValidationManager {
     }
     const authorizationList = getAuthorizationList(userOp)
     if (authorizationList.length > 0) {
-      // relevant only for RIP-7562...
+      // relevant only for RIP-7560...
       requireCond(authorizationList.length === 1, 'Only one authorization is supported', ValidationErrors.InvalidFields)
 
       const chainId = await this.provider.getNetwork().then(n => n.chainId)
