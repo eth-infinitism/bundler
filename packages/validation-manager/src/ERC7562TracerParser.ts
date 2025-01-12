@@ -1,10 +1,11 @@
 import { ERC7562RuleViolation } from './ERC7562RuleViolation'
 import { OperationBase, ValidationErrors } from '@account-abstraction/utils'
-import { BundlerTracerResult, MethodInfo } from './BundlerCollectorTracer'
+import { BundlerTracerResult, MethodInfo, TopLevelCallInfo } from './BundlerCollectorTracer'
 import { ERC7562Rule } from './ERC7562Rule'
 import { AltMempoolConfig } from '@account-abstraction/utils/dist/src/altmempool/AltMempoolConfig'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
 import { BigNumber } from 'ethers'
+import { bannedOpCodes, opcodesOnlyInStakedEntities } from './TracerResultParser'
 
 export class ERC7562TracerParser {
   constructor (
@@ -37,6 +38,10 @@ export class ERC7562TracerParser {
     userOp: OperationBase,
     tracerResults: BundlerTracerResult
   ): ERC7562RuleViolation[] {
+    this.checkSanity(tracerResults)
+    this.checkOp054(tracerResults)
+    this.checkOp061(tracerResults)
+    this.checkOp011(tracerResults)
     return []
   }
 
@@ -98,5 +103,92 @@ export class ERC7562TracerParser {
         description: 'May not may CALL with value'
       }
     })
+  }
+
+  /**
+   * OP-020: Revert on "out of gas" is forbidden as it can "leak" the gas limit or the current call stack depth.
+   */
+  checkOp020 (tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
+    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const entityCallsWithOOG = entityCallsFromEntryPoint.filter((it: TopLevelCallInfo) => it.oog)
+    return entityCallsWithOOG.map((it: TopLevelCallInfo) => {
+      const entityTitle = 'fixme'
+      return {
+        rule: ERC7562Rule.op020,
+        // TODO: fill in depth, entity
+        depth: -1,
+        entity: AccountAbstractionEntity.fixme,
+        address: it.from ?? 'n/a',
+        opcode: it.type ?? 'n/a',
+        value: '0',
+        errorCode: ValidationErrors.OpcodeValidation,
+        description: `${entityTitle} internally reverts on oog`
+      }
+    })
+  }
+
+  /**
+   * OP-011: Blocked opcodes
+   * OP-080: `BALANCE` (0x31) and `SELFBALANCE` (0x47) are allowed only from a staked entity, else they are blocked
+   */
+  checkOp011 (tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
+    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const violations: ERC7562RuleViolation[] = []
+    for (const topLevelCallInfo of entityCallsFromEntryPoint) {
+      const opcodes = topLevelCallInfo.opcodes
+      const bannedOpCodeUsed = Object.keys(opcodes).filter((opcode: string) => {
+        return bannedOpCodes.has(opcode)
+      })
+      // TODO: TBD: Creating an object for each violation may be wasteful but makes it easier to choose a right mempool.
+      const bannedOpcodesViolations: ERC7562RuleViolation[] =
+        bannedOpCodeUsed
+          .map(
+            (opcode: string): ERC7562RuleViolation => {
+              const entityTitle = 'fixme'
+              return {
+                rule: ERC7562Rule.op011,
+                // TODO: fill in depth, entity
+                depth: -1,
+                entity: AccountAbstractionEntity.fixme,
+                address: topLevelCallInfo.from ?? 'n/a',
+                opcode,
+                value: '0',
+                errorCode: ValidationErrors.OpcodeValidation,
+                description: `${entityTitle} uses banned opcode: ${opcode}`
+              }
+            }
+          )
+      violations.push(...bannedOpcodesViolations)
+
+      // TODO: Deduplicate code in an elegant way
+      // TODO: Extract OP-080 into a separate function
+      const onlyStakedOpCodeUsed = Object.keys(opcodes).filter((opcode: string) => {
+        return opcodesOnlyInStakedEntities.has(opcode) && !this._isEntityStaked(topLevelCallInfo)
+      })
+      const onlyStakedOpcodesViolations: ERC7562RuleViolation[] =
+        onlyStakedOpCodeUsed
+          .map(
+            (opcode: string): ERC7562RuleViolation => {
+              const entityTitle = 'fixme'
+              return {
+                rule: ERC7562Rule.op011,
+                // TODO: fill in depth, entity
+                depth: -1,
+                entity: AccountAbstractionEntity.fixme,
+                address: topLevelCallInfo.from ?? 'n/a',
+                opcode,
+                value: '0',
+                errorCode: ValidationErrors.OpcodeValidation,
+                description: `unstaked ${entityTitle} uses banned opcode: ${opcode}`
+              }
+            }
+          )
+      violations.push(...onlyStakedOpcodesViolations)
+    }
+    return violations
+  }
+
+  private _isEntityStaked (topLevelCallInfo: TopLevelCallInfo): boolean {
+    throw new Error('Method not implemented.')
   }
 }
