@@ -1,5 +1,5 @@
 import { ERC7562RuleViolation } from './ERC7562RuleViolation'
-import { OperationBase, ValidationErrors } from '@account-abstraction/utils'
+import { OperationBase, requireCond, ValidationErrors } from '@account-abstraction/utils'
 import { BundlerTracerResult, MethodInfo, TopLevelCallInfo } from './BundlerCollectorTracer'
 import { ERC7562Rule } from './ERC7562Rule'
 import { AltMempoolConfig } from '@account-abstraction/utils/dist/src/altmempool/AltMempoolConfig'
@@ -188,6 +188,40 @@ export class ERC7562TracerParser {
     return violations
   }
 
+  /**
+   * OP-031: CREATE2 is allowed exactly once in the deployment phase and must deploy code for the "sender" address
+   */
+  checkOp031 (
+    userOp: OperationBase,
+    tracerResults: BundlerTracerResult
+  ): ERC7562RuleViolation[] {
+    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const violations: ERC7562RuleViolation[] = []
+    for (const topLevelCallInfo of entityCallsFromEntryPoint) {
+      if (topLevelCallInfo.type !== 'CREATE2') {
+        continue
+      }
+      const entityTitle = 'fixme' as string
+      const factoryStaked = false
+      const isAllowedCreateByOP032 = entityTitle === 'account' && factoryStaked && topLevelCallInfo.from === userOp.sender.toLowerCase()
+      const isAllowedCreateByEREP060 = entityTitle === 'factory' && topLevelCallInfo.from === userOp.factory && factoryStaked
+      const isAllowedCreateSenderByFactory = entityTitle === 'factory' && topLevelCallInfo.to === userOp.sender.toLowerCase()
+      if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
+        violations.push({
+          rule: ERC7562Rule.op011,
+          // TODO: fill in depth, entity
+          depth: -1,
+          entity: AccountAbstractionEntity.fixme,
+          address: topLevelCallInfo.from ?? 'n/a',
+          opcode: 'CREATE2',
+          value: '0',
+          errorCode: ValidationErrors.OpcodeValidation,
+          description: `${entityTitle} uses banned opcode: CREATE2`
+        })
+      }
+    }
+    return violations
+  }
   private _isEntityStaked (topLevelCallInfo: TopLevelCallInfo): boolean {
     throw new Error('Method not implemented.')
   }
