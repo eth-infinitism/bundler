@@ -54,10 +54,12 @@ export class ERC7562TracerParser {
   ): ERC7562RuleViolation[] {
     this.checkSanity(tracerResults)
     this.checkOp054(tracerResults)
+    this.checkOp054ExtCode(userOp, tracerResults)
     this.checkOp061(tracerResults)
     this.checkOp011(tracerResults)
     this.checkOp020(tracerResults)
     this.checkOp031(userOp, tracerResults)
+    this.checkOp041(userOp, tracerResults)
     this.checkStorage(userOp, tracerResults)
     return []
   }
@@ -287,7 +289,58 @@ export class ERC7562TracerParser {
       if (!allowed) {
         // TODO
         // @ts-ignore
-        violations.push({})
+        violations.push({
+          // description: `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, stakeInfoEntities)} slot ${slot}`,
+          // description: `unstaked ${entityTitle} accessed ${nameAddr(addr, stakeInfoEntities)} slot ${requireStakeSlot}`, entityTitle, access)
+        })
+      }
+    }
+    return violations
+  }
+
+  checkOp041 (
+    userOp: OperationBase,
+    tracerResults: BundlerTracerResult
+  ): ERC7562RuleViolation[] {
+    const entityTitle = 'fixme'
+    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const violations: ERC7562RuleViolation[] = []
+    for (const topLevelCallInfo of entityCallsFromEntryPoint) {
+      // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
+      let illegalZeroCodeAccess: any
+      for (const addr of Object.keys(topLevelCallInfo.contractSize)) {
+        // [OP-042]
+        if (addr.toLowerCase() !== userOp.sender.toLowerCase() && addr.toLowerCase() !== this.entryPointAddress.toLowerCase() && topLevelCallInfo.contractSize[addr].contractSize <= 2) {
+          illegalZeroCodeAccess = topLevelCallInfo.contractSize[addr]
+          illegalZeroCodeAccess.address = addr
+          // @ts-ignore
+          violations.push({
+            errorCode: ValidationErrors.OpcodeValidation,
+            description: `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`,
+          })
+        }
+      }
+    }
+    return violations
+  }
+
+  checkOp054ExtCode (
+    userOp: OperationBase,
+    tracerResults: BundlerTracerResult
+  ): ERC7562RuleViolation[] {
+    const entityTitle = 'fixme'
+    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const violations: ERC7562RuleViolation[] = []
+    for (const topLevelCallInfo of entityCallsFromEntryPoint) {
+      let illegalEntryPointCodeAccess
+      for (const addr of Object.keys(topLevelCallInfo.extCodeAccessInfo)) {
+        if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
+          illegalEntryPointCodeAccess = topLevelCallInfo.extCodeAccessInfo[addr]
+          // @ts-ignore
+          violations.push({
+            description: `${entityTitle} accesses EntryPoint contract address ${this.entryPointAddress} with opcode ${illegalEntryPointCodeAccess}`,
+          })
+        }
       }
     }
     return violations
