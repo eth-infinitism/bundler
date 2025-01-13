@@ -1,11 +1,17 @@
 import { ERC7562RuleViolation } from './ERC7562RuleViolation'
 import { OperationBase, requireCond, ValidationErrors } from '@account-abstraction/utils'
-import { BundlerTracerResult, MethodInfo, TopLevelCallInfo } from './BundlerCollectorTracer'
+import {
+  AccessInfo,
+  BundlerTracerResult,
+  MethodInfo,
+  StorageAccessInfos,
+  TopLevelCallInfo
+} from './BundlerCollectorTracer'
 import { ERC7562Rule } from './ERC7562Rule'
 import { AltMempoolConfig } from '@account-abstraction/utils/dist/src/altmempool/AltMempoolConfig'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
 import { BigNumber } from 'ethers'
-import { bannedOpCodes, opcodesOnlyInStakedEntities } from './TracerResultParser'
+import { associatedWith, bannedOpCodes, opcodesOnlyInStakedEntities } from './TracerResultParser'
 
 export class ERC7562TracerParser {
   constructor (
@@ -18,6 +24,14 @@ export class ERC7562TracerParser {
   private _isCallToEntryPoint (call: MethodInfo): boolean {
     return call.to?.toLowerCase() === this.entryPointAddress?.toLowerCase() &&
       call.from?.toLowerCase() !== this.entryPointAddress?.toLowerCase()
+  }
+
+  private _isEntityStaked (topLevelCallInfo: TopLevelCallInfo): boolean {
+    throw new Error('Method not implemented.')
+  }
+
+  private _getEntity (userOp: OperationBase, address: string): AccountAbstractionEntity {
+    return AccountAbstractionEntity.fixme
   }
 
   /**
@@ -42,6 +56,9 @@ export class ERC7562TracerParser {
     this.checkOp054(tracerResults)
     this.checkOp061(tracerResults)
     this.checkOp011(tracerResults)
+    this.checkOp020(tracerResults)
+    this.checkOp031(userOp, tracerResults)
+    this.checkStorage(userOp, tracerResults)
     return []
   }
 
@@ -198,13 +215,16 @@ export class ERC7562TracerParser {
     const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
     const violations: ERC7562RuleViolation[] = []
     for (const topLevelCallInfo of entityCallsFromEntryPoint) {
-      if (topLevelCallInfo.type !== 'CREATE2') {
+      if (
+        topLevelCallInfo.type !== 'CREATE' &&
+        topLevelCallInfo.type !== 'CREATE2'
+      ) {
         continue
       }
       const entityTitle = 'fixme' as string
-      const factoryStaked = false
-      const isAllowedCreateByOP032 = entityTitle === 'account' && factoryStaked && topLevelCallInfo.from === userOp.sender.toLowerCase()
-      const isAllowedCreateByEREP060 = entityTitle === 'factory' && topLevelCallInfo.from === userOp.factory && factoryStaked
+      const isFactoryStaked = false
+      const isAllowedCreateByOP032 = entityTitle === 'account' && isFactoryStaked && topLevelCallInfo.from === userOp.sender.toLowerCase()
+      const isAllowedCreateByEREP060 = entityTitle === 'factory' && topLevelCallInfo.from === userOp.factory && isFactoryStaked
       const isAllowedCreateSenderByFactory = entityTitle === 'factory' && topLevelCallInfo.to === userOp.sender.toLowerCase()
       if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
         violations.push({
@@ -222,7 +242,54 @@ export class ERC7562TracerParser {
     }
     return violations
   }
-  private _isEntityStaked (topLevelCallInfo: TopLevelCallInfo): boolean {
-    throw new Error('Method not implemented.')
+
+  checkStorage (userOp: OperationBase, tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
+    this.checkStorageInternal(userOp, tracerResults.callsFromEntryPoint[0].access)
+    return []
+  }
+
+  checkStorageInternal (userOp: OperationBase, access: StorageAccessInfos): ERC7562RuleViolation[] {
+    Object.entries(access).forEach(([address, accessInfo]) => {
+      this.checkStorageInternalInternal(userOp, address, accessInfo)
+    })
+    return []
+  }
+
+  checkStorageInternalInternal (
+    userOp: OperationBase,
+    address: string,
+    accessInfo: AccessInfo
+  ): ERC7562RuleViolation[] {
+    const violations: ERC7562RuleViolation[] = []
+    const allSlots: string[] = [
+      ...Object.keys(accessInfo.writes),
+      ...Object.keys(accessInfo.reads),
+      ...Object.keys(accessInfo.transientWrites ?? {}),
+      ...Object.keys(accessInfo.transientReads ?? {})
+    ]
+    const entitySlots = {} // TODO: restore
+    const entityAddress = '' // TODO: restore
+    const isEntityStaked = false // TODO
+    const isFactoryStaked = false // TODO
+    const isSenderCreation = false // TODO
+    for (const slot of allSlots) {
+      const isSenderAssociated: boolean = associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
+      const isEntityInternalSTO031: boolean = address.toLowerCase() === entityAddress.toLowerCase()
+      const isEntityAssociatedSTO032: boolean = associatedWith(slot, entityAddress, entitySlots)
+      const isReadOnlyAccessSTO033: boolean = accessInfo.writes[slot] == null && accessInfo.transientWrites[slot] == null
+
+      const allowedST031ST032ST033: boolean =
+        (isEntityInternalSTO031 || isEntityAssociatedSTO032 || isReadOnlyAccessSTO033) && isEntityStaked
+
+      const allowedSTO021: boolean = isSenderAssociated && !isSenderCreation
+      const allowedSTO022: boolean = isSenderAssociated && isSenderCreation && isFactoryStaked
+      const allowed = allowedSTO021 || allowedSTO022 || allowedST031ST032ST033
+      if (!allowed) {
+        // TODO
+        // @ts-ignore
+        violations.push({})
+      }
+    }
+    return violations
   }
 }
