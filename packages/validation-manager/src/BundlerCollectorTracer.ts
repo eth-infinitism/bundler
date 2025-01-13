@@ -51,10 +51,10 @@ export interface ExitInfo {
   data: string
 }
 
-export type StorageAccessInfos = { [address: string]: AccessInfo }
-export type OpcodeInfos = { [address: string]: number }
-export type ContractSizes = { [address: string]: ContractSizeInfo }
-export type ExtCodeAccessInfos = { [address: string]: string }
+export interface StorageAccessInfos { [address: string]: AccessInfo }
+export interface OpcodeInfos { [address: string]: number }
+export interface ContractSizes { [address: string]: ContractSizeInfo }
+export interface ExtCodeAccessInfos { [address: string]: string }
 
 export interface TopLevelCallInfo {
   topLevelTargetAddress: string

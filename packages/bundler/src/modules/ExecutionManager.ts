@@ -15,6 +15,7 @@ import { DepositManager } from './DepositManager'
 import { BigNumberish, Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'
 import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
+import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
 
 const debug = Debug('aa.exec')
 
@@ -148,10 +149,12 @@ export class ExecutionManager {
   async _setConfiguration (configOverrides: Partial<BundlerConfig>): Promise<PreVerificationGasCalculator> {
     const { configuration, entryPoint, unsafe } = this.validationManager._getDebugConfiguration()
     const pvgc = new PreVerificationGasCalculator(Object.assign({}, configuration, configOverrides))
+    const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
     this.validationManager = new ValidationManager(
       entryPoint,
       unsafe,
-      pvgc
+      pvgc,
+      erc7562Parser
     )
     return pvgc
   }

@@ -21,6 +21,7 @@ import { IBundleManager } from './IBundleManager'
 import { DepositManager } from './DepositManager'
 import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/src/types'
 import { PreVerificationGasCalculator, ChainConfigs } from '@account-abstraction/sdk'
+import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
 
 /**
  * initialize server modules.
@@ -35,16 +36,17 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const mergedPvgcConfig = Object.assign({}, ChainConfigs[config.chainId] ?? {}, config)
   const preVerificationGasCalculator = new PreVerificationGasCalculator(mergedPvgcConfig)
+  const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {
     const tracerProvider = config.tracerRpcUrl == null ? undefined : getNetworkProvider(config.tracerRpcUrl)
-    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, tracerProvider)
+    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, erc7562Parser, tracerProvider)
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
     const stakeManager = IRip7560StakeManager__factory.connect(AA_STAKE_MANAGER, signer)
-    validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, config.unsafe)
+    validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, erc7562Parser, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false)
   }

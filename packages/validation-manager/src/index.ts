@@ -12,6 +12,7 @@ import { bundlerJSTracerName, debug_traceCall, eth_traceRip7560Validation } from
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
+import { ERC7562Parser } from './ERC7562Parser'
 
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
@@ -82,10 +83,12 @@ export async function checkRulesViolations (
     throw new Error('This provider does not support stack tracing')
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
+  const erc7562Parser = new ERC7562Parser({}, entryPointAddress)
   const validationManager = new ValidationManager(
     entryPoint,
     false,
-    Object.assign({}) as PreVerificationGasCalculator
+    Object.assign({}) as PreVerificationGasCalculator,
+    erc7562Parser
   )
   return await validationManager.validateUserOp(userOperation)
 }

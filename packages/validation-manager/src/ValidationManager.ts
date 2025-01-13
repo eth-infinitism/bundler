@@ -31,13 +31,13 @@ import {
   runContractScript, getAuthorizationList, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
 } from '@account-abstraction/utils'
 
-import { tracerResultParser } from './TracerResultParser'
 import { bundlerCollectorTracer, BundlerTracerResult, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { Interface } from 'ethers/lib/utils'
+import { ERC7562Parser } from './ERC7562Parser'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -61,6 +61,7 @@ export class ValidationManager implements IValidationManager {
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean,
     readonly preVerificationGasCalculator: PreVerificationGasCalculator,
+    readonly erc7562Parser: ERC7562Parser,
     readonly providerForTracer?: JsonRpcProvider
   ) {
     this.provider = this.entryPoint.provider as JsonRpcProvider
@@ -268,7 +269,7 @@ export class ValidationManager implements IValidationManager {
       // console.log('tracer res')
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
-      [contractAddresses, storageMap] = tracerResultParser(userOp, tracerResult, res, this.entryPoint.address)
+      ({ contractAddresses, storageMap } = this.erc7562Parser.requireCompliance(userOp, tracerResult, res))
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
@@ -410,7 +411,7 @@ export class ValidationManager implements IValidationManager {
   convertTracerResult (tracerResult: any, userOp: UserOperation): BundlerTracerResult {
     const SENDER_CREATOR = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'.toLowerCase()
     // Before flattening we add top level addresses for calls from EntryPoint and from SENDER_CREATOR
-    tracerResult.calls.forEach((call: {calls: any, to: any, topLevelTargetAddress: any}) => {
+    tracerResult.calls.forEach((call: { calls: any, to: any, topLevelTargetAddress: any }) => {
       call.topLevelTargetAddress = call.to
       if (call.to.toLowerCase() === SENDER_CREATOR && call.calls != null) {
         call.calls.forEach((subcall: any) => {
@@ -419,7 +420,20 @@ export class ValidationManager implements IValidationManager {
       }
     })
     tracerResult.calls = this.flattenCalls(tracerResult.calls)
-    tracerResult.calls.forEach((call: { topLevelTargetAddress: any, method: any, input: any, to: any, from: any, opcodes: any, usedOpcodes: any, access: any, accessedSlots: any, extCodeAccessInfo: any, outOfGas: any, oog: any }) => {
+    tracerResult.calls.forEach((call: {
+      topLevelTargetAddress: any
+      method: any
+      input: any
+      to: any
+      from: any
+      opcodes: any
+      usedOpcodes: any
+      access: any
+      accessedSlots: any
+      extCodeAccessInfo: any
+      outOfGas: any
+      oog: any
+    }) => {
       call.opcodes = {}
       if (call.usedOpcodes != null) {
         Object.keys(call.usedOpcodes).forEach((opcode: string) => {
@@ -481,6 +495,7 @@ export class ValidationManager implements IValidationManager {
               return def
             }
           }
+
           const methodSig = call.input.slice(0, 10)
           const method = callCatch(() => AbiInterfaces.getFunction(methodSig), methodSig)
           call.method = method.name

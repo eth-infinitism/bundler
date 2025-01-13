@@ -34,6 +34,7 @@ import { ethers } from 'hardhat'
 import { createSigner } from './testUtils'
 import { EventsManager } from '../src/modules/EventsManager'
 import { DepositManager } from '../src/modules/DepositManager'
+import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
 
 describe('UserOpMethodHandler', function () {
   const helloWorld = 'hello world'
@@ -87,7 +88,8 @@ describe('UserOpMethodHandler', function () {
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     mempoolMgr = new MempoolManager(repMgr)
     const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
-    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator)
+    const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
+    const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, erc7562Parser)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)
     const depositManager = new DepositManager(entryPoint, mempoolMgr, bundleMgr)

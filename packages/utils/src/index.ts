@@ -2,6 +2,7 @@ export { EIP7702Authorization, getEip7702AuthorizationSigner } from './interface
 export { UserOperation } from './interfaces/UserOperation'
 export { OperationBase } from './interfaces/OperationBase'
 export { OperationRIP7560 } from './interfaces/OperationRIP7560'
+export { AltMempoolConfig } from './altmempool/AltMempoolConfig'
 export * from './Version'
 export * from './decodeRevertReason'
 export * from './ERC4337Utils'

@@ -1,5 +1,9 @@
+import { BigNumber } from 'ethers'
+import { hexZeroPad } from 'ethers/lib/utils'
+
+import { OperationBase, StorageMap, ValidationErrors, AltMempoolConfig } from '@account-abstraction/utils'
+
 import { ERC7562RuleViolation } from './ERC7562RuleViolation'
-import { OperationBase, requireCond, ValidationErrors } from '@account-abstraction/utils'
 import {
   AccessInfo,
   BundlerTracerResult,
@@ -8,12 +12,17 @@ import {
   TopLevelCallInfo
 } from './BundlerCollectorTracer'
 import { ERC7562Rule } from './ERC7562Rule'
-import { AltMempoolConfig } from '@account-abstraction/utils/dist/src/altmempool/AltMempoolConfig'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
-import { BigNumber } from 'ethers'
-import { associatedWith, bannedOpCodes, opcodesOnlyInStakedEntities } from './TracerResultParser'
+import { bannedOpCodes, opcodesOnlyInStakedEntities } from './ERC7562BannedOpcodes'
+import { ValidationResult } from './IValidationManager'
 
-export class ERC7562TracerParser {
+export interface ERC7562ValidationResults {
+  storageMap: StorageMap
+  ruleViolations: ERC7562RuleViolation[]
+  contractAddresses: string[]
+}
+
+export class ERC7562Parser {
   constructor (
     readonly mempoolConfig: AltMempoolConfig,
     readonly entryPointAddress: string
@@ -34,24 +43,47 @@ export class ERC7562TracerParser {
     return AccountAbstractionEntity.fixme
   }
 
+  private _associatedWith (slot: string, addr: string, entitySlots: { [addr: string]: Set<string> }): boolean {
+    const addrPadded = hexZeroPad(addr, 32).toLowerCase()
+    if (slot === addrPadded) {
+      return true
+    }
+    const k = entitySlots[addr]
+    if (k == null) {
+      return false
+    }
+    const slotN = BigNumber.from(slot)
+    // scan all slot entries to check of the given slot is within a structure, starting at that offset.
+    // assume a maximum size on a (static) structure size.
+    for (const k1 of k.keys()) {
+      const kn = BigNumber.from(k1)
+      if (slotN.gte(kn) && slotN.lt(kn.add(128))) {
+        return true
+      }
+    }
+    return false
+  }
+
   /**
    * Validates the UserOperation and throws an exception in case current mempool configuration rules were violated.
    */
   requireCompliance (
     userOp: OperationBase,
-    tracerResults: BundlerTracerResult
-  ): void {
-    const violations = this.parseResults(userOp, tracerResults)
-    if (violations.length > 0) {
+    tracerResults: BundlerTracerResult,
+    validationResult: ValidationResult
+  ): ERC7562ValidationResults {
+    const results = this.parseResults(userOp, tracerResults)
+    if (results.ruleViolations.length > 0) {
       // TODO: human-readable description of which rules were violated.
       throw new Error('Rules Violated')
     }
+    return results
   }
 
   parseResults (
     userOp: OperationBase,
     tracerResults: BundlerTracerResult
-  ): ERC7562RuleViolation[] {
+  ): ERC7562ValidationResults {
     this.checkSanity(tracerResults)
     this.checkOp054(tracerResults)
     this.checkOp054ExtCode(userOp, tracerResults)
@@ -61,7 +93,9 @@ export class ERC7562TracerParser {
     this.checkOp031(userOp, tracerResults)
     this.checkOp041(userOp, tracerResults)
     this.checkStorage(userOp, tracerResults)
-    return []
+    return {
+      contractAddresses: [], ruleViolations: [], storageMap: {}
+    }
   }
 
   checkSanity (tracerResults: BundlerTracerResult): void {
@@ -275,17 +309,18 @@ export class ERC7562TracerParser {
     const isFactoryStaked = false // TODO
     const isSenderCreation = false // TODO
     for (const slot of allSlots) {
-      const isSenderAssociated: boolean = associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
+      const isSenderInternalSTO010: boolean = address.toLowerCase() === userOp.sender.toLowerCase()
+      const isSenderAssociated: boolean = this._associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
       const isEntityInternalSTO031: boolean = address.toLowerCase() === entityAddress.toLowerCase()
-      const isEntityAssociatedSTO032: boolean = associatedWith(slot, entityAddress, entitySlots)
+      const isEntityAssociatedSTO032: boolean = this._associatedWith(slot, entityAddress, entitySlots)
       const isReadOnlyAccessSTO033: boolean = accessInfo.writes[slot] == null && accessInfo.transientWrites[slot] == null
 
-      const allowedST031ST032ST033: boolean =
+      const isAllowedST031ST032ST033: boolean =
         (isEntityInternalSTO031 || isEntityAssociatedSTO032 || isReadOnlyAccessSTO033) && isEntityStaked
 
-      const allowedSTO021: boolean = isSenderAssociated && !isSenderCreation
-      const allowedSTO022: boolean = isSenderAssociated && isSenderCreation && isFactoryStaked
-      const allowed = allowedSTO021 || allowedSTO022 || allowedST031ST032ST033
+      const isAllowedSTO021: boolean = isSenderAssociated && !isSenderCreation
+      const isAllowedSTO022: boolean = isSenderAssociated && isSenderCreation && isFactoryStaked
+      const allowed = isSenderInternalSTO010 || isAllowedSTO021 || isAllowedSTO022 || isAllowedST031ST032ST033
       if (!allowed) {
         // TODO
         // @ts-ignore
@@ -316,7 +351,7 @@ export class ERC7562TracerParser {
           // @ts-ignore
           violations.push({
             errorCode: ValidationErrors.OpcodeValidation,
-            description: `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`,
+            description: `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`
           })
         }
       }
@@ -338,7 +373,7 @@ export class ERC7562TracerParser {
           illegalEntryPointCodeAccess = topLevelCallInfo.extCodeAccessInfo[addr]
           // @ts-ignore
           violations.push({
-            description: `${entityTitle} accesses EntryPoint contract address ${this.entryPointAddress} with opcode ${illegalEntryPointCodeAccess}`,
+            description: `${entityTitle} accesses EntryPoint contract address ${this.entryPointAddress} with opcode ${illegalEntryPointCodeAccess}`
           })
         }
       }
