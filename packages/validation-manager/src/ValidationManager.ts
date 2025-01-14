@@ -38,6 +38,7 @@ import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { Interface } from 'ethers/lib/utils'
 import { ERC7562Parser } from './ERC7562Parser'
+import { validateERC7562Call } from './ERC7562Call'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -409,6 +410,7 @@ export class ValidationManager implements IValidationManager {
 
   // todo fix rest of the code to work with the new tracer result instead of adjusting it here
   convertTracerResult (tracerResult: any, userOp: UserOperation): BundlerTracerResult {
+    validateERC7562Call(tracerResult)
     const SENDER_CREATOR = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'.toLowerCase()
     // Before flattening we add top level addresses for calls from EntryPoint and from SENDER_CREATOR
     tracerResult.calls.forEach((call: { calls: any, to: any, topLevelTargetAddress: any }) => {
