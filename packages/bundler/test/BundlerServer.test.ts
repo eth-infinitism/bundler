@@ -60,7 +60,7 @@ describe('BundleServer', function () {
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
-    const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
+    const erc7562Parser = new ERC7562Parser({}, entryPoint.address, true)
     const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, erc7562Parser)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)

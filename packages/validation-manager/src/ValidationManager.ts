@@ -31,14 +31,13 @@ import {
   runContractScript, getAuthorizationList, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
 } from '@account-abstraction/utils'
 
-import { bundlerCollectorTracer, BundlerTracerResult, ExitInfo } from './BundlerCollectorTracer'
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { Interface } from 'ethers/lib/utils'
 import { ERC7562Parser } from './ERC7562Parser'
-import { validateERC7562Call } from './ERC7562Call'
+import { ERC7562Call, validateERC7562Call } from './ERC7562Call'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -143,7 +142,7 @@ export class ValidationManager implements IValidationManager {
   async _geth_traceCall_SimulateValidation (
     operation: OperationBase,
     stateOverride: { [address: string]: { code: string } }
-  ): Promise<[ValidationResult, BundlerTracerResult]> {
+  ): Promise<[ValidationResult, ERC7562Call]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
@@ -158,7 +157,7 @@ export class ValidationManager implements IValidationManager {
     }
     let tracer
     if (!this.usingErc7562NativeTracer()) {
-      tracer = bundlerCollectorTracer
+      throw new Error('JavaScript BundlerCollectorTracer is no longer supported')
     }
     const tracerResult = await debug_traceCall(provider, {
       from: AddressZero,
@@ -176,7 +175,7 @@ export class ValidationManager implements IValidationManager {
     if (!this.usingErc7562NativeTracer()) {
       // Using preState tracer + JS tracer
       const lastResult = tracerResult.calls.slice(-1)[0]
-      data = (lastResult as ExitInfo).data
+      data = (lastResult as any).data
       if (lastResult.type === 'REVERT') {
         throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
       }
@@ -258,15 +257,10 @@ export class ValidationManager implements IValidationManager {
     const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
-      let tracerResult: BundlerTracerResult
+      let tracerResult: ERC7562Call
       [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp, stateOverrideForEip7702).catch(e => {
         throw e
       })
-      // console.log('validation res', res)
-      // todo fix
-      if (this.usingErc7562NativeTracer()) {
-        this.convertTracerResult(tracerResult, userOp)
-      }
       // console.log('tracer res')
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
@@ -406,110 +400,6 @@ export class ValidationManager implements IValidationManager {
 
   async getOperationHash (userOp: OperationBase): Promise<string> {
     return await this.entryPoint.getUserOpHash(packUserOp(userOp as UserOperation))
-  }
-
-  // todo fix rest of the code to work with the new tracer result instead of adjusting it here
-  convertTracerResult (tracerResult: any, userOp: UserOperation): BundlerTracerResult {
-    validateERC7562Call(tracerResult)
-    const SENDER_CREATOR = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'.toLowerCase()
-    // Before flattening we add top level addresses for calls from EntryPoint and from SENDER_CREATOR
-    tracerResult.calls.forEach((call: { calls: any, to: any, topLevelTargetAddress: any }) => {
-      call.topLevelTargetAddress = call.to
-      if (call.to.toLowerCase() === SENDER_CREATOR && call.calls != null) {
-        call.calls.forEach((subcall: any) => {
-          subcall.topLevelTargetAddress = subcall.to
-        })
-      }
-    })
-    tracerResult.calls = this.flattenCalls(tracerResult.calls)
-    tracerResult.calls.forEach((call: {
-      topLevelTargetAddress: any
-      method: any
-      input: any
-      to: any
-      from: any
-      opcodes: any
-      usedOpcodes: any
-      access: any
-      accessedSlots: any
-      extCodeAccessInfo: any
-      outOfGas: any
-      oog: any
-    }) => {
-      call.opcodes = {}
-      if (call.usedOpcodes != null) {
-        Object.keys(call.usedOpcodes).forEach((opcode: string) => {
-          call.opcodes[this.getOpcodeName(parseInt(opcode))] = call.usedOpcodes[opcode]
-        })
-      }
-
-      if (call.access == null) {
-        call.access = {}
-      }
-      if (call.accessedSlots != null) {
-        call.access[call.to] = {
-          reads: call.accessedSlots.reads ?? {},
-          writes: call.accessedSlots.writes ?? {},
-          transientReads: call.accessedSlots.transientReads ?? {},
-          transientWrites: call.accessedSlots.transientWrites ?? {}
-        }
-        Object.keys(call.access[call.to].reads).forEach((slot) => {
-          if (call.access[call.to].reads[slot] != null && call.access[call.to].reads[slot].length > 0) {
-            call.access[call.to].reads[slot] = call.access[call.to].reads[slot][0]
-          }
-        })
-      }
-      if (call.extCodeAccessInfo == null) {
-        call.extCodeAccessInfo = {}
-      }
-      const newExtCode: any = {}
-      if (Array.isArray(call.extCodeAccessInfo)) {
-        call.extCodeAccessInfo.forEach((addr: any) => {
-          newExtCode[addr] = 1
-        })
-      }
-      call.extCodeAccessInfo = newExtCode
-      call.oog = call.outOfGas
-
-      // Adding method name
-      if (call.topLevelTargetAddress == null && call.to.toLowerCase() === this.entryPoint.address.toLowerCase()) {
-        if (call.input.length <= 2) {
-          call.method = '0x'
-        } else {
-          const mergedAbi = Object.values([
-            ...SenderCreator__factory.abi,
-            ...IEntryPoint__factory.abi,
-            ...IPaymaster__factory.abi
-          ].reduce((set, entry) => {
-            const key = `${entry.name}(${entry.inputs.map(i => i.type).join(',')})`
-            // console.log('key=', key, keccak256(Buffer.from(key)).slice(0,10))
-            return {
-              ...set,
-              [key]: entry
-            }
-          }, {})) as any
-          const AbiInterfaces = new Interface(mergedAbi)
-
-          function callCatch<T, T1> (x: () => T, def: T1): T | T1 {
-            try {
-              return x()
-            } catch {
-              return def
-            }
-          }
-
-          const methodSig = call.input.slice(0, 10)
-          const method = callCatch(() => AbiInterfaces.getFunction(methodSig), methodSig)
-          call.method = method.name
-        }
-      }
-    })
-    // TODO: This is a hardcoded address of SenderCreator immutable member in EntryPoint. Any change in EntryPoint's code
-    //  requires a change of this address.
-    // TODO check why the filter fails test_ban_user_op_access_other_ops_sender_in_bundle
-    tracerResult.callsFromEntryPoint = tracerResult.calls // .filter((call: { from: string }) => call.from.toLowerCase() === this.entryPoint.address.toLowerCase() || call.from.toLowerCase() === SENDER_CREATOR)
-
-    return tracerResult
   }
 
   flattenCalls (calls: any[]): any[] {

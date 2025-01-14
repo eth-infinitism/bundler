@@ -1,4 +1,4 @@
-export const enum ERC7562Rule {
+export enum ERC7562Rule {
   op011 = 'OP-011',
   op012 = 'OP-012',
   op013 = 'OP-013',

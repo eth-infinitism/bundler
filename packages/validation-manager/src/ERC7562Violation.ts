@@ -1,9 +1,9 @@
 import { ValidationErrors } from '@account-abstraction/utils'
 
-import { ERC7562Rule } from './ERC7562Rule'
+import { ERC7562Rule } from './enum/ERC7562Rule'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
 
-export interface ERC7562RuleViolation {
+export interface ERC7562Violation {
   rule: ERC7562Rule
   depth: number
   entity: AccountAbstractionEntity
@@ -14,4 +14,8 @@ export interface ERC7562RuleViolation {
   opcode?: string
   value?: string
   slot?: string
+}
+
+export function toError(violation: ERC7562Violation): Error {
+  return new Error('TODO: VIOLATED!')
 }

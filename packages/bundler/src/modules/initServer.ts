@@ -36,7 +36,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const mergedPvgcConfig = Object.assign({}, ChainConfigs[config.chainId] ?? {}, config)
   const preVerificationGasCalculator = new PreVerificationGasCalculator(mergedPvgcConfig)
-  const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
+  const erc7562Parser = new ERC7562Parser({}, entryPoint.address, true)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {

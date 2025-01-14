@@ -17,6 +17,9 @@ import { ERC7562Parser } from './ERC7562Parser'
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
+export * from './altmempool/AltMempoolConfig'
+export * from './enum/ERC7562Rule'
+export * from './enum/EVMOpcodes'
 
 export async function supportsNativeTracer (provider: JsonRpcProvider, nativeTracer = bundlerJSTracerName): Promise<boolean> {
   try {
@@ -83,7 +86,7 @@ export async function checkRulesViolations (
     throw new Error('This provider does not support stack tracing')
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
-  const erc7562Parser = new ERC7562Parser({}, entryPointAddress)
+  const erc7562Parser = new ERC7562Parser({}, entryPointAddress, true)
   const validationManager = new ValidationManager(
     entryPoint,
     false,

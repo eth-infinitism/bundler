@@ -155,7 +155,7 @@ describe('#ValidationManager', () => {
 
     const unsafe = !await supportsDebugTraceCall(provider, false)
     const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
-    const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
+    const erc7562Parser = new ERC7562Parser({}, entryPoint.address, true)
     vm = new ValidationManager(entryPoint, unsafe, preVerificationGasCalculator, erc7562Parser)
 
     if (!await supportsDebugTraceCall(ethers.provider, false)) {

@@ -1,3 +1,5 @@
+import { ERC7562Rule } from '../enum/ERC7562Rule'
+
 type Role = 'sender' | 'paymaster' | 'factory'
 
 type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
@@ -22,16 +24,13 @@ export interface BaseAltMempoolRule {
   exceptions?: RuleException[]
 }
 
-// TODO: define all current rules
-type RuleERC7562 = 'erep010' | 'erep020'
-
 export interface AltMempoolConfig {
-  [mempoolId: number]: { [rule in RuleERC7562]?: BaseAltMempoolRule }
+  [mempoolId: number]: { [rule in ERC7562Rule]?: BaseAltMempoolRule }
 }
 
 const config: AltMempoolConfig = {
   1: {
-    erep010: {
+    [ERC7562Rule.erep010]: {
       enabled: true,
       exceptions: [
         'sender',

@@ -149,7 +149,7 @@ export class ExecutionManager {
   async _setConfiguration (configOverrides: Partial<BundlerConfig>): Promise<PreVerificationGasCalculator> {
     const { configuration, entryPoint, unsafe } = this.validationManager._getDebugConfiguration()
     const pvgc = new PreVerificationGasCalculator(Object.assign({}, configuration, configOverrides))
-    const erc7562Parser = new ERC7562Parser({}, entryPoint.address)
+    const erc7562Parser = new ERC7562Parser({}, entryPoint.address, true)
     this.validationManager = new ValidationManager(
       entryPoint,
       unsafe,
