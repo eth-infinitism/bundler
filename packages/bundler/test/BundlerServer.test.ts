@@ -37,6 +37,7 @@ describe('BundleServer', function () {
       chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
+      senderCreator: '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c',
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',
@@ -60,7 +61,7 @@ describe('BundleServer', function () {
     const repMgr = new ReputationManager(provider, BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
     const mempoolMgr = new MempoolManager(repMgr)
     const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
-    const erc7562Parser = new ERC7562Parser({}, entryPoint.address, true)
+    const erc7562Parser = new ERC7562Parser({}, entryPoint.address, config.senderCreator, true)
     const validMgr = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, erc7562Parser)
     const evMgr = new EventsManager(entryPoint, mempoolMgr, repMgr)
     const bundleMgr = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, entryPoint.signer, evMgr, mempoolMgr, validMgr, repMgr, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, false)

@@ -1,11 +1,14 @@
-import { BigNumber, ethers } from 'ethers'
-import { hexZeroPad, Interface, FunctionFragment } from 'ethers/lib/utils'
+import { BigNumber } from 'ethers'
+import { FunctionFragment, hexZeroPad, Interface } from 'ethers/lib/utils'
 
 import {
   AddressZero,
-  IEntryPoint__factory, IPaymaster__factory,
+  IEntryPoint__factory,
+  IPaymaster__factory,
   OperationBase,
+  RpcError,
   SenderCreator__factory,
+  StakeInfo,
   StorageMap,
   ValidationErrors
 } from '@account-abstraction/utils'
@@ -26,11 +29,14 @@ export interface ERC7562ValidationResults {
 }
 
 export class ERC7562Parser {
-  private violations: ERC7562Violation[] = []
+  private ruleViolations: ERC7562Violation[] = []
+  private currentEntity: AccountAbstractionEntity = AccountAbstractionEntity.none
+  private stakeValidationResult!: ValidationResult
 
   constructor (
     readonly mempoolConfig: AltMempoolConfig,
     readonly entryPointAddress: string,
+    readonly senderCreatorAddress: string,
     readonly bailOnViolation: boolean
   ) {
 
@@ -43,12 +49,22 @@ export class ERC7562Parser {
       call.from?.toLowerCase() !== AddressZero
   }
 
-  private _isEntityStaked (topLevelCallInfo: ERC7562Call): boolean {
-    throw new Error('Method not implemented.')
-  }
-
-  private _getEntity (userOp: OperationBase, address: string): AccountAbstractionEntity {
-    return AccountAbstractionEntity.fixme
+  private _isEntityStaked (): boolean {
+    let entStake: StakeInfo | undefined
+    switch (this.currentEntity) {
+      case AccountAbstractionEntity.account:
+        entStake = this.stakeValidationResult.senderInfo
+        break
+      case AccountAbstractionEntity.factory:
+        entStake = this.stakeValidationResult.senderInfo
+        break
+      case AccountAbstractionEntity.paymaster:
+        entStake = this.stakeValidationResult.senderInfo
+        break
+      default:
+        break
+    }
+    return entStake != null && BigNumber.from(1).lte(entStake.stake) && BigNumber.from(1).lte(entStake.unstakeDelaySec)
   }
 
   private _associatedWith (slot: string, addr: string, entitySlots: { [addr: string]: Set<string> }): boolean {
@@ -88,9 +104,28 @@ export class ERC7562Parser {
   }
 
   private _violationDetected (violation: ERC7562Violation) {
-    this.violations.push(violation)
+    this.ruleViolations.push(violation)
     if (this.bailOnViolation) {
       throw toError(violation)
+    }
+  }
+
+  private _detectEntityChange (userOp: OperationBase, call: ERC7562Call): void {
+    if (call.from.toLowerCase() !== this.entryPointAddress.toLowerCase()) {
+      return
+    }
+    if (userOp.sender.toLowerCase() === call.to.toLowerCase()) {
+      this.currentEntity = AccountAbstractionEntity.account
+    } else if (userOp.factory?.toLowerCase() === call.to.toLowerCase()) {
+      this.currentEntity = AccountAbstractionEntity.factory
+    } else if (userOp.paymaster?.toLowerCase() === call.to.toLowerCase()) {
+      this.currentEntity = AccountAbstractionEntity.paymaster
+    } else if (this.entryPointAddress.toLowerCase() === call.to.toLowerCase()) {
+      this.currentEntity = AccountAbstractionEntity.entryPoint
+    } else if (this.senderCreatorAddress.toLowerCase() === call.to.toLowerCase()) {
+      this.currentEntity = AccountAbstractionEntity.senderCreator
+    } else {
+      throw new RpcError(`could not find entity name for address ${call.to}. This should not happen. This is a bug.`, 0)
     }
   }
 
@@ -102,7 +137,7 @@ export class ERC7562Parser {
     tracerResults: ERC7562Call,
     validationResult: ValidationResult
   ): ERC7562ValidationResults {
-    const results = this.parseResults(userOp, tracerResults)
+    const results = this.parseResults(userOp, tracerResults, validationResult)
     if (results.ruleViolations.length > 0) {
       // TODO: human-readable description of which rules were violated.
       throw new Error('Rules Violated')
@@ -112,13 +147,16 @@ export class ERC7562Parser {
 
   parseResults (
     userOp: OperationBase,
-    tracerResults: ERC7562Call
+    tracerResults: ERC7562Call,
+    validationResult: ValidationResult
   ): ERC7562ValidationResults {
-    this.violations = []
-
     if (tracerResults.calls == null || tracerResults.calls.length < 1) {
       throw new Error('Unexpected traceCall result: no calls from entrypoint.')
     }
+
+    this.ruleViolations = []
+    this.stakeValidationResult = validationResult
+
     return this._innerStepRecursive(userOp, tracerResults, 0)
   }
 
@@ -127,11 +165,12 @@ export class ERC7562Parser {
     tracerResults: ERC7562Call,
     recursionDepth: number
   ): ERC7562ValidationResults {
-
+    this._detectEntityChange(userOp, tracerResults)
     this.checkOp054(tracerResults)
     this.checkOp054ExtCode(tracerResults)
     this.checkOp061(tracerResults)
     this.checkOp011(tracerResults)
+    this.checkOp080(tracerResults)
     this.checkOp020(tracerResults)
     this.checkOp031(userOp, tracerResults)
     this.checkOp041(userOp, tracerResults)
@@ -140,7 +179,7 @@ export class ERC7562Parser {
       this._innerStepRecursive(userOp, call, recursionDepth + 1)
     }
     return {
-      contractAddresses: [], ruleViolations: [], storageMap: {}
+      contractAddresses: [], ruleViolations: this.ruleViolations, storageMap: {}
     }
   }
 
@@ -161,7 +200,7 @@ export class ERC7562Parser {
         rule: ERC7562Rule.op054,
         // TODO: fill in depth, entity
         depth: -1,
-        entity: AccountAbstractionEntity.fixme,
+        entity: this.currentEntity,
         address: erc7562Call.from,
         opcode: erc7562Call.type,
         value: erc7562Call.value,
@@ -184,7 +223,7 @@ export class ERC7562Parser {
         rule: ERC7562Rule.op061,
         // TODO: fill in depth, entity
         depth: -1,
-        entity: AccountAbstractionEntity.fixme,
+        entity: this.currentEntity,
         address: tracerResults.from,
         opcode: tracerResults.type,
         value: tracerResults.value,
@@ -199,17 +238,16 @@ export class ERC7562Parser {
    */
   checkOp020 (tracerResults: ERC7562Call): void {
     if (tracerResults.outOfGas) {
-      const entityTitle = 'fixme'
       this._violationDetected({
         rule: ERC7562Rule.op020,
         // TODO: fill in depth, entity
         depth: -1,
-        entity: AccountAbstractionEntity.fixme,
+        entity: this.currentEntity,
         address: tracerResults.from,
         opcode: tracerResults.type,
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
-        description: `${entityTitle} internally reverts on oog`
+        description: `${this.currentEntity.toString()} internally reverts on oog`
       })
     }
   }
@@ -220,23 +258,25 @@ export class ERC7562Parser {
    */
   checkOp011 (tracerResults: ERC7562Call): void {
     const opcodes = tracerResults.usedOpcodes
-    const bannedOpCodeUsed = Object.keys(opcodes).filter((opcode: string) => {
-      const opcodeName = getOpcodeName(parseInt(opcode)) ?? ''
-      return bannedOpCodes.has(opcodeName)
-    })
+    const bannedOpCodeUsed = Object.keys(opcodes)
+      .map((opcode: string) => {
+        return getOpcodeName(parseInt(opcode)) ?? ''
+      })
+      .filter((opcode: string) => {
+        return bannedOpCodes.has(opcode)
+      })
     bannedOpCodeUsed.forEach(
       (opcode: string): void => {
-        const entityTitle = 'fixme'
         this._violationDetected({
           rule: ERC7562Rule.op011,
           // TODO: fill in depth, entity
           depth: -1,
-          entity: AccountAbstractionEntity.fixme,
+          entity: this.currentEntity,
           address: tracerResults.from,
           opcode,
           value: '0',
           errorCode: ValidationErrors.OpcodeValidation,
-          description: `${entityTitle} uses banned opcode: ${opcode}`
+          description: `${this.currentEntity.toString()} uses banned opcode: ${opcode.toString()}`
         })
       }
     )
@@ -244,24 +284,23 @@ export class ERC7562Parser {
 
   checkOp080 (tracerResults: ERC7562Call): void {
     const opcodes = tracerResults.usedOpcodes
-    const isEntityStaked = this._isEntityStaked(tracerResults)
+    const isEntityStaked = this._isEntityStaked()
     const onlyStakedOpCodeUsed = Object.keys(opcodes).filter((opcode: string) => {
       return opcodesOnlyInStakedEntities.has(opcode) && !isEntityStaked
     })
     onlyStakedOpCodeUsed
       .forEach(
         (opcode: string): void => {
-          const entityTitle = 'fixme'
           this._violationDetected({
             rule: ERC7562Rule.op011,
             // TODO: fill in depth, entity
             depth: -1,
-            entity: AccountAbstractionEntity.fixme,
+            entity: this.currentEntity,
             address: tracerResults.from ?? 'n/a',
             opcode,
             value: '0',
             errorCode: ValidationErrors.OpcodeValidation,
-            description: `unstaked ${entityTitle} uses banned opcode: ${opcode}`
+            description: `unstaked ${this.currentEntity.toString()} uses banned opcode: ${opcode}`
           })
         }
       )
@@ -280,22 +319,29 @@ export class ERC7562Parser {
     ) {
       return
     }
-    const entityTitle = 'fixme' as string
     const isFactoryStaked = false
-    const isAllowedCreateByOP032 = entityTitle === 'account' && isFactoryStaked && tracerResults.from === userOp.sender.toLowerCase()
-    const isAllowedCreateByEREP060 = entityTitle === 'factory' && tracerResults.from === userOp.factory && isFactoryStaked
-    const isAllowedCreateSenderByFactory = entityTitle === 'factory' && tracerResults.to === userOp.sender.toLowerCase()
+    const isAllowedCreateByOP032 =
+      this.currentEntity === AccountAbstractionEntity.account &&
+      tracerResults.from === userOp.sender.toLowerCase() &&
+      isFactoryStaked
+    const isAllowedCreateByEREP060 =
+      this.currentEntity === AccountAbstractionEntity.factory &&
+      tracerResults.from === userOp.factory &&
+      isFactoryStaked
+    const isAllowedCreateSenderByFactory =
+      this.currentEntity === AccountAbstractionEntity.factory &&
+      tracerResults.to === userOp.sender.toLowerCase()
     if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
       this._violationDetected({
         rule: ERC7562Rule.op011,
         // TODO: fill in depth, entity
         depth: -1,
-        entity: AccountAbstractionEntity.fixme,
+        entity: this.currentEntity,
         address: tracerResults.from ?? 'n/a',
         opcode: 'CREATE2',
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
-        description: `${entityTitle} uses banned opcode: CREATE2`
+        description: `${this.currentEntity.toString()} uses banned opcode: CREATE2`
       })
     }
   }
@@ -350,7 +396,6 @@ export class ERC7562Parser {
     userOp: OperationBase,
     tracerResults: ERC7562Call
   ): void {
-    const entityTitle = 'fixme'
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess: any
     for (const addr of Object.keys(tracerResults.contractSize)) {
@@ -361,7 +406,7 @@ export class ERC7562Parser {
         // @ts-ignore
         this._violationDetected({
           errorCode: ValidationErrors.OpcodeValidation,
-          description: `${entityTitle} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`
+          description: `${this.currentEntity.toString()} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`
         })
       }
     }

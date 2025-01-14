@@ -1,4 +1,4 @@
-import { ValidationErrors } from '@account-abstraction/utils'
+import { RpcError, ValidationErrors } from '@account-abstraction/utils'
 
 import { ERC7562Rule } from './enum/ERC7562Rule'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
@@ -16,6 +16,6 @@ export interface ERC7562Violation {
   slot?: string
 }
 
-export function toError(violation: ERC7562Violation): Error {
-  return new Error('TODO: VIOLATED!')
+export function toError (violation: ERC7562Violation): Error {
+  return new RpcError(violation.description, violation.errorCode)
 }

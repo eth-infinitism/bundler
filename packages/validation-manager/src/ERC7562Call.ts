@@ -68,7 +68,7 @@ const erc7562CallSchema = ow.object.exactShape({
 export function validateERC7562Call (value: ERC7562Call): void {
   ow(value, erc7562CallSchema)
 
-  if (value.calls) {
+  if (value.calls != null) {
     for (const call of value.calls) {
       validateERC7562Call(call)
     }
