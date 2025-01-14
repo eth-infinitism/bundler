@@ -4,17 +4,11 @@ import { hexZeroPad } from 'ethers/lib/utils'
 import { OperationBase, StorageMap, ValidationErrors, AltMempoolConfig } from '@account-abstraction/utils'
 
 import { ERC7562RuleViolation } from './ERC7562RuleViolation'
-import {
-  AccessInfo,
-  BundlerTracerResult,
-  MethodInfo,
-  StorageAccessInfos,
-  TopLevelCallInfo
-} from './BundlerCollectorTracer'
 import { ERC7562Rule } from './ERC7562Rule'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
 import { bannedOpCodes, opcodesOnlyInStakedEntities } from './ERC7562BannedOpcodes'
 import { ValidationResult } from './IValidationManager'
+import { AccessedSlots, ERC7562Call } from './ERC7562Call'
 
 export interface ERC7562ValidationResults {
   storageMap: StorageMap
@@ -30,12 +24,12 @@ export class ERC7562Parser {
 
   }
 
-  private _isCallToEntryPoint (call: MethodInfo): boolean {
+  private _isCallToEntryPoint (call: ERC7562Call): boolean {
     return call.to?.toLowerCase() === this.entryPointAddress?.toLowerCase() &&
       call.from?.toLowerCase() !== this.entryPointAddress?.toLowerCase()
   }
 
-  private _isEntityStaked (topLevelCallInfo: TopLevelCallInfo): boolean {
+  private _isEntityStaked (topLevelCallInfo: ERC7562Call): boolean {
     throw new Error('Method not implemented.')
   }
 
@@ -69,7 +63,7 @@ export class ERC7562Parser {
    */
   requireCompliance (
     userOp: OperationBase,
-    tracerResults: BundlerTracerResult,
+    tracerResults: ERC7562Call,
     validationResult: ValidationResult
   ): ERC7562ValidationResults {
     const results = this.parseResults(userOp, tracerResults)
@@ -82,9 +76,19 @@ export class ERC7562Parser {
 
   parseResults (
     userOp: OperationBase,
-    tracerResults: BundlerTracerResult
+    tracerResults: ERC7562Call
   ): ERC7562ValidationResults {
-    this.checkSanity(tracerResults)
+    if (tracerResults.calls == null || tracerResults.calls.length < 1) {
+      throw new Error('Unexpected traceCall result: no calls from entrypoint.')
+    }
+    return this._innerStepRecursive(userOp, tracerResults)
+  }
+
+  private _innerStepRecursive (
+    userOp: OperationBase,
+    tracerResults: ERC7562Call
+  ): ERC7562ValidationResults {
+
     this.checkOp054(tracerResults)
     this.checkOp054ExtCode(userOp, tracerResults)
     this.checkOp061(tracerResults)
@@ -93,14 +97,11 @@ export class ERC7562Parser {
     this.checkOp031(userOp, tracerResults)
     this.checkOp041(userOp, tracerResults)
     this.checkStorage(userOp, tracerResults)
+    for (const call of tracerResults.calls ?? []) {
+      this._innerStepRecursive(userOp, call)
+    }
     return {
       contractAddresses: [], ruleViolations: [], storageMap: {}
-    }
-  }
-
-  checkSanity (tracerResults: BundlerTracerResult): void {
-    if (Object.values(tracerResults.callsFromEntryPoint).length < 1) {
-      throw new Error('Unexpected traceCall result: no calls from entrypoint.')
     }
   }
 
@@ -109,16 +110,18 @@ export class ERC7562Parser {
    * OP-053: May call the fallback function from the `sender` with any value.
    * OP-054: Any other access to the EntryPoint is forbidden.
    */
-  checkOp054 (tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
-    const callStack = tracerResults.calls.filter((call: any) => call.topLevelTargetAddress == null) as MethodInfo[]
+  checkOp054 (tracerResults: ERC7562Call): ERC7562RuleViolation[] {
+    const callStack = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress == null) as ERC7562Call[]
     const callInfoEntryPoint = callStack.filter(call => {
       const isCallToEntryPoint = this._isCallToEntryPoint(call)
+      // @ts-ignore
       const isEntryPointCallAllowedOP052 = call.method === 'depositTo'
+      // @ts-ignore
       const isEntryPointCallAllowedOP053 = call.method === '0x'
       const isEntryPointCallAllowed = isEntryPointCallAllowedOP052 || isEntryPointCallAllowedOP053
       return isCallToEntryPoint && !isEntryPointCallAllowed
     })
-    return callInfoEntryPoint.map((it: MethodInfo): ERC7562RuleViolation => {
+    return callInfoEntryPoint.map((it: ERC7562Call): ERC7562RuleViolation => {
       return {
         rule: ERC7562Rule.op054,
         // TODO: fill in depth, entity
@@ -128,6 +131,7 @@ export class ERC7562Parser {
         opcode: it.type,
         value: it.value,
         errorCode: ValidationErrors.OpcodeValidation,
+        // @ts-ignore
         description: `illegal call into EntryPoint during validation ${it?.method}`
       }
     })
@@ -136,14 +140,14 @@ export class ERC7562Parser {
   /**
    * OP-061: CALL with value is forbidden. The only exception is a call to the EntryPoint.
    */
-  checkOp061 (tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
-    const callStack = tracerResults.calls.filter((call: any) => call.topLevelTargetAddress == null) as MethodInfo[]
+  checkOp061 (tracerResults: ERC7562Call): ERC7562RuleViolation[] {
+    const callStack = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress == null) as ERC7562Call[]
     const illegalNonZeroValueCall = callStack.filter(
       call =>
         !this._isCallToEntryPoint(call) &&
         !BigNumber.from(call.value ?? 0).eq(0)
     )
-    return illegalNonZeroValueCall.map((it: MethodInfo): ERC7562RuleViolation => {
+    return illegalNonZeroValueCall.map((it: ERC7562Call): ERC7562RuleViolation => {
       return {
         rule: ERC7562Rule.op061,
         // TODO: fill in depth, entity
@@ -161,10 +165,10 @@ export class ERC7562Parser {
   /**
    * OP-020: Revert on "out of gas" is forbidden as it can "leak" the gas limit or the current call stack depth.
    */
-  checkOp020 (tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
-    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
-    const entityCallsWithOOG = entityCallsFromEntryPoint.filter((it: TopLevelCallInfo) => it.oog)
-    return entityCallsWithOOG.map((it: TopLevelCallInfo) => {
+  checkOp020 (tracerResults: ERC7562Call): ERC7562RuleViolation[] {
+    const entityCallsFromEntryPoint = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress != null)
+    const entityCallsWithOOG = entityCallsFromEntryPoint.filter((it: ERC7562Call) => it.outOfGas)
+    return entityCallsWithOOG.map((it: ERC7562Call) => {
       const entityTitle = 'fixme'
       return {
         rule: ERC7562Rule.op020,
@@ -184,11 +188,11 @@ export class ERC7562Parser {
    * OP-011: Blocked opcodes
    * OP-080: `BALANCE` (0x31) and `SELFBALANCE` (0x47) are allowed only from a staked entity, else they are blocked
    */
-  checkOp011 (tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
-    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+  checkOp011 (tracerResults: ERC7562Call): ERC7562RuleViolation[] {
+    const entityCallsFromEntryPoint = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress != null)
     const violations: ERC7562RuleViolation[] = []
     for (const topLevelCallInfo of entityCallsFromEntryPoint) {
-      const opcodes = topLevelCallInfo.opcodes
+      const opcodes = topLevelCallInfo.usedOpcodes
       const bannedOpCodeUsed = Object.keys(opcodes).filter((opcode: string) => {
         return bannedOpCodes.has(opcode)
       })
@@ -246,9 +250,9 @@ export class ERC7562Parser {
    */
   checkOp031 (
     userOp: OperationBase,
-    tracerResults: BundlerTracerResult
+    tracerResults: ERC7562Call
   ): ERC7562RuleViolation[] {
-    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const entityCallsFromEntryPoint = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress != null)
     const violations: ERC7562RuleViolation[] = []
     for (const topLevelCallInfo of entityCallsFromEntryPoint) {
       if (
@@ -279,13 +283,13 @@ export class ERC7562Parser {
     return violations
   }
 
-  checkStorage (userOp: OperationBase, tracerResults: BundlerTracerResult): ERC7562RuleViolation[] {
-    this.checkStorageInternal(userOp, tracerResults.callsFromEntryPoint[0].access)
+  checkStorage (userOp: OperationBase, tracerResults: ERC7562Call): ERC7562RuleViolation[] {
+    this.checkStorageInternal(userOp, tracerResults.calls![0])
     return []
   }
 
-  checkStorageInternal (userOp: OperationBase, access: StorageAccessInfos): ERC7562RuleViolation[] {
-    Object.entries(access).forEach(([address, accessInfo]) => {
+  checkStorageInternal (userOp: OperationBase, tracerResults: ERC7562Call): ERC7562RuleViolation[] {
+    Object.entries(tracerResults.accessedSlots).forEach(([address, accessInfo]) => {
       this.checkStorageInternalInternal(userOp, address, accessInfo)
     })
     return []
@@ -294,7 +298,7 @@ export class ERC7562Parser {
   checkStorageInternalInternal (
     userOp: OperationBase,
     address: string,
-    accessInfo: AccessInfo
+    accessInfo: AccessedSlots
   ): ERC7562RuleViolation[] {
     const violations: ERC7562RuleViolation[] = []
     const allSlots: string[] = [
@@ -335,10 +339,10 @@ export class ERC7562Parser {
 
   checkOp041 (
     userOp: OperationBase,
-    tracerResults: BundlerTracerResult
+    tracerResults: ERC7562Call
   ): ERC7562RuleViolation[] {
     const entityTitle = 'fixme'
-    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const entityCallsFromEntryPoint = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress != null)
     const violations: ERC7562RuleViolation[] = []
     for (const topLevelCallInfo of entityCallsFromEntryPoint) {
       // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
@@ -361,16 +365,16 @@ export class ERC7562Parser {
 
   checkOp054ExtCode (
     userOp: OperationBase,
-    tracerResults: BundlerTracerResult
+    tracerResults: ERC7562Call
   ): ERC7562RuleViolation[] {
     const entityTitle = 'fixme'
-    const entityCallsFromEntryPoint = tracerResults.callsFromEntryPoint.filter((call: any) => call.topLevelTargetAddress != null)
+    const entityCallsFromEntryPoint = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress != null)
     const violations: ERC7562RuleViolation[] = []
     for (const topLevelCallInfo of entityCallsFromEntryPoint) {
       let illegalEntryPointCodeAccess
       for (const addr of Object.keys(topLevelCallInfo.extCodeAccessInfo)) {
         if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
-          illegalEntryPointCodeAccess = topLevelCallInfo.extCodeAccessInfo[addr]
+          illegalEntryPointCodeAccess = topLevelCallInfo.extCodeAccessInfo
           // @ts-ignore
           violations.push({
             description: `${entityTitle} accesses EntryPoint contract address ${this.entryPointAddress} with opcode ${illegalEntryPointCodeAccess}`

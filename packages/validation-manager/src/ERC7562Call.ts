@@ -1,11 +1,11 @@
 import ow from 'ow'
 
-interface ContractSize {
+export interface ContractSize {
   contractSize: number
   opcode: number
 }
 
-interface AccessedSlots {
+export interface AccessedSlots {
   reads: Record<string, string[]>
   transientReads: Record<string, unknown>
   transientWrites: Record<string, unknown>
