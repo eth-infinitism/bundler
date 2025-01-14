@@ -1,7 +1,14 @@
-import { BigNumber } from 'ethers'
-import { hexZeroPad } from 'ethers/lib/utils'
+import { BigNumber, ethers } from 'ethers'
+import { hexZeroPad, Interface, FunctionFragment } from 'ethers/lib/utils'
 
-import { OperationBase, StorageMap, ValidationErrors } from '@account-abstraction/utils'
+import {
+  AddressZero,
+  IEntryPoint__factory, IPaymaster__factory,
+  OperationBase,
+  SenderCreator__factory,
+  StorageMap,
+  ValidationErrors
+} from '@account-abstraction/utils'
 
 import { ERC7562Violation, toError } from './ERC7562Violation'
 import { ERC7562Rule } from './enum/ERC7562Rule'
@@ -10,6 +17,7 @@ import { bannedOpCodes, opcodesOnlyInStakedEntities } from './ERC7562BannedOpcod
 import { ValidationResult } from './IValidationManager'
 import { AccessedSlots, ERC7562Call } from './ERC7562Call'
 import { AltMempoolConfig } from './altmempool/AltMempoolConfig'
+import { getOpcodeName } from './enum/EVMOpcodes'
 
 export interface ERC7562ValidationResults {
   storageMap: StorageMap
@@ -30,7 +38,9 @@ export class ERC7562Parser {
 
   private _isCallToEntryPoint (call: ERC7562Call): boolean {
     return call.to?.toLowerCase() === this.entryPointAddress?.toLowerCase() &&
-      call.from?.toLowerCase() !== this.entryPointAddress?.toLowerCase()
+      call.from?.toLowerCase() !== this.entryPointAddress?.toLowerCase() &&
+      // skipping the top-level call from address(0) to 'simulateValidations()'
+      call.from?.toLowerCase() !== AddressZero
   }
 
   private _isEntityStaked (topLevelCallInfo: ERC7562Call): boolean {
@@ -60,6 +70,21 @@ export class ERC7562Parser {
       }
     }
     return false
+  }
+
+  private _tryDetectKnownMethod (call: ERC7562Call): string {
+    const mergedAbi = Object.values([
+      ...SenderCreator__factory.abi,
+      ...IEntryPoint__factory.abi,
+      ...IPaymaster__factory.abi
+    ])
+    const AbiInterfaces = new Interface(mergedAbi)
+    const methodSig = call.input.slice(0, 10)
+    try {
+      const abiFunction: FunctionFragment = AbiInterfaces.getFunction(methodSig)
+      return abiFunction.name
+    } catch (_) {}
+    return methodSig
   }
 
   private _violationDetected (violation: ERC7562Violation) {
@@ -126,72 +151,67 @@ export class ERC7562Parser {
    */
   checkOp054 (erc7562Call: ERC7562Call): void {
     const isCallToEntryPoint = this._isCallToEntryPoint(erc7562Call)
-    // @ts-ignore
-    const isEntryPointCallAllowedOP052 = call.method === 'depositTo'
-    // @ts-ignore
-    const isEntryPointCallAllowedOP053 = call.method === '0x'
+    const knownMethod = this._tryDetectKnownMethod(erc7562Call)
+    const isEntryPointCallAllowedOP052 = knownMethod === 'depositTo'
+    const isEntryPointCallAllowedOP053 = knownMethod === '0x'
     const isEntryPointCallAllowed = isEntryPointCallAllowedOP052 || isEntryPointCallAllowedOP053
     const isRuleViolated = isCallToEntryPoint && !isEntryPointCallAllowed
-
-    this._violationDetected({
-      rule: ERC7562Rule.op054,
-      // TODO: fill in depth, entity
-      depth: -1,
-      entity: AccountAbstractionEntity.fixme,
-      address: erc7562Call.from,
-      opcode: erc7562Call.type,
-      value: erc7562Call.value,
-      errorCode: ValidationErrors.OpcodeValidation,
-      // @ts-ignore
-      description: `illegal call into EntryPoint during validation ${it?.method}`
-    })
+    if (isRuleViolated) {
+      this._violationDetected({
+        rule: ERC7562Rule.op054,
+        // TODO: fill in depth, entity
+        depth: -1,
+        entity: AccountAbstractionEntity.fixme,
+        address: erc7562Call.from,
+        opcode: erc7562Call.type,
+        value: erc7562Call.value,
+        errorCode: ValidationErrors.OpcodeValidation,
+        // @ts-ignore
+        description: `illegal call into EntryPoint during validation ${erc7562Call?.method}`
+      })
+    }
   }
 
   /**
    * OP-061: CALL with value is forbidden. The only exception is a call to the EntryPoint.
    */
-  checkOp061 (tracerResults: ERC7562Call): ERC7562Violation[] {
-    const callStack = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress == null) as ERC7562Call[]
-    const illegalNonZeroValueCall = callStack.filter(
-      call =>
-        !this._isCallToEntryPoint(call) &&
-        !BigNumber.from(call.value ?? 0).eq(0)
-    )
-    return illegalNonZeroValueCall.map((it: ERC7562Call): ERC7562Violation => {
-      return {
+  checkOp061 (tracerResults: ERC7562Call): void {
+    const isIllegalNonZeroValueCall =
+      !this._isCallToEntryPoint(tracerResults) &&
+      !BigNumber.from(tracerResults.value ?? 0).eq(0)
+    if (isIllegalNonZeroValueCall) {
+      this._violationDetected({
         rule: ERC7562Rule.op061,
         // TODO: fill in depth, entity
         depth: -1,
         entity: AccountAbstractionEntity.fixme,
-        address: it.from,
-        opcode: it.type,
-        value: it.value,
+        address: tracerResults.from,
+        opcode: tracerResults.type,
+        value: tracerResults.value,
         errorCode: ValidationErrors.OpcodeValidation,
         description: 'May not may CALL with value'
-      }
-    })
+      })
+    }
   }
 
   /**
    * OP-020: Revert on "out of gas" is forbidden as it can "leak" the gas limit or the current call stack depth.
    */
-  checkOp020 (tracerResults: ERC7562Call): ERC7562Violation[] {
-    const entityCallsFromEntryPoint = tracerResults.calls!.filter((call: any) => call.topLevelTargetAddress != null)
-    const entityCallsWithOOG = entityCallsFromEntryPoint.filter((it: ERC7562Call) => it.outOfGas)
-    return entityCallsWithOOG.map((it: ERC7562Call) => {
+  checkOp020 (tracerResults: ERC7562Call): void {
+    if (tracerResults.outOfGas) {
       const entityTitle = 'fixme'
-      return {
+      this._violationDetected({
         rule: ERC7562Rule.op020,
         // TODO: fill in depth, entity
         depth: -1,
         entity: AccountAbstractionEntity.fixme,
-        address: it.from ?? 'n/a',
-        opcode: it.type ?? 'n/a',
+        address: tracerResults.from,
+        opcode: tracerResults.type,
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
         description: `${entityTitle} internally reverts on oog`
-      }
-    })
+      })
+    }
   }
 
   /**
@@ -201,25 +221,25 @@ export class ERC7562Parser {
   checkOp011 (tracerResults: ERC7562Call): void {
     const opcodes = tracerResults.usedOpcodes
     const bannedOpCodeUsed = Object.keys(opcodes).filter((opcode: string) => {
-      return bannedOpCodes.has(opcode)
+      const opcodeName = getOpcodeName(parseInt(opcode)) ?? ''
+      return bannedOpCodes.has(opcodeName)
     })
-    bannedOpCodeUsed
-      .forEach(
-        (opcode: string): void => {
-          const entityTitle = 'fixme'
-          this._violationDetected({
-            rule: ERC7562Rule.op011,
-            // TODO: fill in depth, entity
-            depth: -1,
-            entity: AccountAbstractionEntity.fixme,
-            address: tracerResults.from,
-            opcode,
-            value: '0',
-            errorCode: ValidationErrors.OpcodeValidation,
-            description: `${entityTitle} uses banned opcode: ${opcode}`
-          })
-        }
-      )
+    bannedOpCodeUsed.forEach(
+      (opcode: string): void => {
+        const entityTitle = 'fixme'
+        this._violationDetected({
+          rule: ERC7562Rule.op011,
+          // TODO: fill in depth, entity
+          depth: -1,
+          entity: AccountAbstractionEntity.fixme,
+          address: tracerResults.from,
+          opcode,
+          value: '0',
+          errorCode: ValidationErrors.OpcodeValidation,
+          description: `${entityTitle} uses banned opcode: ${opcode}`
+        })
+      }
+    )
   }
 
   checkOp080 (tracerResults: ERC7562Call): void {
@@ -281,24 +301,19 @@ export class ERC7562Parser {
   }
 
   checkStorage (userOp: OperationBase, tracerResults: ERC7562Call): void {
-    this.checkStorageInternal(userOp, tracerResults.calls![0])
-  }
-
-  checkStorageInternal (userOp: OperationBase, tracerResults: ERC7562Call): void {
     Object.entries(tracerResults.accessedSlots).forEach(([address, accessInfo]) => {
-      this.checkStorageInternalInternal(userOp, address, accessInfo)
+      this.checkStorageInternal(userOp, address, accessInfo)
     })
   }
 
-  checkStorageInternalInternal (
+  checkStorageInternal (
     userOp: OperationBase,
     address: string,
     accessInfo: AccessedSlots
-  ): ERC7562Violation[] {
-    const violations: ERC7562Violation[] = []
+  ): void {
     const allSlots: string[] = [
-      ...Object.keys(accessInfo.writes),
-      ...Object.keys(accessInfo.reads),
+      ...Object.keys(accessInfo.writes ?? {}),
+      ...Object.keys(accessInfo.reads ?? {}),
       ...Object.keys(accessInfo.transientWrites ?? {}),
       ...Object.keys(accessInfo.transientReads ?? {})
     ]
@@ -312,7 +327,7 @@ export class ERC7562Parser {
       const isSenderAssociated: boolean = this._associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
       const isEntityInternalSTO031: boolean = address.toLowerCase() === entityAddress.toLowerCase()
       const isEntityAssociatedSTO032: boolean = this._associatedWith(slot, entityAddress, entitySlots)
-      const isReadOnlyAccessSTO033: boolean = accessInfo.writes[slot] == null && accessInfo.transientWrites[slot] == null
+      const isReadOnlyAccessSTO033: boolean = accessInfo.writes?.[slot] == null && accessInfo.transientWrites?.[slot] == null
 
       const isAllowedST031ST032ST033: boolean =
         (isEntityInternalSTO031 || isEntityAssociatedSTO032 || isReadOnlyAccessSTO033) && isEntityStaked
@@ -323,13 +338,12 @@ export class ERC7562Parser {
       if (!allowed) {
         // TODO
         // @ts-ignore
-        violations.push({
+        this._violationDetected({
           // description: `${entityTitle} has forbidden ${readWrite} ${transientStr}${nameAddr(addr, stakeInfoEntities)} slot ${slot}`,
           // description: `unstaked ${entityTitle} accessed ${nameAddr(addr, stakeInfoEntities)} slot ${requireStakeSlot}`, entityTitle, access)
         })
       }
     }
-    return violations
   }
 
   checkOp041 (

@@ -6,10 +6,10 @@ export interface ContractSize {
 }
 
 export interface AccessedSlots {
-  reads: Record<string, string[]>
-  transientReads: Record<string, unknown>
-  transientWrites: Record<string, unknown>
-  writes: Record<string, number>
+  reads?: Record<string, string[]>
+  transientReads?: Record<string, unknown>
+  transientWrites?: Record<string, unknown>
+  writes?: Record<string, number>
 }
 
 export interface ERC7562Call {
