@@ -57,10 +57,10 @@ export class ERC7562Parser {
         entStake = this.stakeValidationResult.senderInfo
         break
       case AccountAbstractionEntity.factory:
-        entStake = this.stakeValidationResult.senderInfo
+        entStake = this.stakeValidationResult.factoryInfo
         break
       case AccountAbstractionEntity.paymaster:
-        entStake = this.stakeValidationResult.senderInfo
+        entStake = this.stakeValidationResult.paymasterInfo
         break
       default:
         break
