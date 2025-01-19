@@ -23,21 +23,21 @@ import {
   decodeErrorReason,
   decodeRevertReason,
   getAddr,
+  getAuthorizationList,
   getEip7702AuthorizationSigner,
   mergeValidationDataValues,
   packUserOp,
   requireAddressAndFields,
   requireCond,
-  runContractScript, getAuthorizationList, SenderCreator__factory, IEntryPoint__factory, IPaymaster__factory
+  runContractScript
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
 
 import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
-import { Interface } from 'ethers/lib/utils'
 import { ERC7562Parser } from './ERC7562Parser'
-import { ERC7562Call, validateERC7562Call } from './ERC7562Call'
+import { ERC7562Call } from './ERC7562Call'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -175,7 +175,7 @@ export class ValidationManager implements IValidationManager {
     if (!this.usingErc7562NativeTracer()) {
       // Using preState tracer + JS tracer
       const lastResult = tracerResult.calls.slice(-1)[0]
-      data = (lastResult as any).data
+      data = (lastResult).data
       if (lastResult.type === 'REVERT') {
         throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
       }

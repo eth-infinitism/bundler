@@ -1,4 +1,4 @@
-export const enum AccountAbstractionEntity {
+export enum AccountAbstractionEntity {
   account = 'account',
   paymaster = 'paymaster',
   factory = 'factory',
