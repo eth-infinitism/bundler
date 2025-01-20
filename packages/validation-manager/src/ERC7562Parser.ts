@@ -30,7 +30,7 @@ export interface ERC7562ValidationResults {
 }
 
 export class ERC7562Parser {
-  private keccack: string[] = []
+  private keccak: string[] = []
   private ruleViolations: ERC7562Violation[] = []
   private currentEntity: AccountAbstractionEntity = AccountAbstractionEntity.none
   private currentEntityAddress: string = ''
@@ -174,7 +174,7 @@ export class ERC7562Parser {
     const entityAddresses = [userOp.sender.toLowerCase(), userOp.paymaster?.toLowerCase(), userOp.factory?.toLowerCase()]
     const entitySlots: { [addr: string]: Set<string> } = {}
 
-    for (const keccakInput of this.keccack) {
+    for (const keccakInput of this.keccak) {
       for (const entityAddress of entityAddresses) {
         if (entityAddress == null) {
           continue
@@ -217,7 +217,7 @@ export class ERC7562Parser {
       throw new Error('Unexpected traceCall result: no calls from entrypoint.')
     }
 
-    this.keccack = tracerResults.keccak ?? []
+    this.keccak = tracerResults.keccak ?? []
     this.currentEntity = AccountAbstractionEntity.none
     this.currentEntityAddress = ''
     this.ruleViolations = []
