@@ -8,10 +8,11 @@ import {
   OperationBase,
   RpcError,
   SenderCreator__factory,
+  SlotMap,
   StakeInfo,
   StorageMap,
-  toBytes32,
-  ValidationErrors
+  ValidationErrors,
+  toBytes32
 } from '@account-abstraction/utils'
 
 import { ERC7562Violation, toError } from './ERC7562Violation'
@@ -20,7 +21,6 @@ import { AccountAbstractionEntity } from './AccountAbstractionEntity'
 import { bannedOpCodes, opcodesOnlyInStakedEntities } from './ERC7562BannedOpcodes'
 import { ValidationResult } from './IValidationManager'
 import { ERC7562Call } from './ERC7562Call'
-import { AltMempoolConfig } from './altmempool/AltMempoolConfig'
 import { getOpcodeName } from './enum/EVMOpcodes'
 
 export interface ERC7562ValidationResults {
@@ -36,13 +36,22 @@ export class ERC7562Parser {
   private currentEntityAddress: string = ''
   private stakeValidationResult!: ValidationResult
 
+  private contractAddresses: string[] = []
+  private storageMap: StorageMap = {}
+
   constructor (
-    readonly mempoolConfig: AltMempoolConfig,
     readonly entryPointAddress: string,
     readonly senderCreatorAddress: string,
     readonly bailOnViolation: boolean
-  ) {
+  ) {}
 
+  private _init (erc7562Call: ERC7562Call) {
+    this.keccak = erc7562Call.keccak ?? []
+    this.ruleViolations = []
+    this.currentEntity = AccountAbstractionEntity.none
+    this.currentEntityAddress = ''
+    this.contractAddresses = []
+    this.storageMap = {}
   }
 
   private _isCallToEntryPoint (call: ERC7562Call): boolean {
@@ -210,28 +219,29 @@ export class ERC7562Parser {
 
   parseResults (
     userOp: OperationBase,
-    tracerResults: ERC7562Call,
+    erc7562Call: ERC7562Call,
     validationResult: ValidationResult
   ): ERC7562ValidationResults {
-    if (tracerResults.calls == null || tracerResults.calls.length < 1) {
+    this._init(erc7562Call)
+    if (erc7562Call.calls == null || erc7562Call.calls.length < 1) {
       throw new Error('Unexpected traceCall result: no calls from entrypoint.')
     }
-
-    this.keccak = tracerResults.keccak ?? []
-    this.currentEntity = AccountAbstractionEntity.none
-    this.currentEntityAddress = ''
-    this.ruleViolations = []
     this.stakeValidationResult = validationResult
-
-    return this._innerStepRecursive(userOp, tracerResults, 0)
+    this._innerStepRecursive(userOp, erc7562Call, 0)
+    return {
+      contractAddresses: this.contractAddresses,
+      ruleViolations: this.ruleViolations,
+      storageMap: this.storageMap
+    }
   }
 
   private _innerStepRecursive (
     userOp: OperationBase,
     tracerResults: ERC7562Call,
     recursionDepth: number
-  ): ERC7562ValidationResults {
+  ): void {
     const address = tracerResults.to
+    this.contractAddresses.push(address)
     this._detectEntityChange(userOp, tracerResults)
     this.checkOp011(tracerResults)
     this.checkOp020(tracerResults)
@@ -244,9 +254,6 @@ export class ERC7562Parser {
     this.checkStorage(userOp, tracerResults)
     for (const call of tracerResults.calls ?? []) {
       this._innerStepRecursive(userOp, call, recursionDepth + 1)
-    }
-    return {
-      contractAddresses: [], ruleViolations: this.ruleViolations, storageMap: {}
     }
   }
 
@@ -489,13 +496,17 @@ export class ERC7562Parser {
       ...Object.keys(tracerResults.accessedSlots.transientWrites ?? {}),
       ...Object.keys(tracerResults.accessedSlots.transientReads ?? {})
     ]
-    const address = tracerResults.to
+    const address: string = tracerResults.to
     const entitySlots = this._parseEntitySlots(userOp)
     const addressName = this._tryGetAddressName(userOp, address)
     const isEntityStaked = this._isEntityStaked()
     const isFactoryStaked = this._isEntityStaked(AccountAbstractionEntity.factory)
     const isSenderCreation = userOp.factory != null
     for (const slot of allSlots) {
+      if (this.storageMap[address] == null) {
+        this.storageMap[address] = {}
+      }
+      (this.storageMap[address] as SlotMap)[slot] = '' // TODO: not clear why were the values relevant
       const isSenderInternalSTO010: boolean = address.toLowerCase() === userOp.sender.toLowerCase()
       const isSenderAssociated: boolean = this._associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
       const isEntityInternalSTO031: boolean = address.toLowerCase() === this.currentEntityAddress.toLowerCase()
