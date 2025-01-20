@@ -7,7 +7,7 @@ export const bannedOpCodes = new Set(
     'BLOCKHASH',
     'COINBASE',
     'DIFFICULTY',
-    // 'GAS',
+    'GAS',
     'GASLIMIT',
     'GASPRICE',
     'INVALID',

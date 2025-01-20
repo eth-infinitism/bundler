@@ -255,6 +255,10 @@ export class ERC7562Parser {
    * OP-080: `BALANCE` (0x31) and `SELFBALANCE` (0x47) are allowed only from a staked entity, else they are blocked
    */
   checkOp011 (tracerResults: ERC7562Call): void {
+    if (tracerResults.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
+      // Currently inside the EntryPoint deposit code, no access control applies here
+      return
+    }
     const opcodes = tracerResults.usedOpcodes
     const bannedOpCodeUsed =
       Object
