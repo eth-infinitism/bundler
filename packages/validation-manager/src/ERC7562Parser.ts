@@ -446,7 +446,7 @@ export class ERC7562Parser {
       const isSenderInternalSTO010: boolean = address.toLowerCase() === userOp.sender.toLowerCase()
       const isSenderAssociated: boolean = this._associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
       const isEntityInternalSTO031: boolean = address.toLowerCase() === this.currentEntityAddress.toLowerCase()
-      const isEntityAssociatedSTO032: boolean = this._associatedWith(slot, this.currentEntityAddress, entitySlots)
+      const isEntityAssociatedSTO032: boolean = this._associatedWith(slot, this.currentEntityAddress.toLowerCase(), entitySlots)
       const isReadOnlyAccessSTO033: boolean = tracerResults.accessedSlots.writes?.[slot] == null && tracerResults.accessedSlots.transientWrites?.[slot] == null
 
       const isAllowedIfEntityStaked = isEntityInternalSTO031 || isEntityAssociatedSTO032 || isReadOnlyAccessSTO033
