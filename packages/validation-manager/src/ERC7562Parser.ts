@@ -50,9 +50,9 @@ export class ERC7562Parser {
       call.from?.toLowerCase() !== AddressZero
   }
 
-  private _isEntityStaked (): boolean {
+  private _isEntityStaked (entity?: AccountAbstractionEntity): boolean {
     let entStake: StakeInfo | undefined
-    switch (this.currentEntity) {
+    switch (entity ?? this.currentEntity) {
       case AccountAbstractionEntity.account:
         entStake = this.stakeValidationResult.senderInfo
         break
@@ -353,18 +353,20 @@ export class ERC7562Parser {
     ) {
       return
     }
-    const isFactoryStaked = false
+    const isFactoryStaked = this._isEntityStaked(AccountAbstractionEntity.factory)
     const isAllowedCreateByOP032 =
+      tracerResults.type === 'CREATE' &&
       this.currentEntity === AccountAbstractionEntity.account &&
-      tracerResults.from === userOp.sender.toLowerCase() &&
-      isFactoryStaked
+      tracerResults.from === userOp.sender.toLowerCase()
     const isAllowedCreateByEREP060 =
-      this.currentEntity === AccountAbstractionEntity.factory &&
-      tracerResults.from === userOp.factory &&
+      (
+        tracerResults.from.toLowerCase() === userOp.sender?.toLowerCase() ||
+        tracerResults.from.toLowerCase() === userOp.factory?.toLowerCase()
+      ) &&
       isFactoryStaked
     const isAllowedCreateSenderByFactory =
       this.currentEntity === AccountAbstractionEntity.factory &&
-      tracerResults.to === userOp.sender.toLowerCase()
+      tracerResults.to.toLowerCase() === userOp.sender.toLowerCase()
     if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
       this._violationDetected({
         rule: ERC7562Rule.op011,
