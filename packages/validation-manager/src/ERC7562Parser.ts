@@ -233,88 +233,20 @@ export class ERC7562Parser {
   ): ERC7562ValidationResults {
     const address = tracerResults.to
     this._detectEntityChange(userOp, tracerResults)
-    this.checkOp054(tracerResults)
-    this.checkOp054ExtCode(tracerResults, address, recursionDepth)
-    this.checkOp061(tracerResults)
     this.checkOp011(tracerResults)
-    this.checkOp080(tracerResults)
     this.checkOp020(tracerResults)
     this.checkOp031(userOp, tracerResults)
     this.checkOp041(userOp, tracerResults)
+    this.checkOp054(tracerResults)
+    this.checkOp054ExtCode(tracerResults, address, recursionDepth)
+    this.checkOp061(tracerResults)
+    this.checkOp080(tracerResults)
     this.checkStorage(userOp, tracerResults)
     for (const call of tracerResults.calls ?? []) {
       this._innerStepRecursive(userOp, call, recursionDepth + 1)
     }
     return {
       contractAddresses: [], ruleViolations: this.ruleViolations, storageMap: {}
-    }
-  }
-
-  /**
-   * OP-052: May call `depositTo(sender)` with any value from either the `sender` or `factory`.
-   * OP-053: May call the fallback function from the `sender` with any value.
-   * OP-054: Any other access to the EntryPoint is forbidden.
-   */
-  checkOp054 (erc7562Call: ERC7562Call): void {
-    const isCallToEntryPoint = this._isCallToEntryPoint(erc7562Call)
-    const knownMethod = this._tryDetectKnownMethod(erc7562Call)
-    const isEntryPointCallAllowedOP052 = knownMethod === 'depositTo'
-    const isEntryPointCallAllowedOP053 = knownMethod === '0x'
-    const isEntryPointCallAllowed = isEntryPointCallAllowedOP052 || isEntryPointCallAllowedOP053
-    const isRuleViolated = isCallToEntryPoint && !isEntryPointCallAllowed
-    if (isRuleViolated) {
-      this._violationDetected({
-        rule: ERC7562Rule.op054,
-        // TODO: fill in depth, entity
-        depth: -1,
-        entity: this.currentEntity,
-        address: erc7562Call.from,
-        opcode: erc7562Call.type,
-        value: erc7562Call.value,
-        errorCode: ValidationErrors.OpcodeValidation,
-        description: `illegal call into EntryPoint during validation ${knownMethod}`
-      })
-    }
-  }
-
-  /**
-   * OP-061: CALL with value is forbidden. The only exception is a call to the EntryPoint.
-   */
-  checkOp061 (tracerResults: ERC7562Call): void {
-    const isIllegalNonZeroValueCall =
-      !this._isCallToEntryPoint(tracerResults) &&
-      !BigNumber.from(tracerResults.value ?? 0).eq(0)
-    if (isIllegalNonZeroValueCall) {
-      this._violationDetected({
-        rule: ERC7562Rule.op061,
-        // TODO: fill in depth, entity
-        depth: -1,
-        entity: this.currentEntity,
-        address: tracerResults.from,
-        opcode: tracerResults.type,
-        value: tracerResults.value,
-        errorCode: ValidationErrors.OpcodeValidation,
-        description: 'May not may CALL with value'
-      })
-    }
-  }
-
-  /**
-   * OP-020: Revert on "out of gas" is forbidden as it can "leak" the gas limit or the current call stack depth.
-   */
-  checkOp020 (tracerResults: ERC7562Call): void {
-    if (tracerResults.outOfGas) {
-      this._violationDetected({
-        rule: ERC7562Rule.op020,
-        // TODO: fill in depth, entity
-        depth: -1,
-        entity: this.currentEntity,
-        address: tracerResults.from,
-        opcode: tracerResults.type,
-        value: '0',
-        errorCode: ValidationErrors.OpcodeValidation,
-        description: `${this.currentEntity.toString()} internally reverts on oog`
-      })
     }
   }
 
@@ -350,6 +282,165 @@ export class ERC7562Parser {
     )
   }
 
+  /**
+   * OP-020: Revert on "out of gas" is forbidden as it can "leak" the gas limit or the current call stack depth.
+   */
+  checkOp020 (tracerResults: ERC7562Call): void {
+    if (tracerResults.outOfGas) {
+      this._violationDetected({
+        rule: ERC7562Rule.op020,
+        // TODO: fill in depth, entity
+        depth: -1,
+        entity: this.currentEntity,
+        address: tracerResults.from,
+        opcode: tracerResults.type,
+        value: '0',
+        errorCode: ValidationErrors.OpcodeValidation,
+        description: `${this.currentEntity.toString()} internally reverts on oog`
+      })
+    }
+  }
+
+  /**
+   * OP-031: CREATE2 is allowed exactly once in the deployment phase and must deploy code for the "sender" address
+   */
+  checkOp031 (
+    userOp: OperationBase,
+    tracerResults: ERC7562Call
+  ): void {
+    if (
+      tracerResults.type !== 'CREATE' &&
+      tracerResults.type !== 'CREATE2'
+    ) {
+      return
+    }
+    const isFactoryStaked = this._isEntityStaked(AccountAbstractionEntity.factory)
+    const isAllowedCreateByOP032 =
+      userOp.factory != null &&
+      tracerResults.type === 'CREATE' &&
+      this.currentEntity === AccountAbstractionEntity.account &&
+      tracerResults.from.toLowerCase() === userOp.sender.toLowerCase()
+    const isAllowedCreateByEREP060 =
+      (
+        tracerResults.from.toLowerCase() === userOp.sender?.toLowerCase() ||
+        tracerResults.from.toLowerCase() === userOp.factory?.toLowerCase()
+      ) &&
+      isFactoryStaked
+    const isAllowedCreateSenderByFactory =
+      this.currentEntity === AccountAbstractionEntity.factory &&
+      tracerResults.to.toLowerCase() === userOp.sender.toLowerCase()
+    if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
+      this._violationDetected({
+        rule: ERC7562Rule.op011,
+        // TODO: fill in depth, entity
+        depth: -1,
+        entity: this.currentEntity,
+        address: tracerResults.from ?? 'n/a',
+        opcode: 'CREATE2',
+        value: '0',
+        errorCode: ValidationErrors.OpcodeValidation,
+        description: `${this.currentEntity.toString()} uses banned opcode: CREATE2`
+      })
+    }
+  }
+
+  /**
+   * OP-041: Access to an address without a deployed code is forbidden for EXTCODE* and *CALL opcodes
+   */
+  checkOp041 (
+    userOp: OperationBase,
+    tracerResults: ERC7562Call
+  ): void {
+    // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
+    let illegalZeroCodeAccess: any
+    for (const addr of Object.keys(tracerResults.contractSize)) {
+      // [OP-042]
+      if (addr.toLowerCase() !== userOp.sender.toLowerCase() && addr.toLowerCase() !== this.entryPointAddress.toLowerCase() && tracerResults.contractSize[addr].contractSize <= 2) {
+        illegalZeroCodeAccess = tracerResults.contractSize[addr]
+        illegalZeroCodeAccess.address = addr
+        this._violationDetected({
+          address: '',
+          depth: 0,
+          entity: this.currentEntity,
+          rule: ERC7562Rule.op041,
+          errorCode: ValidationErrors.OpcodeValidation,
+          description: `${this.currentEntity.toString()} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`
+        })
+      }
+    }
+  }
+
+  /**
+   * OP-052: May call `depositTo(sender)` with any value from either the `sender` or `factory`.
+   * OP-053: May call the fallback function from the `sender` with any value.
+   * OP-054: Any other access to the EntryPoint is forbidden.
+   */
+  checkOp054 (erc7562Call: ERC7562Call): void {
+    const isCallToEntryPoint = this._isCallToEntryPoint(erc7562Call)
+    const knownMethod = this._tryDetectKnownMethod(erc7562Call)
+    const isEntryPointCallAllowedOP052 = knownMethod === 'depositTo'
+    const isEntryPointCallAllowedOP053 = knownMethod === '0x'
+    const isEntryPointCallAllowed = isEntryPointCallAllowedOP052 || isEntryPointCallAllowedOP053
+    const isRuleViolated = isCallToEntryPoint && !isEntryPointCallAllowed
+    if (isRuleViolated) {
+      this._violationDetected({
+        rule: ERC7562Rule.op054,
+        // TODO: fill in depth, entity
+        depth: -1,
+        entity: this.currentEntity,
+        address: erc7562Call.from,
+        opcode: erc7562Call.type,
+        value: erc7562Call.value,
+        errorCode: ValidationErrors.OpcodeValidation,
+        description: `illegal call into EntryPoint during validation ${knownMethod}`
+      })
+    }
+  }
+
+  checkOp054ExtCode (
+    tracerResults: ERC7562Call,
+    address: string,
+    recursionDepth: number
+  ): void {
+    for (const addr of tracerResults.extCodeAccessInfo) {
+      if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
+        this._violationDetected({
+          address,
+          depth: recursionDepth,
+          entity: this.currentEntity,
+          errorCode: ValidationErrors.OpcodeValidation,
+          rule: ERC7562Rule.op054,
+          description: `${this.currentEntity} accesses EntryPoint contract address ${this.entryPointAddress} with EXTCODE* opcode`
+        })
+      }
+    }
+  }
+
+  /**
+   * OP-061: CALL with value is forbidden. The only exception is a call to the EntryPoint.
+   */
+  checkOp061 (tracerResults: ERC7562Call): void {
+    const isIllegalNonZeroValueCall =
+      !this._isCallToEntryPoint(tracerResults) &&
+      !BigNumber.from(tracerResults.value ?? 0).eq(0)
+    if (isIllegalNonZeroValueCall) {
+      this._violationDetected({
+        rule: ERC7562Rule.op061,
+        // TODO: fill in depth, entity
+        depth: -1,
+        entity: this.currentEntity,
+        address: tracerResults.from,
+        opcode: tracerResults.type,
+        value: tracerResults.value,
+        errorCode: ValidationErrors.OpcodeValidation,
+        description: 'May not may CALL with value'
+      })
+    }
+  }
+
+  /**
+   * OP-080: BALANCE (0x31) and SELFBALANCE (0x47) are allowed only from a staked entity, else they are blocked
+   */
   checkOp080 (tracerResults: ERC7562Call): void {
     const opcodes = tracerResults.usedOpcodes
     const isEntityStaked = this._isEntityStaked()
@@ -378,48 +469,6 @@ export class ERC7562Parser {
           })
         }
       )
-  }
-
-  /**
-   * OP-031: CREATE2 is allowed exactly once in the deployment phase and must deploy code for the "sender" address
-   */
-  checkOp031 (
-    userOp: OperationBase,
-    tracerResults: ERC7562Call
-  ): void {
-    if (
-      tracerResults.type !== 'CREATE' &&
-      tracerResults.type !== 'CREATE2'
-    ) {
-      return
-    }
-    const isFactoryStaked = this._isEntityStaked(AccountAbstractionEntity.factory)
-    const isAllowedCreateByOP032 =
-      tracerResults.type === 'CREATE' &&
-      this.currentEntity === AccountAbstractionEntity.account &&
-      tracerResults.from === userOp.sender.toLowerCase()
-    const isAllowedCreateByEREP060 =
-      (
-        tracerResults.from.toLowerCase() === userOp.sender?.toLowerCase() ||
-        tracerResults.from.toLowerCase() === userOp.factory?.toLowerCase()
-      ) &&
-      isFactoryStaked
-    const isAllowedCreateSenderByFactory =
-      this.currentEntity === AccountAbstractionEntity.factory &&
-      tracerResults.to.toLowerCase() === userOp.sender.toLowerCase()
-    if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
-      this._violationDetected({
-        rule: ERC7562Rule.op011,
-        // TODO: fill in depth, entity
-        depth: -1,
-        entity: this.currentEntity,
-        address: tracerResults.from ?? 'n/a',
-        opcode: 'CREATE2',
-        value: '0',
-        errorCode: ValidationErrors.OpcodeValidation,
-        description: `${this.currentEntity.toString()} uses banned opcode: CREATE2`
-      })
-    }
   }
 
   checkStorage (
@@ -477,51 +526,6 @@ export class ERC7562Parser {
           errorCode: ValidationErrors.OpcodeValidation,
           rule: ERC7562Rule.sto010,
           description
-        })
-      }
-    }
-  }
-
-  checkOp041 (
-    userOp: OperationBase,
-    tracerResults: ERC7562Call
-  ): void {
-    // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
-    let illegalZeroCodeAccess: any
-    for (const addr of Object.keys(tracerResults.contractSize)) {
-      // [OP-042]
-      if (addr.toLowerCase() !== userOp.sender.toLowerCase() && addr.toLowerCase() !== this.entryPointAddress.toLowerCase() && tracerResults.contractSize[addr].contractSize <= 2) {
-        illegalZeroCodeAccess = tracerResults.contractSize[addr]
-        illegalZeroCodeAccess.address = addr
-        this._violationDetected({
-          address: '',
-          depth: 0,
-          entity: this.currentEntity,
-          rule: ERC7562Rule.op041,
-          errorCode: ValidationErrors.OpcodeValidation,
-          description: `${this.currentEntity.toString()} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`
-        })
-      }
-    }
-  }
-
-  checkOp054ExtCode (
-    tracerResults: ERC7562Call,
-    address: string,
-    recursionDepth: number
-  ): void {
-    const entityTitle = 'fixme'
-    let illegalEntryPointCodeAccess
-    for (const addr of Object.keys(tracerResults.extCodeAccessInfo)) {
-      if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
-        illegalEntryPointCodeAccess = tracerResults.extCodeAccessInfo
-        this._violationDetected({
-          address,
-          depth: recursionDepth,
-          entity: this.currentEntity,
-          errorCode: ValidationErrors.OpcodeValidation,
-          rule: ERC7562Rule.op054,
-          description: `${entityTitle} accesses EntryPoint contract address ${this.entryPointAddress} with opcode $ {'todo'}`
         })
       }
     }

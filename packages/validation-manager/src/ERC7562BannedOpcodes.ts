@@ -1,21 +1,28 @@
+/**
+ * [OP-011] the opcodes banned for all entities.
+ */
 export const bannedOpCodes = new Set(
   [
-    'GASPRICE',
-    'GASLIMIT',
-    'DIFFICULTY',
-    'TIMESTAMP',
     'BASEFEE',
     'BLOCKHASH',
+    'COINBASE',
+    'DIFFICULTY',
+    // 'GAS',
+    'GASLIMIT',
+    'GASPRICE',
+    'INVALID',
     'NUMBER',
     'ORIGIN',
-    'COINBASE',
-    'SELFDESTRUCT',
-    'RANDOM',
     'PREVRANDAO',
-    'INVALID'
+    'RANDOM',
+    'SELFDESTRUCT',
+    'TIMESTAMP'
   ]
 )
-// opcodes allowed in staked entities [OP-080]
+
+/**
+ * [OP-080] the opcodes allowed in staked entities.
+ */
 export const opcodesOnlyInStakedEntities = new Set(
   [
     'BALANCE',
