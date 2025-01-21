@@ -255,10 +255,12 @@ export class ERC7562Parser {
   private contractAddresses: string[] = []
   private storageMap: StorageMap = {}
 
+  private bailOnViolation: boolean = false
+
   constructor (
     readonly entryPointAddress: string,
     readonly senderCreatorAddress: string,
-    readonly bailOnViolation: boolean
+    readonly nonceManagerAddress?: string,
   ) {}
 
   private _init (erc7562Call: ERC7562Call): void {
@@ -364,6 +366,9 @@ export class ERC7562Parser {
     } else if (this.senderCreatorAddress.toLowerCase() === call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.senderCreator
       this.currentEntityAddress = this.senderCreatorAddress
+    } else if (this.nonceManagerAddress?.toLowerCase() === call.to.toLowerCase()) {
+      this.currentEntity = AccountAbstractionEntity.nativeNonceManager
+      this.currentEntityAddress = this.nonceManagerAddress!
     } else {
       throw new RpcError(`could not find entity name for address ${call.to}. This should not happen. This is a bug.`, 0)
     }
@@ -394,8 +399,8 @@ export class ERC7562Parser {
   private _parseEntitySlots (
     userOp: OperationBase
   ): {
-      [addr: string]: Set<string>
-    } {
+    [addr: string]: Set<string>
+  } {
     // for each entity (sender, factory, paymaster), hold the valid slot addresses
     const entityAddresses = [userOp.sender.toLowerCase(), userOp.paymaster?.toLowerCase(), userOp.factory?.toLowerCase()]
     const entitySlots: { [addr: string]: Set<string> } = {}
@@ -426,11 +431,9 @@ export class ERC7562Parser {
     tracerResults: ERC7562Call,
     validationResult: ValidationResult
   ): ERC7562ValidationResults {
+    this.bailOnViolation = true
     const results = this.parseResults(userOp, tracerResults, validationResult)
-    if (results.ruleViolations.length > 0) {
-      // TODO: human-readable description of which rules were violated.
-      throw new Error('Rules Violated')
-    }
+    this.bailOnViolation = false
     return results
   }
 
@@ -713,8 +716,11 @@ export class ERC7562Parser {
     userOp: OperationBase,
     tracerResults: ERC7562Call
   ): void {
-    if (tracerResults.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
-      // Currently inside the EntryPoint deposit code, no access control applies here
+    if (
+      tracerResults.to.toLowerCase() === this.entryPointAddress.toLowerCase() ||
+      tracerResults.to.toLowerCase() === this.nonceManagerAddress?.toLowerCase()
+    ) {
+      // Currently inside system code, no access control applies here
       return
     }
     const allSlots: string[] = [

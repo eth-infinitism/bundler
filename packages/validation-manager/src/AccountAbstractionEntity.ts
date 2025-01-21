@@ -6,5 +6,6 @@ export enum AccountAbstractionEntity {
   senderCreator = 'SenderCreator',
   entryPoint = 'EntryPoint',
   nativeEntryPoint = 'NativeEntryPoint',
+  nativeNonceManager = 'NativeNonceManager',
   none = 'none'
 }

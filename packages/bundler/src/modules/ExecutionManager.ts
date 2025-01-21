@@ -150,7 +150,7 @@ export class ExecutionManager {
     const { configuration, entryPoint, unsafe } = this.validationManager._getDebugConfiguration()
     const mergedConfiguration = Object.assign({}, configuration, configOverrides)
     const pvgc = new PreVerificationGasCalculator(mergedConfiguration)
-    const erc7562Parser = new ERC7562Parser(entryPoint.address, mergedConfiguration.senderCreator ?? '', true)
+    const erc7562Parser = new ERC7562Parser(entryPoint.address, mergedConfiguration.senderCreator ?? '')
     this.validationManager = new ValidationManager(
       entryPoint,
       unsafe,
