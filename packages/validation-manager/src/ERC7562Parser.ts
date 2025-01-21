@@ -23,6 +23,222 @@ import { ValidationResult } from './IValidationManager'
 import { ERC7562Call } from './ERC7562Call'
 import { getOpcodeName } from './enum/EVMOpcodes'
 
+// TODO: Use artifact from the submodule
+const RIP7560EntryPointABI = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'sender',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'paymaster',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'deployer',
+        type: 'address'
+      }
+    ],
+    name: 'RIP7560AccountDeployed',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'sender',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'paymaster',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'nonceKey',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'nonceSequence',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'executionStatus',
+        type: 'uint256'
+      }
+    ],
+    name: 'RIP7560TransactionEvent',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'sender',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'paymaster',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'nonceKey',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'nonceSequence',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'bytes',
+        name: 'revertReason',
+        type: 'bytes'
+      }
+    ],
+    name: 'RIP7560TransactionPostOpRevertReason',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'sender',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'nonceKey',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'nonceSequence',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'bytes',
+        name: 'revertReason',
+        type: 'bytes'
+      }
+    ],
+    name: 'RIP7560TransactionRevertReason',
+    type: 'event'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'validAfter',
+        type: 'uint256'
+      },
+      {
+        internalType: 'uint256',
+        name: 'validUntil',
+        type: 'uint256'
+      }
+    ],
+    name: 'acceptAccount',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'validAfter',
+        type: 'uint256'
+      },
+      {
+        internalType: 'uint256',
+        name: 'validUntil',
+        type: 'uint256'
+      },
+      {
+        internalType: 'bytes',
+        name: 'context',
+        type: 'bytes'
+      }
+    ],
+    name: 'acceptPaymaster',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'validAfter',
+        type: 'uint256'
+      },
+      {
+        internalType: 'uint256',
+        name: 'validUntil',
+        type: 'uint256'
+      }
+    ],
+    name: 'sigFailAccount',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'validAfter',
+        type: 'uint256'
+      },
+      {
+        internalType: 'uint256',
+        name: 'validUntil',
+        type: 'uint256'
+      },
+      {
+        internalType: 'bytes',
+        name: 'context',
+        type: 'bytes'
+      }
+    ],
+    name: 'sigFailPaymaster',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  }
+]
+
 export interface ERC7562ValidationResults {
   storageMap: StorageMap
   ruleViolations: ERC7562Violation[]
@@ -45,7 +261,7 @@ export class ERC7562Parser {
     readonly bailOnViolation: boolean
   ) {}
 
-  private _init (erc7562Call: ERC7562Call) {
+  private _init (erc7562Call: ERC7562Call): void {
     this.keccak = erc7562Call.keccak ?? []
     this.ruleViolations = []
     this.currentEntity = AccountAbstractionEntity.none
@@ -102,6 +318,7 @@ export class ERC7562Parser {
 
   private _tryDetectKnownMethod (call: ERC7562Call): string {
     const mergedAbi = Object.values([
+      ...RIP7560EntryPointABI,
       ...SenderCreator__factory.abi,
       ...IEntryPoint__factory.abi,
       ...IPaymaster__factory.abi
@@ -366,7 +583,11 @@ export class ERC7562Parser {
     let illegalZeroCodeAccess: any
     for (const addr of Object.keys(tracerResults.contractSize)) {
       // [OP-042]
-      if (addr.toLowerCase() !== userOp.sender.toLowerCase() && addr.toLowerCase() !== this.entryPointAddress.toLowerCase() && tracerResults.contractSize[addr].contractSize <= 2) {
+      if (
+        addr.toLowerCase() !== userOp.sender.toLowerCase() &&
+        // addr.toLowerCase() !== AA_ENTRY_POINT &&
+        addr.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
+        tracerResults.contractSize[addr].contractSize <= 2) {
         illegalZeroCodeAccess = tracerResults.contractSize[addr]
         illegalZeroCodeAccess.address = addr
         this._violationDetected({
@@ -389,9 +610,15 @@ export class ERC7562Parser {
   checkOp054 (erc7562Call: ERC7562Call): void {
     const isCallToEntryPoint = this._isCallToEntryPoint(erc7562Call)
     const knownMethod = this._tryDetectKnownMethod(erc7562Call)
+    const isEntryPointCallAllowedRIP7560 = knownMethod === 'acceptAccount' ||
+      knownMethod === 'acceptPaymaster' ||
+      knownMethod === 'sigFailAccount' ||
+      knownMethod === 'sigFailPaymaster'
     const isEntryPointCallAllowedOP052 = knownMethod === 'depositTo'
     const isEntryPointCallAllowedOP053 = knownMethod === '0x'
-    const isEntryPointCallAllowed = isEntryPointCallAllowedOP052 || isEntryPointCallAllowedOP053
+    const isEntryPointCallAllowed = isEntryPointCallAllowedOP052 ||
+      isEntryPointCallAllowedOP053 ||
+      isEntryPointCallAllowedRIP7560
     const isRuleViolated = isCallToEntryPoint && !isEntryPointCallAllowed
     if (isRuleViolated) {
       this._violationDetected({

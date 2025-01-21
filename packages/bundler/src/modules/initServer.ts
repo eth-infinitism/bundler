@@ -9,9 +9,11 @@ import { BundlerReputationParams, ReputationManager } from './ReputationManager'
 import { MempoolManager } from './MempoolManager'
 import { BundleManager } from './BundleManager'
 import {
+  AA_ENTRY_POINT,
+  AA_STAKE_MANAGER,
+  IValidationManager,
   ValidationManager,
   ValidationManagerRIP7560,
-  IValidationManager, AA_STAKE_MANAGER
 } from '@account-abstraction/validation-manager'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
@@ -36,15 +38,16 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const mergedPvgcConfig = Object.assign({}, ChainConfigs[config.chainId] ?? {}, config)
   const preVerificationGasCalculator = new PreVerificationGasCalculator(mergedPvgcConfig)
-  const erc7562Parser = new ERC7562Parser(entryPoint.address, config.senderCreator, true)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {
+    const erc7562Parser = new ERC7562Parser(entryPoint.address, config.senderCreator, true)
     const tracerProvider = config.tracerRpcUrl == null ? undefined : getNetworkProvider(config.tracerRpcUrl)
     validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, erc7562Parser, tracerProvider)
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
+    const erc7562Parser = new ERC7562Parser(AA_ENTRY_POINT, config.senderCreator, true)
     const stakeManager = IRip7560StakeManager__factory.connect(AA_STAKE_MANAGER, signer)
     validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, erc7562Parser, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,

@@ -3,12 +3,12 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import {
   AddressZero,
   IEntryPoint__factory,
-  OperationRIP7560,
   UserOperation
 } from '@account-abstraction/utils'
 import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
-import { bundlerJSTracerName, debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
+import { bundlerJSTracerName, debug_traceCall } from './GethTracer'
+// @ts-ignore
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
@@ -37,37 +37,8 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
   }
 
   if (rip7560) {
-    // TODO: remove
-    const defaultsForRip7560Tx: OperationRIP7560 = {
-      accessList: [],
-      builderFee: '0x0',
-      chainId: '0x539',
-      value: '0x0',
-      sender: AddressZero,
-      nonceKey: '0x0',
-      nonce: '0x0',
-      executionData: '0x',
-      callGasLimit: '0x0',
-      verificationGasLimit: '0x10000',
-      maxFeePerGas: '0x100000000',
-      maxPriorityFeePerGas: '0x100000000',
-      paymaster: AddressZero,
-      paymasterData: '0x',
-      factory: AddressZero,
-      factoryData: '0x',
-      paymasterVerificationGasLimit: '0x10000',
-      paymasterPostOpGasLimit: '0x0',
-      authorizationData: '0x',
-      authorizationList: []
-    };
-
-    // TODO: align parameter names across 4337 and 7560
-    (defaultsForRip7560Tx as any).deployer = defaultsForRip7560Tx.factory;
-    (defaultsForRip7560Tx as any).deployerData = defaultsForRip7560Tx.factoryData
-    // make sure we can trace a call.
-    const ret = await eth_traceRip7560Validation(provider, defaultsForRip7560Tx
-    ).catch(e => e)
-    return ret.traceResults != null
+    // no need to check for the internal RIP-7560 support
+    return true
   }
   // make sure we can trace a call.
   const ret = await debug_traceCall(provider,

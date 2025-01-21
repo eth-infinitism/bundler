@@ -5,5 +5,6 @@ export enum AccountAbstractionEntity {
   aggregator = 'aggregator',
   senderCreator = 'SenderCreator',
   entryPoint = 'EntryPoint',
+  nativeEntryPoint = 'NativeEntryPoint',
   none = 'none'
 }
