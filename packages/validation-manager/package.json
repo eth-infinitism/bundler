@@ -22,7 +22,8 @@
     "@ethersproject/properties": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "debug": "^4.3.4",
-    "ethers": "^5.7.0"
+    "ethers": "^5.7.0",
+    "ow": "^0.28.1"
   },
   "devDependencies": {}
 }

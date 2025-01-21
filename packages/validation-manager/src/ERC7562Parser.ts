@@ -392,6 +392,7 @@ export class ERC7562Parser {
       erc7562Call.from.toLowerCase() !== this.senderCreatorAddress.toLowerCase()) {
       return
     }
+    const nonceManagerAddress = this.nonceManagerAddress
     if (userOp.sender.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.account
       this.currentEntityAddress = userOp.sender
@@ -410,9 +411,12 @@ export class ERC7562Parser {
     } else if (this.senderCreatorAddress.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.senderCreator
       this.currentEntityAddress = this.senderCreatorAddress
-    } else if (this.nonceManagerAddress?.toLowerCase() === erc7562Call.to.toLowerCase()) {
+    } else if (
+      nonceManagerAddress != null &&
+      nonceManagerAddress.toLowerCase() === erc7562Call.to.toLowerCase()
+    ) {
       this.currentEntity = AccountAbstractionEntity.nativeNonceManager
-      this.currentEntityAddress = this.nonceManagerAddress!
+      this.currentEntityAddress = nonceManagerAddress
     } else {
       throw new RpcError(`could not find entity name for address ${erc7562Call.to}. This should not happen. This is a bug.`, 0)
     }
