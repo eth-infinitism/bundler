@@ -38,6 +38,8 @@ import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
 import { ERC7562Call } from './ERC7562Call'
+import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
+import { tracerResultParser } from './TracerResultParser'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -57,6 +59,7 @@ const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
  */
 export class ValidationManager implements IValidationManager {
   private readonly provider: JsonRpcProvider
+
   constructor (
     readonly entryPoint: IEntryPoint,
     readonly unsafe: boolean,
@@ -142,7 +145,7 @@ export class ValidationManager implements IValidationManager {
   async _geth_traceCall_SimulateValidation (
     operation: OperationBase,
     stateOverride: { [address: string]: { code: string } }
-  ): Promise<[ValidationResult, ERC7562Call]> {
+  ): Promise<[ValidationResult, ERC7562Call | null, BundlerTracerResult | null]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
     const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
@@ -157,18 +160,18 @@ export class ValidationManager implements IValidationManager {
     }
     let tracer
     if (!this.usingErc7562NativeTracer()) {
-      throw new Error('JavaScript BundlerCollectorTracer is no longer supported')
+      tracer = bundlerCollectorTracer
     }
     const tracerResult = await debug_traceCall(provider, {
-      from: AddressZero,
-      to: this.entryPoint.address,
-      data: simulateCall,
-      gasLimit: simulationGas
-    }, {
-      tracer,
-      stateOverrides
-    },
-    this.providerForTracer
+        from: AddressZero,
+        to: this.entryPoint.address,
+        data: simulateCall,
+        gasLimit: simulationGas
+      }, {
+        tracer,
+        stateOverrides
+      },
+      this.providerForTracer
     )
 
     let data: any
@@ -201,7 +204,11 @@ export class ValidationManager implements IValidationManager {
       )
       // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
       // errorResult is "ValidationResult"
-      return [validationResult, tracerResult]
+      if (this.usingErc7562NativeTracer()) {
+        return [validationResult, tracerResult, null]
+      } else {
+        return [validationResult, null, tracerResult as BundlerTracerResult]
+      }
     } catch (e: any) {
       // if already parsed, throw as is
       if (e.code != null) {
@@ -257,14 +264,21 @@ export class ValidationManager implements IValidationManager {
     const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
-      let tracerResult: ERC7562Call
-      [res, tracerResult] = await this._geth_traceCall_SimulateValidation(userOp, stateOverrideForEip7702).catch(e => {
+      let erc7562Call: ERC7562Call | null
+      let bundlerTracerResult: BundlerTracerResult | null
+      [res, erc7562Call, bundlerTracerResult] = await this._geth_traceCall_SimulateValidation(userOp, stateOverrideForEip7702).catch(e => {
         throw e
       })
       // console.log('tracer res')
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
-      ({ contractAddresses, storageMap } = this.erc7562Parser.requireCompliance(userOp, tracerResult, res))
+      if (erc7562Call != null) {
+        ({ contractAddresses, storageMap } = this.erc7562Parser.requireCompliance(userOp, erc7562Call, res))
+      } else if (bundlerTracerResult != null) {
+        [contractAddresses, storageMap] = tracerResultParser(userOp, bundlerTracerResult, res, this.entryPoint.address)
+      } else {
+        throw new Error('Tracer result is null for both legacy and modern parser')
+      }
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
