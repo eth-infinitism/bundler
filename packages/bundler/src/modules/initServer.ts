@@ -15,7 +15,7 @@ import {
   AA_STAKE_MANAGER,
   IValidationManager,
   ValidationManager,
-  ValidationManagerRIP7560,
+  ValidationManagerRIP7560
 } from '@account-abstraction/validation-manager'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
