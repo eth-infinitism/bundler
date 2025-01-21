@@ -18,6 +18,7 @@ import { eth_traceRip7560Validation } from './GethTracer'
 import { ERC7562Parser } from './ERC7562Parser'
 
 export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
+export const AA_SENDER_CREATOR = '0x00000000000000000000000000000000ffff7560'
 export const AA_STAKE_MANAGER = '0x570Aa568b6cf62ff08c6C3a3b3DB1a0438E871Fb'
 
 export class ValidationManagerRIP7560 implements IValidationManager {

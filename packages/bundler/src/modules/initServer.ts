@@ -10,6 +10,7 @@ import { MempoolManager } from './MempoolManager'
 import { BundleManager } from './BundleManager'
 import {
   AA_ENTRY_POINT,
+  AA_SENDER_CREATOR,
   AA_STAKE_MANAGER,
   IValidationManager,
   ValidationManager,
@@ -47,7 +48,7 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
-    const erc7562Parser = new ERC7562Parser(AA_ENTRY_POINT, config.senderCreator, true)
+    const erc7562Parser = new ERC7562Parser(AA_ENTRY_POINT, AA_SENDER_CREATOR, true)
     const stakeManager = IRip7560StakeManager__factory.connect(AA_STAKE_MANAGER, signer)
     validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, erc7562Parser, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
