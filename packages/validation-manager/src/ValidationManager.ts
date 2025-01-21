@@ -163,15 +163,15 @@ export class ValidationManager implements IValidationManager {
       tracer = bundlerCollectorTracer
     }
     const tracerResult = await debug_traceCall(provider, {
-        from: AddressZero,
-        to: this.entryPoint.address,
-        data: simulateCall,
-        gasLimit: simulationGas
-      }, {
-        tracer,
-        stateOverrides
-      },
-      this.providerForTracer
+      from: AddressZero,
+      to: this.entryPoint.address,
+      data: simulateCall,
+      gasLimit: simulationGas
+    }, {
+      tracer,
+      stateOverrides
+    },
+    this.providerForTracer
     )
 
     let data: any

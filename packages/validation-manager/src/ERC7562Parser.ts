@@ -260,8 +260,52 @@ export class ERC7562Parser {
   constructor (
     readonly entryPointAddress: string,
     readonly senderCreatorAddress: string,
-    readonly nonceManagerAddress?: string,
+    readonly nonceManagerAddress?: string
   ) {}
+
+  /**
+   * Analyzes the tracing results for the given UserOperation.
+   * Throws an exception in case canonical ERC-7562 rule violation was detected.
+   *
+   * In order to get a list of violated rules use {@link parseResults} directly.
+   * @returns {@link ERC7562ValidationResults} containing addresses and storage slots accessed by the UserOperation.
+   */
+  requireCompliance (
+    userOp: OperationBase,
+    erc7562Call: ERC7562Call,
+    validationResult: ValidationResult
+  ): ERC7562ValidationResults {
+    this.bailOnViolation = true
+    const results = this.parseResults(userOp, erc7562Call, validationResult)
+    this.bailOnViolation = false
+    return results
+  }
+
+  /**
+   * Analyzes the tracing results for the given UserOperation.
+   *
+   * Unlike {@link requireCompliance}, does not throw an exception in case a rule violation was detected.
+   *
+   * @returns {@link ERC7562ValidationResults} containing addresses and storage slots accessed by the UserOperation,
+   * @returns an array of ERC-7562 rules that were violated by the UserOperation.
+   */
+  parseResults (
+    userOp: OperationBase,
+    erc7562Call: ERC7562Call,
+    validationResult: ValidationResult
+  ): ERC7562ValidationResults {
+    this._init(erc7562Call)
+    if (erc7562Call.calls == null || erc7562Call.calls.length < 1) {
+      throw new Error('Unexpected traceCall result: no calls from entrypoint.')
+    }
+    this.stakeValidationResult = validationResult
+    this._innerStepRecursive(userOp, erc7562Call, 0)
+    return {
+      contractAddresses: this.contractAddresses,
+      ruleViolations: this.ruleViolations,
+      storageMap: this.storageMap
+    }
+  }
 
   private _init (erc7562Call: ERC7562Call): void {
     this.keccak = erc7562Call.keccak ?? []
@@ -272,11 +316,11 @@ export class ERC7562Parser {
     this.storageMap = {}
   }
 
-  private _isCallToEntryPoint (call: ERC7562Call): boolean {
-    return call.to?.toLowerCase() === this.entryPointAddress?.toLowerCase() &&
-      call.from?.toLowerCase() !== this.entryPointAddress?.toLowerCase() &&
+  private _isCallToEntryPoint (erc7562Call: ERC7562Call): boolean {
+    return erc7562Call.to?.toLowerCase() === this.entryPointAddress?.toLowerCase() &&
+      erc7562Call.from?.toLowerCase() !== this.entryPointAddress?.toLowerCase() &&
       // skipping the top-level call from address(0) to 'simulateValidations()'
-      call.from?.toLowerCase() !== AddressZero
+      erc7562Call.from?.toLowerCase() !== AddressZero
   }
 
   private _isEntityStaked (entity?: AccountAbstractionEntity): boolean {
@@ -318,7 +362,7 @@ export class ERC7562Parser {
     return false
   }
 
-  private _tryDetectKnownMethod (call: ERC7562Call): string {
+  private _tryDetectKnownMethod (erc7562Call: ERC7562Call): string {
     const mergedAbi = Object.values([
       ...RIP7560EntryPointABI,
       ...SenderCreator__factory.abi,
@@ -326,7 +370,7 @@ export class ERC7562Parser {
       ...IPaymaster__factory.abi
     ])
     const AbiInterfaces = new Interface(mergedAbi)
-    const methodSig = call.input.slice(0, 10)
+    const methodSig = erc7562Call.input.slice(0, 10)
     try {
       const abiFunction: FunctionFragment = AbiInterfaces.getFunction(methodSig)
       return abiFunction.name
@@ -341,36 +385,36 @@ export class ERC7562Parser {
     }
   }
 
-  private _detectEntityChange (userOp: OperationBase, call: ERC7562Call): void {
+  private _detectEntityChange (userOp: OperationBase, erc7562Call: ERC7562Call): void {
     if (
-      call.from.toLowerCase() !== AddressZero &&
-      call.from.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
-      call.from.toLowerCase() !== this.senderCreatorAddress.toLowerCase()) {
+      erc7562Call.from.toLowerCase() !== AddressZero &&
+      erc7562Call.from.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
+      erc7562Call.from.toLowerCase() !== this.senderCreatorAddress.toLowerCase()) {
       return
     }
-    if (userOp.sender.toLowerCase() === call.to.toLowerCase()) {
+    if (userOp.sender.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.account
       this.currentEntityAddress = userOp.sender
     } else if (
-      call.from.toLowerCase() === this.senderCreatorAddress.toLowerCase() &&
-      userOp.factory?.toLowerCase() === call.to.toLowerCase()
+      erc7562Call.from.toLowerCase() === this.senderCreatorAddress.toLowerCase() &&
+      userOp.factory?.toLowerCase() === erc7562Call.to.toLowerCase()
     ) {
       this.currentEntity = AccountAbstractionEntity.factory
       this.currentEntityAddress = userOp.factory
-    } else if (userOp.paymaster?.toLowerCase() === call.to.toLowerCase()) {
+    } else if (userOp.paymaster?.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.paymaster
       this.currentEntityAddress = userOp.paymaster
-    } else if (this.entryPointAddress.toLowerCase() === call.to.toLowerCase()) {
+    } else if (this.entryPointAddress.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.entryPoint
       this.currentEntityAddress = this.entryPointAddress
-    } else if (this.senderCreatorAddress.toLowerCase() === call.to.toLowerCase()) {
+    } else if (this.senderCreatorAddress.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.senderCreator
       this.currentEntityAddress = this.senderCreatorAddress
-    } else if (this.nonceManagerAddress?.toLowerCase() === call.to.toLowerCase()) {
+    } else if (this.nonceManagerAddress?.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.nativeNonceManager
       this.currentEntityAddress = this.nonceManagerAddress!
     } else {
-      throw new RpcError(`could not find entity name for address ${call.to}. This should not happen. This is a bug.`, 0)
+      throw new RpcError(`could not find entity name for address ${erc7562Call.to}. This should not happen. This is a bug.`, 0)
     }
   }
 
@@ -399,8 +443,8 @@ export class ERC7562Parser {
   private _parseEntitySlots (
     userOp: OperationBase
   ): {
-    [addr: string]: Set<string>
-  } {
+      [addr: string]: Set<string>
+    } {
     // for each entity (sender, factory, paymaster), hold the valid slot addresses
     const entityAddresses = [userOp.sender.toLowerCase(), userOp.paymaster?.toLowerCase(), userOp.factory?.toLowerCase()]
     const entitySlots: { [addr: string]: Set<string> } = {}
@@ -423,56 +467,24 @@ export class ERC7562Parser {
     return entitySlots
   }
 
-  /**
-   * Validates the UserOperation and throws an exception in case current mempool configuration rules were violated.
-   */
-  requireCompliance (
-    userOp: OperationBase,
-    tracerResults: ERC7562Call,
-    validationResult: ValidationResult
-  ): ERC7562ValidationResults {
-    this.bailOnViolation = true
-    const results = this.parseResults(userOp, tracerResults, validationResult)
-    this.bailOnViolation = false
-    return results
-  }
-
-  parseResults (
-    userOp: OperationBase,
-    erc7562Call: ERC7562Call,
-    validationResult: ValidationResult
-  ): ERC7562ValidationResults {
-    this._init(erc7562Call)
-    if (erc7562Call.calls == null || erc7562Call.calls.length < 1) {
-      throw new Error('Unexpected traceCall result: no calls from entrypoint.')
-    }
-    this.stakeValidationResult = validationResult
-    this._innerStepRecursive(userOp, erc7562Call, 0)
-    return {
-      contractAddresses: this.contractAddresses,
-      ruleViolations: this.ruleViolations,
-      storageMap: this.storageMap
-    }
-  }
-
   private _innerStepRecursive (
     userOp: OperationBase,
-    tracerResults: ERC7562Call,
+    erc7562Call: ERC7562Call,
     recursionDepth: number
   ): void {
-    const address = tracerResults.to
+    const address = erc7562Call.to
     this.contractAddresses.push(address)
-    this._detectEntityChange(userOp, tracerResults)
-    this.checkOp011(tracerResults)
-    this.checkOp020(tracerResults)
-    this.checkOp031(userOp, tracerResults)
-    this.checkOp041(userOp, tracerResults)
-    this.checkOp054(tracerResults)
-    this.checkOp054ExtCode(tracerResults, address, recursionDepth)
-    this.checkOp061(tracerResults)
-    this.checkOp080(tracerResults)
-    this.checkStorage(userOp, tracerResults)
-    for (const call of tracerResults.calls ?? []) {
+    this._detectEntityChange(userOp, erc7562Call)
+    this._checkOp011(erc7562Call, recursionDepth)
+    this._checkOp020(erc7562Call, recursionDepth)
+    this._checkOp031(userOp, erc7562Call, recursionDepth)
+    this._checkOp041(userOp, erc7562Call, recursionDepth)
+    this._checkOp054(erc7562Call, recursionDepth)
+    this._checkOp054ExtCode(erc7562Call, address, recursionDepth)
+    this._checkOp061(erc7562Call, recursionDepth)
+    this._checkOp080(erc7562Call, recursionDepth)
+    this._checkStorage(userOp, erc7562Call, recursionDepth)
+    for (const call of erc7562Call.calls ?? []) {
       this._innerStepRecursive(userOp, call, recursionDepth + 1)
     }
   }
@@ -481,12 +493,12 @@ export class ERC7562Parser {
    * OP-011: Blocked opcodes
    * OP-080: `BALANCE` (0x31) and `SELFBALANCE` (0x47) are allowed only from a staked entity, else they are blocked
    */
-  checkOp011 (tracerResults: ERC7562Call): void {
-    if (tracerResults.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
+  private _checkOp011 (erc7562Call: ERC7562Call, recursionDepth: number): void {
+    if (erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
       // Currently inside the EntryPoint deposit code, no access control applies here
       return
     }
-    const opcodes = tracerResults.usedOpcodes
+    const opcodes = erc7562Call.usedOpcodes
     const bannedOpCodeUsed =
       Object
         .keys(opcodes)
@@ -500,10 +512,9 @@ export class ERC7562Parser {
       (opcode: string): void => {
         this._violationDetected({
           rule: ERC7562Rule.op011,
-          // TODO: fill in depth, entity
-          depth: -1,
+          depth: recursionDepth,
           entity: this.currentEntity,
-          address: tracerResults.from,
+          address: erc7562Call.from,
           opcode,
           value: '0',
           errorCode: ValidationErrors.OpcodeValidation,
@@ -516,15 +527,15 @@ export class ERC7562Parser {
   /**
    * OP-020: Revert on "out of gas" is forbidden as it can "leak" the gas limit or the current call stack depth.
    */
-  checkOp020 (tracerResults: ERC7562Call): void {
-    if (tracerResults.outOfGas) {
+  private _checkOp020 (erc7562Call: ERC7562Call, recursionDepth: number): void {
+    if (erc7562Call.outOfGas) {
       this._violationDetected({
         rule: ERC7562Rule.op020,
         // TODO: fill in depth, entity
-        depth: -1,
+        depth: recursionDepth,
         entity: this.currentEntity,
-        address: tracerResults.from,
-        opcode: tracerResults.type,
+        address: erc7562Call.from,
+        opcode: erc7562Call.type,
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
         description: `${this.currentEntity.toString()} internally reverts on oog`
@@ -535,38 +546,38 @@ export class ERC7562Parser {
   /**
    * OP-031: CREATE2 is allowed exactly once in the deployment phase and must deploy code for the "sender" address
    */
-  checkOp031 (
+  private _checkOp031 (
     userOp: OperationBase,
-    tracerResults: ERC7562Call
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
   ): void {
     if (
-      tracerResults.type !== 'CREATE' &&
-      tracerResults.type !== 'CREATE2'
+      erc7562Call.type !== 'CREATE' &&
+      erc7562Call.type !== 'CREATE2'
     ) {
       return
     }
     const isFactoryStaked = this._isEntityStaked(AccountAbstractionEntity.factory)
     const isAllowedCreateByOP032 =
       userOp.factory != null &&
-      tracerResults.type === 'CREATE' &&
+      erc7562Call.type === 'CREATE' &&
       this.currentEntity === AccountAbstractionEntity.account &&
-      tracerResults.from.toLowerCase() === userOp.sender.toLowerCase()
+      erc7562Call.from.toLowerCase() === userOp.sender.toLowerCase()
     const isAllowedCreateByEREP060 =
       (
-        tracerResults.from.toLowerCase() === userOp.sender?.toLowerCase() ||
-        tracerResults.from.toLowerCase() === userOp.factory?.toLowerCase()
+        erc7562Call.from.toLowerCase() === userOp.sender?.toLowerCase() ||
+        erc7562Call.from.toLowerCase() === userOp.factory?.toLowerCase()
       ) &&
       isFactoryStaked
     const isAllowedCreateSenderByFactory =
       this.currentEntity === AccountAbstractionEntity.factory &&
-      tracerResults.to.toLowerCase() === userOp.sender.toLowerCase()
+      erc7562Call.to.toLowerCase() === userOp.sender.toLowerCase()
     if (!(isAllowedCreateByOP032 || isAllowedCreateByEREP060 || isAllowedCreateSenderByFactory)) {
       this._violationDetected({
         rule: ERC7562Rule.op011,
-        // TODO: fill in depth, entity
-        depth: -1,
+        depth: recursionDepth,
         entity: this.currentEntity,
-        address: tracerResults.from ?? 'n/a',
+        address: erc7562Call.from ?? 'n/a',
         opcode: 'CREATE2',
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
@@ -578,24 +589,25 @@ export class ERC7562Parser {
   /**
    * OP-041: Access to an address without a deployed code is forbidden for EXTCODE* and *CALL opcodes
    */
-  checkOp041 (
+  private _checkOp041 (
     userOp: OperationBase,
-    tracerResults: ERC7562Call
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
   ): void {
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess: any
-    for (const addr of Object.keys(tracerResults.contractSize)) {
+    for (const addr of Object.keys(erc7562Call.contractSize)) {
       // [OP-042]
       if (
         addr.toLowerCase() !== userOp.sender.toLowerCase() &&
         // addr.toLowerCase() !== AA_ENTRY_POINT &&
         addr.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
-        tracerResults.contractSize[addr].contractSize <= 2) {
-        illegalZeroCodeAccess = tracerResults.contractSize[addr]
+        erc7562Call.contractSize[addr].contractSize <= 2) {
+        illegalZeroCodeAccess = erc7562Call.contractSize[addr]
         illegalZeroCodeAccess.address = addr
         this._violationDetected({
           address: '',
-          depth: 0,
+          depth: recursionDepth,
           entity: this.currentEntity,
           rule: ERC7562Rule.op041,
           errorCode: ValidationErrors.OpcodeValidation,
@@ -610,7 +622,10 @@ export class ERC7562Parser {
    * OP-053: May call the fallback function from the `sender` with any value.
    * OP-054: Any other access to the EntryPoint is forbidden.
    */
-  checkOp054 (erc7562Call: ERC7562Call): void {
+  private _checkOp054 (
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
+  ): void {
     const isCallToEntryPoint = this._isCallToEntryPoint(erc7562Call)
     const knownMethod = this._tryDetectKnownMethod(erc7562Call)
     const isEntryPointCallAllowedRIP7560 = knownMethod === 'acceptAccount' ||
@@ -626,8 +641,7 @@ export class ERC7562Parser {
     if (isRuleViolated) {
       this._violationDetected({
         rule: ERC7562Rule.op054,
-        // TODO: fill in depth, entity
-        depth: -1,
+        depth: recursionDepth,
         entity: this.currentEntity,
         address: erc7562Call.from,
         opcode: erc7562Call.type,
@@ -638,12 +652,12 @@ export class ERC7562Parser {
     }
   }
 
-  checkOp054ExtCode (
-    tracerResults: ERC7562Call,
+  private _checkOp054ExtCode (
+    erc7562Call: ERC7562Call,
     address: string,
     recursionDepth: number
   ): void {
-    for (const addr of tracerResults.extCodeAccessInfo) {
+    for (const addr of erc7562Call.extCodeAccessInfo) {
       if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
         this._violationDetected({
           address,
@@ -660,19 +674,21 @@ export class ERC7562Parser {
   /**
    * OP-061: CALL with value is forbidden. The only exception is a call to the EntryPoint.
    */
-  checkOp061 (tracerResults: ERC7562Call): void {
+  private _checkOp061 (
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
+  ): void {
     const isIllegalNonZeroValueCall =
-      !this._isCallToEntryPoint(tracerResults) &&
-      !BigNumber.from(tracerResults.value ?? 0).eq(0)
+      !this._isCallToEntryPoint(erc7562Call) &&
+      !BigNumber.from(erc7562Call.value ?? 0).eq(0)
     if (isIllegalNonZeroValueCall) {
       this._violationDetected({
         rule: ERC7562Rule.op061,
-        // TODO: fill in depth, entity
-        depth: -1,
+        depth: recursionDepth,
         entity: this.currentEntity,
-        address: tracerResults.from,
-        opcode: tracerResults.type,
-        value: tracerResults.value,
+        address: erc7562Call.from,
+        opcode: erc7562Call.type,
+        value: erc7562Call.value,
         errorCode: ValidationErrors.OpcodeValidation,
         description: 'May not may CALL with value'
       })
@@ -682,8 +698,11 @@ export class ERC7562Parser {
   /**
    * OP-080: BALANCE (0x31) and SELFBALANCE (0x47) are allowed only from a staked entity, else they are blocked
    */
-  checkOp080 (tracerResults: ERC7562Call): void {
-    const opcodes = tracerResults.usedOpcodes
+  private _checkOp080 (
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
+  ): void {
+    const opcodes = erc7562Call.usedOpcodes
     const isEntityStaked = this._isEntityStaked()
     const onlyStakedOpCodeUsed =
       Object
@@ -700,9 +719,9 @@ export class ERC7562Parser {
           this._violationDetected({
             rule: ERC7562Rule.op011,
             // TODO: fill in depth, entity
-            depth: -1,
+            depth: recursionDepth,
             entity: this.currentEntity,
-            address: tracerResults.from ?? 'n/a',
+            address: erc7562Call.from ?? 'n/a',
             opcode,
             value: '0',
             errorCode: ValidationErrors.OpcodeValidation,
@@ -712,24 +731,25 @@ export class ERC7562Parser {
       )
   }
 
-  checkStorage (
+  private _checkStorage (
     userOp: OperationBase,
-    tracerResults: ERC7562Call
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
   ): void {
     if (
-      tracerResults.to.toLowerCase() === this.entryPointAddress.toLowerCase() ||
-      tracerResults.to.toLowerCase() === this.nonceManagerAddress?.toLowerCase()
+      erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase() ||
+      erc7562Call.to.toLowerCase() === this.nonceManagerAddress?.toLowerCase()
     ) {
       // Currently inside system code, no access control applies here
       return
     }
     const allSlots: string[] = [
-      ...Object.keys(tracerResults.accessedSlots.writes ?? {}),
-      ...Object.keys(tracerResults.accessedSlots.reads ?? {}),
-      ...Object.keys(tracerResults.accessedSlots.transientWrites ?? {}),
-      ...Object.keys(tracerResults.accessedSlots.transientReads ?? {})
+      ...Object.keys(erc7562Call.accessedSlots.writes ?? {}),
+      ...Object.keys(erc7562Call.accessedSlots.reads ?? {}),
+      ...Object.keys(erc7562Call.accessedSlots.transientWrites ?? {}),
+      ...Object.keys(erc7562Call.accessedSlots.transientReads ?? {})
     ]
-    const address: string = tracerResults.to
+    const address: string = erc7562Call.to
     const entitySlots = this._parseEntitySlots(userOp)
     const addressName = this._tryGetAddressName(userOp, address)
     const isEntityStaked = this._isEntityStaked()
@@ -744,7 +764,7 @@ export class ERC7562Parser {
       const isSenderAssociated: boolean = this._associatedWith(slot, userOp.sender.toLowerCase(), entitySlots)
       const isEntityInternalSTO031: boolean = address.toLowerCase() === this.currentEntityAddress.toLowerCase()
       const isEntityAssociatedSTO032: boolean = this._associatedWith(slot, this.currentEntityAddress.toLowerCase(), entitySlots)
-      const isReadOnlyAccessSTO033: boolean = tracerResults.accessedSlots.writes?.[slot] == null && tracerResults.accessedSlots.transientWrites?.[slot] == null
+      const isReadOnlyAccessSTO033: boolean = erc7562Call.accessedSlots.writes?.[slot] == null && erc7562Call.accessedSlots.transientWrites?.[slot] == null
 
       const isAllowedIfEntityStaked = isEntityInternalSTO031 || isEntityAssociatedSTO032 || isReadOnlyAccessSTO033
       const isAllowedST031ST032ST033: boolean = isAllowedIfEntityStaked && isEntityStaked
@@ -761,15 +781,15 @@ export class ERC7562Parser {
         ) {
           description = `unstaked ${this.currentEntity.toString()} accessed ${addressName} slot ${slot}`
         } else {
-          const isWrite = Object.keys(tracerResults.accessedSlots.writes ?? {}).includes(slot) || Object.keys(tracerResults.accessedSlots.transientWrites ?? {}).includes(slot)
-          const isTransient = Object.keys(tracerResults.accessedSlots.transientReads ?? {}).includes(slot) || Object.keys(tracerResults.accessedSlots.transientWrites ?? {}).includes(slot)
+          const isWrite = Object.keys(erc7562Call.accessedSlots.writes ?? {}).includes(slot) || Object.keys(erc7562Call.accessedSlots.transientWrites ?? {}).includes(slot)
+          const isTransient = Object.keys(erc7562Call.accessedSlots.transientReads ?? {}).includes(slot) || Object.keys(erc7562Call.accessedSlots.transientWrites ?? {}).includes(slot)
           const readWrite = isWrite ? 'write to' : 'read from'
           const transientStr = isTransient ? 'transient ' : ''
           description = `${this.currentEntity.toString()} has forbidden ${readWrite} ${transientStr}${addressName} slot ${slot}`
         }
         this._violationDetected({
           address: '',
-          depth: 0,
+          depth: recursionDepth,
           entity: this.currentEntity,
           errorCode: ValidationErrors.OpcodeValidation,
           rule: ERC7562Rule.sto010,
