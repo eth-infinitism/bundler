@@ -3,19 +3,23 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 import {
   AddressZero,
   IEntryPoint__factory,
-  OperationRIP7560,
   UserOperation
 } from '@account-abstraction/utils'
 import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
-import { bundlerJSTracerName, debug_traceCall, eth_traceRip7560Validation } from './GethTracer'
+import { bundlerJSTracerName, debug_traceCall } from './GethTracer'
+// @ts-ignore
 import { bundlerCollectorTracer } from './BundlerCollectorTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
+import { ERC7562Parser } from './ERC7562Parser'
 
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
+export * from './altmempool/AltMempoolConfig'
+export * from './enum/ERC7562Rule'
+export * from './enum/EVMOpcodes'
 
 export async function supportsNativeTracer (provider: JsonRpcProvider, nativeTracer = bundlerJSTracerName): Promise<boolean> {
   try {
@@ -33,37 +37,8 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
   }
 
   if (rip7560) {
-    // TODO: remove
-    const defaultsForRip7560Tx: OperationRIP7560 = {
-      accessList: [],
-      builderFee: '0x0',
-      chainId: '0x539',
-      value: '0x0',
-      sender: AddressZero,
-      nonceKey: '0x0',
-      nonce: '0x0',
-      executionData: '0x',
-      callGasLimit: '0x0',
-      verificationGasLimit: '0x10000',
-      maxFeePerGas: '0x100000000',
-      maxPriorityFeePerGas: '0x100000000',
-      paymaster: AddressZero,
-      paymasterData: '0x',
-      factory: AddressZero,
-      factoryData: '0x',
-      paymasterVerificationGasLimit: '0x10000',
-      paymasterPostOpGasLimit: '0x0',
-      authorizationData: '0x',
-      authorizationList: []
-    };
-
-    // TODO: align parameter names across 4337 and 7560
-    (defaultsForRip7560Tx as any).deployer = defaultsForRip7560Tx.factory;
-    (defaultsForRip7560Tx as any).deployerData = defaultsForRip7560Tx.factoryData
-    // make sure we can trace a call.
-    const ret = await eth_traceRip7560Validation(provider, defaultsForRip7560Tx
-    ).catch(e => e)
-    return ret.traceResults != null
+    // no need to check for the internal RIP-7560 support
+    return true
   }
   // make sure we can trace a call.
   const ret = await debug_traceCall(provider,
@@ -82,10 +57,13 @@ export async function checkRulesViolations (
     throw new Error('This provider does not support stack tracing')
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
+  const senderCreator = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'
+  const erc7562Parser = new ERC7562Parser(entryPointAddress, senderCreator)
   const validationManager = new ValidationManager(
     entryPoint,
     false,
-    Object.assign({}) as PreVerificationGasCalculator
+    Object.assign({}) as PreVerificationGasCalculator,
+    erc7562Parser
   )
   return await validationManager.validateUserOp(userOperation)
 }

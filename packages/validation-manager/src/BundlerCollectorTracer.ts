@@ -51,13 +51,17 @@ export interface ExitInfo {
   data: string
 }
 
+export interface StorageAccessInfos { [address: string]: AccessInfo }
+export interface OpcodeInfos { [address: string]: number }
+export interface ContractSizes { [address: string]: ContractSizeInfo }
+export interface ExtCodeAccessInfos { [address: string]: string }
+
 export interface TopLevelCallInfo {
-  // topLevelMethodSig: string
   topLevelTargetAddress: string
-  opcodes: { [opcode: string]: number }
-  access: { [address: string]: AccessInfo }
-  contractSize: { [addr: string]: ContractSizeInfo }
-  extCodeAccessInfo: { [addr: string]: string }
+  opcodes: OpcodeInfos
+  access: StorageAccessInfos
+  contractSize: ContractSizes
+  extCodeAccessInfo: ExtCodeAccessInfos
   oog?: boolean
   calls?: []
   type?: string

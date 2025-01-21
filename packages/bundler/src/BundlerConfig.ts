@@ -9,6 +9,7 @@ export interface BundlerConfig {
   chainId: number
   beneficiary: string
   entryPoint: string
+  senderCreator: string
   gasFactor: string
   minBalance: string
   mnemonic: string
@@ -48,6 +49,7 @@ export const BundlerConfigShape = {
   chainId: ow.number,
   beneficiary: ow.string,
   entryPoint: ow.string,
+  senderCreator: ow.string,
   gasFactor: ow.string,
   minBalance: ow.string,
   mnemonic: ow.string,
@@ -102,6 +104,7 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   port: '3000',
   privateApiPort: '3001',
   entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
+  senderCreator: '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c',
   unsafe: false,
   conditionalRpc: false,
   minStake: MIN_STAKE_VALUE,

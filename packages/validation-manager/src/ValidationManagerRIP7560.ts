@@ -15,15 +15,18 @@ import { PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { eth_traceRip7560Validation } from './GethTracer'
-import { tracerResultParser } from './TracerResultParser'
+import { ERC7562Parser } from './ERC7562Parser'
 
 export const AA_ENTRY_POINT = '0x0000000000000000000000000000000000007560'
+export const AA_SENDER_CREATOR = '0x00000000000000000000000000000000ffff7560'
 export const AA_STAKE_MANAGER = '0x570Aa568b6cf62ff08c6C3a3b3DB1a0438E871Fb'
+export const AA_NONCE_MANAGER = '0x632fafb21910d6c8b4a3995063dd984f2b829c02'
 
 export class ValidationManagerRIP7560 implements IValidationManager {
   constructor (
     readonly stakeManager: IRip7560StakeManager,
     readonly provider: JsonRpcProvider,
+    readonly erc7562Parser: ERC7562Parser,
     readonly unsafe: boolean
   ) {
   }
@@ -101,7 +104,7 @@ export class ValidationManagerRIP7560 implements IValidationManager {
       // this.parseValidationTracingResult(traceResult)
       // let contractAddresses: string[]
       // [contractAddresses, storageMap] =
-      tracerResultParser(operation, traceResult, validationResult, AA_ENTRY_POINT)
+      this.erc7562Parser.requireCompliance(operation, traceResult, validationResult)
       // TODO alex shahaf handle codehashes
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {

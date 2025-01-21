@@ -9,9 +9,13 @@ import { BundlerReputationParams, ReputationManager } from './ReputationManager'
 import { MempoolManager } from './MempoolManager'
 import { BundleManager } from './BundleManager'
 import {
+  AA_ENTRY_POINT,
+  AA_NONCE_MANAGER,
+  AA_SENDER_CREATOR,
+  AA_STAKE_MANAGER,
+  IValidationManager,
   ValidationManager,
-  ValidationManagerRIP7560,
-  IValidationManager, AA_STAKE_MANAGER
+  ValidationManagerRIP7560
 } from '@account-abstraction/validation-manager'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
@@ -21,6 +25,7 @@ import { IBundleManager } from './IBundleManager'
 import { DepositManager } from './DepositManager'
 import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/src/types'
 import { PreVerificationGasCalculator, ChainConfigs } from '@account-abstraction/sdk'
+import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
 
 /**
  * initialize server modules.
@@ -38,13 +43,15 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
   if (!config.rip7560) {
+    const erc7562Parser = new ERC7562Parser(entryPoint.address, config.senderCreator)
     const tracerProvider = config.tracerRpcUrl == null ? undefined : getNetworkProvider(config.tracerRpcUrl)
-    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, tracerProvider)
+    validationManager = new ValidationManager(entryPoint, config.unsafe, preVerificationGasCalculator, erc7562Parser, tracerProvider)
     bundleManager = new BundleManager(entryPoint, entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   } else {
+    const erc7562Parser = new ERC7562Parser(AA_ENTRY_POINT, AA_SENDER_CREATOR, AA_NONCE_MANAGER)
     const stakeManager = IRip7560StakeManager__factory.connect(AA_STAKE_MANAGER, signer)
-    validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, config.unsafe)
+    validationManager = new ValidationManagerRIP7560(stakeManager, entryPoint.provider as JsonRpcProvider, erc7562Parser, config.unsafe)
     bundleManager = new BundleManagerRIP7560(entryPoint.provider as JsonRpcProvider, signer, eventsManager, mempoolManager, validationManager, reputationManager,
       config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc, false)
   }

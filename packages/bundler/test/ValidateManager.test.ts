@@ -35,6 +35,7 @@ import {
   TestTimeRangeAccountFactory,
   TestTimeRangeAccountFactory__factory
 } from '../src/types'
+import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
 
 const cEmptyUserOp: UserOperation = {
   sender: AddressZero,
@@ -154,7 +155,10 @@ describe('#ValidationManager', () => {
 
     const unsafe = !await supportsDebugTraceCall(provider, false)
     const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
-    vm = new ValidationManager(entryPoint, unsafe, preVerificationGasCalculator)
+
+    const senderCreator = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'
+    const erc7562Parser = new ERC7562Parser(entryPoint.address, senderCreator)
+    vm = new ValidationManager(entryPoint, unsafe, preVerificationGasCalculator, erc7562Parser)
 
     if (!await supportsDebugTraceCall(ethers.provider, false)) {
       console.log('WARNING: opcode banning tests can only run with geth')
