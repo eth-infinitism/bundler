@@ -4,6 +4,7 @@ import fs from 'fs'
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { Wallet, Signer } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
+import { AltMempoolConfig, validateAltMempoolConfigShape } from '@account-abstraction/validation-manager'
 
 function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
@@ -59,4 +60,18 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
     throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
   }
   return { config, provider, wallet }
+}
+
+export async function resolveAltMempoolConfig (programOpts: any): Promise<AltMempoolConfig> {
+  const configFileName: string = programOpts.altMempoolConfig
+  if (!fs.existsSync(configFileName)) {
+    return {}
+  }
+  try {
+    const fileConfig = JSON.parse(fs.readFileSync(configFileName, 'ascii'))
+    validateAltMempoolConfigShape(fileConfig)
+    return fileConfig
+  } catch (e: any) {
+    throw new Error(`Unable to read --altMempoolConfig ${configFileName}: ${e.message as string}`)
+  }
 }

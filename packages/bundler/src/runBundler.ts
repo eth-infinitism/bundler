@@ -16,7 +16,7 @@ import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
 import { supportsDebugTraceCall, supportsNativeTracer } from '@account-abstraction/validation-manager'
-import { resolveConfiguration } from './Config'
+import { resolveAltMempoolConfig, resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
 import { MethodHandlerRIP7560 } from './MethodHandlerRIP7560'
@@ -32,6 +32,7 @@ ethers.BigNumber.prototype[inspectCustomSymbol] = function () {
 }
 
 const CONFIG_FILE_NAME = 'workdir/bundler.config.json'
+const ALT_MEMPOOL_FILE_NAME = 'workdir/alt.mempool.config.json'
 
 export let showStackTraces = false
 
@@ -89,6 +90,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--rip7560', 'Use this bundler as an RIP-7560 node')
     .option('--rip7560Mode <string>', 'PUSH mode sends bundles to node at an interval, PULL mode waits for node to query bundle')
     .option('--gethDevMode', 'In PULL mode send 1 wei transaction to trigger block creation')
+    .option('--altMempoolConfig <string>', 'path to Alt-Mempool config files (overrides to ERC-7562 rules)', ALT_MEMPOOL_FILE_NAME)
 
   const programOpts = program.parse(argv).opts()
   showStackTraces = programOpts.showStackTraces
@@ -107,6 +109,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     process.exit(1)
   }
   const { config, provider, wallet } = await resolveConfiguration(programOpts)
+  const altMempoolConfig = await resolveAltMempoolConfig(programOpts)
 
   const {
     // name: chainName,
@@ -182,7 +185,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     reputationManager,
     mempoolManager,
     preVerificationGasCalculator
-  ] = initServer(execManagerConfig, wallet)
+  ] = initServer(execManagerConfig, altMempoolConfig, wallet)
   const methodHandler = new MethodHandlerERC4337(
     execManager,
     provider,

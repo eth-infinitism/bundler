@@ -1,5 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers'
 import { OperationBase, ReferencedCodeHashes, UserOperation } from '@account-abstraction/utils'
+import { ERC7562Violation } from '@account-abstraction/validation-manager/dist/src/ERC7562Violation'
 
 export class MempoolEntry {
   userOpMaxGas: BigNumber
@@ -9,6 +10,7 @@ export class MempoolEntry {
     readonly userOpHash: string,
     readonly prefund: BigNumberish,
     readonly referencedContracts: ReferencedCodeHashes,
+    readonly ruleViolations: ERC7562Violation[],
     readonly skipValidation: boolean,
     readonly aggregator?: string
   ) {

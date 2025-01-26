@@ -10,12 +10,14 @@ import {
   requireCond
 } from '@account-abstraction/utils'
 import {
+  AltMempoolConfig, ERC7562Rule,
   ValidateUserOpResult,
   ValidationResult
 } from '@account-abstraction/validation-manager'
 
 import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
+import { BaseAltMempoolRule } from '@account-abstraction/validation-manager/src/altmempool/AltMempoolConfig'
 
 const debug = Debug('aa.mempool')
 
@@ -25,9 +27,18 @@ const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
 export class MempoolManager {
   private mempool: MempoolEntry[] = []
+  private altMempools: { [mempoolId: number]: MempoolEntry[] } = {}
 
   // count entities in mempool.
   private _entryCount: { [addr: string]: number | undefined } = {}
+
+  constructor (
+    readonly reputationManager: ReputationManager,
+    readonly altMempoolConfig: AltMempoolConfig) {
+    for (const id of Object.keys(this.altMempoolConfig)){
+      this.altMempools[parseInt(id)] = []
+    }
+  }
 
   entryCount (address: string): number | undefined {
     return this._entryCount[address.toLowerCase()]
@@ -53,10 +64,6 @@ export class MempoolManager {
     }
   }
 
-  constructor (
-    readonly reputationManager: ReputationManager) {
-  }
-
   count (): number {
     return this.mempool.length
   }
@@ -68,13 +75,14 @@ export class MempoolManager {
     skipValidation: boolean,
     userOp: OperationBase,
     userOpHash: string,
-    validationResult: ValidationResult
+    validationResult: ValidateUserOpResult
   ): void {
     const entry = new MempoolEntry(
       userOp,
       userOpHash,
       validationResult.returnInfo.prefund ?? 0,
-      (validationResult as ValidateUserOpResult).referencedContracts,
+      validationResult.referencedContracts,
+      validationResult.ruleViolations,
       skipValidation,
       validationResult.aggregatorInfo?.addr
     )
@@ -99,7 +107,7 @@ export class MempoolManager {
       if (userOp.factory != null) {
         this.incrementEntryCount(userOp.factory)
       }
-      this.mempool.push(entry)
+      this.tryAssignToMempool(entry)
     }
     if (oldEntry != null) {
       this.updateSeenStatus(oldEntry.aggregator, oldEntry.userOp, validationResult.senderInfo, -1)
@@ -299,5 +307,26 @@ export class MempoolManager {
         this.removeUserOp(mempoolEntry.userOpHash)
       }
     }
+  }
+
+  private tryAssignToMempool (entry: MempoolEntry): number[] {
+    if (entry.ruleViolations.length === 0) {
+      this.mempool.push(entry)
+      return [0]
+    }
+    const mempoolIds: number[] = []
+    for (const violation of entry.ruleViolations) {
+      console.log(`Violation: ${JSON.stringify(violation)}`)
+      for (const [id, config] of Object.entries(this.altMempoolConfig)) {
+        console.log(`Mempool ID: ${id}`)
+        for (const [erc7562Rule, override] of Object.entries(config) as [ERC7562Rule, BaseAltMempoolRule][]) {
+          console.log(`  Rule: ${erc7562Rule}, Enabled: ${override.enabled}`)
+          if (violation.rule === erc7562Rule) {
+            console.error('MATCHES THE VIOLATION')
+          }
+        }
+      }
+    }
+    return mempoolIds
   }
 }

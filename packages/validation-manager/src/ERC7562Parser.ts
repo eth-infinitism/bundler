@@ -255,15 +255,15 @@ export class ERC7562Parser {
   private contractAddresses: string[] = []
   private storageMap: StorageMap = {}
 
-  private bailOnViolation: boolean = false
-
   constructor (
+    public bailOnViolation: boolean,
     readonly entryPointAddress: string,
     readonly senderCreatorAddress: string,
     readonly nonceManagerAddress?: string
   ) {}
 
   /**
+   * TODO: remove - currently only used by 7560
    * Analyzes the tracing results for the given UserOperation.
    * Throws an exception in case canonical ERC-7562 rule violation was detected.
    *
@@ -284,7 +284,7 @@ export class ERC7562Parser {
   /**
    * Analyzes the tracing results for the given UserOperation.
    *
-   * Unlike {@link requireCompliance}, does not throw an exception in case a rule violation was detected.
+   * If {@link bailOnViolation} is true throws an exception once the first rule violation is detected.
    *
    * @returns {@link ERC7562ValidationResults} containing addresses and storage slots accessed by the UserOperation,
    * @returns an array of ERC-7562 rules that were violated by the UserOperation.
