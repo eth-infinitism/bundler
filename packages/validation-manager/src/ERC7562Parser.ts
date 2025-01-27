@@ -486,6 +486,7 @@ export class ERC7562Parser {
     this._checkOp054(erc7562Call, recursionDepth)
     this._checkOp054ExtCode(erc7562Call, address, recursionDepth)
     this._checkOp061(erc7562Call, recursionDepth)
+    this._checkOp062AllowedPrecompiles(erc7562Call, recursionDepth)
     this._checkOp080(erc7562Call, recursionDepth)
     this._checkStorage(userOp, erc7562Call, recursionDepth)
     for (const call of erc7562Call.calls ?? []) {
@@ -601,6 +602,10 @@ export class ERC7562Parser {
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess: any
     for (const addr of Object.keys(erc7562Call.contractSize)) {
+      // skip precompiles
+      if (this._isPrecompiled(addr)) {
+        continue
+      }
       // [OP-042]
       if (
         addr.toLowerCase() !== userOp.sender.toLowerCase() &&
@@ -696,6 +701,33 @@ export class ERC7562Parser {
         errorCode: ValidationErrors.OpcodeValidation,
         description: 'May not may CALL with value'
       })
+    }
+  }
+
+  /**
+   * OP-062: Precompiles:
+   *
+   *     Only allow known accepted precompiles on the network, that do not access anything in the blockchain state or environment.
+   *     The core precompiles 0x1 .. 0x9
+   *     The RIP-7212 sec256r1 precompile, on networks that accepted it.
+   */
+  private _checkOp062AllowedPrecompiles (
+    erc7562Call: ERC7562Call,
+    recursionDepth: number
+  ): void {
+    for (const addr of Object.keys(erc7562Call.contractSize)) {
+      if (this._isForbiddenPrecompiled(addr)) {
+        this._violationDetected({
+          rule: ERC7562Rule.op062,
+          depth: recursionDepth,
+          entity: this.currentEntity,
+          address: erc7562Call.from,
+          opcode: erc7562Call.type,
+          value: erc7562Call.value,
+          errorCode: ValidationErrors.OpcodeValidation,
+          description: 'Illegal call to forbidden precompile ' + addr
+        })
+      }
     }
   }
 
@@ -801,5 +833,18 @@ export class ERC7562Parser {
         })
       }
     }
+  }
+
+  private _isPrecompiled (address: string): boolean {
+    const intAddress = parseInt(address, 16)
+    if (intAddress < 1000 && intAddress >= 1) {
+      return true
+    }
+    return false
+  }
+
+  private _isForbiddenPrecompiled (address: string): boolean {
+    const intAddress = parseInt(address, 16)
+    return this._isPrecompiled(address) && intAddress > 9
   }
 }
