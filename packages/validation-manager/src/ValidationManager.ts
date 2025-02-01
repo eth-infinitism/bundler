@@ -1,4 +1,4 @@
-import { BigNumber } from 'ethers'
+import { BigNumber, type BigNumberish, type BytesLike } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
@@ -10,7 +10,6 @@ import {
   CodeHashGetter__factory,
   EIP7702Authorization,
   IEntryPoint,
-  IEntryPointSimulations__factory,
   OperationBase,
   ReferencedCodeHashes,
   RpcError,
@@ -29,17 +28,19 @@ import {
   packUserOp,
   requireAddressAndFields,
   requireCond,
-  runContractScript
+  runContractScript, PackedUserOperation, ErrorSig
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
 
-import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/EntryPointSimulations.json'
 import { IValidationManager, ValidateUserOpResult, ValidationResult } from './IValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
 import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
+import { defaultAbiCoder, hexConcat } from 'ethers/lib/utils'
+import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
+import { StakesInfoStruct } from '@account-abstraction/utils/dist/src/types/contracts/GetStakes'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -47,7 +48,6 @@ const debug = Debug('aa.mgr.validate')
 const VALID_UNTIL_FUTURE_SECONDS = 30
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
-const entryPointSimulations = IEntryPointSimulations__factory.createInterface()
 
 /**
  * ValidationManager is responsible for validating UserOperations.
@@ -82,6 +82,48 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
+  // generate validation result from trace: by decoding inner calls.
+  async generateValidationResult (op: UserOperation, tracerResult: BundlerTracerResult): Promise<ValidationResult> {
+    const fact = new GetStakes__factory(this.provider.getSigner())
+    const dummy = fact.attach(AddressZero)
+    const tx = fact.getDeployTransaction(this.entryPoint, op.sender, op.paymaster, op.factory, AddressZero)
+    const txRet = await this.provider.call(tx)
+
+    // the revert's Error parameter is the return value of getStakes
+    const ret = dummy.interface.decodeFunctionResult('getStakes', txRet.slice(10)) as StakesInfoStruct
+    const aggregator = AddressZero // extract from validationData
+    return {
+      returnInfo: {
+        sigFailed: false, // extract from validateUserOp return value
+        validUntil: 0, // extract from validateUserOp return value
+        validAfter: 0, // extract from validateUserOp return value
+        preOpGas: 0, // extract from innerHandleOps parameter
+        prefund: 0 // extract from innerHandleOps parameter
+      },
+      senderInfo: {
+        addr: op.sender,
+        stake: ret.senderStake.stake,
+        unstakeDelaySec: ret.senderStake.unstakeDelaySec
+      },
+      factoryInfo: {
+        addr: op.factory,
+        stake: ret.factoryStake.stake,
+        unstakeDelaySec: ret.factoryStake.unstakeDelaySec
+      },
+      paymasterInfo: {
+        addr: op.paymaster,
+        stake: ret.paymasterStake.stake,
+        unstakeDelaySec: ret.paymasterStake.unstakeDelaySec
+      },
+      aggregatorInfo: {
+        addr: aggregator,
+        stake: ret.aggregatorStake.stake,
+        unstakeDelaySec: ret.aggregatorStake.unstakeDelaySec
+      }
+
+    }
+  }
+
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
     const mergedValidation = mergeValidationDataValues(res.returnInfo.accountValidationData, res.returnInfo.paymasterValidationData)
 
@@ -110,24 +152,47 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
+  allOnes = '0x'.padEnd(66, 'f')
+
+  // a "flag" UserOperation that triggers "AA94" revert error (not even FailedOp)
+  eolUserOp: PackedUserOperation = {
+    sender: AddressZero,
+    nonce: 0,
+    initCode: '0x',
+    callData: '0x',
+    accountGasLimits: this.allOnes,
+    preVerificationGas: 0,
+    gasFees: this.allOnes,
+    paymasterAndData: '0x',
+    signature: '0x'
+  }
+
   // standard eth_call to simulateValidation
-  async _callSimulateValidation (userOp: UserOperation): Promise<ValidationResult> {
+  async _callSimulateValidation (userOp: UserOperation): Promise<void> {
     // Promise<IEntryPointSimulations.ValidationResultStructOutput> {
-    const data = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
+    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
     const tx = {
       to: this.entryPoint.address,
       data
     }
     const stateOverride = {
-      [this.entryPoint.address]: {
-        code: EntryPointSimulationsJson.deployedBytecode
-      }
+      // [this.entryPoint.address]: {
+      //   code: EntryPointSimulationsJson.deployedBytecode
+      // }
     }
-    try {
-      const simulationResult = await this.provider.send('eth_call', [tx, 'latest', stateOverride])
-      const [res] = entryPointSimulations.decodeFunctionResult('simulateValidation', simulationResult) as ValidationResultStructOutput[]
 
-      return this.parseValidationResult(userOp, res)
+    // validate against a future time: the UserOp must be valid at that time to be included
+    const blockOverride = {
+      time: Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS
+    }
+
+    try {
+      const simulationResult = await this.provider.send('eth_call', [tx, 'latest', stateOverride, blockOverride])
+      console.log('result=', simulationResult)
+      const expectedError = hexConcat([ErrorSig, defaultAbiCoder.encode(['string'], ['AA94'])])
+      if (simulationResult !== expectedError) {
+        throw new RpcError('reverted', ValidationErrors.SimulateValidation, simulationResult)
+      }
     } catch (error: any) {
       const decodedError = decodeRevertReason(error)
       if (decodedError != null) {
@@ -148,16 +213,22 @@ export class ValidationManager implements IValidationManager {
   ): Promise<[ValidationResult, ERC7562Call | null, BundlerTracerResult | null]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
-    const simulateCall = entryPointSimulations.encodeFunctionData('simulateValidation', [packUserOp(userOp)])
+    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
     const stateOverrides = {
-      [this.entryPoint.address]: {
-        code: EntryPointSimulationsJson.deployedBytecode
-      },
+      // [this.entryPoint.address]: {
+      //   code: EntryPointSimulationsJson.deployedBytecode
+      // },
       ...stateOverride
     }
+
+    // validate against a future time: the UserOp must be valid at that time to be included
+    const blockOverrides = {
+      time: Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS
+    }
+
     let tracer
     if (!this.usingErc7562NativeTracer()) {
       tracer = bundlerCollectorTracer
@@ -165,11 +236,12 @@ export class ValidationManager implements IValidationManager {
     const tracerResult = await debug_traceCall(provider, {
       from: AddressZero,
       to: this.entryPoint.address,
-      data: simulateCall,
+      data: handleOpsData,
       gasLimit: simulationGas
     }, {
       tracer,
-      stateOverrides
+      stateOverrides,
+      blockOverrides
     },
     this.providerForTracer
     )
@@ -194,9 +266,10 @@ export class ValidationManager implements IValidationManager {
     //   return [data as any, tracerResult]
     // }
     try {
-      const [decodedSimulations] = entryPointSimulations.decodeFunctionResult('simulateValidation', data)
-      const validationResult = this.parseValidationResult(userOp, decodedSimulations)
+      // const [decodedSimulations] = entryPointSimulations.decodeFunctionResult('simulateValidation', data)
+      // const validationResult = this.parseValidationResult(userOp, decodedSimulations)
 
+      const validationResult = await this.generateValidationResult(userOp, tracerResult)
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
@@ -288,7 +361,21 @@ export class ValidationManager implements IValidationManager {
       }
     } else {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
-      res = await this._callSimulateValidation(userOp)
+      // can't decode validationResult at all. we only have "pass-or-not" result
+      await this._callSimulateValidation(userOp)
+      // dummy info: need tracer to decode (but it would revert on timerange, signature)
+      res = {
+        returnInfo: {
+          sigFailed: false,
+          validAfter: 0,
+          validUntil: 0
+        },
+        senderInfo: {
+          addr: userOp.sender,
+          stake: '0',
+          unstakeDelaySec: 0
+        }
+      }
     }
 
     requireCond(!res.returnInfo.sigFailed,

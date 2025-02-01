@@ -249,7 +249,7 @@ export function getUserOpHash (op: UserOperation, entryPoint: string, chainId: n
   return keccak256(enc)
 }
 
-const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
+export const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
 const FailedOpSig = keccak256(Buffer.from('FailedOp(uint256,string)')).slice(0, 10) // 0x220266b6
 
 interface DecodedError {
