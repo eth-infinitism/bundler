@@ -1,4 +1,4 @@
-import { BigNumber, type BigNumberish, type BytesLike } from 'ethers'
+import { BigNumber } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
@@ -28,7 +28,7 @@ import {
   packUserOp,
   requireAddressAndFields,
   requireCond,
-  runContractScript, PackedUserOperation, ErrorSig
+  runContractScript, PackedUserOperation, sum
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -38,9 +38,7 @@ import { ERC7562Parser } from './ERC7562Parser'
 import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
-import { defaultAbiCoder, hexConcat } from 'ethers/lib/utils'
 import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
-import { StakesInfoStruct } from '@account-abstraction/utils/dist/src/types/contracts/GetStakes'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -84,13 +82,11 @@ export class ValidationManager implements IValidationManager {
 
   // generate validation result from trace: by decoding inner calls.
   async generateValidationResult (op: UserOperation, tracerResult: BundlerTracerResult): Promise<ValidationResult> {
-    const fact = new GetStakes__factory(this.provider.getSigner())
-    const dummy = fact.attach(AddressZero)
-    const tx = fact.getDeployTransaction(this.entryPoint, op.sender, op.paymaster, op.factory, AddressZero)
-    const txRet = await this.provider.call(tx)
+    const paymasterAddress = op.paymaster ?? AddressZero
+    const factoryAddress = op.factory ?? AddressZero
+    const addrs = [op.sender, paymasterAddress, factoryAddress, AddressZero]
+    const ret = await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrs])
 
-    // the revert's Error parameter is the return value of getStakes
-    const ret = dummy.interface.decodeFunctionResult('getStakes', txRet.slice(10)) as StakesInfoStruct
     const aggregator = AddressZero // extract from validationData
     return {
       returnInfo: {
@@ -106,12 +102,12 @@ export class ValidationManager implements IValidationManager {
         unstakeDelaySec: ret.senderStake.unstakeDelaySec
       },
       factoryInfo: {
-        addr: op.factory,
+        addr: factoryAddress,
         stake: ret.factoryStake.stake,
         unstakeDelaySec: ret.factoryStake.unstakeDelaySec
       },
       paymasterInfo: {
-        addr: op.paymaster,
+        addr: paymasterAddress,
         stake: ret.paymasterStake.stake,
         unstakeDelaySec: ret.paymasterStake.unstakeDelaySec
       },
@@ -175,27 +171,17 @@ export class ValidationManager implements IValidationManager {
       to: this.entryPoint.address,
       data
     }
-    const stateOverride = {
-      // [this.entryPoint.address]: {
-      //   code: EntryPointSimulationsJson.deployedBytecode
-      // }
-    }
-
-    // validate against a future time: the UserOp must be valid at that time to be included
-    const blockOverride = {
-      time: Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS
-    }
 
     try {
-      const simulationResult = await this.provider.send('eth_call', [tx, 'latest', stateOverride, blockOverride])
-      console.log('result=', simulationResult)
-      const expectedError = hexConcat([ErrorSig, defaultAbiCoder.encode(['string'], ['AA94'])])
-      if (simulationResult !== expectedError) {
-        throw new RpcError('reverted', ValidationErrors.SimulateValidation, simulationResult)
-      }
+      await this.provider.send('eth_call', [tx, 'latest'])
     } catch (error: any) {
       const decodedError = decodeRevertReason(error)
+
       if (decodedError != null) {
+        if (decodedError.startsWith('FailedOp(1,"AA94 gas values overflow')) {
+          // this is not an error.. it is a marker the UserOp-under-test passed successfully
+          return
+        }
         throw new RpcError(decodedError, ValidationErrors.SimulateValidation)
       }
       throw error
@@ -226,7 +212,7 @@ export class ValidationManager implements IValidationManager {
 
     // validate against a future time: the UserOp must be valid at that time to be included
     const blockOverrides = {
-      time: Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS
+      time: '0x' + (Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS).toString(16)
     }
 
     let tracer
@@ -366,6 +352,8 @@ export class ValidationManager implements IValidationManager {
       // dummy info: need tracer to decode (but it would revert on timerange, signature)
       res = {
         returnInfo: {
+          // NOTE: this is an exageration. but we need simulation to calculate actual required preOpGas.
+          preOpGas: sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit),
           sigFailed: false,
           validAfter: 0,
           validUntil: 0
@@ -387,21 +375,17 @@ export class ValidationManager implements IValidationManager {
       `time-range in the future time ${res.returnInfo.validAfter}, now=${now}`,
       ValidationErrors.NotInTimeRange)
 
-    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil >= now,
+    requireCond(res.returnInfo.validUntil === 0 || res.returnInfo.validUntil >= now,
       'already expired',
       ValidationErrors.NotInTimeRange)
 
-    requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > now + VALID_UNTIL_FUTURE_SECONDS,
+    requireCond(res.returnInfo.validUntil === 0 || res.returnInfo.validUntil > now + VALID_UNTIL_FUTURE_SECONDS,
       'expires too soon',
       ValidationErrors.NotInTimeRange)
 
     requireCond(res.aggregatorInfo == null,
       'Currently not supporting aggregator',
       ValidationErrors.UnsupportedSignatureAggregator)
-
-    const verificationCost = BigNumber.from(res.returnInfo.preOpGas).sub(userOp.preVerificationGas)
-    const extraGas = BigNumber.from(userOp.verificationGasLimit).sub(verificationCost).toNumber()
-    requireCond(extraGas >= 2000, `verificationGas should have extra 2000 gas. has only ${extraGas}`, ValidationErrors.SimulateValidation)
 
     return {
       ...res,

@@ -167,6 +167,9 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   } = await connectContracts(wallet, !config.rip7560)
   // bundleSize=1 replicate current immediate bundling mode
+  if (entryPoint != null && entryPoint.address != null) {
+    config.entryPoint = entryPoint.address
+  }
   const execManagerConfig = {
     ...config
     // autoBundleMempoolSize: 0

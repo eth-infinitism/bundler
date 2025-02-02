@@ -24,7 +24,7 @@
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/keccak256": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@openzeppelin/contracts": "^5.0.1",
+    "@openzeppelin/contracts": "^5.2.0",
     "debug": "^4.3.4",
     "ethereumjs-util": "^7.1.5",
     "ethers": "^5.7.0",

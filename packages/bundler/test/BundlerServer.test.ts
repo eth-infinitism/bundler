@@ -1,5 +1,4 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { parseEther } from 'ethers/lib/utils'
 
@@ -29,9 +28,14 @@ describe('BundleServer', function () {
   let entryPoint: IEntryPoint
   let server: BundlerServer
   before(async () => {
-    const provider = ethers.provider
+    // const provider = ethers.provider
+    const provider = new JsonRpcProvider('http://localhost:8545')
     const signer = await createSigner()
-    entryPoint = await deployEntryPoint(provider)
+    try {
+      entryPoint = await deployEntryPoint(provider)
+    } catch (e) {
+      throw new Error('Failed to deploy entry point - no geth?\n' + e)
+    }
 
     const config: BundlerConfig = {
       chainId: 1337,

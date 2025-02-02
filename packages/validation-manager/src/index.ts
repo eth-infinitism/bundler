@@ -7,9 +7,7 @@ import {
 } from '@account-abstraction/utils'
 import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
-import { bundlerJSTracerName, debug_traceCall } from './GethTracer'
-// @ts-ignore
-import { bundlerCollectorTracer } from './BundlerCollectorTracer'
+import { bundlerJSTracerName, debug_traceCall, GethNativeTracerName } from './GethTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
@@ -43,7 +41,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
   // make sure we can trace a call.
   const ret = await debug_traceCall(provider,
     { from: AddressZero, to: AddressZero, data: '0x' },
-    { tracer: bundlerCollectorTracer }).catch(e => e)
+    { tracer: GethNativeTracerName }).catch(e => e)
   return ret.logs != null
 }
 
