@@ -150,7 +150,7 @@ export class ExecutionManager {
     const { configuration, entryPoint, unsafe } = this.validationManager._getDebugConfiguration()
     const mergedConfiguration = Object.assign({}, configuration, configOverrides)
     const pvgc = new PreVerificationGasCalculator(mergedConfiguration)
-    const bailOnViolation = Object.keys(this.mempoolManager.altMempoolConfig).length === 0
+    const bailOnViolation = this.mempoolManager.hasAltMempools()
     const erc7562Parser = new ERC7562Parser(bailOnViolation, entryPoint.address, mergedConfiguration.senderCreator ?? '')
     this.validationManager = new ValidationManager(
       entryPoint,

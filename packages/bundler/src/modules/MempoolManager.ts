@@ -18,6 +18,7 @@ import {
 import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
 import { BaseAltMempoolRule } from '@account-abstraction/validation-manager/src/altmempool/AltMempoolConfig'
+import { ERC7562Violation } from '@account-abstraction/validation-manager/dist/src/ERC7562Violation'
 
 const debug = Debug('aa.mempool')
 
@@ -25,19 +26,62 @@ type MempoolDump = OperationBase[]
 
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
+function isRuleViolated (
+  userOp: OperationBase,
+  violation: ERC7562Violation,
+  config: { [rule in ERC7562Rule]?: BaseAltMempoolRule }
+): boolean {
+  const override = config[violation.rule]
+  if (override == null) {
+    return true
+  }
+  if (override.enabled === false) {
+    return false
+  }
+  for (const exception of override.exceptions ?? []) {
+    if (exception === violation.address) {
+      return false
+    }
+    if (exception === 'sender' && violation.address === userOp.sender) {
+      return false
+    }
+    // type RuleException = `0x${string}` | Role | AltMempoolRuleExceptionBase | AltMempoolRuleExceptionBannedOpcode
+    // todo: match all possible exceptions
+  }
+  return true
+}
+
 export class MempoolManager {
   private mempool: MempoolEntry[] = []
-  private altMempools: { [mempoolId: number]: MempoolEntry[] } = {}
+  private altMempools: { [mempoolId: string]: MempoolEntry[] } = {}
 
   // count entities in mempool.
   private _entryCount: { [addr: string]: number | undefined } = {}
 
   constructor (
-    readonly reputationManager: ReputationManager,
-    readonly altMempoolConfig: AltMempoolConfig) {
-    for (const id of Object.keys(this.altMempoolConfig)){
+    private readonly reputationManager: ReputationManager,
+    private altMempoolConfig: AltMempoolConfig) {
+    this._initializeMempools()
+  }
+
+  private _initializeMempools (): void {
+    for (const id of Object.keys(this.altMempoolConfig)) {
       this.altMempools[parseInt(id)] = []
     }
+  }
+
+  /**
+   * Helper to allow for-of loop that of both the main and alt-mempools where possible without merging them in code.
+   */
+  private _getAllMempoolsLoop (): Array<[string, MempoolEntry[]]> {
+    return Object.entries({ ...this.altMempools, 0: this.mempool })
+  }
+
+  /**
+   * Helper function to allow skipping resource-intensive trace parsing if there are no configured alt-mempools.
+   */
+  hasAltMempools (): boolean {
+    return Object.keys(this.altMempoolConfig).length === 0
   }
 
   entryCount (address: string): number | undefined {
@@ -80,6 +124,7 @@ export class MempoolManager {
     const entry = new MempoolEntry(
       userOp,
       userOpHash,
+      validationResult,
       validationResult.returnInfo.prefund ?? 0,
       validationResult.referencedContracts,
       validationResult.ruleViolations,
@@ -87,13 +132,8 @@ export class MempoolManager {
       validationResult.aggregatorInfo?.addr
     )
     const packedNonce = getPackedNonce(entry.userOp)
-    const index = this._findBySenderNonce(userOp.sender, packedNonce)
-    let oldEntry: MempoolEntry | undefined
-    if (index !== -1) {
-      oldEntry = this.mempool[index]
-      this.checkReplaceUserOp(oldEntry, entry)
+    if (this._checkReplaceByFee(entry)) {
       debug('replace userOp', userOp.sender, packedNonce)
-      this.mempool[index] = entry
     } else {
       debug('add userOp', userOp.sender, packedNonce)
       if (!skipValidation) {
@@ -109,10 +149,23 @@ export class MempoolManager {
       }
       this.tryAssignToMempool(entry)
     }
-    if (oldEntry != null) {
-      this.updateSeenStatus(oldEntry.aggregator, oldEntry.userOp, validationResult.senderInfo, -1)
-    }
     this.updateSeenStatus(validationResult.aggregatorInfo?.addr, userOp, validationResult.senderInfo)
+  }
+
+  private _checkReplaceByFee (entry: MempoolEntry): boolean {
+    const packedNonce = getPackedNonce(entry.userOp)
+    for (const [mempoolId, mempool] of this._getAllMempoolsLoop()) {
+      const index = this._findBySenderNonce(entry.userOp.sender, packedNonce, mempool)
+      let oldEntry: MempoolEntry | undefined
+      if (index !== -1) {
+        debug('replace userOp in alt-mempool', entry.userOp.sender, packedNonce, mempoolId)
+        oldEntry = this.mempool[index]
+        this.checkReplaceUserOp(oldEntry, entry)
+        this.mempool[index] = entry
+        this.updateSeenStatus(oldEntry.aggregator, oldEntry.userOp, entry.validateUserOpResult.senderInfo, -1)
+      }
+    }
+    return false
   }
 
   private updateSeenStatus (aggregator: string | undefined, userOp: OperationBase, senderInfo: StakeInfo, val = 1): void {
@@ -207,9 +260,9 @@ export class MempoolManager {
     return copy
   }
 
-  _findBySenderNonce (sender: string, nonce: BigNumberish): number {
-    for (let i = 0; i < this.mempool.length; i++) {
-      const curOp = this.mempool[i].userOp
+  _findBySenderNonce (sender: string, nonce: BigNumberish, mempool: MempoolEntry[]): number {
+    for (let i = 0; i < mempool.length; i++) {
+      const curOp = mempool[i].userOp
       const packedNonce = getPackedNonce(curOp)
       if (curOp.sender === sender && packedNonce.eq(nonce)) {
         return i
@@ -218,9 +271,9 @@ export class MempoolManager {
     return -1
   }
 
-  _findByHash (hash: string): number {
-    for (let i = 0; i < this.mempool.length; i++) {
-      const curOp = this.mempool[i]
+  _findByHash (hash: string, mempool: MempoolEntry[]): number {
+    for (let i = 0; i < mempool.length; i++) {
+      const curOp = mempool[i]
       if (curOp.userOpHash === hash) {
         return i
       }
@@ -233,18 +286,29 @@ export class MempoolManager {
    * @param userOpOrHash
    */
   removeUserOp (userOpOrHash: OperationBase | string): void {
+    for (const [mempoolId, mempool] of this._getAllMempoolsLoop()) {
+      this._removeUserOpInternal(userOpOrHash, mempoolId, mempool)
+    }
+  }
+
+  _removeUserOpInternal (userOpOrHash: OperationBase | string, mempoolId: string, mempool: MempoolEntry[]): void {
     let index: number
     if (typeof userOpOrHash === 'string') {
-      index = this._findByHash(userOpOrHash)
+      index = this._findByHash(userOpOrHash, mempool)
     } else {
       const packedNonce = getPackedNonce(userOpOrHash)
-      index = this._findBySenderNonce(userOpOrHash.sender, packedNonce)
+      index = this._findBySenderNonce(userOpOrHash.sender, packedNonce, mempool)
     }
     if (index !== -1) {
-      const userOp = this.mempool[index].userOp
+      const userOp = mempool[index].userOp
       const packedNonce = getPackedNonce(userOp)
       debug('removeUserOp', userOp.sender, packedNonce)
-      this.mempool.splice(index, 1)
+      mempool.splice(index, 1)
+      if (mempoolId !== '0') {
+        // Only decrement entity counts for the main mempool
+        // TODO: support per-mempool entity counts
+        return
+      }
       this.decrementEntryCount(userOp.sender)
       this.decrementEntryCount(userOp.paymaster)
       this.decrementEntryCount(userOp.factory)
@@ -315,18 +379,40 @@ export class MempoolManager {
       return [0]
     }
     const mempoolIds: number[] = []
-    for (const violation of entry.ruleViolations) {
-      console.log(`Violation: ${JSON.stringify(violation)}`)
-      for (const [id, config] of Object.entries(this.altMempoolConfig)) {
-        console.log(`Mempool ID: ${id}`)
-        for (const [erc7562Rule, override] of Object.entries(config) as [ERC7562Rule, BaseAltMempoolRule][]) {
-          console.log(`  Rule: ${erc7562Rule}, Enabled: ${override.enabled}`)
-          if (violation.rule === erc7562Rule) {
-            console.error('MATCHES THE VIOLATION')
-          }
+    console.log(`UserOperation ${entry.userOpHash}`)
+    for (const [mempoolId, config] of Object.entries(this.altMempoolConfig)) {
+      console.log(` Mempool ID: ${mempoolId} Config: ${JSON.stringify(config)}`)
+      for (const violation of entry.ruleViolations) {
+        console.log(`  Violation: ${JSON.stringify(violation)}`)
+        if (isRuleViolated(entry.userOp, violation, config)) {
+          console.log(`   Not adding to mempool ${mempoolId} - rule violated`)
+          continue
         }
+        console.error(`   Adding to mempool ${mempoolId}`)
+        this.altMempools[mempoolId].push(entry)
+        this.reputationManager.updateSeenStatus(mempoolId)
       }
     }
     return mempoolIds
+  }
+
+  /**
+   * Debug only function to clean up the existing alt-mempools and set a new alt-mempools configuration.
+   */
+  async _setAltMempoolConfig (altMempoolConfig: AltMempoolConfig): Promise<void> {
+    this.altMempools = {}
+    this.altMempoolConfig = altMempoolConfig
+  }
+
+  includedUserOp (userOpHash: string): void {
+    for (const [mempoolId, mempool] of Object.entries(this.altMempools)) {
+      const found = mempool.find((it: MempoolEntry) => {
+        return it.userOpHash === userOpHash
+      })
+      if (found != null) {
+        console.error(`Found UserOp ${userOpHash} in the mempool ${mempoolId}, updating INCLUDED`)
+        this.reputationManager.updateIncludedStatus(mempoolId)
+      }
+    }
   }
 }

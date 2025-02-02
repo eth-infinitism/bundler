@@ -7,8 +7,9 @@ import { BundlerConfig, DebugBundlerConfigShape } from './BundlerConfig'
 import { EventsManager } from './modules/EventsManager'
 import { ExecutionManager } from './modules/ExecutionManager'
 import { MempoolManager } from './modules/MempoolManager'
-import { ReputationDump, ReputationManager } from './modules/ReputationManager'
+import { ReputationEntry, ReputationManager } from './modules/ReputationManager'
 import { SendBundleReturn } from './modules/BundleManager'
+import { AltMempoolConfig } from '@account-abstraction/validation-manager'
 
 export class DebugMethodHandler {
   constructor (
@@ -60,12 +61,12 @@ export class DebugMethodHandler {
     this.mempoolMgr.clearState()
   }
 
-  setReputation (param: any): ReputationDump {
-    return this.repManager.setReputation(param)
+  setReputation (param: any): ReputationEntry[] {
+    return this.repManager._debugSetReputation(param)
   }
 
-  dumpReputation (): ReputationDump {
-    return this.repManager.dump()
+  dumpReputation (): ReputationEntry[] {
+    return this.repManager._debugDumpReputation()
   }
 
   clearReputation (): void {
@@ -85,5 +86,9 @@ export class DebugMethodHandler {
   async _setConfiguration (config: Partial<BundlerConfig>): Promise<PreVerificationGasCalculator> {
     ow.object.exactShape(DebugBundlerConfigShape)
     return await this.execManager._setConfiguration(config)
+  }
+
+  async _setAltMempoolConfig (altMempoolConfig: AltMempoolConfig): Promise<void> {
+    return await this.mempoolMgr._setAltMempoolConfig(altMempoolConfig)
   }
 }

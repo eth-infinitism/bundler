@@ -2,9 +2,9 @@ import ow from 'ow'
 
 import { ERC7562Rule } from '../enum/ERC7562Rule'
 
-type Role = 'sender' | 'paymaster' | 'factory'
+export type Role = 'sender' | 'paymaster' | 'factory'
 
-type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
+export type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
 
 export interface AltMempoolRuleExceptionBase {
   role?: Role
@@ -27,7 +27,7 @@ export interface BaseAltMempoolRule {
 }
 
 export interface AltMempoolConfig {
-  [mempoolId: number]: { [rule in ERC7562Rule]?: BaseAltMempoolRule }
+  [mempoolId: string]: { [rule in ERC7562Rule]?: BaseAltMempoolRule }
 }
 
 const AltMempoolRuleExceptionBaseShape = ow.object.partialShape({
