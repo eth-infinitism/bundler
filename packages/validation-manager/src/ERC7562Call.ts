@@ -27,7 +27,7 @@ export interface ERC7562Call {
   type: string
   usedOpcodes: Record<number, number>
   value?: string
-  calls?: ERC7562Call[]
+  calls: ERC7562Call[]
   keccak?: string[]
 }
 

@@ -28,7 +28,13 @@ import {
   packUserOp,
   requireAddressAndFields,
   requireCond,
-  runContractScript, PackedUserOperation, sum
+  runContractScript,
+  PackedUserOperation,
+  sum,
+  IAccount__factory,
+  parseValidationData,
+  ValidationData,
+  IPaymaster__factory, maxUint48
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -81,43 +87,54 @@ export class ValidationManager implements IValidationManager {
   }
 
   // generate validation result from trace: by decoding inner calls.
-  async generateValidationResult (op: UserOperation, tracerResult: BundlerTracerResult): Promise<ValidationResult> {
+  async generateValidationResult (op: UserOperation, tracerResult: ERC7562Call): Promise<ValidationResult> {
+    // const validationData = tracerResult.calls[0].output
+    let callIndex = 0
+    if (op.factory != null) {
+      callIndex++
+    }
+    if (tracerResult.calls[callIndex] == null) {
+      console.log('fatal: no validateuserop')
+    }
+
+    const validationData = this.decodeValidateUserOp(tracerResult.calls[callIndex])
+    const aggregator = validationData.aggregator
+    let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
+    let paymasterContext: string | undefined
+    if (op.paymaster != null) {
+      callIndex++
+      const pmRet = this.decodeValidatePaymasterUserOp(tracerResult.calls[callIndex])
+      paymasterContext = pmRet.context
+      paymasterValidationData = pmRet.validationData
+    }
+
+    // todo: paymasterContext should be returned to parser, to validate its length.
+
     const paymasterAddress = op.paymaster ?? AddressZero
     const factoryAddress = op.factory ?? AddressZero
-    const addrs = [op.sender, paymasterAddress, factoryAddress, AddressZero]
-    const ret = await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrs])
+    const addrs = [op.sender, paymasterAddress, factoryAddress, aggregator]
+    const retStakes = (await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrs]))[0]
 
-    const aggregator = AddressZero // extract from validationData
-    return {
+    const ret: ValidationResult = {
       returnInfo: {
-        sigFailed: false, // extract from validateUserOp return value
-        validUntil: 0, // extract from validateUserOp return value
-        validAfter: 0, // extract from validateUserOp return value
+        sigFailed: false, // can't fail here, since handleOps didn't revert.
+        validUntil: Math.min(validationData.validUntil, paymasterValidationData.validUntil),
+        validAfter: Math.max(validationData.validAfter, paymasterValidationData.validAfter),
         preOpGas: 0, // extract from innerHandleOps parameter
         prefund: 0 // extract from innerHandleOps parameter
       },
-      senderInfo: {
-        addr: op.sender,
-        stake: ret.senderStake.stake,
-        unstakeDelaySec: ret.senderStake.unstakeDelaySec
-      },
-      factoryInfo: {
-        addr: factoryAddress,
-        stake: ret.factoryStake.stake,
-        unstakeDelaySec: ret.factoryStake.unstakeDelaySec
-      },
-      paymasterInfo: {
-        addr: paymasterAddress,
-        stake: ret.paymasterStake.stake,
-        unstakeDelaySec: ret.paymasterStake.unstakeDelaySec
-      },
-      aggregatorInfo: {
-        addr: aggregator,
-        stake: ret.aggregatorStake.stake,
-        unstakeDelaySec: ret.aggregatorStake.unstakeDelaySec
-      }
-
+      senderInfo: retStakes[0]
     }
+    if (op.paymaster !== null) {
+      ret.paymasterInfo = retStakes[1]
+    }
+    if (op.factory !== null) {
+      ret.factoryInfo = retStakes[2]
+    }
+    if (aggregator !== AddressZero) {
+      ret.aggregatorInfo = retStakes[3]
+    }
+    return ret
   }
 
   parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
@@ -203,17 +220,17 @@ export class ValidationManager implements IValidationManager {
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
-    const stateOverrides = {
-      // [this.entryPoint.address]: {
-      //   code: EntryPointSimulationsJson.deployedBytecode
-      // },
-      ...stateOverride
-    }
-
-    // validate against a future time: the UserOp must be valid at that time to be included
-    const blockOverrides = {
-      time: '0x' + (Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS).toString(16)
-    }
+    // const stateOverrides = {
+    //   // [this.entryPoint.address]: {
+    //   //   code: EntryPointSimulationsJson.deployedBytecode
+    //   // },
+    //   ...stateOverride
+    // }
+    //
+    // // validate against a future time: the UserOp must be valid at that time to be included
+    // const blockOverrides = {
+    //   time: '0x' + (Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS).toString(16)
+    // }
 
     let tracer
     if (!this.usingErc7562NativeTracer()) {
@@ -225,9 +242,9 @@ export class ValidationManager implements IValidationManager {
       data: handleOpsData,
       gasLimit: simulationGas
     }, {
-      tracer,
-      stateOverrides,
-      blockOverrides
+      tracer
+      // stateOverrides,
+      // blockOverrides
     },
     this.providerForTracer
     )
@@ -242,9 +259,9 @@ export class ValidationManager implements IValidationManager {
       }
     } else {
       // Using Native tracer
-      data = tracerResult.output
-      if (tracerResult.error != null && (tracerResult.error as string).includes('execution reverted')) {
-        throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
+      const decodedErrorReason = decodeRevertReason(tracerResult.output, false) as string
+      if (decodedErrorReason !== 'FailedOp(1,"AA94 gas values overflow")') {
+        throw new RpcError(decodedErrorReason, ValidationErrors.SimulateValidation)
       }
     }
     // // Hack to handle SELFDESTRUCT until we fix entrypoint
@@ -255,7 +272,7 @@ export class ValidationManager implements IValidationManager {
       // const [decodedSimulations] = entryPointSimulations.decodeFunctionResult('simulateValidation', data)
       // const validationResult = this.parseValidationResult(userOp, decodedSimulations)
 
-      const validationResult = await this.generateValidationResult(userOp, tracerResult)
+      const validationResult = await this.generateValidationResult(userOp, tracerResult as ERC7562Call)
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
@@ -543,5 +560,30 @@ export class ValidationManager implements IValidationManager {
 
   usingErc7562NativeTracer (): boolean {
     return this.providerForTracer == null
+  }
+
+  private decodeValidateUserOp (call: ERC7562Call): ValidationData {
+    const iaccount = IAccount__factory.connect(call.to, this.provider)
+    const methodSig = iaccount.interface.getSighash('validateUserOp')
+    if (call.input.slice(0, 10) !== methodSig) {
+      throw new Error('Not a validateUserOp')
+    }
+    if (call.output == null) {
+      throw new Error('validateUserOp: No output')
+    }
+    return parseValidationData(call.output)
+  }
+
+  private decodeValidatePaymasterUserOp (call: ERC7562Call): { context: string, validationData: ValidationData } {
+    const iPaymaster = IPaymaster__factory.connect(call.to, this.provider)
+    const methodSig = iPaymaster.interface.getSighash('validatePaymasterUserOp')
+    if (call.input.slice(0, 10) !== methodSig) {
+      throw new Error('Not a validatePaymasterUserOp')
+    }
+    if (call.output == null) {
+      throw new Error('validatePaymasterUserOp: No output')
+    }
+    const ret = iPaymaster.interface.decodeFunctionResult('validatePaymasterUserOp', call.output)
+    return { context: ret.context, validationData: parseValidationData(ret.validationData) }
   }
 }

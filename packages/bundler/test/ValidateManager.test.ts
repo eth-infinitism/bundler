@@ -156,7 +156,7 @@ describe('#ValidationManager', () => {
     const unsafe = !await supportsDebugTraceCall(provider, false)
     const preVerificationGasCalculator = new PreVerificationGasCalculator(MainnetConfig)
 
-    const senderCreator = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'
+    const senderCreator = await entryPoint.senderCreator()
     const erc7562Parser = new ERC7562Parser(entryPoint.address, senderCreator)
     vm = new ValidationManager(entryPoint, unsafe, preVerificationGasCalculator, erc7562Parser)
 
@@ -261,21 +261,21 @@ describe('#ValidationManager', () => {
     })
 
     it('should reject request with past validUntil', async () => {
-      await expect(
-        testTimeRangeUserOp(0, Date.now() - 1000)
-      ).to.be.revertedWith('already expired')
+      expect(
+        await testTimeRangeUserOp(0, Date.now() - 1000).catch(e => e.message)
+      ).match(/expired/)
     })
 
     it('should reject request with short validUntil', async () => {
-      await expect(
-        testTimeRangeUserOp(0, Date.now() + 25000)
-      ).to.be.revertedWith('expires too soon')
+      expect(
+        await testTimeRangeUserOp(0, Date.now() + 25000).catch(e => e.message)
+      ).to.match(/expires too soon/)
     })
 
     it('should reject request with future validAfter', async () => {
-      await expect(
-        testTimeRangeUserOp(Date.now() * 2, 0)
-      ).to.be.revertedWith('future ')
+      expect(
+        await testTimeRangeUserOp(Date.now() * 2, 0).catch(e => e.message)
+      ).to.match(/not due/)
     })
   })
 
@@ -347,6 +347,7 @@ describe('#ValidationManager', () => {
     // await entryPoint.depositTo(pm.address, { value: parseEther('0.1') })
     // await pm.addStake(entryPoint.address, { value: parseEther('0.1') })
     const acct = await new TestRecursionAccount__factory(ethersSigner).deploy(entryPoint.address)
+    await acct.deployTransaction.wait()
 
     const userOp: UserOperation = {
       ...cEmptyUserOp,
@@ -361,6 +362,7 @@ describe('#ValidationManager', () => {
 
   it('should fail if validation recursively calls handleOps', async () => {
     const acct = await new TestRecursionAccount__factory(ethersSigner).deploy(entryPoint.address)
+    await acct.deployTransaction.wait()
     const op: UserOperation = {
       ...cEmptyUserOp,
       sender: acct.address,

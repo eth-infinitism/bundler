@@ -11,6 +11,7 @@ import { bundlerJSTracerName, debug_traceCall, GethNativeTracerName } from './Ge
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
+import { ERC7562Call } from './ERC7562Call'
 
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
@@ -42,7 +43,7 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
   const ret = await debug_traceCall(provider,
     { from: AddressZero, to: AddressZero, data: '0x' },
     { tracer: GethNativeTracerName }).catch(e => e)
-  return ret.logs != null
+  return ret.usedOpcodes != null
 }
 
 export async function checkRulesViolations (

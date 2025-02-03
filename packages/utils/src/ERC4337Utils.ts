@@ -313,7 +313,6 @@ export function decodeErrorReason (error: string | Error): DecodedError | undefi
     error = (err.data ?? err.error.data) as string
   }
 
-  debug('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }
