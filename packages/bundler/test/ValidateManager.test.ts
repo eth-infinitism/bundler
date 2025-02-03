@@ -392,9 +392,9 @@ describe('#ValidationManager', () => {
 
     it('should throw for a transaction that violates the rules', async () => {
       const userOp = await createTestUserOp('coinbase')
-      await expect(
-        checkRulesViolations(provider, userOp, entryPoint.address)
-      ).to.be.revertedWith('account uses banned opcode: COINBASE')
+      expect(
+        await checkRulesViolations(provider, userOp, entryPoint.address).catch(e => e.message)
+      ).to.match(/account uses banned opcode: COINBASE/)
     })
   })
 })

@@ -56,7 +56,7 @@ export async function checkRulesViolations (
     throw new Error('This provider does not support stack tracing')
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
-  const senderCreator = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'
+  const senderCreator = await entryPoint.senderCreator()
   const erc7562Parser = new ERC7562Parser(entryPointAddress, senderCreator)
   const validationManager = new ValidationManager(
     entryPoint,
