@@ -97,6 +97,14 @@ export class ValidationManager implements IValidationManager {
       console.log('fatal: no validateuserop')
     }
 
+    // pass entrypoint and other addresses we want to resolve by name.
+    const names = {
+      ...op,
+      ep: this.entryPoint.address,
+      senderCreator: await this.entryPoint.senderCreator()
+    }
+    this.erc7562Parser.dumpCallTree(tracerResult, names)
+
     const validationData = this.decodeValidateUserOp(tracerResult.calls[callIndex])
     const aggregator = validationData.aggregator
     let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
@@ -195,6 +203,14 @@ export class ValidationManager implements IValidationManager {
       const decodedError = decodeRevertReason(error)
 
       if (decodedError != null) {
+        // throw with specific error codes:
+        if (decodedError.startsWith('FailedOp(0,"AA24')) {
+          throw new RpcError('AA24: Invalid UserOp signature', ValidationErrors.InvalidSignature)
+        }
+        if (decodedError.startsWith('FailedOp(0,"AA34')) {
+          throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
+        }
+
         if (decodedError.startsWith('FailedOp(1,"AA94 gas values overflow')) {
           // this is not an error.. it is a marker the UserOp-under-test passed successfully
           return
@@ -260,6 +276,15 @@ export class ValidationManager implements IValidationManager {
     } else {
       // Using Native tracer
       const decodedErrorReason = decodeRevertReason(tracerResult.output, false) as string
+
+      // throw with specific error codes:
+      if (decodedErrorReason.startsWith('FailedOp(0,"AA24')) {
+        throw new RpcError('AA24: Invalid UserOp signature', ValidationErrors.InvalidSignature)
+      }
+      if (decodedErrorReason.startsWith('FailedOp(0,"AA34')) {
+        throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
+      }
+
       if (decodedErrorReason !== 'FailedOp(1,"AA94 gas values overflow")') {
         throw new RpcError(decodedErrorReason, ValidationErrors.SimulateValidation)
       }

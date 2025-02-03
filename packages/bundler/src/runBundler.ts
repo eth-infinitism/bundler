@@ -166,10 +166,14 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   const {
     entryPoint
   } = await connectContracts(wallet, !config.rip7560)
-  // bundleSize=1 replicate current immediate bundling mode
-  if (entryPoint != null && entryPoint.address != null) {
+
+  if (entryPoint != null && entryPoint.address != null && entryPoint.address !== config.entryPoint && [1337, 31337].includes(chainId)) {
+    console.log('NOTICE: overriding config entrypoint: ', { entryPoint: entryPoint.address })
     config.entryPoint = entryPoint.address
+    config.senderCreator = await entryPoint.senderCreator()
   }
+
+  // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config
     // autoBundleMempoolSize: 0

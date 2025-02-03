@@ -3,6 +3,7 @@ import { FunctionFragment, hexZeroPad, Interface, keccak256 } from 'ethers/lib/u
 
 import {
   AddressZero,
+  IAccount__factory,
   IEntryPoint__factory,
   IPaymaster__factory,
   OperationBase,
@@ -11,8 +12,8 @@ import {
   SlotMap,
   StakeInfo,
   StorageMap,
-  ValidationErrors,
-  toBytes32
+  toBytes32,
+  ValidationErrors
 } from '@account-abstraction/utils'
 
 import { ERC7562Violation, toError } from './ERC7562Violation'
@@ -360,6 +361,35 @@ export class ERC7562Parser {
       }
     }
     return false
+  }
+
+  private mapAddrToName (mapAddrs: {[name: string]: string}, addr: string): string {
+    if (addr == null) {
+      return addr
+    }
+    for (const name of Object.keys(mapAddrs)) {
+      if (mapAddrs[name].toString().toLowerCase() === addr.toLowerCase()) {
+        return name
+      }
+    }
+    return addr
+  }
+
+  // recursively dump call tree, and storage accesses
+  dumpCallTree (call: ERC7562Call, mapAddrs = {}, indent = ''): void {
+    const map = (addr: string): string => this.mapAddrToName(mapAddrs, addr)
+    console.log(`${indent} ${map(call.from)} => ${call.type} ${call.to} ${map(call.to)}.${this._tryDetectKnownMethod(call)}`)
+    for (const access of ['reads', 'writes']) {
+      const arr = (call.accessedSlots as any)[access]
+      if (arr != null) {
+        for (const [idx, val] of Object.entries(arr)) {
+          console.log(`${indent}   - ${access}  ${idx}: ${val}`)
+        }
+      }
+    }
+    for (const innerCall of call.calls ?? []) {
+      this.dumpCallTree(innerCall, mapAddrs, indent + '  ')
+    }
   }
 
   private _tryDetectKnownMethod (erc7562Call: ERC7562Call): string {
