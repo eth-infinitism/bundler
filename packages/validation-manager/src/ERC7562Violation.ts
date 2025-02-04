@@ -1,7 +1,8 @@
 import { RpcError, ValidationErrors } from '@account-abstraction/utils'
 
-import { ERC7562Rule } from './enum/ERC7562Rule'
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
+import { ERC7562Rule } from './enum/ERC7562Rule'
+import { EnterOpcode } from './altmempool/AltMempoolConfig'
 
 export interface ERC7562Violation {
   rule: ERC7562Rule
@@ -10,6 +11,7 @@ export interface ERC7562Violation {
   address: string
   errorCode: ValidationErrors
   description: string
+  enterOpcode: EnterOpcode
   conflict?: string
   opcode?: string
   value?: string

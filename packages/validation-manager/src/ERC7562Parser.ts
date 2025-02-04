@@ -22,6 +22,7 @@ import { bannedOpCodes, opcodesOnlyInStakedEntities } from './ERC7562BannedOpcod
 import { ValidationResult } from './IValidationManager'
 import { ERC7562Call } from './ERC7562Call'
 import { getOpcodeName } from './enum/EVMOpcodes'
+import { EnterOpcode } from './altmempool/AltMempoolConfig'
 
 // TODO: Use artifact from the submodule
 const RIP7560EntryPointABI = [
@@ -518,7 +519,8 @@ export class ERC7562Parser {
           rule: ERC7562Rule.op011,
           depth: recursionDepth,
           entity: this.currentEntity,
-          address: erc7562Call.from,
+          address: erc7562Call.to,
+          enterOpcode: erc7562Call.type as EnterOpcode,
           opcode,
           value: '0',
           errorCode: ValidationErrors.OpcodeValidation,
@@ -540,6 +542,7 @@ export class ERC7562Parser {
         entity: this.currentEntity,
         address: erc7562Call.from,
         opcode: erc7562Call.type,
+        enterOpcode: erc7562Call.type as EnterOpcode,
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
         description: `${this.currentEntity.toString()} internally reverts on oog`
@@ -582,6 +585,7 @@ export class ERC7562Parser {
         depth: recursionDepth,
         entity: this.currentEntity,
         address: erc7562Call.from ?? 'n/a',
+        enterOpcode: erc7562Call.type as EnterOpcode,
         opcode: 'CREATE2',
         value: '0',
         errorCode: ValidationErrors.OpcodeValidation,
@@ -613,6 +617,7 @@ export class ERC7562Parser {
           address: '',
           depth: recursionDepth,
           entity: this.currentEntity,
+          enterOpcode: erc7562Call.type as EnterOpcode,
           rule: ERC7562Rule.op041,
           errorCode: ValidationErrors.OpcodeValidation,
           description: `${this.currentEntity.toString()} accesses un-deployed contract address ${illegalZeroCodeAccess?.address as string} with opcode ${illegalZeroCodeAccess?.opcode as string}`
@@ -650,6 +655,7 @@ export class ERC7562Parser {
         address: erc7562Call.from,
         opcode: erc7562Call.type,
         value: erc7562Call.value,
+        enterOpcode: erc7562Call.type as EnterOpcode,
         errorCode: ValidationErrors.OpcodeValidation,
         description: `illegal call into EntryPoint during validation ${knownMethod}`
       })
@@ -668,6 +674,7 @@ export class ERC7562Parser {
           depth: recursionDepth,
           entity: this.currentEntity,
           errorCode: ValidationErrors.OpcodeValidation,
+          enterOpcode: erc7562Call.type as EnterOpcode,
           rule: ERC7562Rule.op054,
           description: `${this.currentEntity} accesses EntryPoint contract address ${this.entryPointAddress} with EXTCODE* opcode`
         })
@@ -693,6 +700,7 @@ export class ERC7562Parser {
         address: erc7562Call.from,
         opcode: erc7562Call.type,
         value: erc7562Call.value,
+        enterOpcode: erc7562Call.type as EnterOpcode,
         errorCode: ValidationErrors.OpcodeValidation,
         description: 'May not may CALL with value'
       })
@@ -727,6 +735,7 @@ export class ERC7562Parser {
             entity: this.currentEntity,
             address: erc7562Call.from ?? 'n/a',
             opcode,
+            enterOpcode: erc7562Call.type as EnterOpcode,
             value: '0',
             errorCode: ValidationErrors.OpcodeValidation,
             description: `unstaked ${this.currentEntity.toString()} uses banned opcode: ${opcode}`
@@ -797,6 +806,7 @@ export class ERC7562Parser {
           entity: this.currentEntity,
           errorCode: ValidationErrors.OpcodeValidation,
           rule: ERC7562Rule.sto010,
+          enterOpcode: erc7562Call.type as EnterOpcode,
           description
         })
       }

@@ -2,7 +2,7 @@ import { ERC7562Rule } from '../enum/ERC7562Rule'
 
 type Role = 'sender' | 'paymaster' | 'factory'
 
-type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
+export type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
 
 export interface AltMempoolRuleExceptionBase {
   role?: Role
