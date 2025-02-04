@@ -2,16 +2,17 @@ import { RpcError, ValidationErrors } from '@account-abstraction/utils'
 
 import { AccountAbstractionEntity } from './AccountAbstractionEntity'
 import { ERC7562Rule } from './enum/ERC7562Rule'
-import { EnterOpcode } from './altmempool/AltMempoolConfig'
+import { CallFrameType } from './altmempool/AltMempoolConfig'
 
 export interface ERC7562Violation {
   rule: ERC7562Rule
   depth: number
   entity: AccountAbstractionEntity
   address: string
+  contextAddress: string
   errorCode: ValidationErrors
   description: string
-  enterOpcode: EnterOpcode
+  callFrameType: CallFrameType
   conflict?: string
   opcode?: string
   value?: string
