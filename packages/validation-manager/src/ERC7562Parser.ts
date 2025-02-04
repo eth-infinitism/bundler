@@ -368,7 +368,7 @@ export class ERC7562Parser {
       return addr
     }
     for (const name of Object.keys(mapAddrs)) {
-      if (mapAddrs[name].toString().toLowerCase() === addr.toLowerCase()) {
+      if (mapAddrs[name]?.toString().toLowerCase() === addr.toLowerCase()) {
         return name
       }
     }
