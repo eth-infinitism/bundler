@@ -28,13 +28,12 @@ describe('BundleServer', function () {
   let entryPoint: IEntryPoint
   let server: BundlerServer
   before(async () => {
-    // const provider = ethers.provider
     const provider = new JsonRpcProvider('http://localhost:8545')
     const signer = await createSigner()
     try {
       entryPoint = await deployEntryPoint(provider)
     } catch (e) {
-      throw new Error('Failed to deploy entry point - no geth?\n' + e)
+      throw new Error('Failed to deploy entry point - no RPC node?\n' + e)
     }
 
     const config: BundlerConfig = {

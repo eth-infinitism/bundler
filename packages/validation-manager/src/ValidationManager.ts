@@ -188,9 +188,7 @@ export class ValidationManager implements IValidationManager {
     signature: '0x'
   }
 
-  // standard eth_call to simulateValidation
-  async _callSimulateValidation (userOp: UserOperation): Promise<void> {
-    // Promise<IEntryPointSimulations.ValidationResultStructOutput> {
+  async _simulateHandleOps (userOp: UserOperation): Promise<void> {
     const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
     const tx = {
       to: this.entryPoint.address,
@@ -221,11 +219,6 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
-  // decode and throw error
-  _throwError (errorResult: { errorName: string, errorArgs: any }): never {
-    throw new Error(errorResult.errorName)
-  }
-
   async _geth_traceCall_SimulateValidation (
     operation: OperationBase,
     stateOverride: { [address: string]: { code: string } }
@@ -235,18 +228,6 @@ export class ValidationManager implements IValidationManager {
     const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
-
-    // const stateOverrides = {
-    //   // [this.entryPoint.address]: {
-    //   //   code: EntryPointSimulationsJson.deployedBytecode
-    //   // },
-    //   ...stateOverride
-    // }
-    //
-    // // validate against a future time: the UserOp must be valid at that time to be included
-    // const blockOverrides = {
-    //   time: '0x' + (Math.floor(Date.now() / 1000) + VALID_UNTIL_FUTURE_SECONDS).toString(16)
-    // }
 
     let tracer
     if (!this.usingErc7562NativeTracer()) {
@@ -259,8 +240,6 @@ export class ValidationManager implements IValidationManager {
       gasLimit: simulationGas
     }, {
       tracer
-      // stateOverrides,
-      // blockOverrides
     },
     this.providerForTracer
     )
@@ -289,22 +268,15 @@ export class ValidationManager implements IValidationManager {
         throw new RpcError(decodedErrorReason, ValidationErrors.SimulateValidation)
       }
     }
-    // // Hack to handle SELFDESTRUCT until we fix entrypoint
-    // if (data === '0x') {
-    //   return [data as any, tracerResult]
-    // }
-    try {
-      // const [decodedSimulations] = entryPointSimulations.decodeFunctionResult('simulateValidation', data)
-      // const validationResult = this.parseValidationResult(userOp, decodedSimulations)
 
+    try {
       const validationResult = await this.generateValidationResult(userOp, tracerResult as ERC7562Call)
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
         .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
         .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
         .replace(new RegExp(getAddr(userOp.factory) ?? '--no-initcode--'), '{factory}')
       )
-      // console.log('==debug=', ...tracerResult.numberLevels.forEach(x=>x.access), 'sender=', userOp.sender, 'paymaster=', hexlify(userOp.paymasterAndData)?.slice(0, 42))
-      // errorResult is "ValidationResult"
+
       if (this.usingErc7562NativeTracer()) {
         return [validationResult, tracerResult, null]
       } else {
@@ -390,7 +362,7 @@ export class ValidationManager implements IValidationManager {
     } else {
       // NOTE: this mode doesn't do any opcode checking and no stake checking!
       // can't decode validationResult at all. we only have "pass-or-not" result
-      await this._callSimulateValidation(userOp)
+      await this._simulateHandleOps(userOp)
       // dummy info: need tracer to decode (but it would revert on timerange, signature)
       res = {
         returnInfo: {
