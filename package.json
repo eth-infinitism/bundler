@@ -51,7 +51,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.2.4",
     "eslint-plugin-promise": "^6.0.0",
-    "lerna": "^5.4.0",
+    "lerna": "^8.1.9",
     "typescript": "^5.6.2",
     "webpack": "^5.74.0",
     "webpack-cli": "^4.10.0"
