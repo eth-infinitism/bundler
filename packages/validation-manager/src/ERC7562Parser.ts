@@ -518,7 +518,7 @@ export class ERC7562Parser {
           rule: ERC7562Rule.op011,
           depth: recursionDepth,
           entity: this.currentEntity,
-          address: erc7562Call.from,
+          address: erc7562Call.to,
           opcode,
           value: '0',
           errorCode: ValidationErrors.OpcodeValidation,

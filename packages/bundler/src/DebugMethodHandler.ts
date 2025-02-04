@@ -9,7 +9,7 @@ import { ExecutionManager } from './modules/ExecutionManager'
 import { MempoolManager } from './modules/MempoolManager'
 import { ReputationEntry, ReputationManager } from './modules/ReputationManager'
 import { SendBundleReturn } from './modules/BundleManager'
-import { AltMempoolConfig } from '@account-abstraction/validation-manager'
+import { AltMempoolConfig, validateAltMempoolConfigShape } from '@account-abstraction/validation-manager'
 
 export class DebugMethodHandler {
   constructor (
@@ -89,6 +89,9 @@ export class DebugMethodHandler {
   }
 
   async _setAltMempoolConfig (altMempoolConfig: AltMempoolConfig): Promise<void> {
-    return await this.mempoolMgr._setAltMempoolConfig(altMempoolConfig)
+    const configCleanedUp = JSON.parse(JSON.stringify(altMempoolConfig))
+    validateAltMempoolConfigShape(configCleanedUp)
+    await this.mempoolMgr._setAltMempoolConfig(configCleanedUp)
+    await this._setConfiguration({})
   }
 }

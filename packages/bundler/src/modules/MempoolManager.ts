@@ -22,7 +22,7 @@ import { ERC7562Violation } from '@account-abstraction/validation-manager/dist/s
 
 const debug = Debug('aa.mempool')
 
-type MempoolDump = { [mempoolId: string]: OperationBase[] }
+interface MempoolDump {[mempoolId: string]: OperationBase[]}
 
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
@@ -42,7 +42,9 @@ function isRuleViolated (
     if (exception === violation.address) {
       return false
     }
-    if (exception === 'sender' && violation.address === userOp.sender) {
+    if (
+      (exception === 'account' || (typeof exception === 'object' && exception.role === 'account')) &&
+      violation.address.toLowerCase() === userOp.sender.toLowerCase()) {
       return false
     }
     // type RuleException = `0x${string}` | Role | AltMempoolRuleExceptionBase | AltMempoolRuleExceptionBannedOpcode
@@ -61,13 +63,6 @@ export class MempoolManager {
   constructor (
     private readonly reputationManager: ReputationManager,
     private altMempoolConfig: AltMempoolConfig) {
-    this._initializeMempools()
-  }
-
-  private _initializeMempools (): void {
-    for (const id of Object.keys(this.altMempoolConfig)) {
-      this.altMempools[parseInt(id)] = []
-    }
   }
 
   /**
@@ -393,6 +388,9 @@ export class MempoolManager {
           continue
         }
         console.error(`   Adding to mempool ${mempoolId}`)
+        if (this.altMempools[mempoolId] == null) {
+          this.altMempools[mempoolId] = []
+        }
         this.altMempools[mempoolId].push(entry)
         this.reputationManager.updateSeenStatus(mempoolId)
       }

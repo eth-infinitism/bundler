@@ -2,7 +2,7 @@ import ow from 'ow'
 
 import { ERC7562Rule } from '../enum/ERC7562Rule'
 
-export type Role = 'sender' | 'paymaster' | 'factory'
+export type Role = 'account' | 'paymaster' | 'factory'
 
 export type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
 
@@ -31,13 +31,13 @@ export interface AltMempoolConfig {
 }
 
 const AltMempoolRuleExceptionBaseShape = ow.object.partialShape({
-  role: ow.optional.string.oneOf(['sender', 'paymaster', 'factory']),
-  address: ow.optional.string,
-  depths: ow.optional.array.ofType(ow.number),
-  enterOpcode: ow.optional.array.ofType(
+  role: ow.optional.any(ow.optional.string.oneOf(['account', 'paymaster', 'factory']), ow.null),
+  address: ow.optional.any(ow.string, ow.null),
+  depths: ow.optional.any(ow.optional.array.ofType(ow.number), ow.null),
+  enterOpcode: ow.optional.any(ow.optional.array.ofType(
     ow.string.oneOf(['CALL', 'DELEGATECALL', 'CALLCODE', 'STATICCALL', 'CREATE', 'CREATE2'])
-  ),
-  enterMethodSelector: ow.optional.string.matches(/^0x[a-fA-F0-9]+$/)
+  ), ow.null),
+  enterMethodSelector: ow.optional.any(ow.optional.string.matches(/^0x[a-fA-F0-9]+$/), ow.null)
 })
 
 const AltMempoolRuleExceptionBannedOpcodeShape = ow.object.partialShape({
@@ -51,7 +51,7 @@ const BaseAltMempoolRuleShape = ow.object.partialShape({
   exceptions: ow.optional.array.minLength(1).ofType(
     ow.any(
       ow.string.matches(/^0x[a-fA-F0-9]+$/),
-      ow.string.oneOf(['sender', 'paymaster', 'factory']),
+      ow.string.oneOf(['account', 'paymaster', 'factory']),
       AltMempoolRuleExceptionBaseShape,
       AltMempoolRuleExceptionBannedOpcodeShape
     )
@@ -70,7 +70,7 @@ const config: AltMempoolConfig = {
     [ERC7562Rule.erep010]: {
       enabled: true,
       exceptions: [
-        'sender',
+        'account',
         '0xdeadbeef',
         {
           depths: [3],
