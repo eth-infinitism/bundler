@@ -54,7 +54,7 @@ export class DebugMethodHandler {
   }
 
   async dumpMempool (): Promise<any> {
-    return this.mempoolMgr.dump()
+    return this.mempoolMgr.debugDumpMempool()
   }
 
   clearMempool (): void {

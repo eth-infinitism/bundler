@@ -22,7 +22,7 @@ import { ERC7562Violation } from '@account-abstraction/validation-manager/dist/s
 
 const debug = Debug('aa.mempool')
 
-type MempoolDump = OperationBase[]
+type MempoolDump = { [mempoolId: string]: OperationBase[] }
 
 const THROTTLED_ENTITY_MEMPOOL_COUNT = 4
 
@@ -319,8 +319,12 @@ export class MempoolManager {
   /**
    * debug: dump mempool content
    */
-  dump (): MempoolDump {
-    return this.mempool.map(entry => entry.userOp)
+  debugDumpMempool (): MempoolDump {
+    const mempoolDump: MempoolDump = {}
+    for (const [mempoolId, mempool] of Object.entries(this.altMempools)) {
+      mempoolDump[mempoolId] = mempool.map(entry => entry.userOp)
+    }
+    return mempoolDump
   }
 
   /**
