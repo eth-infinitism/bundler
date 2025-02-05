@@ -725,7 +725,7 @@ export class ERC7562Parser {
         value: erc7562Call.value,
         callFrameType: erc7562Call.type,
         errorCode: ValidationErrors.OpcodeValidation,
-        description: 'May not may CALL with value'
+        description: 'May not make a CALL with value'
       })
     }
   }
