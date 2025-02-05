@@ -3,7 +3,6 @@ import { FunctionFragment, hexZeroPad, Interface, keccak256 } from 'ethers/lib/u
 
 import {
   AddressZero,
-  IAccount__factory,
   IEntryPoint__factory,
   IPaymaster__factory,
   OperationBase,
@@ -383,7 +382,7 @@ export class ERC7562Parser {
       const arr = (call.accessedSlots as any)[access]
       if (arr != null) {
         for (const [idx, val] of Object.entries(arr)) {
-          console.log(`${indent}   - ${access}  ${idx}: ${val}`)
+          console.log(`${indent}   - ${access}  ${idx}: ${val as string}`)
         }
       }
     }

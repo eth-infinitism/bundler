@@ -11,7 +11,6 @@ import { bundlerJSTracerName, debug_traceCall, GethNativeTracerName } from './Ge
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
-import { ERC7562Call } from './ERC7562Call'
 
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'

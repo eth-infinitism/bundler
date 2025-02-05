@@ -10,11 +10,8 @@ import {
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 
 import { BigNumber, BigNumberish, BytesLike, ethers, TypedDataDomain, TypedDataField } from 'ethers'
-import Debug from 'debug'
 import { PackedUserOperation } from './Utils'
 import { UserOperation } from './interfaces/UserOperation'
-
-const debug = Debug('aa.utils')
 
 // UserOperation is the first parameter of getUserOpHash
 const getUserOpHashMethod = 'getUserOpHash'

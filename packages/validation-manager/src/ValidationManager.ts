@@ -108,11 +108,10 @@ export class ValidationManager implements IValidationManager {
     const validationData = this.decodeValidateUserOp(tracerResult.calls[callIndex])
     const aggregator = validationData.aggregator
     let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
-    let paymasterContext: string | undefined
     if (op.paymaster != null) {
       callIndex++
       const pmRet = this.decodeValidatePaymasterUserOp(tracerResult.calls[callIndex])
-      paymasterContext = pmRet.context
+      // paymasterContext = pmRet.context
       paymasterValidationData = pmRet.validationData
     }
 

@@ -34,7 +34,7 @@ describe('BundleServer', function () {
     try {
       entryPoint = await deployEntryPoint(provider)
     } catch (e) {
-      throw new Error('Failed to deploy entry point - no RPC node?\n' + e)
+      throw new Error(`Failed to deploy entry point - no RPC node?\n ${e as string}`)
     }
 
     const config: BundlerConfig = {

@@ -167,7 +167,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   } = await connectContracts(wallet, !config.rip7560)
 
-  if (entryPoint != null && entryPoint.address != null && entryPoint.address !== config.entryPoint && [1337, 31337].includes(chainId)) {
+  if (entryPoint != null && entryPoint?.address !== config.entryPoint && [1337, 31337].includes(chainId)) {
     console.log('NOTICE: overriding config entrypoint: ', { entryPoint: entryPoint.address })
     config.entryPoint = entryPoint.address
     config.senderCreator = await entryPoint.senderCreator()
