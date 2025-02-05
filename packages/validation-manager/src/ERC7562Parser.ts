@@ -11,8 +11,8 @@ import {
   SlotMap,
   StakeInfo,
   StorageMap,
-  ValidationErrors,
-  toBytes32
+  toBytes32,
+  ValidationErrors
 } from '@account-abstraction/utils'
 
 import { ERC7562Violation, toError } from './ERC7562Violation'
@@ -584,7 +584,10 @@ export class ERC7562Parser {
     const isAllowedCreateByOP032 =
       userOp.factory != null &&
       erc7562Call.type === 'CREATE' &&
-      this.currentEntity === AccountAbstractionEntity.account &&
+      (
+        this.currentEntity === AccountAbstractionEntity.account ||
+        this.currentEntity === AccountAbstractionEntity.factory
+      ) &&
       erc7562Call.from.toLowerCase() === userOp.sender.toLowerCase()
     const isAllowedCreateByEREP060 =
       (
