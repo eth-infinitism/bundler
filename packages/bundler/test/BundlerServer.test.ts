@@ -23,12 +23,13 @@ import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { DepositManager } from '../src/modules/DepositManager'
 import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
+import { ethers } from 'hardhat'
 
 describe('BundleServer', function () {
   let entryPoint: IEntryPoint
   let server: BundlerServer
   before(async () => {
-    const provider = new JsonRpcProvider('http://localhost:8545')
+    const provider = ethers.provider
     const signer = await createSigner()
     try {
       entryPoint = await deployEntryPoint(provider)
