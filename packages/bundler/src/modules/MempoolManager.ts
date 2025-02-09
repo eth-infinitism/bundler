@@ -19,6 +19,7 @@ import { MempoolEntry } from './MempoolEntry'
 import { ReputationManager } from './ReputationManager'
 import { BaseAltMempoolRule } from '@account-abstraction/validation-manager/src/altmempool/AltMempoolConfig'
 import { ERC7562Violation } from '@account-abstraction/validation-manager/dist/src/ERC7562Violation'
+import { AccountAbstractionEntity } from '@account-abstraction/validation-manager/dist/src/AccountAbstractionEntity'
 
 const debug = Debug('aa.mempool')
 
@@ -39,12 +40,14 @@ function isRuleViolated (
     return false
   }
   for (const exception of override.exceptions ?? []) {
-    if (exception === violation.address) {
+    if (typeof exception === 'string' && exception.toLowerCase() === violation.address.toLowerCase()) {
       return false
     }
     if (
-      (exception === 'account' || (typeof exception === 'object' && exception.role === 'account')) &&
-      violation.address.toLowerCase() === userOp.sender.toLowerCase()) {
+      (exception === AccountAbstractionEntity.account ||
+        (typeof exception === 'object' && exception.role === AccountAbstractionEntity.account.toString())
+      ) &&
+      violation.entity === AccountAbstractionEntity.account) {
       return false
     }
     // type RuleException = `0x${string}` | Role | AltMempoolRuleExceptionBase | AltMempoolRuleExceptionBannedOpcode
@@ -142,7 +145,10 @@ export class MempoolManager {
       if (userOp.factory != null) {
         this.incrementEntryCount(userOp.factory)
       }
-      this.tryAssignToMempool(entry)
+      const mempoolsAssigned = this.tryAssignToMempool(entry)
+      if (mempoolsAssigned.length == 0) {
+        throw new RpcError(`UserOperation ${userOpHash} did not match any mempools due to the following violations: ${JSON.stringify(entry.ruleViolations)}`, ValidationErrors.OpcodeValidation)
+      }
     }
     this.updateSeenStatus(validationResult.aggregatorInfo?.addr, userOp, validationResult.senderInfo)
   }
@@ -372,12 +378,12 @@ export class MempoolManager {
     }
   }
 
-  private tryAssignToMempool (entry: MempoolEntry): number[] {
+  private tryAssignToMempool (entry: MempoolEntry): string[] {
     if (entry.ruleViolations.length === 0) {
       this.mempool.push(entry)
-      return [0]
+      return ['0']
     }
-    const mempoolIds: number[] = []
+    const mempoolIds: string[] = []
     console.log(`UserOperation ${entry.userOpHash}`)
     for (const [mempoolId, config] of Object.entries(this.altMempoolConfig)) {
       console.log(` Mempool ID: ${mempoolId} Config: ${JSON.stringify(config)}`)
@@ -391,6 +397,7 @@ export class MempoolManager {
         if (this.altMempools[mempoolId] == null) {
           this.altMempools[mempoolId] = []
         }
+        mempoolIds.push(mempoolId)
         this.altMempools[mempoolId].push(entry)
         this.reputationManager.updateSeenStatus(mempoolId)
       }
