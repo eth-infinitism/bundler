@@ -57,7 +57,7 @@ describe.skip('RIP7560Mode', function () {
       // fund deployment of the EntryPoint contract
       await signer.sendTransaction({ to: await wallet.getAddress(), value: parseEther('1') })
 
-      const [execManager] = initServer(config, signer)
+      const [execManager] = initServer(config, {}, signer)
 
       // spy on the underlying ExecutionManager provider 'send' function
       // @ts-ignore

@@ -334,9 +334,13 @@ export class BundlerServer {
       case 'debug_bundler_setConfiguration': {
         const pvgc = await this.debugHandler._setConfiguration(params[0])
         this.methodHandler.preVerificationGasCalculator = pvgc
+        break
       }
+      case 'debug_bundler_setAltMempoolConfig': {
+        await this.debugHandler._setAltMempoolConfig(params[0])
         result = {}
         break
+      }
       default:
         throw new RpcError(`Method ${method} is not supported`, -32601)
     }

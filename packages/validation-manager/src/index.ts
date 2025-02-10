@@ -58,7 +58,7 @@ export async function checkRulesViolations (
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
   const senderCreator = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'
-  const erc7562Parser = new ERC7562Parser(entryPointAddress, senderCreator)
+  const erc7562Parser = new ERC7562Parser(true, entryPointAddress, senderCreator)
   const validationManager = new ValidationManager(
     entryPoint,
     false,

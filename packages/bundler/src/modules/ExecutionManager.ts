@@ -9,7 +9,7 @@ import { ReputationManager } from './ReputationManager'
 import { IBundleManager } from './IBundleManager'
 import {
   EmptyValidateUserOpResult,
-  IValidationManager, ValidationManager
+  IValidationManager, ValidateUserOpResult, ValidationManager
 } from '@account-abstraction/validation-manager'
 import { DepositManager } from './DepositManager'
 import { BigNumberish, Signer } from 'ethers'
@@ -56,7 +56,7 @@ export class ExecutionManager {
     await this.mutex.runExclusive(async () => {
       debug('sendUserOperation')
       this.validationManager.validateInputParameters(userOp, entryPointInput)
-      let validationResult = EmptyValidateUserOpResult
+      let validationResult: ValidateUserOpResult = EmptyValidateUserOpResult
       if (!skipValidation) {
         validationResult = await this.validationManager.validateUserOp(userOp)
       }
@@ -150,7 +150,8 @@ export class ExecutionManager {
     const { configuration, entryPoint, unsafe } = this.validationManager._getDebugConfiguration()
     const mergedConfiguration = Object.assign({}, configuration, configOverrides)
     const pvgc = new PreVerificationGasCalculator(mergedConfiguration)
-    const erc7562Parser = new ERC7562Parser(entryPoint.address, mergedConfiguration.senderCreator ?? '')
+    const bailOnViolation = this.mempoolManager.hasAltMempools()
+    const erc7562Parser = new ERC7562Parser(bailOnViolation, entryPoint.address, mergedConfiguration.senderCreator ?? '')
     this.validationManager = new ValidationManager(
       entryPoint,
       unsafe,

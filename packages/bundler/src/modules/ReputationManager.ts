@@ -37,14 +37,17 @@ export const NonBundlerReputationParams: ReputationParams = {
   banSlack: 10
 }
 
-interface ReputationEntry {
-  address: string
+/**
+ * An entry whose "reputation" is tracked by the {@link ReputationManager}.
+ * May represent either a smart contract with a role in an ERC-4337 transaction or an alternative mempool.
+ * The "entryId" is either a contract address or alt-mempool ID.
+ */
+export interface ReputationEntry {
+  entryId: string
   opsSeen: number
   opsIncluded: number
   status?: ReputationStatus
 }
-
-export type ReputationDump = ReputationEntry[]
 
 export class ReputationManager {
   constructor (
@@ -54,18 +57,23 @@ export class ReputationManager {
     readonly minUnstakeDelay: number) {
   }
 
-  private entries: { [address: string]: ReputationEntry } = {}
+  /**
+   * A mapping of all entries whose reputation is being tracked.
+   * A lowercase address is used to identify smart contracts.
+   * An alt-mempool ID is used to identify alt-mempools.
+   */
+  private entries: { [id: string | number]: ReputationEntry } = {}
   // black-listed entities - always banned
   readonly blackList = new Set<string>()
 
   // white-listed entities - always OK.
-  readonly whitelist = new Set<string>()
+  readonly whitelist = new Set<string | number>()
 
   /**
    * debug: dump reputation map (with updated "status" for each entry)
    */
-  dump (): ReputationDump {
-    Object.values(this.entries).forEach(entry => { entry.status = this.getStatus(entry.address) })
+  _debugDumpReputation (): ReputationEntry[] {
+    Object.values(this.entries).forEach(entry => { entry.status = this.getStatus(entry.entryId) })
     return Object.values(this.entries)
   }
 
@@ -92,12 +100,12 @@ export class ReputationManager {
     params.forEach(item => this.blackList.add(item))
   }
 
-  _getOrCreate (addr: string): ReputationEntry {
-    addr = addr.toLowerCase()
-    let entry = this.entries[addr]
+  _getOrCreate (id: string): ReputationEntry {
+    id = id.toLowerCase()
+    let entry = this.entries[id]
     if (entry == null) {
-      this.entries[addr] = entry = {
-        address: addr,
+      this.entries[id] = entry = {
+        entryId: id,
         opsSeen: 0,
         opsIncluded: 0
       }
@@ -107,16 +115,16 @@ export class ReputationManager {
 
   /**
    * address seen in the mempool triggered by the
-   * @param addr
+   * @param id
    * @param val increment value for "seen" status
    */
-  updateSeenStatus (addr?: string, val = 1): void {
-    if (addr == null) {
+  updateSeenStatus (id?: string, val = 1): void {
+    if (id == null) {
       return
     }
-    const entry = this._getOrCreate(addr)
+    const entry = this._getOrCreate(id)
     entry.opsSeen = Math.max(0, entry.opsSeen + val)
-    debug('after seen+', val, addr, entry)
+    debug('after seen+', val, id, entry)
   }
 
   /**
@@ -202,17 +210,17 @@ export class ReputationManager {
 
   /**
    * for debugging: put in the given reputation entries
-   * @param entries
+   * @param reputations
    */
-  setReputation (reputations: ReputationDump): ReputationDump {
+  _debugSetReputation (reputations: ReputationEntry[]): ReputationEntry[] {
     reputations.forEach(rep => {
-      this.entries[rep.address.toLowerCase()] = {
-        address: rep.address.toLowerCase(),
+      this.entries[rep.entryId.toLowerCase()] = {
+        entryId: rep.entryId.toLowerCase(),
         opsSeen: BigNumber.from(rep.opsSeen).toNumber(),
         opsIncluded: BigNumber.from(rep.opsIncluded).toNumber()
       }
     })
-    return this.dump()
+    return this._debugDumpReputation()
   }
 
   /**

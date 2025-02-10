@@ -40,6 +40,7 @@ import { ERC7562Parser } from './ERC7562Parser'
 import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
+import { ERC7562Violation } from './ERC7562Violation'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -263,6 +264,7 @@ export class ValidationManager implements IValidationManager {
     }
     const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
     let storageMap: StorageMap = {}
+    let ruleViolations: ERC7562Violation[] = []
     if (!this.unsafe) {
       let erc7562Call: ERC7562Call | null
       let bundlerTracerResult: BundlerTracerResult | null
@@ -273,7 +275,7 @@ export class ValidationManager implements IValidationManager {
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
       if (erc7562Call != null) {
-        ({ contractAddresses, storageMap } = this.erc7562Parser.requireCompliance(userOp, erc7562Call, res))
+        ({ contractAddresses, storageMap, ruleViolations } = this.erc7562Parser.parseResults(userOp, erc7562Call, res))
       } else if (bundlerTracerResult != null) {
         [contractAddresses, storageMap] = tracerResultParser(userOp, bundlerTracerResult, res, this.entryPoint.address)
       } else {
@@ -318,6 +320,7 @@ export class ValidationManager implements IValidationManager {
 
     return {
       ...res,
+      ruleViolations,
       referencedContracts: codeHashes,
       storageMap
     }

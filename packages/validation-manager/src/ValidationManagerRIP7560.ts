@@ -130,6 +130,7 @@ export class ValidationManagerRIP7560 implements IValidationManager {
         addresses: [],
         hash: ''
       },
+      ruleViolations: [],
       storageMap: {}
     }
     // throw new Error('Method not implemented.');

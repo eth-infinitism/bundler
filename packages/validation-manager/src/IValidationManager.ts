@@ -8,6 +8,7 @@ import {
   StorageMap
 } from '@account-abstraction/utils'
 import { PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
+import { ERC7562Violation } from './ERC7562Violation'
 
 /**
  * result from successful validation
@@ -28,6 +29,7 @@ export interface ValidationResult {
 }
 
 export interface ValidateUserOpResult extends ValidationResult {
+  ruleViolations: ERC7562Violation[]
   referencedContracts: ReferencedCodeHashes
   storageMap: StorageMap
 }
@@ -49,6 +51,7 @@ export const EmptyValidateUserOpResult: ValidateUserOpResult = {
     addresses: [],
     hash: ''
   },
+  ruleViolations: [],
   storageMap: {}
 }
 
