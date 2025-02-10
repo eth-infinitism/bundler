@@ -476,24 +476,24 @@ export class ERC7562Parser {
     userOp: OperationBase,
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     const address: string = erc7562Call.to
     this.contractAddresses.push(address)
     this._detectEntityChange(userOp, erc7562Call)
-    this._checkOp011(erc7562Call, recursionDepth, contextAddress)
-    this._checkOp020(erc7562Call, recursionDepth, contextAddress)
-    this._checkOp031(userOp, erc7562Call, recursionDepth, contextAddress)
-    this._checkOp041(userOp, erc7562Call, recursionDepth, contextAddress)
-    this._checkOp054(erc7562Call, recursionDepth, contextAddress)
-    this._checkOp054ExtCode(erc7562Call, address, recursionDepth, contextAddress)
-    this._checkOp061(erc7562Call, recursionDepth, contextAddress)
-    this._checkOp080(erc7562Call, recursionDepth, contextAddress)
-    this._checkStorage(userOp, erc7562Call, recursionDepth, contextAddress)
+    this._checkOp011(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp020(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp031(userOp, erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp041(userOp, erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp054(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp054ExtCode(erc7562Call, address, recursionDepth, delegatecallStorageAddress)
+    this._checkOp061(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp080(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkStorage(userOp, erc7562Call, recursionDepth, delegatecallStorageAddress)
     for (const call of erc7562Call.calls ?? []) {
       let newContext: string = call.to
       if (call.type === 'DELEGATECALL') {
-        newContext = contextAddress
+        newContext = delegatecallStorageAddress
       }
       this._innerStepRecursive(userOp, call, recursionDepth + 1, newContext)
     }
@@ -506,7 +506,7 @@ export class ERC7562Parser {
   private _checkOp011 (
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     if (erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
       // Currently inside the EntryPoint deposit code, no access control applies here
@@ -529,7 +529,7 @@ export class ERC7562Parser {
           depth: recursionDepth,
           entity: this.currentEntity,
           address: erc7562Call.to,
-          contextAddress,
+          delegatecallStorageAddress,
           callFrameType: erc7562Call.type,
           opcode,
           value: '0',
@@ -546,7 +546,7 @@ export class ERC7562Parser {
   private _checkOp020 (
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     if (erc7562Call.outOfGas) {
       this._violationDetected({
@@ -555,7 +555,7 @@ export class ERC7562Parser {
         depth: recursionDepth,
         entity: this.currentEntity,
         address: erc7562Call.from,
-        contextAddress,
+        delegatecallStorageAddress,
         opcode: erc7562Call.type,
         callFrameType: erc7562Call.type,
         value: '0',
@@ -572,7 +572,7 @@ export class ERC7562Parser {
     userOp: OperationBase,
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     if (
       erc7562Call.type !== 'CREATE' &&
@@ -604,7 +604,7 @@ export class ERC7562Parser {
         depth: recursionDepth,
         entity: this.currentEntity,
         address: erc7562Call.from ?? 'n/a',
-        contextAddress,
+        delegatecallStorageAddress,
         callFrameType: erc7562Call.type,
         opcode: 'CREATE2',
         value: '0',
@@ -621,7 +621,7 @@ export class ERC7562Parser {
     userOp: OperationBase,
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess: any
@@ -635,7 +635,7 @@ export class ERC7562Parser {
         illegalZeroCodeAccess.address = address
         this._violationDetected({
           address,
-          contextAddress,
+          delegatecallStorageAddress,
           depth: recursionDepth,
           entity: this.currentEntity,
           callFrameType: erc7562Call.type,
@@ -655,7 +655,7 @@ export class ERC7562Parser {
   private _checkOp054 (
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     const isCallToEntryPoint = this._isCallToEntryPoint(erc7562Call)
     const knownMethod = this._tryDetectKnownMethod(erc7562Call)
@@ -675,7 +675,7 @@ export class ERC7562Parser {
         depth: recursionDepth,
         entity: this.currentEntity,
         address: erc7562Call.from,
-        contextAddress,
+        delegatecallStorageAddress,
         opcode: erc7562Call.type,
         value: erc7562Call.value,
         callFrameType: erc7562Call.type,
@@ -689,13 +689,13 @@ export class ERC7562Parser {
     erc7562Call: ERC7562Call,
     address: string,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     for (const addr of erc7562Call.extCodeAccessInfo) {
       if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
         this._violationDetected({
           address,
-          contextAddress,
+          delegatecallStorageAddress,
           depth: recursionDepth,
           entity: this.currentEntity,
           errorCode: ValidationErrors.OpcodeValidation,
@@ -712,7 +712,8 @@ export class ERC7562Parser {
    */
   private _checkOp061 (
     erc7562Call: ERC7562Call,
-    recursionDepth: number, contextAddress: string
+    recursionDepth: number,
+    delegatecallStorageAddress: string
   ): void {
     const isIllegalNonZeroValueCall =
       !this._isCallToEntryPoint(erc7562Call) &&
@@ -723,7 +724,7 @@ export class ERC7562Parser {
         depth: recursionDepth,
         entity: this.currentEntity,
         address: erc7562Call.from,
-        contextAddress,
+        delegatecallStorageAddress,
         opcode: erc7562Call.type,
         value: erc7562Call.value,
         callFrameType: erc7562Call.type,
@@ -739,7 +740,7 @@ export class ERC7562Parser {
   private _checkOp080 (
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     const opcodes = erc7562Call.usedOpcodes
     const isEntityStaked = this._isEntityStaked()
@@ -761,7 +762,7 @@ export class ERC7562Parser {
             depth: recursionDepth,
             entity: this.currentEntity,
             address: erc7562Call.from ?? 'n/a',
-            contextAddress,
+            delegatecallStorageAddress,
             opcode,
             callFrameType: erc7562Call.type,
             value: '0',
@@ -776,7 +777,7 @@ export class ERC7562Parser {
     userOp: OperationBase,
     erc7562Call: ERC7562Call,
     recursionDepth: number,
-    contextAddress: string
+    delegatecallStorageAddress: string
   ): void {
     if (
       erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase() ||
@@ -831,7 +832,7 @@ export class ERC7562Parser {
         }
         this._violationDetected({
           address,
-          contextAddress,
+          delegatecallStorageAddress,
           depth: recursionDepth,
           entity: this.currentEntity,
           errorCode: ValidationErrors.OpcodeValidation,

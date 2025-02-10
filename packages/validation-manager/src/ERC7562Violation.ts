@@ -9,7 +9,7 @@ export interface ERC7562Violation {
   depth: number
   entity: AccountAbstractionEntity
   address: string
-  contextAddress: string
+  delegatecallStorageAddress: string
   errorCode: ValidationErrors
   description: string
   callFrameType: CallFrameType
