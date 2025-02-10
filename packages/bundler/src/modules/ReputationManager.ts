@@ -40,10 +40,10 @@ export const NonBundlerReputationParams: ReputationParams = {
 /**
  * An entry whose "reputation" is tracked by the {@link ReputationManager}.
  * May represent either a smart contract with a role in an ERC-4337 transaction or an alternative mempool.
- * The "id" is either a contract address or alt-mempool ID.
+ * The "entryId" is either a contract address or alt-mempool ID.
  */
 export interface ReputationEntry {
-  id: string
+  entryId: string
   opsSeen: number
   opsIncluded: number
   status?: ReputationStatus
@@ -73,7 +73,7 @@ export class ReputationManager {
    * debug: dump reputation map (with updated "status" for each entry)
    */
   _debugDumpReputation (): ReputationEntry[] {
-    Object.values(this.entries).forEach(entry => { entry.status = this.getStatus(entry.id) })
+    Object.values(this.entries).forEach(entry => { entry.status = this.getStatus(entry.entryId) })
     return Object.values(this.entries)
   }
 
@@ -105,7 +105,7 @@ export class ReputationManager {
     let entry = this.entries[id]
     if (entry == null) {
       this.entries[id] = entry = {
-        id,
+        entryId: id,
         opsSeen: 0,
         opsIncluded: 0
       }
@@ -214,8 +214,8 @@ export class ReputationManager {
    */
   _debugSetReputation (reputations: ReputationEntry[]): ReputationEntry[] {
     reputations.forEach(rep => {
-      this.entries[rep.id.toLowerCase()] = {
-        id: rep.id.toLowerCase(),
+      this.entries[rep.entryId.toLowerCase()] = {
+        entryId: rep.entryId.toLowerCase(),
         opsSeen: BigNumber.from(rep.opsSeen).toNumber(),
         opsIncluded: BigNumber.from(rep.opsIncluded).toNumber()
       }
