@@ -23,6 +23,10 @@ import { ValidationResult } from './IValidationManager'
 import { ERC7562Call } from './ERC7562Call'
 import { getOpcodeName } from './enum/EVMOpcodes'
 
+import Debug from 'debug'
+
+const debug = Debug('aa.parser')
+
 // TODO: Use artifact from the submodule
 const RIP7560EntryPointABI = [
   {
@@ -377,12 +381,12 @@ export class ERC7562Parser {
   // recursively dump call tree, and storage accesses
   dumpCallTree (call: ERC7562Call, mapAddrs = {}, indent = ''): void {
     const map = (addr: string): string => this.mapAddrToName(mapAddrs, addr)
-    console.log(`${indent} ${map(call.from)} => ${call.type} ${call.to} ${map(call.to)}.${this._tryDetectKnownMethod(call)}`)
+    debug(`${indent} ${map(call.from)} => ${call.type} ${call.to} ${map(call.to)}.${this._tryDetectKnownMethod(call)}`)
     for (const access of ['reads', 'writes']) {
       const arr = (call.accessedSlots as any)[access]
       if (arr != null) {
         for (const [idx, val] of Object.entries(arr)) {
-          console.log(`${indent}   - ${access}  ${idx}: ${val as string}`)
+          debug(`${indent}   - ${access}  ${idx}: ${val as string}`)
         }
       }
     }

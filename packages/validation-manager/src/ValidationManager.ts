@@ -8,33 +8,30 @@ import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from
 import {
   AddressZero,
   CodeHashGetter__factory,
-  EIP7702Authorization,
-  IEntryPoint,
-  OperationBase,
-  ReferencedCodeHashes,
-  RpcError,
-  StakeInfo,
-  StakeInfoStructOutput,
-  StorageMap,
-  UserOperation,
-  ValidationErrors,
-  ValidationResultStructOutput,
   decodeErrorReason,
   decodeRevertReason,
+  EIP7702Authorization,
   getAddr,
   getAuthorizationList,
   getEip7702AuthorizationSigner,
-  mergeValidationDataValues,
+  IAccount__factory,
+  IEntryPoint,
+  IPaymaster__factory,
+  maxUint48,
+  OperationBase,
+  PackedUserOperation,
   packUserOp,
+  parseValidationData,
+  ReferencedCodeHashes,
   requireAddressAndFields,
   requireCond,
+  RpcError,
   runContractScript,
-  PackedUserOperation,
+  StorageMap,
   sum,
-  IAccount__factory,
-  parseValidationData,
+  UserOperation,
   ValidationData,
-  IPaymaster__factory, maxUint48
+  ValidationErrors
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -45,6 +42,7 @@ import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
 import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
+import { hexConcat } from 'ethers/lib/utils'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -52,6 +50,8 @@ const debug = Debug('aa.mgr.validate')
 const VALID_UNTIL_FUTURE_SECONDS = 30
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
+
+const BYTES32_ALLONES = '0x'.padEnd(66, 'f')
 
 /**
  * ValidationManager is responsible for validating UserOperations.
@@ -144,45 +144,15 @@ export class ValidationManager implements IValidationManager {
     return ret
   }
 
-  parseValidationResult (userOp: UserOperation, res: ValidationResultStructOutput): ValidationResult {
-    const mergedValidation = mergeValidationDataValues(res.returnInfo.accountValidationData, res.returnInfo.paymasterValidationData)
-
-    function fillEntity (addr: string | undefined, info: StakeInfoStructOutput): StakeInfo | undefined {
-      if (addr == null || addr === AddressZero) return undefined
-      return {
-        addr,
-        stake: info.stake,
-        unstakeDelaySec: info.unstakeDelaySec
-      }
-    }
-
-    const returnInfo = {
-      sigFailed: mergedValidation.aggregator !== AddressZero,
-      validUntil: mergedValidation.validUntil,
-      validAfter: mergedValidation.validAfter,
-      preOpGas: res.returnInfo.preOpGas,
-      prefund: res.returnInfo.prefund
-    }
-    return {
-      returnInfo,
-      senderInfo: fillEntity(userOp.sender, res.senderInfo) as StakeInfo,
-      paymasterInfo: fillEntity(userOp.paymaster, res.paymasterInfo),
-      factoryInfo: fillEntity(userOp.factory, res.factoryInfo),
-      aggregatorInfo: fillEntity(res.aggregatorInfo.aggregator, res.aggregatorInfo.stakeInfo)
-    }
-  }
-
-  allOnes = '0x'.padEnd(66, 'f')
-
   // a "flag" UserOperation that triggers "AA94" revert error (not even FailedOp)
   eolUserOp: PackedUserOperation = {
     sender: AddressZero,
     nonce: 0,
     initCode: '0x',
     callData: '0x',
-    accountGasLimits: this.allOnes,
+    accountGasLimits: BYTES32_ALLONES,
     preVerificationGas: 0,
-    gasFees: this.allOnes,
+    gasFees: BYTES32_ALLONES,
     paymasterAndData: '0x',
     signature: '0x'
   }
@@ -419,13 +389,12 @@ export class ValidationManager implements IValidationManager {
         continue
       }
       const currentDelegateeCode = await this.provider.getCode(authSigner)
-      const newDelegateeCode = await this.provider.getCode(authorization.address)
-      // TODO should be: hexConcat(['0xef0100', authorization.address])
+      const newDelegateeCode = hexConcat(['0xef0100', authorization.address])
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
       if (noCurrentDelegation || changeDelegation) {
-        console.log('Adding state override:', { address: authSigner, code: newDelegateeCode.slice(0, 20) })
+        console.log('Adding state override:', { address: authSigner, code: newDelegateeCode })
         stateOverride[authSigner] = {
           code: newDelegateeCode
         }
