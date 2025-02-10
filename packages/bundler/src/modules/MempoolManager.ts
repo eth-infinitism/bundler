@@ -160,10 +160,11 @@ export class MempoolManager {
       let oldEntry: MempoolEntry | undefined
       if (index !== -1) {
         debug('replace userOp in alt-mempool', entry.userOp.sender, packedNonce, mempoolId)
-        oldEntry = this.mempool[index]
+        oldEntry = mempool[index]
         this.checkReplaceUserOp(oldEntry, entry)
-        this.mempool[index] = entry
+        mempool[index] = entry
         this.updateSeenStatus(oldEntry.aggregator, oldEntry.userOp, entry.validateUserOpResult.senderInfo, -1)
+        return true
       }
     }
     return false
