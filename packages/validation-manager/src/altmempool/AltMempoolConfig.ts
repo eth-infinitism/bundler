@@ -2,13 +2,13 @@ import { ERC7562Rule } from '../enum/ERC7562Rule'
 
 type Role = 'sender' | 'paymaster' | 'factory'
 
-type EnterOpcode = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
+export type CallFrameType = 'CALL' | 'DELEGATECALL' | 'CALLCODE' | 'STATICCALL' | 'CREATE' | 'CREATE2'
 
 export interface AltMempoolRuleExceptionBase {
   role?: Role
   address?: string
   depths?: number[]
-  enterOpcode?: EnterOpcode[]
+  callFrameType?: CallFrameType[]
   enterMethodSelector?: `0x${string}`
 }
 
@@ -37,7 +37,7 @@ const config: AltMempoolConfig = {
         '0xdeadbeef',
         {
           depths: [3],
-          enterOpcode: ['CALL'],
+          callFrameType: ['CALL'],
           opcodes: ['SSTORE', 'SLOAD'],
           slots: ['0xdeadbeef']
         }
