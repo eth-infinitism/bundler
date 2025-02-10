@@ -1,4 +1,5 @@
 import ow from 'ow'
+import { CallFrameType } from './altmempool/AltMempoolConfig'
 
 export interface ContractSize {
   contractSize: number
@@ -24,7 +25,7 @@ export interface ERC7562Call {
   outOfGas: boolean
   output?: string
   to: string
-  type: string
+  type: CallFrameType
   usedOpcodes: Record<number, number>
   value?: string
   calls: ERC7562Call[]
