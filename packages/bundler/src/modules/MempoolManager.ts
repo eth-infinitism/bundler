@@ -322,7 +322,7 @@ export class MempoolManager {
    */
   debugDumpMempool (): MempoolDump {
     const mempoolDump: MempoolDump = {}
-    for (const [mempoolId, mempool] of Object.entries(this.altMempools)) {
+    for (const [mempoolId, mempool] of this._getAllMempoolsLoop()) {
       mempoolDump[mempoolId] = mempool.map(entry => entry.userOp)
     }
     return mempoolDump
