@@ -42,7 +42,6 @@ import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
 import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
-import { hexConcat } from 'ethers/lib/utils'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -208,7 +207,8 @@ export class ValidationManager implements IValidationManager {
       data: handleOpsData,
       gasLimit: simulationGas
     }, {
-      tracer
+      tracer,
+      stateOverrides: stateOverride
     },
     this.providerForTracer
     )
