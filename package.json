@@ -28,7 +28,7 @@
     "lerna-lint": "lerna run lint --stream --parallel -- ",
     "lerna-test": "lerna run hardhat-test --stream --",
     "lerna-tsc": "lerna run tsc --scope @account-abstraction/*",
-    "lerna-watch-tsc": "lerna run --parallel watch-tsc",
+    "lerna-watch-tsc": "lerna run --stream --parallel watch-tsc",
     "lint-fix": "lerna run lint-fix --parallel",
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
