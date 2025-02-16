@@ -143,7 +143,7 @@ export class ValidationManager implements IValidationManager {
     return ret
   }
 
-  // a "flag" UserOperation that triggers "AA94" revert error (not even FailedOp)
+  // a "flag" UserOperation that triggers "AA94" revert error.
   eolUserOp: PackedUserOperation = {
     sender: AddressZero,
     nonce: 0,
@@ -157,6 +157,9 @@ export class ValidationManager implements IValidationManager {
   }
 
   async _simulateHandleOps (userOp: UserOperation): Promise<void> {
+    // build a batch with 2 UserOps: the one under test, and a "flag" UserOp that triggers "AA94" revert error,
+    // and stops the validation.
+    // That is, if we end up with FailedOp(1) with "AA94", it means the UserOp-under-test passed successfully.
     const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
     const tx = {
       to: this.entryPoint.address,
