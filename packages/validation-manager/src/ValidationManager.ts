@@ -335,13 +335,12 @@ export class ValidationManager implements IValidationManager {
         continue
       }
       const currentDelegateeCode = await this.provider.getCode(authSigner)
-      const newDelegateeCode = await this.provider.getCode(authorization.address)
-      // TODO should be: hexConcat(['0xef0100', authorization.address])
+      const newDelegateeCode = '0xef0100' + authorization.address.slice(2)
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
       if (noCurrentDelegation || changeDelegation) {
-        console.log('Adding state override:', { address: authSigner, code: newDelegateeCode.slice(0, 20) })
+        debug('Adding 7702 state override:', { address: authSigner, code: newDelegateeCode })
         stateOverride[authSigner] = {
           code: newDelegateeCode
         }
