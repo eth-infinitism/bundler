@@ -26,7 +26,7 @@ import {
   requireAddressAndFields,
   requireCond,
   RpcError,
-  runContractScript,
+  runContractScript, StakeInfo,
   StorageMap,
   sum,
   UserOperation,
@@ -42,6 +42,7 @@ import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
 import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
+import { dumpCallTree } from './decodeHelper'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -85,14 +86,21 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
+  async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{sender: StakeInfo, paymaster?: StakeInfo, factory?: StakeInfo}> {
+    const addrsArr = [sender, paymaster ?? AddressZero, factory ?? AddressZero]
+    const ret = await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrsArr])
+    return {
+      sender: ret[0],
+      paymaster: paymaster != null ? ret[1] : null,
+      factory: factory != null ? ret[2] : null
+    }
+  }
+
   // generate validation result from trace: by decoding inner calls.
   async generateValidationResult (op: UserOperation, tracerResult: ERC7562Call): Promise<ValidationResult> {
     // const validationData = tracerResult.calls[0].output
-    let callIndex = 0
-    if (op.factory != null) {
-      callIndex++
-    }
-    if (tracerResult.calls[callIndex] == null) {
+    const validateUserOpCallIndex = op.factory == null ? 0 : 1
+    if (tracerResult.calls[validateUserOpCallIndex] == null) {
       console.log('fatal: no validateuserop')
     }
 
@@ -102,24 +110,21 @@ export class ValidationManager implements IValidationManager {
       ep: this.entryPoint.address,
       senderCreator: await this.entryPoint.senderCreator()
     }
-    this.erc7562Parser.dumpCallTree(tracerResult, names)
+    dumpCallTree(tracerResult, names)
 
-    const validationData = this.decodeValidateUserOp(tracerResult.calls[callIndex])
+    const validationData = this.decodeValidateUserOp(tracerResult.calls[validateUserOpCallIndex])
     const aggregator = validationData.aggregator
     let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
     if (op.paymaster != null) {
-      callIndex++
-      const pmRet = this.decodeValidatePaymasterUserOp(tracerResult.calls[callIndex])
+      const validatePaymasterCallIndex = validateUserOpCallIndex + 1
+      const pmRet = this.decodeValidatePaymasterUserOp(tracerResult.calls[validatePaymasterCallIndex])
       // paymasterContext = pmRet.context
       paymasterValidationData = pmRet.validationData
     }
 
     // todo: paymasterContext should be returned to parser, to validate its length.
 
-    const paymasterAddress = op.paymaster ?? AddressZero
-    const factoryAddress = op.factory ?? AddressZero
-    const addrs = [op.sender, paymasterAddress, factoryAddress, aggregator]
-    const retStakes = (await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrs]))[0]
+    const retStakes = await this.getStakes(op.sender, op.paymaster, op.factory)
 
     const ret: ValidationResult = {
       returnInfo: {
@@ -129,16 +134,9 @@ export class ValidationManager implements IValidationManager {
         preOpGas: 0, // extract from innerHandleOps parameter
         prefund: 0 // extract from innerHandleOps parameter
       },
-      senderInfo: retStakes[0]
-    }
-    if (op.paymaster !== null) {
-      ret.paymasterInfo = retStakes[1]
-    }
-    if (op.factory !== null) {
-      ret.factoryInfo = retStakes[2]
-    }
-    if (aggregator !== AddressZero) {
-      ret.aggregatorInfo = retStakes[3]
+      senderInfo: retStakes.sender,
+      paymasterInfo: retStakes.paymaster,
+      factoryInfo: retStakes.factory
     }
     return ret
   }
