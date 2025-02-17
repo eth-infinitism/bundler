@@ -488,6 +488,7 @@ export class ERC7562Parser {
     this._checkOp054(erc7562Call, recursionDepth, delegatecallStorageAddress)
     this._checkOp054ExtCode(erc7562Call, address, recursionDepth, delegatecallStorageAddress)
     this._checkOp061(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkOp062AllowedPrecompiles(erc7562Call, recursionDepth, delegatecallStorageAddress)
     this._checkOp080(erc7562Call, recursionDepth, delegatecallStorageAddress)
     this._checkStorage(userOp, erc7562Call, recursionDepth, delegatecallStorageAddress)
     for (const call of erc7562Call.calls ?? []) {
@@ -626,9 +627,14 @@ export class ERC7562Parser {
     // the only contract we allow to access before its deployment is the "sender" itself, which gets created.
     let illegalZeroCodeAccess: any
     for (const address of Object.keys(erc7562Call.contractSize)) {
+      // skip precompiles
+      if (this._isPrecompiled(address)) {
+        continue
+      }
       // [OP-042]
       if (
         address.toLowerCase() !== userOp.sender.toLowerCase() &&
+        // address.toLowerCase() !== AA_ENTRY_POINT &&
         address.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
         erc7562Call.contractSize[address].contractSize <= 2) {
         illegalZeroCodeAccess = erc7562Call.contractSize[address]
@@ -731,6 +737,36 @@ export class ERC7562Parser {
         errorCode: ValidationErrors.OpcodeValidation,
         description: 'May not make a CALL with value'
       })
+    }
+  }
+
+  /**
+   * OP-062: Precompiles:
+   *
+   *     Only allow known accepted precompiles on the network, that do not access anything in the blockchain state or environment.
+   *     The core precompiles 0x1 .. 0x9
+   *     The RIP-7212 sec256r1 precompile, on networks that accepted it.
+   */
+  private _checkOp062AllowedPrecompiles (
+    erc7562Call: ERC7562Call,
+    recursionDepth: number,
+    delegatecallStorageAddress: string
+  ): void {
+    for (const address of Object.keys(erc7562Call.contractSize)) {
+      if (this._isForbiddenPrecompiled(address)) {
+        this._violationDetected({
+          rule: ERC7562Rule.op062,
+          depth: recursionDepth,
+          entity: this.currentEntity,
+          address: erc7562Call.from,
+          opcode: erc7562Call.type,
+          value: erc7562Call.value,
+          errorCode: ValidationErrors.OpcodeValidation,
+          description: 'Illegal call to forbidden precompile ' + address,
+          callFrameType: erc7562Call.type,
+          delegatecallStorageAddress
+        })
+      }
     }
   }
 
@@ -842,5 +878,18 @@ export class ERC7562Parser {
         })
       }
     }
+  }
+
+  private _isPrecompiled (address: string): boolean {
+    const intAddress = parseInt(address, 16)
+    if (intAddress < 1000 && intAddress >= 1) {
+      return true
+    }
+    return false
+  }
+
+  private _isForbiddenPrecompiled (address: string): boolean {
+    const intAddress = parseInt(address, 16)
+    return this._isPrecompiled(address) && intAddress > 9
   }
 }
