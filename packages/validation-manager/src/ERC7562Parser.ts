@@ -19,7 +19,7 @@ import { bannedOpCodes, opcodesOnlyInStakedEntities } from './ERC7562BannedOpcod
 import { ValidationResult } from './IValidationManager'
 import { ERC7562Call } from './ERC7562Call'
 import { getOpcodeName } from './enum/EVMOpcodes'
-import { _tryDetectKnownMethod } from './decodeHelper'
+import { _tryDetectKnownMethod, dumpCallTree } from './decodeHelper'
 
 export interface ERC7562ValidationResults {
   storageMap: StorageMap
@@ -81,6 +81,7 @@ export class ERC7562Parser {
       throw new Error('Unexpected traceCall result: no calls from entrypoint.')
     }
     this.stakeValidationResult = validationResult
+    dumpCallTree(erc7562Call, { ...userOp })
     this._innerStepRecursive(userOp, erc7562Call, 0, erc7562Call.to)
     return {
       contractAddresses: this.contractAddresses,
