@@ -16,7 +16,9 @@ export const bannedOpCodes = new Set(
     'PREVRANDAO',
     'RANDOM',
     'SELFDESTRUCT',
-    'TIMESTAMP'
+    'TIMESTAMP',
+    'BLOBHASH',
+    'BLOBBASEFEE'
   ]
 )
 
