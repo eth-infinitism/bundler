@@ -279,7 +279,7 @@ function mapAddrToName (mapAddrs: {[name: string]: string}, addr: string): strin
 }
 
 // recursively dump call tree, and storage accesses
-export function dumpCallTree (call: ERC7562Call, mapAddrs = {}, indent = ''): void {
+export function dumpCallTree (call: ERC7562Call, mapAddrs: {[name: string]: any} = {}, indent = ''): void {
   const map = (addr: string): string => mapAddrToName(mapAddrs, addr)
   debug(`${indent} ${map(call.from)} => ${call.type} ${call.to} ${map(call.to)}.${_tryDetectKnownMethod(call)}`)
   for (const access of ['reads', 'writes']) {
