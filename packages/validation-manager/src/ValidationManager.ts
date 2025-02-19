@@ -42,7 +42,7 @@ import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
 import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
-import { dumpCallTree } from './decodeHelper'
+import { base64Tohex, dumpCallTree, get4bytes } from './decodeHelper'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -52,6 +52,22 @@ const VALID_UNTIL_FUTURE_SECONDS = 30
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 
 const BYTES32_ALLONES = '0x'.padEnd(66, 'f')
+
+// a "flag" UserOperation that triggers "AA94" revert error.
+const eolUserOp: PackedUserOperation = {
+  sender: AddressZero,
+  nonce: 0,
+  initCode: '0x',
+  callData: '0x',
+  accountGasLimits: BYTES32_ALLONES,
+  preVerificationGas: 0,
+  gasFees: BYTES32_ALLONES,
+  paymasterAndData: '0x',
+  signature: '0x'
+}
+
+// this FailedOp is a marker that we reached the above "eolUserOp" (the second UserOp in a bundle) without any error in the first UserOp
+const expectedFailedOp = 'FailedOp(1,"AA94 gas values overflow")'
 
 /**
  * ValidationManager is responsible for validating UserOperations.
@@ -88,7 +104,7 @@ export class ValidationManager implements IValidationManager {
 
   async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{sender: StakeInfo, paymaster?: StakeInfo, factory?: StakeInfo}> {
     const addrsArr = [sender, paymaster ?? AddressZero, factory ?? AddressZero]
-    const ret = await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrsArr])
+    const [ret] = await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrsArr])
     return {
       sender: ret[0],
       paymaster: paymaster != null ? ret[1] : null,
@@ -141,24 +157,11 @@ export class ValidationManager implements IValidationManager {
     return ret
   }
 
-  // a "flag" UserOperation that triggers "AA94" revert error.
-  eolUserOp: PackedUserOperation = {
-    sender: AddressZero,
-    nonce: 0,
-    initCode: '0x',
-    callData: '0x',
-    accountGasLimits: BYTES32_ALLONES,
-    preVerificationGas: 0,
-    gasFees: BYTES32_ALLONES,
-    paymasterAndData: '0x',
-    signature: '0x'
-  }
-
   async _simulateHandleOps (userOp: UserOperation): Promise<void> {
     // build a batch with 2 UserOps: the one under test, and a "flag" UserOp that triggers "AA94" revert error,
     // and stops the validation.
     // That is, if we end up with FailedOp(1) with "AA94", it means the UserOp-under-test passed successfully.
-    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
+    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), eolUserOp], AddressZero])
     const tx = {
       to: this.entryPoint.address,
       data
@@ -178,8 +181,8 @@ export class ValidationManager implements IValidationManager {
           throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
         }
 
-        if (decodedError.startsWith('FailedOp(1,"AA94 gas values overflow')) {
-          // this is not an error.. it is a marker the UserOp-under-test passed successfully
+        if (decodedError === expectedFailedOp) {
+          // this is not an error. it is a marker the UserOp-under-test passed successfully
           return
         }
         throw new RpcError(decodedError, ValidationErrors.SimulateValidation)
@@ -194,7 +197,7 @@ export class ValidationManager implements IValidationManager {
   ): Promise<[ValidationResult, ERC7562Call | null, BundlerTracerResult | null]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
-    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), this.eolUserOp], AddressZero])
+    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), eolUserOp], AddressZero])
 
     const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
 
@@ -216,6 +219,7 @@ export class ValidationManager implements IValidationManager {
 
     let data: any
     if (!this.usingErc7562NativeTracer()) {
+      console.log('js tracer result=', tracerResult)
       // Using preState tracer + JS tracer
       const lastResult = tracerResult.calls.slice(-1)[0]
       data = (lastResult).data
@@ -223,8 +227,10 @@ export class ValidationManager implements IValidationManager {
         throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
       }
     } else {
+      const output = base64Tohex(tracerResult.output)
+      console.log('native tracer result=', output)
       // Using Native tracer
-      const decodedErrorReason = decodeRevertReason(tracerResult.output, false) as string
+      const decodedErrorReason = decodeRevertReason(output, false) as string
 
       // throw with specific error codes:
       if (decodedErrorReason.startsWith('FailedOp(0,"AA24')) {
@@ -234,7 +240,7 @@ export class ValidationManager implements IValidationManager {
         throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
       }
 
-      if (decodedErrorReason !== 'FailedOp(1,"AA94 gas values overflow")') {
+      if (decodedErrorReason !== expectedFailedOp) {
         throw new RpcError(decodedErrorReason, ValidationErrors.SimulateValidation)
       }
     }
@@ -259,6 +265,9 @@ export class ValidationManager implements IValidationManager {
       }
       // not a known error of EntryPoint (probably, only Error(string), since FailedOp is handled above)
       const err = decodeErrorReason(e)
+      if (err == null) {
+        console.log('ex=', e)
+      }
       throw new RpcError(err != null ? err.message : data, -32000)
     }
   }
@@ -531,19 +540,19 @@ export class ValidationManager implements IValidationManager {
   private decodeValidateUserOp (call: ERC7562Call): ValidationData {
     const iaccount = IAccount__factory.connect(call.to, this.provider)
     const methodSig = iaccount.interface.getSighash('validateUserOp')
-    if (call.input.slice(0, 10) !== methodSig) {
+    if (get4bytes(call.input) !== methodSig) {
       throw new Error('Not a validateUserOp')
     }
     if (call.output == null) {
       throw new Error('validateUserOp: No output')
     }
-    return parseValidationData(call.output)
+    return parseValidationData(base64Tohex(call.output))
   }
 
   private decodeValidatePaymasterUserOp (call: ERC7562Call): { context: string, validationData: ValidationData } {
     const iPaymaster = IPaymaster__factory.connect(call.to, this.provider)
     const methodSig = iPaymaster.interface.getSighash('validatePaymasterUserOp')
-    if (call.input.slice(0, 10) !== methodSig) {
+    if (get4bytes(call.input) !== methodSig) {
       throw new Error('Not a validatePaymasterUserOp')
     }
     if (call.output == null) {

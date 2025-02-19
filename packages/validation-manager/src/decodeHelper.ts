@@ -5,7 +5,16 @@ import { FunctionFragment, Interface } from 'ethers/lib/utils'
 
 const debug = Debug('aa.dump')
 
-let AbiInterfaces: Interface | undefined
+export function base64Tohex (input: string): string {
+  if (input.startsWith('0x')) {
+    return input
+  } else {
+    return '0x' + Buffer.from(input, 'base64').toString('hex')
+  }
+}
+export function get4bytes (input: string): string {
+  return base64Tohex(input).slice(0, 10)
+}
 
 // TODO: Use artifact from the submodule
 const RIP7560EntryPointABI = [
@@ -223,17 +232,33 @@ const RIP7560EntryPointABI = [
   }
 ]
 
-export function _tryDetectKnownMethod (erc7562Call: ERC7562Call): string {
-  if (AbiInterfaces == null) {
-    const mergedAbi = Object.values([
-      ...RIP7560EntryPointABI,
-      ...SenderCreator__factory.abi,
-      ...IEntryPoint__factory.abi,
-      ...IPaymaster__factory.abi
-    ])
-    AbiInterfaces = new Interface(mergedAbi)
+const abis = [
+  ...RIP7560EntryPointABI,
+  ...SenderCreator__factory.abi,
+  ...IEntryPoint__factory.abi,
+  ...IPaymaster__factory.abi
+]
+
+function uniqueNames (arr: any[]): any[] {
+  const map = new Map()
+  for (const item of arr) {
+    map.set(item.name, item)
   }
-  const methodSig = erc7562Call.input.slice(0, 10)
+  return Array.from(map.values())
+}
+
+const AbiInterfaces = new Interface(uniqueNames(abis))
+
+export function _tryDetectKnownMethod (erc7562Call: ERC7562Call): string {
+  let input = erc7562Call.input
+  if (input == null) {
+    return '<no-input>'
+  }
+  if (!input.startsWith('0x')) {
+    // base64 encoded input
+    input = '0x' + Buffer.from(input, 'base64').toString('hex')
+  }
+  const methodSig = get4bytes(erc7562Call.input)
   try {
     const abiFunction: FunctionFragment = AbiInterfaces.getFunction(methodSig)
     return abiFunction.name
