@@ -7,9 +7,7 @@ import {
 } from '@account-abstraction/utils'
 import { PreVerificationGasCalculator } from '@account-abstraction/sdk'
 
-import { bundlerJSTracerName, debug_traceCall } from './GethTracer'
-// @ts-ignore
-import { bundlerCollectorTracer } from './BundlerCollectorTracer'
+import { bundlerJSTracerName, debug_traceCall, GethNativeTracerName } from './GethTracer'
 import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
@@ -43,8 +41,8 @@ export async function supportsDebugTraceCall (provider: JsonRpcProvider, rip7560
   // make sure we can trace a call.
   const ret = await debug_traceCall(provider,
     { from: AddressZero, to: AddressZero, data: '0x' },
-    { tracer: bundlerCollectorTracer }).catch(e => e)
-  return ret.logs != null
+    { tracer: GethNativeTracerName }).catch(e => e)
+  return ret.usedOpcodes != null
 }
 
 export async function checkRulesViolations (
@@ -57,7 +55,7 @@ export async function checkRulesViolations (
     throw new Error('This provider does not support stack tracing')
   }
   const entryPoint = IEntryPoint__factory.connect(entryPointAddress, provider)
-  const senderCreator = '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c'
+  const senderCreator = await entryPoint.senderCreator()
   const erc7562Parser = new ERC7562Parser(entryPointAddress, senderCreator)
   const validationManager = new ValidationManager(
     entryPoint,

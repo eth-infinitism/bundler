@@ -65,7 +65,7 @@ describe('UserOpMethodHandler', function () {
       chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
-      senderCreator: '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c',
+      senderCreator: await entryPoint.senderCreator(),
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',

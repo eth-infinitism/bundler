@@ -28,7 +28,7 @@
     "lerna-lint": "lerna run lint --stream --parallel -- ",
     "lerna-test": "lerna run hardhat-test --stream --",
     "lerna-tsc": "lerna run tsc --scope @account-abstraction/*",
-    "lerna-watch-tsc": "lerna run --parallel watch-tsc",
+    "lerna-watch-tsc": "lerna run --stream --parallel watch-tsc",
     "lint-fix": "lerna run lint-fix --parallel",
     "clear": "lerna run clear",
     "hardhat-compile": "lerna run hardhat-compile",
@@ -37,7 +37,7 @@
     "preprocess1": "yarn submodule-update && yarn && cd submodules/account-abstraction && yarn && yarn --cwd contracts prepack",
     "submodule-update": "git submodule update --remote --init --recursive",
     "runop-self": "ts-node ./packages/bundler/src/runner/runop.ts --deployFactory --selfBundler --unsafe",
-    "ci": "env && yarn depcheck && yarn preprocess && yarn lerna-test"
+    "ci": "env && yarn && yarn depcheck && yarn preprocess && yarn lerna-test"
   },
   "dependencies": {
     "@ethereumjs/common": "^5.0.0-alpha.1",
@@ -45,13 +45,13 @@
     "@ethereumjs/util": "^10.0.0-alpha.1",
     "@typescript-eslint/eslint-plugin": "^5.33.0",
     "@typescript-eslint/parser": "^5.33.0",
-    "depcheck": "^1.4.3",
+    "depcheck": "^1.4.7",
     "eslint": "^8.21.0",
     "eslint-config-standard-with-typescript": "^22.0.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.2.4",
     "eslint-plugin-promise": "^6.0.0",
-    "lerna": "^5.4.0",
+    "lerna": "^8.1.9",
     "typescript": "^5.6.2",
     "webpack": "^5.74.0",
     "webpack-cli": "^4.10.0"

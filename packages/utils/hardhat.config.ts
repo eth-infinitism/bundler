@@ -9,8 +9,9 @@ const config: HardhatUserConfig = {
     target: 'ethers-v5'
   },
   solidity: {
-    version: '0.8.23',
+    version: '0.8.28',
     settings: {
+      evmVersion: 'cancun',
       optimizer: { enabled: true }
     }
   }

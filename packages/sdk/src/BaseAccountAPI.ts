@@ -2,7 +2,7 @@ import { ethers, BigNumber, BigNumberish, BytesLike } from 'ethers'
 import { Provider } from '@ethersproject/providers'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { defaultAbiCoder } from 'ethers/lib/utils'
+import { hexConcat } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
 import { encodeUserOp, getUserOpHash, IEntryPoint, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
 
@@ -120,13 +120,9 @@ export abstract class BaseAccountAPI {
     if (factory == null) {
       throw new Error(('no counter factual address if not factory'))
     }
-    // use entryPoint to query account address (factory can provide a helper method to do the same, but
-    // this method attempts to be generic
-    const retAddr = await this.provider.call({
-      to: factory, data: factoryData
-    })
-    const [addr] = defaultAbiCoder.decode(['address'], retAddr)
-    return addr
+    const senderAddressResult = await this.entryPointView.callStatic.getSenderAddress(hexConcat([factory, factoryData ?? '0x'])).catch(e => e)
+    const result = this.entryPointView.interface.decodeErrorResult('SenderAddressResult', senderAddressResult.data)
+    return result[0]
   }
 
   /**
@@ -205,7 +201,12 @@ export abstract class BaseAccountAPI {
     if (factoryParams == null) {
       return 0
     }
-    return await this.provider.estimateGas({ to: factoryParams.factory, data: factoryParams.factoryData })
+    const senderCreator = await this.entryPointView.senderCreator()
+    return await this.provider.estimateGas({
+      from: senderCreator,
+      to: factoryParams.factory,
+      data: factoryParams.factoryData
+    })
   }
 
   /**
