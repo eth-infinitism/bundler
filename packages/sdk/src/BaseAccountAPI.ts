@@ -2,7 +2,7 @@ import { ethers, BigNumber, BigNumberish, BytesLike } from 'ethers'
 import { Provider } from '@ethersproject/providers'
 
 import { TransactionDetailsForUserOp } from './TransactionDetailsForUserOp'
-import { defaultAbiCoder, hexConcat, hexDataSlice } from 'ethers/lib/utils'
+import { hexConcat } from 'ethers/lib/utils'
 import { PaymasterAPI } from './PaymasterAPI'
 import { encodeUserOp, getUserOpHash, IEntryPoint, IEntryPoint__factory, UserOperation } from '@account-abstraction/utils'
 
@@ -120,14 +120,9 @@ export abstract class BaseAccountAPI {
     if (factory == null) {
       throw new Error(('no counter factual address if not factory'))
     }
-    const getSenderAddressData = this.entryPointView.interface.encodeFunctionData('getSenderAddress', [hexConcat([factory, factoryData ?? '0x'])])
-    const senderAddressResult = await this.provider.call({
-      to: this.entryPointAddress,
-      data: getSenderAddressData
-    })
-    // the result is "error SenderAddressResult(address)", so remove methodsig first.
-    const [addr] = defaultAbiCoder.decode(['address'], hexDataSlice(senderAddressResult, 4))
-    return addr
+    const senderAddressResult = await this.entryPointView.callStatic.getSenderAddress(hexConcat([factory, factoryData ?? '0x'])).catch(e => e)
+    const result = this.entryPointView.interface.decodeErrorResult('SenderAddressResult', senderAddressResult.data)
+    return result[0]
   }
 
   /**
