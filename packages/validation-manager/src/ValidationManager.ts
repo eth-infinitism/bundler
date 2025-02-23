@@ -211,7 +211,10 @@ export class ValidationManager implements IValidationManager {
     const provider = this.entryPoint.provider as JsonRpcProvider
     const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), eolUserOp], AddressZero])
 
-    const simulationGas = sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0)
+    const prevg = await this.preVerificationGasCalculator._calculate(userOp)
+    // give simulation enough gas to run validations, but not more.
+    // we don't trust the use-supplied preVerificaitonGas
+    const simulationGas = sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0)
 
     let tracer
     if (!this.usingErc7562NativeTracer()) {
