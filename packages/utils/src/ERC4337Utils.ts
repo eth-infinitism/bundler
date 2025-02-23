@@ -307,7 +307,7 @@ interface DecodedError {
 export function decodeErrorReason (error: string | Error): DecodedError | undefined {
   if (typeof error !== 'string') {
     const err = error as any
-    error = (err.data ?? err.error.data) as string
+    error = (err.data ?? err.error?.data ?? err.message) as string
   }
 
   if (error.startsWith(ErrorSig)) {

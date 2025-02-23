@@ -1,20 +1,14 @@
 import { ERC7562Call } from './ERC7562Call'
 import Debug from 'debug'
-import { IEntryPoint__factory, IPaymaster__factory, SenderCreator__factory } from '@account-abstraction/utils'
+import { IPaymaster__factory, IAccount__factory, SenderCreator__factory } from '@account-abstraction/utils'
 import { FunctionFragment, Interface } from 'ethers/lib/utils'
 import { IRip7560Account__factory, IRip7560Paymaster__factory } from '@account-abstraction/utils/dist/src/types'
+import { EntryPoint__factory } from '@account-abstraction/contracts/types'
 
 const debug = Debug('aa.dump')
 
-export function base64Tohex (input: string): string {
-  if (input.startsWith('0x')) {
-    return input
-  } else {
-    return '0x' + Buffer.from(input, 'base64').toString('hex')
-  }
-}
 export function get4bytes (input: string): string {
-  return base64Tohex(input).slice(0, 10)
+  return input.slice(0, 10)
 }
 
 // TODO: Use artifact from the submodule
@@ -238,8 +232,9 @@ const abis = [
   ...IRip7560Account__factory.abi,
   ...IRip7560Paymaster__factory.abi,
   ...SenderCreator__factory.abi,
-  ...IEntryPoint__factory.abi,
-  ...IPaymaster__factory.abi
+  ...EntryPoint__factory.abi,
+  ...IPaymaster__factory.abi,
+  ...IAccount__factory.abi
 ]
 
 function uniqueNames (arr: any[]): any[] {
@@ -283,8 +278,11 @@ function mapAddrToName (mapAddrs: {[name: string]: string}, addr: string): strin
 
 // recursively dump call tree, and storage accesses
 export function dumpCallTree (call: ERC7562Call, mapAddrs: {[name: string]: any} = {}, indent = ''): void {
+  if (indent === '') {
+    debug('=== dumpCallTree ===')
+  }
   const map = (addr: string): string => mapAddrToName(mapAddrs, addr)
-  debug(`${indent} ${map(call.from)} => ${call.type} ${call.to} ${map(call.to)}.${_tryDetectKnownMethod(call)}`)
+  debug(`${indent} ${map(call.from)} => ${call.type} ${map(call.to)}.${_tryDetectKnownMethod(call)} : ${call.output} ${call.error} ${call.outOfGas}`)
   for (const access of ['reads', 'writes']) {
     const arr = (call.accessedSlots as any)[access]
     if (arr != null) {

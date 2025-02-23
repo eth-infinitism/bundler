@@ -112,28 +112,38 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
+  getValidationCalls (op: UserOperation, entryPointCall: ERC7562Call): { validationCall: ERC7562Call, paymasterCall?: ERC7562Call, innerCall: ERC7562Call} {
+    let callIndex = 0
+    if (op.factory != null) {
+      callIndex++
+    }
+    const validationCall = entryPointCall.calls[callIndex++]
+    let paymasterCall: ERC7562Call | undefined
+    if (op.paymaster != null) {
+      paymasterCall = entryPointCall.calls[callIndex++]
+    }
+    const innerCall = entryPointCall.calls[callIndex]
+    return { validationCall, paymasterCall, innerCall }
+  }
+
   // generate validation result from trace: by decoding inner calls.
   async generateValidationResult (op: UserOperation, tracerResult: ERC7562Call): Promise<ValidationResult> {
-    // const validationData = tracerResult.calls[0].output
-    const validateUserOpCallIndex = op.factory == null ? 0 : 1
-    if (tracerResult.calls[validateUserOpCallIndex] == null) {
-      console.log('fatal: no validateuserop')
+    const { validationCall, paymasterCall, innerCall } = this.getValidationCalls(op, tracerResult)
+
+    if (debug.enabled) {
+      // pass entrypoint and other addresses we want to resolve by name.
+      const names = {
+        ...op,
+        ep: this.entryPoint.address,
+        senderCreator: await this.entryPoint.senderCreator()
+      }
+      dumpCallTree(tracerResult, names)
     }
 
-    // pass entrypoint and other addresses we want to resolve by name.
-    const names = {
-      ...op,
-      ep: this.entryPoint.address,
-      senderCreator: await this.entryPoint.senderCreator()
-    }
-    dumpCallTree(tracerResult, names)
-
-    const validationData = this.decodeValidateUserOp(tracerResult.calls[validateUserOpCallIndex])
-    const aggregator = validationData.aggregator
+    const validationData = this.decodeValidateUserOp(validationCall)
     let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
-    if (op.paymaster != null) {
-      const validatePaymasterCallIndex = validateUserOpCallIndex + 1
-      const pmRet = this.decodeValidatePaymasterUserOp(tracerResult.calls[validatePaymasterCallIndex])
+    if (paymasterCall != null) {
+      const pmRet = this.decodeValidatePaymasterUserOp(paymasterCall)
       // paymasterContext = pmRet.context
       paymasterValidationData = pmRet.validationData
     }
@@ -219,7 +229,6 @@ export class ValidationManager implements IValidationManager {
 
     let data: any
     if (!this.usingErc7562NativeTracer()) {
-      console.log('js tracer result=', tracerResult)
       // Using preState tracer + JS tracer
       const lastResult = tracerResult.calls.slice(-1)[0]
       data = (lastResult).data
@@ -227,10 +236,8 @@ export class ValidationManager implements IValidationManager {
         throw new RpcError(decodeRevertReason(data, false) as string, ValidationErrors.SimulateValidation)
       }
     } else {
-      const output = base64Tohex(tracerResult.output)
-      console.log('native tracer result=', output)
       // Using Native tracer
-      const decodedErrorReason = decodeRevertReason(output, false) as string
+      const decodedErrorReason = decodeRevertReason(tracerResult.output, false) as string
 
       // throw with specific error codes:
       if (decodedErrorReason.startsWith('FailedOp(0,"AA24')) {
@@ -546,7 +553,7 @@ export class ValidationManager implements IValidationManager {
     if (call.output == null) {
       throw new Error('validateUserOp: No output')
     }
-    return parseValidationData(base64Tohex(call.output))
+    return parseValidationData(call.output)
   }
 
   private decodeValidatePaymasterUserOp (call: ERC7562Call): { context: string, validationData: ValidationData } {
