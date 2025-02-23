@@ -209,7 +209,7 @@ export class ValidationManager implements IValidationManager {
     const provider = this.entryPoint.provider as JsonRpcProvider
     const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), eolUserOp], AddressZero])
 
-    const simulationGas = BigNumber.from(userOp.preVerificationGas).add(userOp.verificationGasLimit)
+    const simulationGas = sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0)
 
     let tracer
     if (!this.usingErc7562NativeTracer()) {
@@ -255,9 +255,9 @@ export class ValidationManager implements IValidationManager {
     try {
       const validationResult = await this.generateValidationResult(userOp, tracerResult as ERC7562Call)
       debug('==dump tree=', JSON.stringify(tracerResult, null, 2)
-        .replace(new RegExp(userOp.sender.toLowerCase()), '{sender}')
-        .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--'), '{paymaster}')
-        .replace(new RegExp(getAddr(userOp.factory) ?? '--no-initcode--'), '{factory}')
+        .replace(new RegExp(userOp.sender, 'i'), '{sender}')
+        .replace(new RegExp(getAddr(userOp.paymaster) ?? '--no-paymaster--', 'i'), '{paymaster}')
+        .replace(new RegExp(getAddr(userOp.factory) ?? '--no-initcode--', 'i'), '{factory}')
       )
 
       if (this.usingErc7562NativeTracer()) {
