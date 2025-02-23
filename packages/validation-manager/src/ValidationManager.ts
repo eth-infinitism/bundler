@@ -41,8 +41,7 @@ import { ERC7562Parser } from './ERC7562Parser'
 import { ERC7562Call } from './ERC7562Call'
 import { bundlerCollectorTracer, BundlerTracerResult } from './BundlerCollectorTracer'
 import { tracerResultParser } from './TracerResultParser'
-import { GetStakes__factory } from '@account-abstraction/utils/dist/src/types'
-import { base64Tohex, dumpCallTree, get4bytes } from './decodeHelper'
+import { dumpCallTree, get4bytes } from './decodeHelper'
 
 const debug = Debug('aa.mgr.validate')
 
@@ -103,12 +102,15 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{sender: StakeInfo, paymaster?: StakeInfo, factory?: StakeInfo}> {
-    const addrsArr = [sender, paymaster ?? AddressZero, factory ?? AddressZero]
-    const [ret] = await runContractScript(this.provider, new GetStakes__factory(), [this.entryPoint.address, addrsArr])
+    const [senderInfo, paymasterInfo, factoryInfo] = await Promise.all([
+      this.entryPoint.getDepositInfo(sender),
+      paymaster != null ? this.entryPoint.getDepositInfo(paymaster) : null,
+      factory != null ? this.entryPoint.getDepositInfo(factory) : null
+    ])
     return {
-      sender: ret[0],
-      paymaster: paymaster != null ? ret[1] : null,
-      factory: factory != null ? ret[2] : null
+      sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
+      paymaster: paymasterInfo != null ? { addr: paymaster ?? '', stake: paymasterInfo.stake, unstakeDelaySec: paymasterInfo.unstakeDelaySec } : undefined,
+      factory: factoryInfo != null ? { addr: factory ?? '', stake: factoryInfo.stake, unstakeDelaySec: factoryInfo.unstakeDelaySec } : undefined
     }
   }
 
@@ -128,7 +130,7 @@ export class ValidationManager implements IValidationManager {
 
   // generate validation result from trace: by decoding inner calls.
   async generateValidationResult (op: UserOperation, tracerResult: ERC7562Call): Promise<ValidationResult> {
-    const { validationCall, paymasterCall, innerCall } = this.getValidationCalls(op, tracerResult)
+    const { validationCall, paymasterCall } = this.getValidationCalls(op, tracerResult)
 
     if (debug.enabled) {
       // pass entrypoint and other addresses we want to resolve by name.
