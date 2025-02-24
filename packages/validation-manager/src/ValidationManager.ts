@@ -175,7 +175,7 @@ export class ValidationManager implements IValidationManager {
     // build a batch with 2 UserOps: the one under test, and a "flag" UserOp that triggers "AA94" revert error,
     // and stops the validation.
     // That is, if we end up with FailedOp(1) with "AA94", it means the UserOp-under-test passed successfully.
-    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), eolUserOp], AddressZero])
+    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), EOL_USEROP], AddressZero])
     const tx = {
       to: this.entryPoint.address,
       data
@@ -195,7 +195,7 @@ export class ValidationManager implements IValidationManager {
           throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
         }
 
-        if (decodedError === expectedFailedOp) {
+        if (decodedError === EXPECTED_EOL_USEROP_FAILURE) {
           // this is not an error. it is a marker the UserOp-under-test passed successfully
           return
         }
