@@ -1,9 +1,13 @@
 import { ERC7562Call } from './ERC7562Call'
 import Debug from 'debug'
-import { IPaymaster__factory, IAccount__factory, SenderCreator__factory } from '@account-abstraction/utils'
+import {
+  IPaymaster__factory,
+  IAccount__factory,
+  SenderCreator__factory,
+  IEntryPoint__factory
+} from '@account-abstraction/utils'
 import { FunctionFragment, Interface } from 'ethers/lib/utils'
 import { IRip7560Account__factory, IRip7560Paymaster__factory } from '@account-abstraction/utils/dist/src/types'
-import { EntryPoint__factory } from '@account-abstraction/contracts/types'
 
 const debug = Debug('aa.dump')
 
@@ -232,7 +236,7 @@ const abis = [
   ...IRip7560Account__factory.abi,
   ...IRip7560Paymaster__factory.abi,
   ...SenderCreator__factory.abi,
-  ...EntryPoint__factory.abi,
+  ...IEntryPoint__factory.abi,
   ...IPaymaster__factory.abi,
   ...IAccount__factory.abi
 ]
