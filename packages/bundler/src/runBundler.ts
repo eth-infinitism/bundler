@@ -15,7 +15,12 @@ import { MethodHandlerERC4337 } from './MethodHandlerERC4337'
 
 import { initServer } from './modules/initServer'
 import { DebugMethodHandler } from './DebugMethodHandler'
-import { supportsDebugTraceCall, supportsNativeTracer } from '@account-abstraction/validation-manager'
+import {
+  AA_NONCE_MANAGER,
+  AA_STAKE_MANAGER,
+  supportsDebugTraceCall,
+  supportsNativeTracer
+} from '@account-abstraction/validation-manager'
 import { resolveConfiguration } from './Config'
 import { bundlerConfigDefault } from './BundlerConfig'
 import { parseEther } from 'ethers/lib/utils'
@@ -155,8 +160,14 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   if (config.rip7560) {
     try {
-      await deployNonceManager(provider, wallet as any)
-      await deployStakeManager(provider, wallet as any)
+      const nonceManager = await deployNonceManager(provider, wallet as any)
+      if (nonceManager.address.toLowerCase() !== AA_NONCE_MANAGER.toLowerCase()) {
+        throw new Error(`NonceManager deployed at ${nonceManager.address} does not match constant AA_NONCE_MANAGER=${AA_NONCE_MANAGER}`)
+      }
+      const stakeManager = await deployStakeManager(provider, wallet as any)
+      if (stakeManager.address.toLowerCase() !== AA_STAKE_MANAGER.toLowerCase()) {
+        throw new Error(`StakeManager deployed at ${stakeManager.address} does not match constant AA_STAKE_MANAGER=${AA_NONCE_MANAGER}`)
+      }
     } catch (e: any) {
       console.warn(e)
       if (!(e.message as string).includes('replacement fee too low') && !(e.message as string).includes('already known')) throw e
@@ -166,6 +177,13 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   const {
     entryPoint
   } = await connectContracts(wallet, !config.rip7560)
+
+  if (entryPoint != null && entryPoint?.address?.toLowerCase() !== config.entryPoint.toLowerCase() && [1337, 31337].includes(chainId)) {
+    console.warn('NOTICE: overriding config entrypoint: ', { entryPoint: entryPoint.address })
+    config.entryPoint = entryPoint.address
+    config.senderCreator = await entryPoint.senderCreator()
+  }
+
   // bundleSize=1 replicate current immediate bundling mode
   const execManagerConfig = {
     ...config

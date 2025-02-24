@@ -205,10 +205,10 @@ export async function runContractScript<T extends ContractFactory> (provider: Pr
 }
 
 /**
- * sum the given bignumberish items (numbers, hex, bignumbers)
+ * sum the given bignumberish items (numbers, hex, bignumbers, ignore nulls)
  */
-export function sum (...args: BigNumberish[]): BigNumber {
-  return args.reduce((acc: BigNumber, cur) => acc.add(cur), BigNumber.from(0))
+export function sum (...args: Array<BigNumberish | undefined>): BigNumber {
+  return args.reduce((acc: BigNumber, cur) => acc.add(cur ?? 0), BigNumber.from(0))
 }
 
 /**

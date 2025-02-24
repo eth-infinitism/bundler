@@ -1,7 +1,6 @@
 import { Interface } from '@ethersproject/abi'
 import { ethers } from 'ethers'
-import { EntryPointSimulations__factory, IPaymaster__factory } from './types'
-import { SimpleAccount__factory } from './soltypes'
+import { EntryPointSimulations__factory, IPaymaster__factory, SimpleAccount__factory } from './types'
 
 const decodeRevertReasonContracts = new Interface([
   ...EntryPointSimulations__factory.createInterface().fragments,

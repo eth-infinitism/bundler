@@ -21,11 +21,12 @@ jobs:
         with:
           node-version: '18'
       - uses: actions/checkout@v4
+        with:
+          show-progress: false
       - uses: actions/cache@v4
         with:
           path: node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-      - run: yarn install
       - run: yarn run ci
 
   lint:
@@ -35,11 +36,12 @@ jobs:
         with:
           node-version: '18'
       - uses: actions/checkout@v4
+        with:
+          show-progress: false
       - uses: actions/cache@v4
         with:
           path: node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-      - run: yarn install
       - run: yarn preprocess
       - run: yarn lerna-lint
 

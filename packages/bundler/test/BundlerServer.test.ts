@@ -1,5 +1,4 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { parseEther } from 'ethers/lib/utils'
 
@@ -24,6 +23,7 @@ import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { DepositManager } from '../src/modules/DepositManager'
 import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
+import { ethers } from 'hardhat'
 
 describe('BundleServer', function () {
   let entryPoint: IEntryPoint
@@ -31,7 +31,11 @@ describe('BundleServer', function () {
   before(async () => {
     const provider = ethers.provider
     const signer = await createSigner()
-    entryPoint = await deployEntryPoint(provider)
+    try {
+      entryPoint = await deployEntryPoint(provider)
+    } catch (e) {
+      throw new Error(`Failed to deploy entry point - no RPC node?\n ${e as string}`)
+    }
 
     const config: BundlerConfig = {
       chainId: 1337,

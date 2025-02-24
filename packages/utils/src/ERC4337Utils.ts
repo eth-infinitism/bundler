@@ -9,12 +9,9 @@ import {
 } from 'ethers/lib/utils'
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 
-import { BigNumber, BigNumberish, BytesLike, ethers } from 'ethers'
-import Debug from 'debug'
+import { BigNumber, BigNumberish, BytesLike, ethers, TypedDataDomain, TypedDataField } from 'ethers'
 import { PackedUserOperation } from './Utils'
 import { UserOperation } from './interfaces/UserOperation'
-
-const debug = Debug('aa.utils')
 
 // UserOperation is the first parameter of getUserOpHash
 const getUserOpHashMethod = 'getUserOpHash'
@@ -24,6 +21,13 @@ if (PackedUserOpType == null) {
 }
 
 export const AddressZero = ethers.constants.AddressZero
+
+// Matched to domain name, version from EntryPoint.sol:
+const DOMAIN_NAME = 'ERC4337'
+const DOMAIN_VERSION = '1'
+
+// Matched to UserOperationLib.sol:
+const PACKED_USEROP_TYPEHASH = keccak256(Buffer.from('PackedUserOperation(address sender,uint256 nonce,bytes initCode,bytes callData,bytes32 accountGasLimits,uint256 preVerificationGas,bytes32 gasFees,bytes paymasterAndData)'))
 
 // reverse "Deferrable" or "PromiseOrValue" fields
 export type NotPromise<T> = {
@@ -214,19 +218,21 @@ export function encodeUserOp (op1: PackedUserOperation | UserOperation, forSigna
   }
   if (forSignature) {
     return defaultAbiCoder.encode(
-      ['address', 'uint256', 'bytes32', 'bytes32',
+      ['bytes32', 'address', 'uint256', 'bytes32', 'bytes32',
         'bytes32', 'uint256', 'bytes32',
         'bytes32'],
-      [op.sender, op.nonce, keccak256(op.initCode), keccak256(op.callData),
+      [PACKED_USEROP_TYPEHASH,
+        op.sender, op.nonce, keccak256(op.initCode), keccak256(op.callData),
         op.accountGasLimits, op.preVerificationGas, op.gasFees,
         keccak256(op.paymasterAndData)])
   } else {
     // for the purpose of calculating gas cost encode also signature (and no keccak of bytes)
     return defaultAbiCoder.encode(
-      ['address', 'uint256', 'bytes', 'bytes',
+      ['bytes32', 'address', 'uint256', 'bytes', 'bytes',
         'bytes32', 'uint256', 'bytes32',
         'bytes', 'bytes'],
-      [op.sender, op.nonce, op.initCode, op.callData,
+      [PACKED_USEROP_TYPEHASH,
+        op.sender, op.nonce, op.initCode, op.callData,
         op.accountGasLimits, op.preVerificationGas, op.gasFees,
         op.paymasterAndData, op.signature])
   }
@@ -242,14 +248,52 @@ export function encodeUserOp (op1: PackedUserOperation | UserOperation, forSigna
  * @param chainId
  */
 export function getUserOpHash (op: UserOperation, entryPoint: string, chainId: number): string {
-  const userOpHash = keccak256(encodeUserOp(op, true))
-  const enc = defaultAbiCoder.encode(
-    ['bytes32', 'address', 'uint256'],
-    [userOpHash, entryPoint, chainId])
-  return keccak256(enc)
+  const packed = encodeUserOp(op, true)
+  return keccak256(hexConcat([
+    '0x1901',
+    getDomainSeparator(entryPoint, chainId),
+    keccak256(packed)
+  ]))
 }
 
-const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
+export function getDomainSeparator (entryPoint: string, chainId: number): string {
+  const domainData = getErc4337TypedDataDomain(entryPoint, chainId) as Required<TypedDataDomain>
+  return keccak256(defaultAbiCoder.encode(
+    ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address'],
+    [
+      keccak256(Buffer.from('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)')),
+      keccak256(Buffer.from(domainData.name)),
+      keccak256(Buffer.from(domainData.version)),
+      domainData.chainId,
+      domainData.verifyingContract
+    ]))
+}
+
+export function getErc4337TypedDataDomain (entryPoint: string, chainId: number): TypedDataDomain {
+  return {
+    name: DOMAIN_NAME,
+    version: DOMAIN_VERSION,
+    chainId,
+    verifyingContract: entryPoint
+  }
+}
+
+export function getErc4337TypedDataTypes (): { [type: string]: TypedDataField[] } {
+  return {
+    PackedUserOperation: [
+      { name: 'sender', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'initCode', type: 'bytes' },
+      { name: 'callData', type: 'bytes' },
+      { name: 'accountGasLimits', type: 'bytes32' },
+      { name: 'preVerificationGas', type: 'uint256' },
+      { name: 'gasFees', type: 'bytes32' },
+      { name: 'paymasterAndData', type: 'bytes' }
+    ]
+  }
+}
+
+export const ErrorSig = keccak256(Buffer.from('Error(string)')).slice(0, 10) // 0x08c379a0
 const FailedOpSig = keccak256(Buffer.from('FailedOp(uint256,string)')).slice(0, 10) // 0x220266b6
 
 interface DecodedError {
@@ -263,10 +307,9 @@ interface DecodedError {
 export function decodeErrorReason (error: string | Error): DecodedError | undefined {
   if (typeof error !== 'string') {
     const err = error as any
-    error = (err.data ?? err.error.data) as string
+    error = (err.data ?? err.error?.data ?? err.message) as string
   }
 
-  debug('decoding', error)
   if (error.startsWith(ErrorSig)) {
     const [message] = defaultAbiCoder.decode(['string'], '0x' + error.substring(10))
     return { message }

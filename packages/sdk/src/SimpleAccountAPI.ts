@@ -8,6 +8,7 @@ import {
 import { arrayify } from 'ethers/lib/utils'
 import { Signer } from '@ethersproject/abstract-signer'
 import { BaseApiParams, BaseAccountAPI, FactoryParams } from './BaseAccountAPI'
+import { ecsign, toRpcSig } from 'ethereumjs-util'
 
 /**
  * constructor params, added no top of base params:
@@ -100,6 +101,8 @@ export class SimpleAccountAPI extends BaseAccountAPI {
   }
 
   async signUserOpHash (userOpHash: string): Promise<string> {
-    return await this.owner.signMessage(arrayify(userOpHash))
+    const privateKey = (this.owner as any).privateKey
+    const sig = ecsign(Buffer.from(arrayify(userOpHash)), Buffer.from(arrayify(privateKey)))
+    return toRpcSig(sig.v, sig.r, sig.s)
   }
 }

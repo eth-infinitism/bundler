@@ -25,6 +25,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@types/debug": "^4.1.7",
     "debug": "^4.3.4",
+    "ethereumjs-util": "^7.1.5",
     "ethers": "^5.7.0"
   },
   "devDependencies": {
