@@ -161,11 +161,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   if (config.rip7560) {
     try {
       const nonceManager = await deployNonceManager(provider, wallet as any)
-      if (nonceManager.address !== AA_NONCE_MANAGER) {
+      if (nonceManager.address.toLowerCase() !== AA_NONCE_MANAGER.toLowerCase()) {
         throw new Error(`NonceManager deployed at ${nonceManager.address} does not match constant AA_NONCE_MANAGER=${AA_NONCE_MANAGER}`)
       }
       const stakeManager = await deployStakeManager(provider, wallet as any)
-      if (stakeManager.address !== AA_STAKE_MANAGER) {
+      if (stakeManager.address.toLowerCase() !== AA_STAKE_MANAGER.toLowerCase()) {
         throw new Error(`StakeManager deployed at ${stakeManager.address} does not match constant AA_STAKE_MANAGER=${AA_NONCE_MANAGER}`)
       }
     } catch (e: any) {
@@ -178,7 +178,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     entryPoint
   } = await connectContracts(wallet, !config.rip7560)
 
-  if (entryPoint != null && entryPoint?.address !== config.entryPoint && [1337, 31337].includes(chainId)) {
+  if (entryPoint != null && entryPoint?.address?.toLowerCase() !== config.entryPoint.toLowerCase() && [1337, 31337].includes(chainId)) {
     console.warn('NOTICE: overriding config entrypoint: ', { entryPoint: entryPoint.address })
     config.entryPoint = entryPoint.address
     config.senderCreator = await entryPoint.senderCreator()
