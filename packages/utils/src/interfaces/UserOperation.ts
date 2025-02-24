@@ -9,5 +9,5 @@ export interface UserOperation extends OperationBase {
   nonce: BigNumberish
 
   preVerificationGas: BigNumberish
-  eip7702auth?: EIP7702Authorization
+  eip7702Auth?: EIP7702Authorization
 }
