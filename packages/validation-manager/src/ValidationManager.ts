@@ -53,7 +53,9 @@ const HEX_REGEX = /^0x[a-fA-F\d]*$/i
 const BYTES32_ALLONES = '0x'.padEnd(66, 'f')
 
 // a "flag" UserOperation that triggers "AA94" revert error.
-const eolUserOp: PackedUserOperation = {
+// It is injected to the end of the bundle in order for the 'handleOps' transaction tracing to stop wothout performing the ececution,
+// which may be expensive and is not necessary.
+const EOL_USEROP: PackedUserOperation = {
   sender: AddressZero,
   nonce: 0,
   initCode: '0x',
@@ -66,7 +68,7 @@ const eolUserOp: PackedUserOperation = {
 }
 
 // this FailedOp is a marker that we reached the above "eolUserOp" (the second UserOp in a bundle) without any error in the first UserOp
-const expectedFailedOp = 'FailedOp(1,"AA94 gas values overflow")'
+const EXPECTED_EOL_USEROP_FAILURE = 'FailedOp(1,"AA94 gas values overflow")'
 
 /**
  * ValidationManager is responsible for validating UserOperations.
@@ -209,7 +211,7 @@ export class ValidationManager implements IValidationManager {
   ): Promise<[ValidationResult, ERC7562Call | null, BundlerTracerResult | null]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
-    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), eolUserOp], AddressZero])
+    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), EOL_USEROP], AddressZero])
 
     const prevg = await this.preVerificationGasCalculator._calculate(userOp)
     // give simulation enough gas to run validations, but not more.
@@ -252,7 +254,7 @@ export class ValidationManager implements IValidationManager {
         throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
       }
 
-      if (decodedErrorReason !== expectedFailedOp) {
+      if (decodedErrorReason !== EXPECTED_EOL_USEROP_FAILURE) {
         throw new RpcError(decodedErrorReason, ValidationErrors.SimulateValidation)
       }
     }
