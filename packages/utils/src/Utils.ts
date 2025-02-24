@@ -240,8 +240,8 @@ export function getPackedNonce (userOp: OperationBase): BigNumber {
 
 export function getAuthorizationList (op: OperationBase): EIP7702Authorization[] {
   const userOp = op as UserOperation
-  if (userOp.eip7702auth != null) {
-    return [userOp.eip7702auth]
+  if (userOp.eip7702Auth != null) {
+    return [userOp.eip7702Auth]
   } else {
     return (op as OperationRIP7560).authorizationList ?? []
   }
