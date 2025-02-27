@@ -112,7 +112,7 @@ export class ValidationManager implements IValidationManager {
     const [senderInfo, paymasterInfo, factoryInfo] = await Promise.all([
       this.entryPoint.getDepositInfo(sender),
       paymaster != null ? this.entryPoint.getDepositInfo(paymaster) : null,
-      factory != null && factory != EIP_7702_MARKER_INIT_CODE ? this.entryPoint.getDepositInfo(factory) : null
+      factory != null && factory !== EIP_7702_MARKER_INIT_CODE ? this.entryPoint.getDepositInfo(factory) : null
     ])
     return {
       sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
@@ -482,7 +482,7 @@ export class ValidationManager implements IValidationManager {
     })
 
     requireAddressAndFields(operation, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
-    if (operation.factory != EIP_7702_MARKER_INIT_CODE) {
+    if (operation.factory !== EIP_7702_MARKER_INIT_CODE) {
       requireAddressAndFields(operation, 'factory', ['factoryData'])
     }
     const preVerificationGas = (operation as UserOperation).preVerificationGas
@@ -496,7 +496,7 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getOperationHash (userOp: OperationBase): Promise<string> {
-    if (userOp.factory == EIP_7702_MARKER_INIT_CODE) {
+    if (userOp.factory === EIP_7702_MARKER_INIT_CODE) {
       const eip7702Auth = (userOp as UserOperation).eip7702Auth
       if (eip7702Auth == null) {
         throw new Error('must provide tuple for EIP-7702 based UserOperation')
