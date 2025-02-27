@@ -10,7 +10,7 @@ import {
 import { abi as entryPointAbi } from '@account-abstraction/contracts/artifacts/IEntryPoint.json'
 
 import { BigNumber, BigNumberish, BytesLike, ethers, TypedDataDomain, TypedDataField } from 'ethers'
-import { PackedUserOperation } from './Utils'
+import { EIP_7702_MARKER_INIT_CODE, PackedUserOperation } from './Utils'
 import { UserOperation } from './interfaces/UserOperation'
 
 // UserOperation is the first parameter of getUserOpHash
@@ -152,10 +152,15 @@ export function packUserOp (op: UserOperation): PackedUserOperation {
     }
     paymasterAndData = packPaymasterData(op.paymaster, op.paymasterVerificationGasLimit, op.paymasterPostOpGasLimit, op.paymasterData)
   }
+  let initCode = op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? ''])
+  if (op.factory === EIP_7702_MARKER_INIT_CODE) {
+    const eip7702FlagInitCode = EIP_7702_MARKER_INIT_CODE + '0'.repeat(36)
+    initCode = hexConcat([eip7702FlagInitCode, op.factoryData ?? ''])
+  }
   return {
     sender: op.sender,
     nonce: BigNumber.from(op.nonce).toHexString(),
-    initCode: op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? '']),
+    initCode,
     callData: op.callData,
     accountGasLimits: packUint(op.verificationGasLimit, op.callGasLimit),
     preVerificationGas: BigNumber.from(op.preVerificationGas).toHexString(),

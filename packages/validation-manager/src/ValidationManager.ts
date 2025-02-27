@@ -2,36 +2,41 @@ import { BigNumber } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
+import { hexConcat } from 'ethers/lib/utils'
 
 import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
 import {
   AddressZero,
   CodeHashGetter__factory,
-  decodeErrorReason,
-  decodeRevertReason,
   EIP7702Authorization,
-  getAddr,
-  getAuthorizationList,
-  getEip7702AuthorizationSigner,
+  EIP_7702_MARKER_CODE,
+  EIP_7702_MARKER_INIT_CODE,
   IAccount__factory,
   IEntryPoint,
   IPaymaster__factory,
-  maxUint48,
   OperationBase,
   PackedUserOperation,
-  packUserOp,
-  parseValidationData,
   ReferencedCodeHashes,
-  requireAddressAndFields,
-  requireCond,
   RpcError,
-  runContractScript, StakeInfo,
+  StakeInfo,
   StorageMap,
-  sum,
   UserOperation,
   ValidationData,
-  ValidationErrors
+  ValidationErrors,
+  callGetUserOpHashWithCode,
+  decodeErrorReason,
+  decodeRevertReason,
+  getAddr,
+  getAuthorizationList,
+  getEip7702AuthorizationSigner,
+  maxUint48,
+  packUserOp,
+  parseValidationData,
+  requireAddressAndFields,
+  requireCond,
+  runContractScript,
+  sum
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -107,7 +112,7 @@ export class ValidationManager implements IValidationManager {
     const [senderInfo, paymasterInfo, factoryInfo] = await Promise.all([
       this.entryPoint.getDepositInfo(sender),
       paymaster != null ? this.entryPoint.getDepositInfo(paymaster) : null,
-      factory != null ? this.entryPoint.getDepositInfo(factory) : null
+      factory != null && factory != EIP_7702_MARKER_INIT_CODE ? this.entryPoint.getDepositInfo(factory) : null
     ])
     return {
       sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
@@ -413,7 +418,7 @@ export class ValidationManager implements IValidationManager {
         continue
       }
       const currentDelegateeCode = await this.provider.getCode(authSigner)
-      const newDelegateeCode = '0xef0100' + authorization.address.slice(2)
+      const newDelegateeCode = EIP_7702_MARKER_CODE + authorization.address.slice(2)
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
@@ -477,8 +482,9 @@ export class ValidationManager implements IValidationManager {
     })
 
     requireAddressAndFields(operation, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
-    requireAddressAndFields(operation, 'factory', ['factoryData'])
-
+    if (operation.factory != EIP_7702_MARKER_INIT_CODE) {
+      requireAddressAndFields(operation, 'factory', ['factoryData'])
+    }
     const preVerificationGas = (operation as UserOperation).preVerificationGas
     if (preVerificationGas != null) {
       const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
@@ -490,6 +496,14 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getOperationHash (userOp: OperationBase): Promise<string> {
+    if (userOp.factory == EIP_7702_MARKER_INIT_CODE) {
+      const eip7702Auth = (userOp as UserOperation).eip7702Auth
+      if (eip7702Auth == null) {
+        throw new Error('must provide tuple for EIP-7702 based UserOperation')
+      }
+      const deployedDelegateCode: string = hexConcat([EIP_7702_MARKER_CODE, eip7702Auth.address])
+      return await callGetUserOpHashWithCode(this.entryPoint, userOp as UserOperation, deployedDelegateCode)
+    }
     return await this.entryPoint.getUserOpHash(packUserOp(userOp as UserOperation))
   }
 
