@@ -15,13 +15,13 @@ import {
   UserOperation,
   UserOperationEventEvent,
   ValidationErrors,
+  callGetUserOpHashWithCode,
   decodeRevertReason,
   decodeSimulateHandleOpResult,
   deepHexlify,
   erc4337RuntimeVersion,
   getAuthorizationList,
   mergeValidationDataValues,
-  packUserOp,
   requireAddressAndFields,
   requireCond,
   simulationRpcParams,
@@ -204,7 +204,7 @@ export class MethodHandlerERC4337 {
 
     debug(`UserOperation: Sender=${userOp.sender}  Nonce=${tostr(userOp.nonce)} EntryPoint=${entryPointInput} Paymaster=${userOp.paymaster ?? ''} ${userOp.eip7702Auth != null ? 'eip-7702 auth' : ''}`)
     await this.execManager.sendUserOperation(userOp, entryPointInput, false)
-    return await this.entryPoint.getUserOpHash(packUserOp(userOp))
+    return await callGetUserOpHashWithCode(this.entryPoint, userOp)
   }
 
   async _getUserOperationEvent (userOpHash: string): Promise<UserOperationEventEvent> {

@@ -152,10 +152,10 @@ export function packUserOp (op: UserOperation): PackedUserOperation {
     }
     paymasterAndData = packPaymasterData(op.paymaster, op.paymasterVerificationGasLimit, op.paymasterPostOpGasLimit, op.paymasterData)
   }
-  let initCode = op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? ''])
+  let initCode = op.factory == null ? '0x' : hexConcat([op.factory, op.factoryData ?? '0x'])
   if (op.factory === EIP_7702_MARKER_INIT_CODE) {
-    const eip7702FlagInitCode = EIP_7702_MARKER_INIT_CODE + '0'.repeat(36)
-    initCode = hexConcat([eip7702FlagInitCode, op.factoryData ?? ''])
+    const eip7702FlagInitCode = EIP_7702_MARKER_INIT_CODE.padEnd(42, '0')
+    initCode = hexConcat([eip7702FlagInitCode, op.factoryData ?? '0x'])
   }
   return {
     sender: op.sender,
@@ -209,18 +209,13 @@ export function unpackUserOp (packed: PackedUserOperation): UserOperation {
 
 /**
  * abi-encode the userOperation
- * @param op1 a PackedUserOp
+ * @param unpackedUserOperation an unpacked UserOperation object
  * @param forSignature "true" if the hash is needed to calculate the getUserOpHash()
  *  "false" to pack entire UserOp, for calculating the calldata cost of putting it on-chain.
  */
-export function encodeUserOp (op1: PackedUserOperation | UserOperation, forSignature = true): string {
+export function encodeUserOp (unpackedUserOperation: UserOperation, forSignature = true): string {
   // if "op" is unpacked UserOperation, then pack it first, before we ABI-encode it.
-  let op: PackedUserOperation
-  if ('callGasLimit' in op1) {
-    op = packUserOp(op1)
-  } else {
-    op = op1
-  }
+  const op: PackedUserOperation = packUserOp(unpackedUserOperation)
   if (forSignature) {
     return defaultAbiCoder.encode(
       ['bytes32', 'address', 'uint256', 'bytes32', 'bytes32',

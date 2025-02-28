@@ -108,7 +108,11 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
-  async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{sender: StakeInfo, paymaster?: StakeInfo, factory?: StakeInfo}> {
+  async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{
+    sender: StakeInfo
+    paymaster?: StakeInfo
+    factory?: StakeInfo
+  }> {
     const [senderInfo, paymasterInfo, factoryInfo] = await Promise.all([
       this.entryPoint.getDepositInfo(sender),
       paymaster != null ? this.entryPoint.getDepositInfo(paymaster) : null,
@@ -116,14 +120,32 @@ export class ValidationManager implements IValidationManager {
     ])
     return {
       sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
-      paymaster: paymasterInfo != null ? { addr: paymaster ?? '', stake: paymasterInfo.stake, unstakeDelaySec: paymasterInfo.unstakeDelaySec } : undefined,
-      factory: factoryInfo != null ? { addr: factory ?? '', stake: factoryInfo.stake, unstakeDelaySec: factoryInfo.unstakeDelaySec } : undefined
+      paymaster: paymasterInfo != null
+        ? {
+            addr: paymaster ?? '',
+            stake: paymasterInfo.stake,
+            unstakeDelaySec: paymasterInfo.unstakeDelaySec
+          }
+        : undefined,
+      factory: factoryInfo != null
+        ? {
+            addr: factory ?? '',
+            stake: factoryInfo.stake,
+            unstakeDelaySec: factoryInfo.unstakeDelaySec
+          }
+        : undefined
     }
   }
 
-  getValidationCalls (op: UserOperation, entryPointCall: ERC7562Call): { validationCall: ERC7562Call, paymasterCall?: ERC7562Call, innerCall: ERC7562Call} {
+  getValidationCalls (op: UserOperation, entryPointCall: ERC7562Call): {
+    validationCall: ERC7562Call
+    paymasterCall?: ERC7562Call
+    innerCall: ERC7562Call
+  } {
     let callIndex = 0
-    if (op.factory != null) {
+    const hasFactoryCall = op.factory != null && op.factory != EIP_7702_MARKER_INIT_CODE
+    const hasEip7702InitCall = op.factory == EIP_7702_MARKER_INIT_CODE && op.factoryData != null && op.factoryData.length > 0
+    if (hasFactoryCall || hasEip7702InitCall) {
       callIndex++
     }
     const validationCall = entryPointCall.calls[callIndex++]
@@ -496,15 +518,11 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getOperationHash (userOp: OperationBase): Promise<string> {
-    if (userOp.factory === EIP_7702_MARKER_INIT_CODE) {
-      const eip7702Auth = (userOp as UserOperation).eip7702Auth
-      if (eip7702Auth == null) {
-        throw new Error('must provide tuple for EIP-7702 based UserOperation')
-      }
-      const deployedDelegateCode: string = hexConcat([EIP_7702_MARKER_CODE, eip7702Auth.address])
-      return await callGetUserOpHashWithCode(this.entryPoint, userOp as UserOperation, deployedDelegateCode)
+    const eip7702Auth = (userOp as UserOperation).eip7702Auth
+    if (eip7702Auth == null) {
+      throw new Error('must provide tuple for EIP-7702 based UserOperation')
     }
-    return await this.entryPoint.getUserOpHash(packUserOp(userOp as UserOperation))
+    return await callGetUserOpHashWithCode(this.entryPoint, userOp as UserOperation)
   }
 
   flattenCalls (calls: any[]): any[] {
