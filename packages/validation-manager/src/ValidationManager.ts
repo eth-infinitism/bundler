@@ -518,10 +518,6 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getOperationHash (userOp: OperationBase): Promise<string> {
-    const eip7702Auth = (userOp as UserOperation).eip7702Auth
-    if (eip7702Auth == null) {
-      throw new Error('must provide tuple for EIP-7702 based UserOperation')
-    }
     return await callGetUserOpHashWithCode(this.entryPoint, userOp as UserOperation)
   }
 
