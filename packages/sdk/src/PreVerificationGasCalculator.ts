@@ -1,4 +1,4 @@
-import { encodeUserOp, packUserOp, UserOperation } from '@account-abstraction/utils'
+import { encodeUserOp, UserOperation } from '@account-abstraction/utils'
 import { arrayify, hexlify } from 'ethers/lib/utils'
 
 export interface PreVerificationGasCalculatorConfig {
@@ -93,7 +93,7 @@ export class PreVerificationGasCalculator {
   }
 
   _calculate (userOp: UserOperation): number {
-    const packedUserOp = arrayify(encodeUserOp(packUserOp(userOp), false))
+    const packedUserOp = arrayify(encodeUserOp(userOp, false))
     const userOpWordsLength = (packedUserOp.length + 31) / 32
     const callDataCost = packedUserOp
       .map(

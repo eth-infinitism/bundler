@@ -1,16 +1,20 @@
 // misc utilities for the various modules.
 
 import { BytesLike, ContractFactory, BigNumber, ethers } from 'ethers'
-import { hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
+import { hexConcat, hexlify, hexZeroPad, Result } from 'ethers/lib/utils'
 import { Provider, JsonRpcProvider } from '@ethersproject/providers'
 import { BigNumberish } from 'ethers/lib/ethers'
 
-import { NotPromise } from './ERC4337Utils'
+import { NotPromise, packUserOp } from './ERC4337Utils'
 import { PackedUserOperationStruct } from './soltypes'
 import { UserOperation } from './interfaces/UserOperation'
 import { OperationBase } from './interfaces/OperationBase'
 import { OperationRIP7560 } from './interfaces/OperationRIP7560'
 import { EIP7702Authorization } from './interfaces/EIP7702Authorization'
+import { IEntryPoint } from './types'
+
+export const EIP_7702_MARKER_CODE = '0xef0100'
+export const EIP_7702_MARKER_INIT_CODE = '0x7702'
 
 export interface SlotMap {
   [slot: string]: string
@@ -245,4 +249,23 @@ export function getAuthorizationList (op: OperationBase): EIP7702Authorization[]
   } else {
     return (op as OperationRIP7560).authorizationList ?? []
   }
+}
+
+// call entryPoint.getUserOpHash, but use state-override to run it with specific code (e.g. eip-7702 delegate) on the sender's code.
+export async function callGetUserOpHashWithCode (entryPoint: IEntryPoint, userOp: UserOperation): Promise<string> {
+  let stateOverride = null
+  if (userOp.eip7702Auth != null) {
+    const deployedDelegateCode: string = hexConcat([EIP_7702_MARKER_CODE, userOp.eip7702Auth.address])
+    stateOverride = {
+      [userOp.sender]: {
+        code: deployedDelegateCode
+      }
+    }
+  }
+  return await (entryPoint.provider as JsonRpcProvider).send('eth_call', [
+    {
+      to: entryPoint.address,
+      data: entryPoint.interface.encodeFunctionData('getUserOpHash', [packUserOp(userOp)])
+    }, 'latest', stateOverride
+  ])
 }

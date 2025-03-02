@@ -8,30 +8,34 @@ import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from
 import {
   AddressZero,
   CodeHashGetter__factory,
-  decodeErrorReason,
-  decodeRevertReason,
   EIP7702Authorization,
-  getAddr,
-  getAuthorizationList,
-  getEip7702AuthorizationSigner,
+  EIP_7702_MARKER_CODE,
+  EIP_7702_MARKER_INIT_CODE,
   IAccount__factory,
   IEntryPoint,
   IPaymaster__factory,
-  maxUint48,
   OperationBase,
   PackedUserOperation,
-  packUserOp,
-  parseValidationData,
   ReferencedCodeHashes,
-  requireAddressAndFields,
-  requireCond,
   RpcError,
-  runContractScript, StakeInfo,
+  StakeInfo,
   StorageMap,
-  sum,
   UserOperation,
   ValidationData,
-  ValidationErrors
+  ValidationErrors,
+  callGetUserOpHashWithCode,
+  decodeErrorReason,
+  decodeRevertReason,
+  getAddr,
+  getAuthorizationList,
+  getEip7702AuthorizationSigner,
+  maxUint48,
+  packUserOp,
+  parseValidationData,
+  requireAddressAndFields,
+  requireCond,
+  runContractScript,
+  sum
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -103,22 +107,44 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
-  async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{sender: StakeInfo, paymaster?: StakeInfo, factory?: StakeInfo}> {
+  async getStakes (sender: string, paymaster?: string, factory?: string): Promise<{
+    sender: StakeInfo
+    paymaster?: StakeInfo
+    factory?: StakeInfo
+  }> {
     const [senderInfo, paymasterInfo, factoryInfo] = await Promise.all([
       this.entryPoint.getDepositInfo(sender),
       paymaster != null ? this.entryPoint.getDepositInfo(paymaster) : null,
-      factory != null ? this.entryPoint.getDepositInfo(factory) : null
+      factory != null && factory !== EIP_7702_MARKER_INIT_CODE ? this.entryPoint.getDepositInfo(factory) : null
     ])
     return {
       sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
-      paymaster: paymasterInfo != null ? { addr: paymaster ?? '', stake: paymasterInfo.stake, unstakeDelaySec: paymasterInfo.unstakeDelaySec } : undefined,
-      factory: factoryInfo != null ? { addr: factory ?? '', stake: factoryInfo.stake, unstakeDelaySec: factoryInfo.unstakeDelaySec } : undefined
+      paymaster: paymasterInfo != null
+        ? {
+            addr: paymaster ?? '',
+            stake: paymasterInfo.stake,
+            unstakeDelaySec: paymasterInfo.unstakeDelaySec
+          }
+        : undefined,
+      factory: factoryInfo != null
+        ? {
+            addr: factory ?? '',
+            stake: factoryInfo.stake,
+            unstakeDelaySec: factoryInfo.unstakeDelaySec
+          }
+        : undefined
     }
   }
 
-  getValidationCalls (op: UserOperation, entryPointCall: ERC7562Call): { validationCall: ERC7562Call, paymasterCall?: ERC7562Call, innerCall: ERC7562Call} {
+  getValidationCalls (op: UserOperation, entryPointCall: ERC7562Call): {
+    validationCall: ERC7562Call
+    paymasterCall?: ERC7562Call
+    innerCall: ERC7562Call
+  } {
     let callIndex = 0
-    if (op.factory != null) {
+    const hasFactoryCall = op.factory != null && op.factory !== EIP_7702_MARKER_INIT_CODE
+    const hasEip7702InitCall = op.factory === EIP_7702_MARKER_INIT_CODE && op.factoryData != null && op.factoryData.length > 0
+    if (hasFactoryCall || hasEip7702InitCall) {
       callIndex++
     }
     const validationCall = entryPointCall.calls[callIndex++]
@@ -413,7 +439,7 @@ export class ValidationManager implements IValidationManager {
         continue
       }
       const currentDelegateeCode = await this.provider.getCode(authSigner)
-      const newDelegateeCode = '0xef0100' + authorization.address.slice(2)
+      const newDelegateeCode = EIP_7702_MARKER_CODE + authorization.address.slice(2)
       const noCurrentDelegation = currentDelegateeCode.length <= 2
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
@@ -477,8 +503,9 @@ export class ValidationManager implements IValidationManager {
     })
 
     requireAddressAndFields(operation, 'paymaster', ['paymasterPostOpGasLimit', 'paymasterVerificationGasLimit'], ['paymasterData'])
-    requireAddressAndFields(operation, 'factory', ['factoryData'])
-
+    if (operation.factory !== EIP_7702_MARKER_INIT_CODE) {
+      requireAddressAndFields(operation, 'factory', ['factoryData'])
+    }
     const preVerificationGas = (operation as UserOperation).preVerificationGas
     if (preVerificationGas != null) {
       const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
@@ -490,7 +517,7 @@ export class ValidationManager implements IValidationManager {
   }
 
   async getOperationHash (userOp: OperationBase): Promise<string> {
-    return await this.entryPoint.getUserOpHash(packUserOp(userOp as UserOperation))
+    return await callGetUserOpHashWithCode(this.entryPoint, userOp as UserOperation)
   }
 
   flattenCalls (calls: any[]): any[] {
