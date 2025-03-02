@@ -2,7 +2,6 @@ import { BigNumber } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
-import { hexConcat } from 'ethers/lib/utils'
 
 import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '@account-abstraction/sdk'
 
@@ -143,8 +142,8 @@ export class ValidationManager implements IValidationManager {
     innerCall: ERC7562Call
   } {
     let callIndex = 0
-    const hasFactoryCall = op.factory != null && op.factory != EIP_7702_MARKER_INIT_CODE
-    const hasEip7702InitCall = op.factory == EIP_7702_MARKER_INIT_CODE && op.factoryData != null && op.factoryData.length > 0
+    const hasFactoryCall = op.factory != null && op.factory !== EIP_7702_MARKER_INIT_CODE
+    const hasEip7702InitCall = op.factory === EIP_7702_MARKER_INIT_CODE && op.factoryData != null && op.factoryData.length > 0
     if (hasFactoryCall || hasEip7702InitCall) {
       callIndex++
     }
