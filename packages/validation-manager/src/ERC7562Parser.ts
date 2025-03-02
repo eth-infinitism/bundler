@@ -276,9 +276,7 @@ export class ERC7562Parser {
     recursionDepth: number,
     delegatecallStorageAddress: string
   ): void {
-    if (erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase() ||
-      erc7562Call.to.toLowerCase() === this.senderCreatorAddress.toLowerCase()
-    ) {
+    if (erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
       // Currently inside the EntryPoint deposit code, no access control applies here
       return
     }
