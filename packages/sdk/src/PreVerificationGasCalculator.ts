@@ -1,4 +1,4 @@
-import { encodeUserOp, packUserOp, UserOperation } from '@account-abstraction/utils'
+import { encodeUserOp, UserOperation } from '@account-abstraction/utils'
 import { arrayify, hexlify } from 'ethers/lib/utils'
 
 export interface PreVerificationGasCalculatorConfig {
