@@ -35,7 +35,7 @@ import {
   requireAddressAndFields,
   requireCond,
   runContractScript,
-  sum
+  sum, PaymasterValidationInfo
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -172,15 +172,18 @@ export class ValidationManager implements IValidationManager {
 
     const validationData = this.decodeValidateUserOp(validationCall)
     let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
+    let paymasterContext: string | undefined
     if (paymasterCall != null) {
       const pmRet = this.decodeValidatePaymasterUserOp(paymasterCall)
-      // paymasterContext = pmRet.context
+      paymasterContext = pmRet.context
       paymasterValidationData = pmRet.validationData
     }
 
-    // todo: paymasterContext should be returned to parser, to validate its length.
-
     const retStakes = await this.getStakes(op.sender, op.paymaster, op.factory)
+    let paymasterInfo: PaymasterValidationInfo | undefined = retStakes.paymaster
+    if (paymasterInfo != null) {
+      paymasterInfo = { ...paymasterInfo, context: paymasterContext }
+    }
 
     const ret: ValidationResult = {
       returnInfo: {
@@ -191,7 +194,7 @@ export class ValidationManager implements IValidationManager {
         prefund: 0 // extract from innerHandleOps parameter
       },
       senderInfo: retStakes.sender,
-      paymasterInfo: retStakes.paymaster,
+      paymasterInfo,
       factoryInfo: retStakes.factory
     }
     return ret

@@ -257,6 +257,7 @@ export class ERC7562Parser {
     this._checkOp061(erc7562Call, recursionDepth, delegatecallStorageAddress)
     this._checkOp062AllowedPrecompiles(erc7562Call, recursionDepth, delegatecallStorageAddress)
     this._checkOp080(erc7562Call, recursionDepth, delegatecallStorageAddress)
+    this._checkErep050(erc7562Call, recursionDepth, delegatecallStorageAddress)
     this._checkStorage(userOp, erc7562Call, recursionDepth, delegatecallStorageAddress)
     for (const call of erc7562Call.calls ?? []) {
       let newContext: string = call.to
@@ -574,6 +575,31 @@ export class ERC7562Parser {
           })
         }
       )
+  }
+
+  /**
+   * EREP-050: An unstaked `paymaster` may not return a `context`.
+   */
+  private _checkErep050 (
+    erc7562Call: ERC7562Call,
+    recursionDepth: number,
+    delegatecallStorageAddress: string
+  ): void {
+    const isUnstakedPaymaster = this.currentEntity === AccountAbstractionEntity.paymaster && !this._isEntityStaked()
+    if (isUnstakedPaymaster && this.stakeValidationResult.paymasterInfo?.context != null) {
+      this._violationDetected({
+        rule: ERC7562Rule.erep050,
+        depth: recursionDepth,
+        entity: this.currentEntity,
+        address: erc7562Call.from ?? 'n/a',
+        delegatecallStorageAddress,
+        callFrameType: erc7562Call.type,
+        value: '0',
+        errorCode: ValidationErrors.OpcodeValidation,
+        description: 'unstaked paymaster returned a context'
+      })
+    }
+
   }
 
   private _checkStorage (

@@ -2,7 +2,7 @@ import { BigNumber, BigNumberish } from 'ethers'
 
 import {
   IEntryPoint,
-  OperationBase,
+  OperationBase, PaymasterValidationInfo,
   ReferencedCodeHashes,
   StakeInfo,
   StorageMap
@@ -23,7 +23,7 @@ export interface ValidationResult {
 
   senderInfo: StakeInfo
   factoryInfo?: StakeInfo
-  paymasterInfo?: StakeInfo
+  paymasterInfo?: PaymasterValidationInfo
   aggregatorInfo?: StakeInfo
 }
 
