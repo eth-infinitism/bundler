@@ -34,6 +34,10 @@ export interface StakeInfo {
   unstakeDelaySec: BigNumberish
 }
 
+export interface PaymasterValidationInfo extends StakeInfo {
+  context?: string
+}
+
 export type PackedUserOperation = NotPromise<PackedUserOperationStruct>
 
 export enum ValidationErrors {

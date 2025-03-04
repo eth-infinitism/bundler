@@ -33,5 +33,6 @@ export enum ERC7562Rule {
   erep015 = 'EREP-015',
   erep020 = 'EREP-020',
   erep030 = 'EREP-030',
-  erep040 = 'EREP-040'
+  erep040 = 'EREP-040',
+  erep050 = 'EREP-050',
 }
