@@ -599,7 +599,6 @@ export class ERC7562Parser {
         description: 'unstaked paymaster returned a context'
       })
     }
-
   }
 
   private _checkStorage (
