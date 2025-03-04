@@ -586,7 +586,7 @@ export class ERC7562Parser {
     delegatecallStorageAddress: string
   ): void {
     const isUnstakedPaymaster = this.currentEntity === AccountAbstractionEntity.paymaster && !this._isEntityStaked()
-    if (isUnstakedPaymaster && this.stakeValidationResult.paymasterInfo?.context != null) {
+    if (isUnstakedPaymaster && this.stakeValidationResult.paymasterInfo?.context != null && this.stakeValidationResult.paymasterInfo?.context !== '0x') {
       this._violationDetected({
         rule: ERC7562Rule.erep050,
         depth: recursionDepth,
