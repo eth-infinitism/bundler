@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/bundler",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "license": "MIT",
   "private": true,
   "files": [
@@ -25,10 +25,10 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.7.0",
-    "@account-abstraction/sdk": "^0.7.0",
-    "@account-abstraction/utils": "^0.7.0",
-    "@account-abstraction/validation-manager": "^0.7.0",
+    "@account-abstraction/contracts": "^0.8.0",
+    "@account-abstraction/sdk": "^0.8.0",
+    "@account-abstraction/utils": "^0.8.0",
+    "@account-abstraction/validation-manager": "^0.8.0",
     "@ethereumjs/common": "^5.0.0-alpha.1",
     "@ethereumjs/rlp": "^5.0.2",
     "@ethereumjs/tx": "^6.0.0-alpha.1",
