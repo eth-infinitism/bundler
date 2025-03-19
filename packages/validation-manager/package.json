@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/validation-manager",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -16,9 +16,9 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "0.7.0",
-    "@account-abstraction/sdk": "0.7.0",
-    "@account-abstraction/utils": "0.7.0",
+    "@account-abstraction/contracts": "0.8.0",
+    "@account-abstraction/sdk": "0.8.0",
+    "@account-abstraction/utils": "0.8.0",
     "@ethersproject/properties": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "debug": "^4.3.4",
