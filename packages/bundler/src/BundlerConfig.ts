@@ -109,5 +109,8 @@ export const bundlerConfigDefault: Partial<BundlerConfig> = {
   conditionalRpc: false,
   minStake: MIN_STAKE_VALUE,
   minUnstakeDelay: MIN_UNSTAKE_DELAY,
+  rip7560: false,
+  rip7560Mode: 'PULL',
+  gethDevMode: true,
   eip7702Support: true
 }
