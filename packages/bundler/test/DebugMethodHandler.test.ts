@@ -47,7 +47,7 @@ describe('#DebugMethodHandler', () => {
       chainId: 1337,
       beneficiary: await signer.getAddress(),
       entryPoint: entryPoint.address,
-      senderCreator: '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c',
+      senderCreator: '0x449ED7C3e6Fee6a97311d4b55475DF59C44AdD33',
       gasFactor: '0.2',
       minBalance: '0',
       mnemonic: '',
