@@ -4,8 +4,8 @@
   "port": "3000",
   "privateApiPort": "3001",
   "network": "http://127.0.0.1:8545",
-  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-  "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
+  "entryPoint": "0x4337084d9e255ff0702461cf8895ce9e3b5ff108",
+  "beneficiary": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 5e6,
@@ -17,3 +17,4 @@
   "rip7560Mode": "PULL",
   "gethDevMode": true
 }
+
