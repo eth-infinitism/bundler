@@ -166,7 +166,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       }
       const stakeManager = await deployStakeManager(provider, wallet as any)
       if (stakeManager.address.toLowerCase() !== AA_STAKE_MANAGER.toLowerCase()) {
-        throw new Error(`StakeManager deployed at ${stakeManager.address} does not match constant AA_STAKE_MANAGER=${AA_NONCE_MANAGER}`)
+        throw new Error(`StakeManager deployed at ${stakeManager.address} does not match constant AA_STAKE_MANAGER=${AA_STAKE_MANAGER}`)
       }
     } catch (e: any) {
       console.warn(e)
