@@ -103,11 +103,14 @@ export const DebugBundlerConfigShape = {
 export const bundlerConfigDefault: Partial<BundlerConfig> = {
   port: '3000',
   privateApiPort: '3001',
-  entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
-  senderCreator: '0xefc2c1444ebcc4db75e7613d20c6a62ff67a167c',
+  entryPoint: '0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108',
+  senderCreator: '0x449ED7C3e6Fee6a97311d4b55475DF59C44AdD33',
   unsafe: false,
   conditionalRpc: false,
   minStake: MIN_STAKE_VALUE,
   minUnstakeDelay: MIN_UNSTAKE_DELAY,
+  rip7560: false,
+  rip7560Mode: 'PULL',
+  gethDevMode: true,
   eip7702Support: true
 }

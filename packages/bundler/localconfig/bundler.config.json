@@ -4,16 +4,13 @@
   "port": "3000",
   "privateApiPort": "3001",
   "network": "http://127.0.0.1:8545",
-  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-  "beneficiary": "0xd21934eD8eAf27a67f0A70042Af50A1D6d195E81",
+  "entryPoint": "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108",
+  "beneficiary": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",
   "maxBundleGas": 5e6,
   "minStake": "1",
   "minUnstakeDelay": 0,
   "autoBundleInterval": 3,
-  "autoBundleMempoolSize": 10,
-  "rip7560": false,
-  "rip7560Mode": "PULL",
-  "gethDevMode": true
+  "autoBundleMempoolSize": 10
 }

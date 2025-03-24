@@ -1,6 +1,6 @@
 {
   "name": "@account-abstraction/utils",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "main": "./dist/src/index.js",
   "license": "MIT",
   "files": [
@@ -17,7 +17,7 @@
     "sol-ts": "yarn hardhat-compile && yarn tsc"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.7.0",
+    "@account-abstraction/contracts": "^0.8.0",
     "@ethereumjs/util": "10.0.0-alpha.1",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-provider": "^5.7.0",
