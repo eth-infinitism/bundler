@@ -1,5 +1,6 @@
 import { encodeUserOp, UserOperation } from '@account-abstraction/utils'
 import { arrayify, hexlify } from 'ethers/lib/utils'
+import { bytesToHex } from '@ethereumjs/util'
 
 export interface PreVerificationGasCalculatorConfig {
   /**
@@ -18,6 +19,14 @@ export interface PreVerificationGasCalculatorConfig {
    * Gas overhead per single "word" (32 bytes) of an ABI-encoding of the UserOperation.
    */
   readonly perUserOpWordGasOverhead: number
+  /**
+   * extra per-userop overhead, if callData starts with "executeUserOp" method signature.
+   */
+  readonly execUserOpGasOverhead: number
+  /**
+   * extra per-word overhead, if callData starts with "executeUserOp" method signature.
+   */
+  readonly execUserOpPerWordGasOverhead: number
   /**
    * The gas cost of a single zero byte an ABI-encoding of the UserOperation.
    */
@@ -43,9 +52,11 @@ export interface PreVerificationGasCalculatorConfig {
 
 export const MainnetConfig: PreVerificationGasCalculatorConfig = {
   transactionGasStipend: 21000,
-  fixedGasOverhead: 38000,
+  fixedGasOverhead: 38000 - 21000,
   perUserOpGasOverhead: 11000,
   perUserOpWordGasOverhead: 4,
+  execUserOpGasOverhead: 0, // tofix
+  execUserOpPerWordGasOverhead: 0,
   zeroByteGasCost: 4,
   nonZeroByteGasCost: 16,
   expectedBundleSize: 1,
@@ -101,12 +112,20 @@ export class PreVerificationGasCalculator {
       .reduce(
         (sum, x) => sum + x
       )
-    const userOpDataWordsOverhead = userOpWordsLength * this.config.perUserOpWordGasOverhead
 
-    const userOpSpecificOverhead = callDataCost + userOpDataWordsOverhead + this.config.perUserOpGasOverhead
-    const userOpShareOfBundleCost = this.config.fixedGasOverhead / this.config.expectedBundleSize
+    const userOpShareOfStipend = Math.round(this.config.transactionGasStipend / this.config.expectedBundleSize)
+    let perWordOverhead = this.config.perUserOpWordGasOverhead
+    let perUserOpOverhead = this.config.perUserOpGasOverhead
+    if (bytesToHex(arrayify(userOp.callData)).startsWith('0x8dd7712f')) {
+      perWordOverhead += this.config.execUserOpPerWordGasOverhead
+      perUserOpOverhead += this.config.execUserOpGasOverhead
+    }
+    const userOpDataWordsOverhead = Math.round(userOpWordsLength * perWordOverhead)
 
-    return Math.round(userOpSpecificOverhead + userOpShareOfBundleCost)
+    const userOpSpecificOverhead = callDataCost + userOpDataWordsOverhead + perUserOpOverhead
+    const userOpShareOfBundleCost = Math.round(this.config.fixedGasOverhead / this.config.expectedBundleSize)
+
+    return userOpSpecificOverhead + userOpShareOfBundleCost + userOpShareOfStipend
   }
 
   _fillUserOpWithDummyData (userOp: Partial<UserOperation>): UserOperation {

@@ -5,7 +5,7 @@ import {
   UserOperation,
   DummyAccountFactory__factory, DummyPaymaster__factory,
   DummyAccountFactory,
-  DummyPaymaster, IAccountExecute__factory
+  DummyPaymaster, IAccountExecute__factory, AddressZero
 } from '@account-abstraction/utils'
 import { ethers } from 'hardhat'
 import {
@@ -16,11 +16,15 @@ import { hexConcat, parseEther } from 'ethers/lib/utils'
 const provider = ethers.provider
 const signer = provider.getSigner()
 
+const verbose: boolean = false
+
 const calcConfig = {
   transactionGasStipend: 21000,
-  fixedGasOverhead: 30815,
+  fixedGasOverhead: 9815,
   perUserOpGasOverhead: 7065,
   perUserOpWordGasOverhead: 9.5,
+  execUserOpPerWordGasOverhead: 8.5,
+  execUserOpGasOverhead: 1645,
   zeroByteGasCost: 4,
   nonZeroByteGasCost: 16,
   estimationSignatureSize: 65,
@@ -47,6 +51,68 @@ interface BundleParams {
   callDataPrefix?: string // stub to inject "executeUserOp" callData
 }
 
+class MinMaxAvg {
+  min?: number
+  max?: number
+  tot?: number
+  count?: number
+
+  reset (): void {
+    this.min = undefined
+    this.max = undefined
+    this.tot = undefined
+  }
+
+  stats (): string {
+    return `${this.min}/${this.avg()}/${this.max} [${this.max - this.min}]`
+  }
+
+  avg (): number {
+    return Math.round((this.tot ?? 0) / (this.count ?? 1))
+  }
+
+  addSample (n: number): void {
+    if (this.min == null || n < this.min) {
+      this.min = n
+    }
+    if (this.max == null || n > this.max) {
+      this.max = n
+    }
+    this.tot = (this.tot ?? 0) + n
+    this.count = (this.count ?? 0) + 1
+  }
+}
+
+// given dict param, collect stats for each key
+class StatsDict {
+  dict: { [key: string]: MinMaxAvg } = {}
+
+  reset (): void {
+    this.dict = {}
+  }
+
+  add (n: any): this {
+    for (const k in n) {
+      if (this.dict[k] == null) {
+        this.dict[k] = new MinMaxAvg()
+      }
+      this.dict[k].addSample(n[k])
+    }
+    return this
+  }
+
+  // report all modified fields (those with max!=max)
+  dump (): void {
+    const dump: { [key: string]: string } = {}
+    for (const k in this.dict) {
+      if (this.dict[k].min !== this.dict[k].max) {
+        dump[k] = this.dict[k].stats()
+      }
+    }
+    console.log(dump)
+  }
+}
+
 const defaultBundleParams: BundleParams = {
   bundleSize: 1,
   callDataSize: 0,
@@ -66,43 +132,22 @@ class PreVgChecker {
   // @ts-ignore
   private entryPoint: IEntryPoint
 
-  // for stats:
-  private maxDiff?: number
-  private minDiff?: number
-  private totDiff?: number
-  private totCount?: number
-
-  constructor () {
-    this.resetStats()
-  }
-
-  resetStats (): void {
-    this.maxDiff = undefined
-    this.minDiff = undefined
-    this.totDiff = undefined
-    this.totCount = undefined
-  }
-
-  dumpStats (): void {
-    const avg = Math.round(this.totDiff! / this.totCount!)
-    console.log(`stats: ${this.minDiff}/${avg}/${this.maxDiff}`)
-    this.resetStats()
-  }
+  statsDict = new StatsDict()
 
   async init (): Promise<void> {
+    // solves "transaction in progress" on clean geth..
+    await signer.sendTransaction({ to: AddressZero })
     this.entryPoint = await deployEntryPoint(provider)
 
-    // separate factories for accounts, to avoid warming up...
-    this.factories = await Promise.all(Array.from({ length: 50 },
-      async () => await new DummyAccountFactory__factory(signer).deploy(this.entryPoint.address)
-    ))
-    this.paymasters = await Promise.all(Array.from({ length: 50 },
-      async () => await new DummyPaymaster__factory(signer).deploy(this.entryPoint.address)
-    ))
-    // fund all paymasters:
-    await Promise.all(this.paymasters.map(async pm =>
-      await this.entryPoint.depositTo(pm.address, { value: parseEther('1') })
-    ))
+    this.factories = []
+    this.paymasters = []
+    for (let i = 0; i < 50; i++) {
+      const factory = await new DummyAccountFactory__factory(signer).deploy(this.entryPoint.address)
+      this.factories.push(factory)
+      const paymaster = await new DummyPaymaster__factory(signer).deploy(this.entryPoint.address)
+      this.paymasters.push(paymaster)
+      await this.entryPoint.depositTo(paymaster.address, { value: parseEther('1') })
+    }
 
     this.beneficiary = await signer.getAddress()
   }
@@ -157,7 +202,7 @@ class PreVgChecker {
         factoryData: p.useFactory ? (factoryData + 'ff'.repeat(p.factoryAppendSize ?? 0)) : undefined,
         preVerificationGas: 0,
         callGasLimit: 30000,
-        verificationGasLimit: 5100000,
+        verificationGasLimit: 500000,
         maxFeePerGas: 1e7,
         maxPriorityFeePerGas: 1e7,
         nonce,
@@ -179,17 +224,9 @@ class PreVgChecker {
       .then(async tx => await tx.wait())
       .catch(rethrowWithRevertReason)
     let evTotalGasUsed = 0
-    let minEvGasUsed = Number.MAX_SAFE_INTEGER
-    let MaxEvGasUsed = 0
     ret.events?.filter(e => e.event === 'UserOperationEvent').forEach((e, i) => {
       const ev = e.args as unknown as UserOperationEventEventObject
       // console.log(`size ${ops.length}  ev.gasused=${ev.actualGasUsed.toNumber()}, ${JSON.stringify(ops[i])}`)
-      if (ev.actualGasUsed.toNumber() < minEvGasUsed) {
-        minEvGasUsed = ev.actualGasUsed.toNumber()
-      }
-      if (ev.actualGasUsed.toNumber() > MaxEvGasUsed) {
-        MaxEvGasUsed = ev.actualGasUsed.toNumber()
-      }
       evTotalGasUsed += ev.actualGasUsed.toNumber()
     })
     // console.log(`size ${ops.length} min=${minEvGasUsed} max=${MaxEvGasUsed} avg=${evTotalGasUsed / ops.length} txGasUsed=${ret.gasUsed.toNumber()}`)
@@ -202,21 +239,17 @@ class PreVgChecker {
     const p1: BundleParams = { ...defaultBundleParams, ...p }
     const ops = await this.createBundle(p)
     const ret = await this.sendBundle(ops)
+    // console.log('==diff global')
+    // new StatsDict().add(calcConfig).add(MainnetConfig).dump()
+    // const calcConfig = MainnetConfig
     const calc = new PreVerificationGasCalculator({
       ...calcConfig,
       expectedBundleSize: p1.bundleSize
     })
     const calcPreVg = calc._calculate(ops[0])
     const diff = calcPreVg - ret
-    if (this.maxDiff == null || diff > this.maxDiff) {
-      this.maxDiff = diff
-    }
-    if (this.minDiff == null || diff < this.minDiff) {
-      this.minDiff = diff
-    }
-    this.totDiff = (this.totDiff ?? 0) + diff
-    this.totCount = (this.totCount ?? 0) + 1
-    console.log(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${diff}`)
+    this.statsDict.add({ ...p1, diff })
+    if (verbose) { console.log(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${diff}`) }
     return ret
   }
 }
@@ -229,13 +262,14 @@ describe.only('PreVerificationGasCalculator', () => {
     this.timeout(200000)
     c = new PreVgChecker()
     await c.init()
+    console.log('client ver=', await ethers.provider.send('web3_clientVersion'))
   })
   beforeEach(function () {
-    c.resetStats()
+    c.statsDict.reset()
   })
   afterEach(function () {
     console.log(this.currentTest?.title)
-    c.dumpStats()
+    c.statsDict.dump()
   })
 
   it('should check bundle sizes', async () => {
@@ -244,18 +278,18 @@ describe.only('PreVerificationGasCalculator', () => {
     }
   })
   it('should check calldataSize', async () => {
-    for (let n = 0; n <= 100; n += 5) {
-      await c.checkPreVg({ bundleSize: 1, callDataSize: n })
+    for (let n = 0; n <= 1000; n += 15) {
+      await c.checkPreVg({ bundleSize: 1, callDataSize: n * 8 })
     }
   })
   it('should check pmDataSize', async () => {
-    for (let n = 52; n <= 1000; n += 2) {
-      await c.checkPreVg({ bundleSize: 1, pmDataSize: n })
+    for (let n = 52; n <= 1000; n += 15) {
+      await c.checkPreVg({ bundleSize: 1, pmDataSize: n * 8 })
     }
   })
   it('should check sigSize', async () => {
-    for (let n = 1; n <= 100; n += 5) {
-      await c.checkPreVg({ bundleSize: 1, sigSize: n })
+    for (let n = 64; n <= 1000; n += 15) {
+      await c.checkPreVg({ bundleSize: 1, sigSize: n * 8 })
     }
   })
   it('should check executeUserOp', async () => {
