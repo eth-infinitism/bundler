@@ -172,8 +172,8 @@ export class PreVerificationGasCalculator {
     // NOTE: this value is used during transaction calculation, but we eventually reduce it, since it is by EntryPoint gas
     // calculations, not via preVerificationGas.
     let calculatedGasUsed: number
-    if (gasOptions?.totalGasUsed !== undefined) {
-      // don't calculate: use given parameter (from transaction receipt)
+    if (gasOptions?.totalGasUsed != null) {
+      // don't calculate: use the given parameter (from transaction receipt)
       calculatedGasUsed = gasOptions.totalGasUsed
     } else {
       calculatedGasUsed =

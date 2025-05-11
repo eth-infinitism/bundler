@@ -185,7 +185,7 @@ export class MethodHandlerERC4337 {
     // Results from 'estimateGas' assume making a standalone transaction and paying 21'000 gas extra for it
     callGasLimit -= MainnetConfig.transactionGasStipend
 
-    const preVerificationGas = this.preVerificationGasCalculator.estimatePreVerificationGas(userOp)
+    const preVerificationGas = this.preVerificationGasCalculator.estimatePreVerificationGas(userOp, {})
     const verificationGasLimit = BigNumber.from(preOpGas).toNumber()
     return {
       preVerificationGas,
