@@ -1,38 +1,40 @@
 import { PreVerificationGasCalculator } from '../src'
 import {
-  AddressZero,
   deployEntryPoint,
   IEntryPoint, packUserOp, rethrowWithRevertReason,
   UserOperation,
   DummyAccountFactory__factory, DummyPaymaster__factory,
   DummyAccountFactory,
-  DummyPaymaster
+  DummyPaymaster, IAccountExecute__factory
 } from '@account-abstraction/utils'
 import { ethers } from 'hardhat'
 import {
   UserOperationEventEventObject
 } from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/interfaces/IEntryPoint'
-import { parseEther } from 'ethers/lib/utils'
+import { hexConcat, parseEther } from 'ethers/lib/utils'
 
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-let entryPoint: IEntryPoint
-
-async function fillUserOp (op: Partial<UserOperation>): Promise<UserOperation> {
-  const nonce = op.nonce ?? await entryPoint.getNonce(op.sender!, 0)
-  return {
-    sender: AddressZero,
-    callData: '0x',
-    callGasLimit: 30000,
-    nonce,
-    preVerificationGas: 0,
-    verificationGasLimit: 5000000,
-    maxFeePerGas: 1e7,
-    maxPriorityFeePerGas: 1e7,
-    signature: '0x',
-    ...op
-  }
+const calcConfig = {
+  transactionGasStipend: 21000,
+  fixedGasOverhead: 30815,
+  perUserOpGasOverhead: 7065,
+  perUserOpWordGasOverhead: 9.5,
+  zeroByteGasCost: 4,
+  nonZeroByteGasCost: 16,
+  estimationSignatureSize: 65,
+  estimationPaymasterDataSize: 0
+}
+const defaultUserOpFields = {
+  callData: '0x',
+  callGasLimit: 30000,
+  nonce: 0,
+  preVerificationGas: 0,
+  verificationGasLimit: 1000000,
+  maxFeePerGas: 1e7,
+  maxPriorityFeePerGas: 1e7,
+  signature: '0x'
 }
 
 interface BundleParams {
@@ -42,6 +44,7 @@ interface BundleParams {
   factoryAppendSize?: number
   sigSize: number
   pmDataSize?: number
+  callDataPrefix?: string // stub to inject "executeUserOp" callData
 }
 
 const defaultBundleParams: BundleParams = {
@@ -62,6 +65,30 @@ class PreVgChecker {
   private beneficiary: string
   // @ts-ignore
   private entryPoint: IEntryPoint
+
+  // for stats:
+  private maxDiff?: number
+  private minDiff?: number
+  private totDiff?: number
+  private totCount?: number
+
+  constructor () {
+    this.resetStats()
+  }
+
+  resetStats (): void {
+    this.maxDiff = undefined
+    this.minDiff = undefined
+    this.totDiff = undefined
+    this.totCount = undefined
+  }
+
+  dumpStats (): void {
+    const avg = Math.round(this.totDiff! / this.totCount!)
+    console.log(`stats: ${this.minDiff}/${avg}/${this.maxDiff}`)
+    this.resetStats()
+  }
+
   async init (): Promise<void> {
     this.entryPoint = await deployEntryPoint(provider)
 
@@ -86,7 +113,9 @@ class PreVgChecker {
     for (let i = 0; i < p.bundleSize; i++) {
       const factory = this.factories[i]
       const paymaster = this.paymasters[i]
-      const accountAddress = await factory.callStatic.createAccount(++this.salt)
+      ++this.salt
+      const factoryData = factory.interface.encodeFunctionData('createAccount', [this.salt])
+      const accountAddress = await factory.callStatic.createAccount(this.salt)
       let pmInfo: {
         paymaster?: string
         paymasterData?: string
@@ -99,7 +128,7 @@ class PreVgChecker {
       } else {
         pmInfo = {
           paymaster: paymaster.address,
-          paymasterData: '0x' + 'ff'.repeat(p.pmDataSize),
+          paymasterData: '0x' + 'ff'.repeat(Math.max(0, p.pmDataSize - (20 + 32))),
           paymasterPostOpGasLimit: 100000,
           paymasterVerificationGasLimit: 100000
         }
@@ -107,13 +136,14 @@ class PreVgChecker {
       if (!p.useFactory) {
         // not testing factory: create a dummy handleOps request just to create the account
         // (todo: can be batched, and create all accounts under test in a single tx..)
-        const op1 = await fillUserOp({
-          factory: factory.address,
-          factoryData: factory.interface.encodeFunctionData('createAccount', [this.salt]),
+        const op1: UserOperation = {
+          ...defaultUserOpFields,
           sender: accountAddress,
+          factory: factory.address,
+          factoryData,
           nonce: 0,
           ...pmInfo
-        })
+        }
         await this.entryPoint.handleOps([packUserOp(op1)], this.beneficiary)
           .catch(e => {
             console.log('op=', op1)
@@ -124,13 +154,17 @@ class PreVgChecker {
       const op: UserOperation = {
         sender: accountAddress,
         factory: p.useFactory ? factory.address : undefined,
+        factoryData: p.useFactory ? (factoryData + 'ff'.repeat(p.factoryAppendSize ?? 0)) : undefined,
         preVerificationGas: 0,
         callGasLimit: 30000,
-        verificationGasLimit: 51000000,
+        verificationGasLimit: 5100000,
         maxFeePerGas: 1e7,
         maxPriorityFeePerGas: 1e7,
         nonce,
-        callData: '0x' + 'ff'.repeat(p.callDataSize),
+        callData: hexConcat([
+          p.callDataPrefix ?? '0x',
+          '0x' + 'ff'.repeat(p.callDataSize)
+        ]),
         signature: '0x' + 'ff'.repeat(p.sigSize),
         ...pmInfo
       }
@@ -169,43 +203,64 @@ class PreVgChecker {
     const ops = await this.createBundle(p)
     const ret = await this.sendBundle(ops)
     const calc = new PreVerificationGasCalculator({
-      transactionGasStipend: 21000,
-      fixedGasOverhead: 30815,
-      perUserOpGasOverhead: 7065,
-      perUserOpWordGasOverhead: 9.5,
-      zeroByteGasCost: 4,
-      nonZeroByteGasCost: 16,
-      expectedBundleSize: p1.bundleSize,
-      estimationSignatureSize: 65,
-      estimationPaymasterDataSize: 0
+      ...calcConfig,
+      expectedBundleSize: p1.bundleSize
     })
     const calcPreVg = calc._calculate(ops[0])
-    console.log(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${calcPreVg - ret}`)
+    const diff = calcPreVg - ret
+    if (this.maxDiff == null || diff > this.maxDiff) {
+      this.maxDiff = diff
+    }
+    if (this.minDiff == null || diff < this.minDiff) {
+      this.minDiff = diff
+    }
+    this.totDiff = (this.totDiff ?? 0) + diff
+    this.totCount = (this.totCount ?? 0) + 1
+    console.log(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${diff}`)
     return ret
   }
 }
 
-it.only('should run calc', async function () {
-  this.timeout(20000)
-  const c = new PreVgChecker()
-  await c.init()
+describe.only('PreVerificationGasCalculator', () => {
+  let c: PreVgChecker
+  const executeUserOpSig = IAccountExecute__factory.createInterface().getSighash('executeUserOp')
 
-  for (let bundleSize = 1; bundleSize <= 10; bundleSize += 5) {
-    for (let callDataSize = 1; callDataSize <= 10000; callDataSize += 5000) {
-      await c.checkPreVg({ bundleSize, callDataSize })
+  before(async function () {
+    this.timeout(200000)
+    c = new PreVgChecker()
+    await c.init()
+  })
+  beforeEach(function () {
+    c.resetStats()
+  })
+  afterEach(function () {
+    console.log(this.currentTest?.title)
+    c.dumpStats()
+  })
+
+  it('should check bundle sizes', async () => {
+    for (let bundleSize = 1; bundleSize <= 10; bundleSize++) {
+      await c.checkPreVg({ bundleSize, callDataSize: 0 })
     }
-  }
-  // await c.checkPreVg({ bundleSize: 1 })
-  // await c.checkPreVg({ bundleSize: 2 })
-  // await c.checkPreVg({ bundleSize: 5 })
-  // await c.checkPreVg({ bundleSize: 10 })
-  // await c.checkPreVg({ bundleSize: 20 })
-  // await c.checkPreVg({ bundleSize: 1, callDataSize: 0 })
-  // await c.checkPreVg({ bundleSize: 1, callDataSize: 500 })
-  // await c.checkPreVg({ bundleSize: 1, callDataSize: 1000 })
-  // await c.checkPreVg({ bundleSize: 2, callDataSize: 1000 })
-  // await c.checkPreVg({ bundleSize: 5, callDataSize: 1000 })
-  // await c.checkPreVg({ bundleSize: 10, callDataSize: 1000 })
-  // await c.checkPreVg({ bundleSize: 20, callDataSize: 1000 })
-  // await c.checkPreVg({ bundleSize: 30, callDataSize: 1000 })
+  })
+  it('should check calldataSize', async () => {
+    for (let n = 0; n <= 100; n += 5) {
+      await c.checkPreVg({ bundleSize: 1, callDataSize: n })
+    }
+  })
+  it('should check pmDataSize', async () => {
+    for (let n = 52; n <= 1000; n += 2) {
+      await c.checkPreVg({ bundleSize: 1, pmDataSize: n })
+    }
+  })
+  it('should check sigSize', async () => {
+    for (let n = 1; n <= 100; n += 5) {
+      await c.checkPreVg({ bundleSize: 1, sigSize: n })
+    }
+  })
+  it('should check executeUserOp', async () => {
+    for (let n = 1; n <= 10000; n += 500) {
+      await c.checkPreVg({ bundleSize: 1, useFactory: false, callDataSize: n, callDataPrefix: executeUserOpSig })
+    }
+  })
 })
