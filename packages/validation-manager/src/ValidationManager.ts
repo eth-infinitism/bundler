@@ -74,6 +74,9 @@ const EOL_USEROP: PackedUserOperation = {
 // this FailedOp is a marker that we reached the above "eolUserOp" (the second UserOp in a bundle) without any error in the first UserOp
 const EXPECTED_EOL_USEROP_FAILURE = 'FailedOp(1,"AA94 gas values overflow")'
 
+// maximum verification gas. used for preVerification gas calculation based on EIP-7623
+const MAX_VERIFICATION_GAS_USED = 500_000
+
 /**
  * ValidationManager is responsible for validating UserOperations.
  * @param entryPoint - the entryPoint contract
@@ -118,7 +121,11 @@ export class ValidationManager implements IValidationManager {
       factory != null && factory !== EIP_7702_MARKER_INIT_CODE ? this.entryPoint.getDepositInfo(factory) : null
     ])
     return {
-      sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
+      sender: {
+        addr: sender,
+        stake: senderInfo.stake,
+        unstakeDelaySec: senderInfo.unstakeDelaySec
+      },
       paymaster: paymasterInfo != null
         ? {
             addr: paymaster ?? '',
@@ -153,12 +160,19 @@ export class ValidationManager implements IValidationManager {
       paymasterCall = entryPointCall.calls[callIndex++]
     }
     const innerCall = entryPointCall.calls[callIndex]
-    return { validationCall, paymasterCall, innerCall }
+    return {
+      validationCall,
+      paymasterCall,
+      innerCall
+    }
   }
 
   // generate validation result from trace: by decoding inner calls.
   async generateValidationResult (op: UserOperation, tracerResult: ERC7562Call): Promise<ValidationResult> {
-    const { validationCall, paymasterCall } = this.getValidationCalls(op, tracerResult)
+    const {
+      validationCall,
+      paymasterCall
+    } = this.getValidationCalls(op, tracerResult)
 
     if (debug.enabled) {
       // pass entrypoint and other addresses we want to resolve by name.
@@ -171,7 +185,11 @@ export class ValidationManager implements IValidationManager {
     }
 
     const validationData = this.decodeValidateUserOp(validationCall)
-    let paymasterValidationData: ValidationData = { validAfter: 0, validUntil: maxUint48, aggregator: AddressZero }
+    let paymasterValidationData: ValidationData = {
+      validAfter: 0,
+      validUntil: maxUint48,
+      aggregator: AddressZero
+    }
     let paymasterContext: string | undefined
     if (paymasterCall != null) {
       const pmRet = this.decodeValidatePaymasterUserOp(paymasterCall)
@@ -182,7 +200,10 @@ export class ValidationManager implements IValidationManager {
     const retStakes = await this.getStakes(op.sender, op.paymaster, op.factory)
     let paymasterInfo: PaymasterValidationInfo | undefined = retStakes.paymaster
     if (paymasterInfo != null) {
-      paymasterInfo = { ...paymasterInfo, context: paymasterContext }
+      paymasterInfo = {
+        ...paymasterInfo,
+        context: paymasterContext
+      }
     }
 
     const ret: ValidationResult = {
@@ -242,7 +263,9 @@ export class ValidationManager implements IValidationManager {
     const provider = this.entryPoint.provider as JsonRpcProvider
     const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), EOL_USEROP], AddressZero])
 
-    const prevg = await this.preVerificationGasCalculator._calculate(userOp)
+    const prevg = this.preVerificationGasCalculator._calculate(userOp, {
+      verificationGas: MAX_VERIFICATION_GAS_USED
+    })
     // give simulation enough gas to run validations, but not more.
     // we don't trust the use-supplied preVerificaitonGas
     const simulationGas = sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0)
@@ -368,12 +391,16 @@ export class ValidationManager implements IValidationManager {
       // console.dir(tracerResult, { depth: null })
       let contractAddresses: string[]
       if (erc7562Call != null) {
-        ({ contractAddresses, storageMap } = this.erc7562Parser.requireCompliance(userOp, erc7562Call, res))
+        ({
+          contractAddresses,
+          storageMap
+        } = this.erc7562Parser.requireCompliance(userOp, erc7562Call, res))
       } else if (bundlerTracerResult != null) {
         [contractAddresses, storageMap] = tracerResultParser(userOp, bundlerTracerResult, res, this.entryPoint.address)
       } else {
         throw new Error('Tracer result is null for both legacy and modern parser')
       }
+
       // if no previous contract hashes, then calculate hashes of contracts
       if (previousCodeHashes == null) {
         codeHashes = await this.getCodeHashes(contractAddresses)
@@ -402,6 +429,7 @@ export class ValidationManager implements IValidationManager {
       }
     }
 
+    this.revalidatePreVerificationGas(userOp, res)
     requireCond(!res.returnInfo.sigFailed,
       'Invalid UserOp signature or paymaster signature',
       ValidationErrors.InvalidSignature)
@@ -430,6 +458,27 @@ export class ValidationManager implements IValidationManager {
     }
   }
 
+  revalidatePreVerificationGas (userOp: UserOperation, validationResult: ValidationResult): void {
+    // re-validate preVerificationGas:
+    // once we performed simulation, we should repeat the validation of preVerificationGas:
+    // with EIP-7623, calldata cost is increased if actual gas usage is low.
+    // For the first call to validatePreVerificationGas used a high validation gas,
+    // but now we need to repeat the check, with actual validation gas used.
+
+    const preVerificationGas = BigNumber.from(userOp.preVerificationGas).toNumber()
+    const verificationGas =
+      BigNumber.from(validationResult.returnInfo.preOpGas).sub(preVerificationGas).toNumber()
+
+    const {
+      isPreVerificationGasValid,
+      minRequiredPreVerificationGas
+    } =
+      this.preVerificationGasCalculator.validatePreVerificationGas(userOp, { verificationGas })
+    requireCond(isPreVerificationGasValid,
+      `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${preVerificationGas}`,
+      ValidationErrors.InvalidFields)
+  }
+
   async getAuthorizationsStateOverride (
     authorizations: EIP7702Authorization[] = []
   ): Promise<{ [address: string]: { code: string } }> {
@@ -447,7 +496,10 @@ export class ValidationManager implements IValidationManager {
       // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
       const changeDelegation = newDelegateeCode !== currentDelegateeCode
       if (noCurrentDelegation || changeDelegation) {
-        debug('Adding 7702 state override:', { address: authSigner, code: newDelegateeCode })
+        debug('Adding 7702 state override:', {
+          address: authSigner,
+          code: newDelegateeCode
+        })
         stateOverride[authSigner] = {
           code: newDelegateeCode
         }
@@ -511,8 +563,11 @@ export class ValidationManager implements IValidationManager {
     }
     const preVerificationGas = (operation as UserOperation).preVerificationGas
     if (preVerificationGas != null) {
-      const { isPreVerificationGasValid, minRequiredPreVerificationGas } =
-        this.preVerificationGasCalculator.validatePreVerificationGas(operation as UserOperation)
+      const {
+        isPreVerificationGasValid,
+        minRequiredPreVerificationGas
+      } =
+        this.preVerificationGasCalculator.validatePreVerificationGas(operation as UserOperation, { verificationGas: MAX_VERIFICATION_GAS_USED })
       requireCond(isPreVerificationGasValid,
         `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
         ValidationErrors.InvalidFields)
@@ -603,6 +658,9 @@ export class ValidationManager implements IValidationManager {
       throw new Error('validatePaymasterUserOp: No output')
     }
     const ret = iPaymaster.interface.decodeFunctionResult('validatePaymasterUserOp', call.output)
-    return { context: ret.context, validationData: parseValidationData(ret.validationData) }
+    return {
+      context: ret.context,
+      validationData: parseValidationData(ret.validationData)
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { PreVerificationGasCalculator } from '../src'
+import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from '../src'
 import {
   deployEntryPoint,
   IEntryPoint, packUserOp, rethrowWithRevertReason,
@@ -14,24 +14,26 @@ import {
 import { hexConcat, parseEther } from 'ethers/lib/utils'
 import Debug from 'debug'
 import { expect } from 'chai'
+import { GasOptions } from '../src/PreVerificationGasCalculator'
 
 const debug = Debug('aa.test.prevg')
 
-const executeUserOpSig = IAccountExecute__factory.createInterface().getSighash('executeUserOp')
+const EXECUTE_USEROP_METHOD_SIG = IAccountExecute__factory.createInterface().getSighash('executeUserOp')
+const MAX_BUNDLE_SIZE = 40
 
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-// actually, all fields except "bundleSize"
-const calcConfig = {
+const calcConfig: Omit<PreVerificationGasCalculatorConfig, 'expectedBundleSize'> = {
   transactionGasStipend: 21000,
   fixedGasOverhead: 9830,
   perUserOpGasOverhead: 7263,
   perUserOpWordGasOverhead: 9.5,
   execUserOpPerWordGasOverhead: 18,
   execUserOpGasOverhead: 1440,
-  zeroByteGasCost: 4,
-  nonZeroByteGasCost: 16,
+  standardTokenGasCost: 4,
+  floorPerTokenGasCost: 10,
+  tokensPerNonzeroByte: 4,
   estimationSignatureSize: 65,
   estimationPaymasterDataSize: 0
 }
@@ -148,6 +150,10 @@ class PreVgChecker {
 
   statsDict = new StatsDict()
 
+  constructor (
+    readonly gasOptions: GasOptions) {
+  }
+
   async init (): Promise<void> {
     // solves "transaction in progress" on clean geth..
     await signer.sendTransaction({ to: AddressZero })
@@ -155,7 +161,7 @@ class PreVgChecker {
 
     this.factories = []
     this.paymasters = []
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < MAX_BUNDLE_SIZE; i++) {
       const factory = await new DummyAccountFactory__factory(signer).deploy(this.entryPoint.address)
       this.factories.push(factory)
       const paymaster = await new DummyPaymaster__factory(signer).deploy(this.entryPoint.address)
@@ -266,7 +272,7 @@ class PreVgChecker {
       ...calcConfig,
       expectedBundleSize: p1.bundleSize
     })
-    const calcPreVg = calc._calculate(ops[0])
+    const calcPreVg = calc._calculate(ops[0], this.gasOptions)
     const diff = calcPreVg - actualPreVG
     this.statsDict.add({ ...p1, diff })
     debug(`check ${JSON.stringify(p)} = overhead=${actualPreVG}  calc=${calcPreVg} diff=${diff}`)
@@ -279,7 +285,7 @@ describe.only('PreVerificationGasCalculator', () => {
 
   before(async function () {
     this.timeout(200000)
-    c = new PreVgChecker()
+    c = new PreVgChecker({ totalGasUsed: 1e7 })
     await c.init()
     console.log('client ver=', await ethers.provider.send('web3_clientVersion', []))
   })
@@ -330,17 +336,17 @@ describe.only('PreVerificationGasCalculator', () => {
   })
   it('should check executeUserOp', async () => {
     for (let n = 1; n <= 8192; n += 500) {
-      await c.checkPreVg({ bundleSize: 1, useFactory: false, callDataSize: n, callDataPrefix: executeUserOpSig })
+      await c.checkPreVg({ bundleSize: 1, useFactory: false, callDataSize: n, callDataPrefix: EXECUTE_USEROP_METHOD_SIG })
     }
   })
   it('should check executeUserOp sig', async () => {
     for (let n = 1; n <= 8192; n += 500) {
-      await c.checkPreVg({ bundleSize: 1, useFactory: false, sigSize: n, callDataPrefix: executeUserOpSig })
+      await c.checkPreVg({ bundleSize: 1, useFactory: false, sigSize: n, callDataPrefix: EXECUTE_USEROP_METHOD_SIG })
     }
   })
   it('should check executeUserOp with pmData', async () => {
     for (let n = 65; n <= 8192; n += 500) {
-      await c.checkPreVg({ bundleSize: 1, useFactory: false, pmDataSize: n, callDataPrefix: executeUserOpSig })
+      await c.checkPreVg({ bundleSize: 1, useFactory: false, pmDataSize: n, callDataPrefix: EXECUTE_USEROP_METHOD_SIG })
     }
   })
 })
@@ -353,7 +359,7 @@ async function randomTests (): Promise<void> {
     return Math.random() < 0.5
   }
 
-  const c = new PreVgChecker()
+  const c = new PreVgChecker({ totalGasUsed: 1e7 })
   for (let i = 0; i < 100; i++) {
     const bundleSize = random(1, 20)
     const callDataSize = random(1, 8192)
@@ -367,7 +373,7 @@ async function randomTests (): Promise<void> {
       i--
       continue
     }
-    const callDataPrefix = boolRandom() ? executeUserOpSig : undefined
+    const callDataPrefix = boolRandom() ? EXECUTE_USEROP_METHOD_SIG : undefined
     const params = {
       bundleSize,
       callDataSize,
