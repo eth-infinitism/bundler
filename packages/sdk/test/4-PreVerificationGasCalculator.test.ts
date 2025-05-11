@@ -13,8 +13,11 @@ import {
 } from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/interfaces/IEntryPoint'
 import { hexConcat, parseEther } from 'ethers/lib/utils'
 import Debug from 'debug'
+import { expect } from 'chai'
 
 const debug = Debug('aa.test.prevg')
+
+const executeUserOpSig = IAccountExecute__factory.createInterface().getSighash('executeUserOp')
 
 const provider = ethers.provider
 const signer = provider.getSigner()
@@ -23,11 +26,10 @@ const signer = provider.getSigner()
 const calcConfig = {
   transactionGasStipend: 21000,
   fixedGasOverhead: 9830,
-  perUserOpGasOverhead: 7260,
-  perUserOpWordGasOverhead: 0,
-  perCallDataExtraOverhead: 9.5,
-  execUserOpPerWordGasOverhead: 8.2,
-  execUserOpGasOverhead: 1610,
+  perUserOpGasOverhead: 7263,
+  perUserOpWordGasOverhead: 9.5,
+  execUserOpPerWordGasOverhead: 18,
+  execUserOpGasOverhead: 1440,
   zeroByteGasCost: 4,
   nonZeroByteGasCost: 16,
   estimationSignatureSize: 65,
@@ -36,13 +38,13 @@ const calcConfig = {
 
 const defaultUserOpFields = {
   callData: '0x01',
-  callGasLimit: 30000,
+  callGasLimit: 1000,
   nonce: 0,
   preVerificationGas: 0,
   verificationGasLimit: 1000000,
   maxFeePerGas: 1e7,
   maxPriorityFeePerGas: 1e7,
-  signature: '0x'
+  signature: '0x'.padEnd(65 * 2, 'f')
 }
 
 interface BundleParams {
@@ -95,6 +97,10 @@ class StatsDict {
     this.dict = {}
   }
 
+  get (name: string): MinMaxAvg {
+    return this.dict[name] ?? new MinMaxAvg()
+  }
+
   add (n: any): this {
     for (const k in n) {
       if (this.dict[k] == null) {
@@ -105,15 +111,19 @@ class StatsDict {
     return this
   }
 
-  // report all modified fields (those with max!=max)
-  dump (): void {
-    const dump: { [key: string]: string } = {}
+  result (): { [key: string]: string } {
+    const res: { [key: string]: string } = {}
     for (const k in this.dict) {
       if (this.dict[k].min !== this.dict[k].max) {
-        dump[k] = this.dict[k].stats()
+        res[k] = this.dict[k].stats()
       }
     }
-    console.log(dump)
+    return res
+  }
+
+  // report all modified fields (those with max!=max)
+  dump (): void {
+    console.log(this.result())
   }
 }
 
@@ -223,6 +233,11 @@ class PreVgChecker {
     return ops
   }
 
+  // send a bundle.
+  // return the actual preVerificationGas: the diff between actual used gas and gas paid by UserOperations
+  // (as reported in UserOperationEvent)
+  // NOTE: doesn't calculate the preVG of each UserOperation in the bundle separately, but the average of them all
+  // (since we can't tell the actual gas used of each UserOperation, only of the entire bundle)
   async sendBundle (ops: UserOperation[]): Promise<number> {
     const packed = ops.map(packUserOp)
     const ret = await this.entryPoint.handleOps(packed, this.beneficiary)
@@ -243,7 +258,7 @@ class PreVgChecker {
   async checkPreVg (p: Partial<BundleParams>): Promise<number> {
     const p1: BundleParams = { ...defaultBundleParams, ...p }
     const ops = await this.createBundle(p)
-    const ret = await this.sendBundle(ops)
+    const actualPreVG = await this.sendBundle(ops)
     // console.log('==diff global')
     // new StatsDict().add(calcConfig).add(MainnetConfig).dump()
     // const calcConfig = MainnetConfig
@@ -252,16 +267,15 @@ class PreVgChecker {
       expectedBundleSize: p1.bundleSize
     })
     const calcPreVg = calc._calculate(ops[0])
-    const diff = calcPreVg - ret
+    const diff = calcPreVg - actualPreVG
     this.statsDict.add({ ...p1, diff })
-    debug(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${diff}`)
-    return ret
+    debug(`check ${JSON.stringify(p)} = overhead=${actualPreVG}  calc=${calcPreVg} diff=${diff}`)
+    return actualPreVG
   }
 }
 
 describe.only('PreVerificationGasCalculator', () => {
   let c: PreVgChecker
-  const executeUserOpSig = IAccountExecute__factory.createInterface().getSighash('executeUserOp')
 
   before(async function () {
     this.timeout(200000)
@@ -275,6 +289,9 @@ describe.only('PreVerificationGasCalculator', () => {
   afterEach(function () {
     console.log(this.currentTest?.title)
     c.statsDict.dump()
+    const diff = c.statsDict.get('diff')
+    expect(diff.min).to.be.gt(0, diff.stats())
+    expect(diff.max! - diff.min!).to.be.lt(200, diff.stats())
   })
 
   it('should check bundle sizes', async function () {
@@ -295,17 +312,17 @@ describe.only('PreVerificationGasCalculator', () => {
   })
   it('should check initDataSize', async function () {
     this.timeout(200000)
-    for (let n = 0; n <= 8192; n += 150) {
+    for (let n = 0; n <= 8192; n += 500) {
       await c.checkPreVg({ bundleSize: 1, useFactory: true, factoryAppendSize: n })
     }
   })
   it('should check pmDataSize', async () => {
-    for (let n = 1; n <= 8192; n += 150) {
+    for (let n = 1; n <= 8192; n += 500) {
       await c.checkPreVg({ bundleSize: 1, pmDataSize: n })
     }
   })
   it('should check sigSize', async () => {
-    for (let n = 1; n <= 8192; n += 150) {
+    for (let n = 1; n <= 8192; n += 500) {
       await c.checkPreVg({ bundleSize: 1, sigSize: n })
     }
   })
@@ -314,4 +331,55 @@ describe.only('PreVerificationGasCalculator', () => {
       await c.checkPreVg({ bundleSize: 1, useFactory: false, callDataSize: n, callDataPrefix: executeUserOpSig })
     }
   })
+  it('should check executeUserOp sig', async () => {
+    for (let n = 1; n <= 8192; n += 500) {
+      await c.checkPreVg({ bundleSize: 1, useFactory: false, sigSize: n, callDataPrefix: executeUserOpSig })
+    }
+  })
+  it('should check executeUserOp with pmData', async () => {
+    for (let n = 65; n <= 8192; n += 500) {
+      await c.checkPreVg({ bundleSize: 1, useFactory: false, pmDataSize: n, callDataPrefix: executeUserOpSig })
+    }
+  })
 })
+
+async function randomTests (): Promise<void> {
+  function random (min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+  }
+  function boolRandom (): boolean {
+    return Math.random() < 0.5
+  }
+
+  const c = new PreVgChecker()
+  for (let i = 0; i < 100; i++) {
+    const bundleSize = random(1, 20)
+    const callDataSize = random(1, 8192)
+    const useFactory = boolRandom()
+    const factoryAppendSize = random(1, 1000)
+    const sigSize = random(1, 2000)
+    const pmDataSize = boolRandom() ? random(1, 4000) : undefined
+
+    // limit total size..
+    if (callDataSize + factoryAppendSize + (pmDataSize ?? 0) + sigSize > 10000) {
+      i--
+      continue
+    }
+    const callDataPrefix = boolRandom() ? executeUserOpSig : undefined
+    const params = {
+      bundleSize,
+      callDataSize,
+      useFactory,
+      factoryAppendSize,
+      sigSize,
+      pmDataSize,
+      callDataPrefix
+    }
+    console.log('random params', params)
+    c.statsDict.reset()
+    await c.checkPreVg(params)
+    const diff = c.statsDict.get('diff')
+    expect(diff.min).to.be.gt(0, diff.stats())
+    expect(diff.max! - diff.min!).to.be.lt(200, diff.stats())
+  }
+}
