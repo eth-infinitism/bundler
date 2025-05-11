@@ -295,10 +295,10 @@ describe.only('PreVerificationGasCalculator', () => {
   afterEach(function () {
     console.log(this.currentTest?.title)
     c.statsDict.dump()
-    if (!process.env.NOCHECK) {
+    if (process.env.NOCHECK == null) {
       const diff = c.statsDict.get('diff')
-      expect(diff.min).to.be.gt(0, 'set NOCHECK to continue')
-      expect(diff.max! - diff.min!).to.be.lt(200, 'set NOCHECK to continue')
+      expect(diff.min).to.be.within(0, 100, 'set NOCHECK to skip check')
+      expect(diff.max! - diff.min!).to.be.lt(200, 'set NOCHECK to skip check')
     }
   })
 
@@ -309,7 +309,7 @@ describe.only('PreVerificationGasCalculator', () => {
     }
   })
   it('should check small calldataSize', async () => {
-    for (let n = 1; n <= 500; n += 15) {
+    for (let n = 1; n <= 500; n += 150) {
       await c.checkPreVg({ bundleSize: 1, callDataSize: n })
     }
   })

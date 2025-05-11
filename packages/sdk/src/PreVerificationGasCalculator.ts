@@ -142,30 +142,20 @@ export class PreVerificationGasCalculator {
     const tokenCount = packedUserOp.map(
       x => x === 0 ? 1 : this.config.tokensPerNonzeroByte
     ).reduce((sum, x) => sum + x)
-    const callDataCost = tokenCount * this.config.standardTokenGasCost
 
-    let perWordOverhead = 0
     let callDataOverhead = 0
     let perUserOpOverhead = this.config.perUserOpGasOverhead
     if (bytesToHex(arrayify(userOp.callData)).startsWith(EXECUTE_USEROP_METHOD_SIG)) {
-      perWordOverhead += this.config.execUserOpPerWordGasOverhead
-      perUserOpOverhead += this.config.execUserOpGasOverhead
+      perUserOpOverhead += this.config.execUserOpGasOverhead +
+          this.config.execUserOpPerWordGasOverhead * userOpWordsLength
     } else {
       callDataOverhead += Math.ceil(hexDataLength(userOp.callData) / 32) * this.config.perUserOpWordGasOverhead
     }
 
-    const userOpDataWordsOverhead = userOpWordsLength * perWordOverhead
-
-    const userOpSpecificOverhead = callDataCost + userOpDataWordsOverhead + perUserOpOverhead + callDataOverhead
+    const userOpSpecificOverhead = perUserOpOverhead + callDataOverhead
     const userOpShareOfBundleCost = this.config.fixedGasOverhead / this.config.expectedBundleSize
 
     const userOpShareOfStipend = this.config.transactionGasStipend / this.config.expectedBundleSize
-
-    // old calculation:
-    // return Math.round(
-    //   userOpShareOfStipend +
-    //   userOpShareOfBundleCost +
-    //   userOpSpecificOverhead)
 
     // always take 10% of execution gas (we don't know how much gas is really used, but account always pays at least this 10%
     // add to it known verification gas used.
