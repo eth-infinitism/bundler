@@ -289,9 +289,11 @@ describe.only('PreVerificationGasCalculator', () => {
   afterEach(function () {
     console.log(this.currentTest?.title)
     c.statsDict.dump()
-    const diff = c.statsDict.get('diff')
-    expect(diff.min).to.be.gt(0, diff.stats())
-    expect(diff.max! - diff.min!).to.be.lt(200, diff.stats())
+    if (!process.env.NOCHECK) {
+      const diff = c.statsDict.get('diff')
+      expect(diff.min).to.be.gt(0, 'set NOCHECK to continue')
+      expect(diff.max! - diff.min!).to.be.lt(200, 'set NOCHECK to continue')
+    }
   })
 
   it('should check bundle sizes', async function () {
