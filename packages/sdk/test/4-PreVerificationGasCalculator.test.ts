@@ -12,21 +12,22 @@ import {
   UserOperationEventEventObject
 } from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/interfaces/IEntryPoint'
 import { hexConcat, parseEther } from 'ethers/lib/utils'
+import Debug from 'debug'
+
+const debug = Debug('aa.test.prevg')
 
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-let verbose: boolean
-
 // actually, all fields except "bundleSize"
 const calcConfig = {
   transactionGasStipend: 21000,
-  fixedGasOverhead: 9860,
+  fixedGasOverhead: 9830,
   perUserOpGasOverhead: 7260,
   perUserOpWordGasOverhead: 0,
-  perCallCataExtraOverhead: 9.5,
-  execUserOpPerWordGasOverhead: 8.5,
-  execUserOpGasOverhead: 1645,
+  perCallDataExtraOverhead: 9.5,
+  execUserOpPerWordGasOverhead: 8.2,
+  execUserOpGasOverhead: 1610,
   zeroByteGasCost: 4,
   nonZeroByteGasCost: 16,
   estimationSignatureSize: 65,
@@ -205,7 +206,7 @@ class PreVgChecker {
         factory: p.useFactory ? factory.address : undefined,
         factoryData: p.useFactory ? (factoryData + 'ff'.repeat(p.factoryAppendSize ?? 0)) : undefined,
         preVerificationGas: 0,
-        callGasLimit: 30000,
+        callGasLimit: 1000,
         verificationGasLimit: 500000,
         maxFeePerGas: 1e7,
         maxPriorityFeePerGas: 1e7,
@@ -253,7 +254,7 @@ class PreVgChecker {
     const calcPreVg = calc._calculate(ops[0])
     const diff = calcPreVg - ret
     this.statsDict.add({ ...p1, diff })
-    if (verbose) { console.log(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${diff}`) }
+    debug(`check ${JSON.stringify(p)} = overhead=${ret}  calc=${calcPreVg} diff=${diff}`)
     return ret
   }
 }
@@ -288,28 +289,28 @@ describe.only('PreVerificationGasCalculator', () => {
     }
   })
   it('should check calldataSize', async () => {
-    for (let n = 1; n <= 2000; n += 150) {
+    for (let n = 1; n <= 8192; n += 150) {
       await c.checkPreVg({ bundleSize: 1, callDataSize: n })
     }
   })
   it('should check initDataSize', async function () {
     this.timeout(200000)
-    for (let n = 0; n <= 2000; n += 15) {
-      await c.checkPreVg({ bundleSize: 1, useFactory: true, factoryAppendSize: n * 8 })
+    for (let n = 0; n <= 8192; n += 150) {
+      await c.checkPreVg({ bundleSize: 1, useFactory: true, factoryAppendSize: n })
     }
   })
   it('should check pmDataSize', async () => {
-    for (let n = 1; n <= 2000; n += 150) {
-      await c.checkPreVg({ bundleSize: 1, pmDataSize: n * 8 })
+    for (let n = 1; n <= 8192; n += 150) {
+      await c.checkPreVg({ bundleSize: 1, pmDataSize: n })
     }
   })
   it('should check sigSize', async () => {
-    for (let n = 1; n <= 2000; n += 150) {
-      await c.checkPreVg({ bundleSize: 1, sigSize: n * 8 })
+    for (let n = 1; n <= 8192; n += 150) {
+      await c.checkPreVg({ bundleSize: 1, sigSize: n })
     }
   })
   it('should check executeUserOp', async () => {
-    for (let n = 1; n <= 10000; n += 500) {
+    for (let n = 1; n <= 8192; n += 500) {
       await c.checkPreVg({ bundleSize: 1, useFactory: false, callDataSize: n, callDataPrefix: executeUserOpSig })
     }
   })

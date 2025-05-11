@@ -19,7 +19,7 @@ export interface PreVerificationGasCalculatorConfig {
   /**
    * extra per callData word (calldata is more expensive than other UserOp fields, as it is passed to validation and to execution
    */
-  readonly perCallCataExtraOverhead: number
+  readonly perCallDataExtraOverhead: number
 
   /**
    * Gas overhead per single "word" (32 bytes) of an ABI-encoding of the UserOperation.
@@ -62,7 +62,7 @@ export const MainnetConfig: PreVerificationGasCalculatorConfig = {
   perUserOpGasOverhead: 11000,
   perUserOpWordGasOverhead: 4,
   execUserOpGasOverhead: 0, // tofix
-  perCallCataExtraOverhead: 0, // tofix
+  perCallDataExtraOverhead: 0, // tofix
   execUserOpPerWordGasOverhead: 0,
   zeroByteGasCost: 4,
   nonZeroByteGasCost: 16,
@@ -127,7 +127,7 @@ export class PreVerificationGasCalculator {
       perWordOverhead += this.config.execUserOpPerWordGasOverhead
       perUserOpOverhead += this.config.execUserOpGasOverhead
     }
-    const callDataExtraOverhead = Math.ceil(hexDataLength(userOp.callData) / 32) * this.config.perCallCataExtraOverhead
+    const callDataExtraOverhead = Math.ceil(hexDataLength(userOp.callData) / 32) * this.config.perCallDataExtraOverhead
 
     const userOpDataWordsOverhead = Math.round(userOpWordsLength * perWordOverhead)
 
