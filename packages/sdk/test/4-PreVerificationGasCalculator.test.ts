@@ -16,13 +16,15 @@ import { hexConcat, parseEther } from 'ethers/lib/utils'
 const provider = ethers.provider
 const signer = provider.getSigner()
 
-const verbose: boolean = false
+let verbose: boolean
 
+// actually, all fields except "bundleSize"
 const calcConfig = {
   transactionGasStipend: 21000,
-  fixedGasOverhead: 9815,
-  perUserOpGasOverhead: 7065,
-  perUserOpWordGasOverhead: 9.5,
+  fixedGasOverhead: 9860,
+  perUserOpGasOverhead: 7260,
+  perUserOpWordGasOverhead: 0,
+  perCallCataExtraOverhead: 9.5,
   execUserOpPerWordGasOverhead: 8.5,
   execUserOpGasOverhead: 1645,
   zeroByteGasCost: 4,
@@ -30,8 +32,9 @@ const calcConfig = {
   estimationSignatureSize: 65,
   estimationPaymasterDataSize: 0
 }
+
 const defaultUserOpFields = {
-  callData: '0x',
+  callData: '0x01',
   callGasLimit: 30000,
   nonce: 0,
   preVerificationGas: 0,
@@ -64,7 +67,7 @@ class MinMaxAvg {
   }
 
   stats (): string {
-    return `${this.min}/${this.avg()}/${this.max} [${this.max - this.min}]`
+    return `${this.min}/${this.avg()}/${this.max} [${this.max! - this.min!}]`
   }
 
   avg (): number {
@@ -184,6 +187,7 @@ class PreVgChecker {
         const op1: UserOperation = {
           ...defaultUserOpFields,
           sender: accountAddress,
+          callData: '0x',
           factory: factory.address,
           factoryData,
           nonce: 0,
@@ -262,7 +266,7 @@ describe.only('PreVerificationGasCalculator', () => {
     this.timeout(200000)
     c = new PreVgChecker()
     await c.init()
-    console.log('client ver=', await ethers.provider.send('web3_clientVersion'))
+    console.log('client ver=', await ethers.provider.send('web3_clientVersion', []))
   })
   beforeEach(function () {
     c.statsDict.reset()
@@ -272,23 +276,35 @@ describe.only('PreVerificationGasCalculator', () => {
     c.statsDict.dump()
   })
 
-  it('should check bundle sizes', async () => {
-    for (let bundleSize = 1; bundleSize <= 10; bundleSize++) {
-      await c.checkPreVg({ bundleSize, callDataSize: 0 })
+  it('should check bundle sizes', async function () {
+    this.timeout(200000)
+    for (let bundleSize = 1; bundleSize <= 40; bundleSize += 5) {
+      await c.checkPreVg({ bundleSize, callDataSize: 1000 })
+    }
+  })
+  it('should check small calldataSize', async () => {
+    for (let n = 1; n <= 500; n += 15) {
+      await c.checkPreVg({ bundleSize: 1, callDataSize: n })
     }
   })
   it('should check calldataSize', async () => {
-    for (let n = 0; n <= 1000; n += 15) {
-      await c.checkPreVg({ bundleSize: 1, callDataSize: n * 8 })
+    for (let n = 1; n <= 2000; n += 150) {
+      await c.checkPreVg({ bundleSize: 1, callDataSize: n })
+    }
+  })
+  it('should check initDataSize', async function () {
+    this.timeout(200000)
+    for (let n = 0; n <= 2000; n += 15) {
+      await c.checkPreVg({ bundleSize: 1, useFactory: true, factoryAppendSize: n * 8 })
     }
   })
   it('should check pmDataSize', async () => {
-    for (let n = 52; n <= 1000; n += 15) {
+    for (let n = 1; n <= 2000; n += 150) {
       await c.checkPreVg({ bundleSize: 1, pmDataSize: n * 8 })
     }
   })
   it('should check sigSize', async () => {
-    for (let n = 64; n <= 1000; n += 15) {
+    for (let n = 1; n <= 2000; n += 150) {
       await c.checkPreVg({ bundleSize: 1, sigSize: n * 8 })
     }
   })
