@@ -119,7 +119,6 @@ export class PreVgChecker {
       } = {}
       if (p.pmDataSize == null) {
         await this.entryPoint.depositTo(accountAddress, { value: parseEther('1') })
-        // await signer.sendTransaction({ to: accountAddress, value: parseEther('1') })
       } else {
         pmInfo = {
           paymaster: paymaster.address,
