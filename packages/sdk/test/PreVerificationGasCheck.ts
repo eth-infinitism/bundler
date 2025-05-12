@@ -73,7 +73,7 @@ const defaultBundleParams: BundleParams = {
   pmDataSize: undefined
 }
 
-export class PreVgChecker {
+export class PreVerificationGasCheck {
   private salt = 0
   private readonly factories: DummyAccountFactory[] = []
   private readonly paymasters: DummyPaymaster[] = []
