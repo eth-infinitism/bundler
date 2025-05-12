@@ -1,7 +1,7 @@
 import { encodeUserOp, UserOperation } from '@account-abstraction/utils'
 import { arrayify, hexDataLength, hexlify } from 'ethers/lib/utils'
 import { bytesToHex } from '@ethereumjs/util'
-import { BigNumber } from 'ethers'
+import { BigNumber, BytesLike } from 'ethers'
 
 const EXECUTE_USEROP_METHOD_SIG = '0x8dd7712f'
 
@@ -64,7 +64,8 @@ export interface PreVerificationGasCalculatorConfig {
 
 export interface GasOptions {
   /**
-   * if set, assume this gas was used by verification of the UserOperation.
+   * if set, assume this gas is actually used by verification of the UserOperation.
+   * (as checked during UserOperation simulation)
    */
   verificationGas?: number
 
@@ -139,9 +140,7 @@ export class PreVerificationGasCalculator {
   _calculate (userOp: UserOperation, gasOptions: GasOptions): number {
     const packedUserOp = arrayify(encodeUserOp(userOp, false))
     const userOpWordsLength = (packedUserOp.length + 31) / 32
-    const tokenCount = packedUserOp.map(
-      x => x === 0 ? 1 : this.config.tokensPerNonzeroByte
-    ).reduce((sum, x) => sum + x)
+    const tokenCount = this._countTokens(packedUserOp)
 
     let callDataOverhead = 0
     let perUserOpOverhead = this.config.perUserOpGasOverhead
@@ -171,17 +170,29 @@ export class PreVerificationGasCalculator {
           .add(gasOptions?.verificationGas ?? 0).toNumber()
     }
 
-    // Based on the formula in https://eips.ethereum.org/EIPS/eip-7623#specification
+    return this._eip7623transactionGasCost(
+      userOpShareOfStipend,
+      tokenCount,
+      userOpShareOfBundleCost + userOpSpecificOverhead + calculatedGasUsed
+    ) - calculatedGasUsed
+  }
+
+  // Based on the formula in https://eips.ethereum.org/EIPS/eip-7623#specification
+  _eip7623transactionGasCost (stipendGasCost: number, tokenGasCount: number, executionGasCost: number): number {
     return Math.round(
-      userOpShareOfStipend +
+      stipendGasCost +
       Math.max(
-        this.config.standardTokenGasCost * tokenCount +
-        userOpShareOfBundleCost +
-        userOpSpecificOverhead +
-        calculatedGasUsed
+        this.config.standardTokenGasCost * tokenGasCount +
+        executionGasCost
         ,
-        this.config.floorPerTokenGasCost * tokenCount
-      )) - calculatedGasUsed
+        this.config.floorPerTokenGasCost * tokenGasCount
+      ))
+  }
+
+  _countTokens (bytes: BytesLike): number {
+    return arrayify(bytes).map(
+      x => x === 0 ? 1 : this.config.tokensPerNonzeroByte
+    ).reduce((sum, x) => sum + x)
   }
 
   _fillUserOpWithDummyData (userOp: Partial<UserOperation>): UserOperation {

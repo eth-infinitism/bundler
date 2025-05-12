@@ -1,4 +1,3 @@
-import { PreVerificationGasCalculatorConfig } from '../src'
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { EXECUTE_USEROP_METHOD_SIG, PreVgChecker } from './PreVgChecker'
@@ -8,7 +7,7 @@ describe('PreVerificationGasCalculator', () => {
 
   before(async function () {
     this.timeout(200000)
-    c = new PreVgChecker({ totalGasUsed: 1e7 })
+    c = new PreVgChecker(ethers.provider, { totalGasUsed: 1e7 })
     await c.init()
     console.log('client ver=', await ethers.provider.send('web3_clientVersion', []))
   })

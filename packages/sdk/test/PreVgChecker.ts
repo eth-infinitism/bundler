@@ -1,9 +1,15 @@
 import {
   AddressZero,
   deployEntryPoint,
-  DummyAccountFactory, DummyAccountFactory__factory,
-  DummyPaymaster, DummyPaymaster__factory, IAccountExecute__factory,
-  IEntryPoint, packUserOp, rethrowWithRevertReason, UserOperation
+  DummyAccountFactory,
+  DummyAccountFactory__factory,
+  DummyPaymaster,
+  DummyPaymaster__factory,
+  IAccountExecute__factory,
+  IEntryPoint,
+  packUserOp,
+  rethrowWithRevertReason,
+  UserOperation
 } from '@account-abstraction/utils'
 import {
   GasOptions,
@@ -16,6 +22,8 @@ import {
 } from '@account-abstraction/utils/dist/src/types/@account-abstraction/contracts/interfaces/IEntryPoint'
 import Debug from 'debug'
 import { JsonRpcProvider } from '@ethersproject/providers'
+import { StatsDict } from './StatsDict'
+
 const debug = Debug('aa.test.prevg')
 
 const MAX_BUNDLE_SIZE = 40
@@ -67,12 +75,10 @@ const defaultBundleParams: BundleParams = {
 
 export class PreVgChecker {
   private salt = 0
-  // @ts-ignore
-  private factories: DummyAccountFactory[]
-  // @ts-ignore
-  private paymasters: DummyPaymaster[]
-  // @ts-ignore
-  private beneficiary: string
+  private readonly factories: DummyAccountFactory[] = []
+  private readonly paymasters: DummyPaymaster[] = []
+  private beneficiary?: string
+
   // @ts-ignore
   private entryPoint: IEntryPoint
 
@@ -84,13 +90,11 @@ export class PreVgChecker {
   }
 
   async init (): Promise<void> {
-    // solves "transaction in progress" on clean geth..
     const signer = this.provider.getSigner()
+    // solves "transaction in progress" on clean geth..
     await signer.sendTransaction({ to: AddressZero })
     this.entryPoint = await deployEntryPoint(this.provider)
 
-    this.factories = []
-    this.paymasters = []
     for (let i = 0; i < MAX_BUNDLE_SIZE; i++) {
       const factory = await new DummyAccountFactory__factory(signer).deploy(this.entryPoint.address)
       this.factories.push(factory)
@@ -139,7 +143,7 @@ export class PreVgChecker {
           nonce: 0,
           ...pmInfo
         }
-        await this.entryPoint.handleOps([packUserOp(op1)], this.beneficiary)
+        await this.entryPoint.handleOps([packUserOp(op1)], this.beneficiary!)
           .catch(e => {
             console.log('op=', op1)
             rethrowWithRevertReason(e)
@@ -175,13 +179,12 @@ export class PreVgChecker {
   // (since we can't tell the actual gas used of each UserOperation, only of the entire bundle)
   async sendBundle (ops: UserOperation[]): Promise<number> {
     const packed = ops.map(packUserOp)
-    const ret = await this.entryPoint.handleOps(packed, this.beneficiary)
+    const ret = await this.entryPoint.handleOps(packed, this.beneficiary!)
       .then(async tx => await tx.wait())
       .catch(rethrowWithRevertReason)
     let evTotalGasUsed = 0
-    ret.events?.filter(e => e.event === 'UserOperationEvent').forEach((e, i) => {
+    ret.events?.filter(e => e.event === 'UserOperationEvent').forEach(e => {
       const ev = e.args as unknown as UserOperationEventEventObject
-      // console.log(`size ${ops.length}  ev.gasused=${ev.actualGasUsed.toNumber()}, ${JSON.stringify(ops[i])}`)
       evTotalGasUsed += ev.actualGasUsed.toNumber()
     })
     // console.log(`size ${ops.length} min=${minEvGasUsed} max=${MaxEvGasUsed} avg=${evTotalGasUsed / ops.length} txGasUsed=${ret.gasUsed.toNumber()}`)
@@ -194,9 +197,6 @@ export class PreVgChecker {
     const p1: BundleParams = { ...defaultBundleParams, ...p }
     const ops = await this.createBundle(p)
     const actualPreVG = await this.sendBundle(ops)
-    // console.log('==diff global')
-    // new StatsDict().add(calcConfig).add(MainnetConfig).dump()
-    // const calcConfig = MainnetConfig
     const calc = new PreVerificationGasCalculator({
       ...calcConfig,
       expectedBundleSize: p1.bundleSize
@@ -206,75 +206,5 @@ export class PreVgChecker {
     this.statsDict.add({ ...p1, diff })
     debug(`check ${JSON.stringify(p)} = overhead=${actualPreVG}  calc=${calcPreVg} diff=${diff}`)
     return actualPreVG
-  }
-}
-
-// given dict param, collect stats for each key
-export class StatsDict {
-  dict: { [key: string]: MinMaxAvg } = {}
-
-  reset (): void {
-    this.dict = {}
-  }
-
-  get (name: string): MinMaxAvg {
-    return this.dict[name] ?? new MinMaxAvg()
-  }
-
-  add (n: any): this {
-    for (const k in n) {
-      if (this.dict[k] == null) {
-        this.dict[k] = new MinMaxAvg()
-      }
-      this.dict[k].addSample(n[k])
-    }
-    return this
-  }
-
-  result (): { [key: string]: string } {
-    const res: { [key: string]: string } = {}
-    for (const k in this.dict) {
-      if (this.dict[k].min !== this.dict[k].max) {
-        res[k] = this.dict[k].stats()
-      }
-    }
-    return res
-  }
-
-  // report all modified fields (those with max!=max)
-  dump (): void {
-    console.log(this.result())
-  }
-}
-
-class MinMaxAvg {
-  min?: number
-  max?: number
-  tot?: number
-  count?: number
-
-  reset (): void {
-    this.min = undefined
-    this.max = undefined
-    this.tot = undefined
-  }
-
-  stats (): string {
-    return `${this.min}/${this.avg()}/${this.max} [${this.max! - this.min!}]`
-  }
-
-  avg (): number {
-    return Math.round((this.tot ?? 0) / (this.count ?? 1))
-  }
-
-  addSample (n: number): void {
-    if (this.min == null || n < this.min) {
-      this.min = n
-    }
-    if (this.max == null || n > this.max) {
-      this.max = n
-    }
-    this.tot = (this.tot ?? 0) + n
-    this.count = (this.count ?? 0) + 1
   }
 }

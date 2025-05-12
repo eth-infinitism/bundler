@@ -121,11 +121,7 @@ export class ValidationManager implements IValidationManager {
       factory != null && factory !== EIP_7702_MARKER_INIT_CODE ? this.entryPoint.getDepositInfo(factory) : null
     ])
     return {
-      sender: {
-        addr: sender,
-        stake: senderInfo.stake,
-        unstakeDelaySec: senderInfo.unstakeDelaySec
-      },
+      sender: { addr: sender, stake: senderInfo.stake, unstakeDelaySec: senderInfo.unstakeDelaySec },
       paymaster: paymasterInfo != null
         ? {
             addr: paymaster ?? '',
