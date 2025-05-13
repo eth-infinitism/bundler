@@ -1,4 +1,4 @@
-import { BigNumber } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
@@ -11,6 +11,7 @@ import {
   EIP7702Authorization,
   EIP_7702_MARKER_CODE,
   EIP_7702_MARKER_INIT_CODE,
+  EntryPoint__factory,
   IAccount__factory,
   IEntryPoint,
   IPaymaster__factory,
@@ -35,7 +36,8 @@ import {
   requireAddressAndFields,
   requireCond,
   runContractScript,
-  sum, PaymasterValidationInfo
+  sum,
+  PaymasterValidationInfo
 } from '@account-abstraction/utils'
 
 import { debug_traceCall } from './GethTracer'
@@ -71,8 +73,12 @@ const EOL_USEROP: PackedUserOperation = {
   signature: '0x'
 }
 
-// this FailedOp is a marker that we reached the above "eolUserOp" (the second UserOp in a bundle) without any error in the first UserOp
-const EXPECTED_EOL_USEROP_FAILURE = 'FailedOp(1,"AA94 gas values overflow")'
+// during simulation, we pass gas enough for simulation, and little extra.
+// so either execution fails on OOG, (AA95) or the entire HandleOps fail on wrong beneficiary
+// both mean validation success
+const EXPECTED_INNER_HANDLE_OP_FAILURES = new Set([
+  'FailedOp(0,"AA95 out of gas")',
+  'Error(AA90 invalid beneficiary)'])
 
 // maximum verification gas. used for preVerification gas calculation based on EIP-7623
 const MAX_VERIFICATION_GAS_USED = 500_000
@@ -167,7 +173,8 @@ export class ValidationManager implements IValidationManager {
   async generateValidationResult (op: UserOperation, tracerResult: ERC7562Call): Promise<ValidationResult> {
     const {
       validationCall,
-      paymasterCall
+      paymasterCall,
+      innerCall
     } = this.getValidationCalls(op, tracerResult)
 
     if (debug.enabled) {
@@ -193,6 +200,7 @@ export class ValidationManager implements IValidationManager {
       paymasterValidationData = pmRet.validationData
     }
 
+    const innerHandleOpsOut = innerCall == null ? undefined : this.decodeInnerHandleOp(innerCall)
     const retStakes = await this.getStakes(op.sender, op.paymaster, op.factory)
     let paymasterInfo: PaymasterValidationInfo | undefined = retStakes.paymaster
     if (paymasterInfo != null) {
@@ -207,8 +215,8 @@ export class ValidationManager implements IValidationManager {
         sigFailed: false, // can't fail here, since handleOps didn't revert.
         validUntil: Math.min(validationData.validUntil, paymasterValidationData.validUntil),
         validAfter: Math.max(validationData.validAfter, paymasterValidationData.validAfter),
-        preOpGas: 0, // extract from innerHandleOps parameter
-        prefund: 0 // extract from innerHandleOps parameter
+        preOpGas: innerHandleOpsOut?.preOpGas, // extract from innerHandleOps parameter
+        prefund: innerHandleOpsOut?.prefund // extract from innerHandleOps parameter
       },
       senderInfo: retStakes.sender,
       paymasterInfo,
@@ -224,6 +232,7 @@ export class ValidationManager implements IValidationManager {
     const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), EOL_USEROP], AddressZero])
     const tx = {
       to: this.entryPoint.address,
+      gas: sum(userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit),
       data
     }
 
@@ -241,7 +250,8 @@ export class ValidationManager implements IValidationManager {
           throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
         }
 
-        if (decodedError === EXPECTED_EOL_USEROP_FAILURE) {
+        console.log('decodedError=', decodedError)
+        if (EXPECTED_INNER_HANDLE_OP_FAILURES.has(decodedError)) {
           // this is not an error. it is a marker the UserOp-under-test passed successfully
           return
         }
@@ -257,11 +267,10 @@ export class ValidationManager implements IValidationManager {
   ): Promise<[ValidationResult, ERC7562Call | null, BundlerTracerResult | null]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
-    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), EOL_USEROP], AddressZero])
+    const handleOpsData = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp)], AddressZero])
 
-    const prevg = this.preVerificationGasCalculator._calculate(userOp, {
-      verificationGas: MAX_VERIFICATION_GAS_USED
-    })
+    const prevg = this.preVerificationGasCalculator._calculate(userOp, {})
+
     // give simulation enough gas to run validations, but not more.
     // we don't trust the use-supplied preVerificaitonGas
     const simulationGas = sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit ?? 0)
@@ -302,7 +311,7 @@ export class ValidationManager implements IValidationManager {
         throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
       }
 
-      if (decodedErrorReason !== EXPECTED_EOL_USEROP_FAILURE) {
+      if (!EXPECTED_INNER_HANDLE_OP_FAILURES.has(decodedErrorReason)) {
         throw new RpcError(decodedErrorReason, ValidationErrors.SimulateValidation)
       }
     }
@@ -471,7 +480,8 @@ export class ValidationManager implements IValidationManager {
     } =
       this.preVerificationGasCalculator.validatePreVerificationGas(userOp, { verificationGas })
     requireCond(isPreVerificationGasValid,
-      `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${preVerificationGas}`,
+      `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${preVerificationGas}
+      (verificationGas=${verificationGas}, exec=${userOp.callGasLimit as unknown as string})`,
       ValidationErrors.InvalidFields)
   }
 
@@ -657,6 +667,20 @@ export class ValidationManager implements IValidationManager {
     return {
       context: ret.context,
       validationData: parseValidationData(ret.validationData)
+    }
+  }
+
+  // decode inputs to innerHandleOp, and extract preOpGas, prefund
+  private decodeInnerHandleOp (call: ERC7562Call): { preOpGas: BigNumberish, prefund: BigNumberish } {
+    const entryPoint = EntryPoint__factory.connect(call.to, this.provider)
+    const methodSig = entryPoint.interface.getSighash('innerHandleOp')
+    if (get4bytes(call.input) !== methodSig) {
+      throw new Error('Not a innerHandleOp')
+    }
+    const params = entryPoint.interface.decodeFunctionData('innerHandleOp', call.input)
+    return {
+      preOpGas: params.opInfo.preOpGas,
+      prefund: params.opInfo.prefund
     }
   }
 }

@@ -170,11 +170,13 @@ export class PreVerificationGasCalculator {
           .add(gasOptions?.verificationGas ?? 0).toNumber()
     }
 
-    return this._eip7623transactionGasCost(
+    const preVg = this._eip7623transactionGasCost(
       userOpShareOfStipend,
       tokenCount,
       userOpShareOfBundleCost + userOpSpecificOverhead + calculatedGasUsed
     ) - calculatedGasUsed
+
+    return preVg
   }
 
   // Based on the formula in https://eips.ethereum.org/EIPS/eip-7623#specification

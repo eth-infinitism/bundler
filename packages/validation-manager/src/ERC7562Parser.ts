@@ -39,11 +39,19 @@ export class ERC7562Parser {
 
   private bailOnViolation: boolean = false
 
+  private readonly entryPointAddress: string
+  private readonly senderCreatorAddress: string
+  private readonly nonceManagerAddress?: string
+
   constructor (
-    readonly entryPointAddress: string,
-    readonly senderCreatorAddress: string,
-    readonly nonceManagerAddress?: string
-  ) {}
+    readonly _entryPointAddress: string,
+    readonly _senderCreatorAddress: string,
+    readonly _nonceManagerAddress?: string
+  ) {
+    this.entryPointAddress = _entryPointAddress.toLowerCase()
+    this.senderCreatorAddress = _senderCreatorAddress.toLowerCase()
+    this.nonceManagerAddress = _nonceManagerAddress?.toLowerCase()
+  }
 
   /**
    * Analyzes the tracing results for the given UserOperation.
@@ -156,8 +164,8 @@ export class ERC7562Parser {
   private _detectEntityChange (userOp: OperationBase, erc7562Call: ERC7562Call): void {
     if (
       erc7562Call.from.toLowerCase() !== AddressZero &&
-      erc7562Call.from.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
-      erc7562Call.from.toLowerCase() !== this.senderCreatorAddress.toLowerCase()) {
+      erc7562Call.from.toLowerCase() !== this.entryPointAddress &&
+      erc7562Call.from.toLowerCase() !== this.senderCreatorAddress) {
       return
     }
     const nonceManagerAddress = this.nonceManagerAddress
@@ -165,7 +173,7 @@ export class ERC7562Parser {
       this.currentEntity = AccountAbstractionEntity.account
       this.currentEntityAddress = userOp.sender
     } else if (
-      erc7562Call.from.toLowerCase() === this.senderCreatorAddress.toLowerCase() &&
+      erc7562Call.from.toLowerCase() === this.senderCreatorAddress &&
       userOp.factory?.toLowerCase() === erc7562Call.to.toLowerCase()
     ) {
       this.currentEntity = AccountAbstractionEntity.factory
@@ -173,10 +181,10 @@ export class ERC7562Parser {
     } else if (userOp.paymaster?.toLowerCase() === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.paymaster
       this.currentEntityAddress = userOp.paymaster
-    } else if (this.entryPointAddress.toLowerCase() === erc7562Call.to.toLowerCase()) {
+    } else if (this.entryPointAddress === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.entryPoint
       this.currentEntityAddress = this.entryPointAddress
-    } else if (this.senderCreatorAddress.toLowerCase() === erc7562Call.to.toLowerCase()) {
+    } else if (this.senderCreatorAddress === erc7562Call.to.toLowerCase()) {
       this.currentEntity = AccountAbstractionEntity.senderCreator
       this.currentEntityAddress = this.senderCreatorAddress
     } else if (
@@ -198,9 +206,9 @@ export class ERC7562Parser {
       return AccountAbstractionEntity.factory
     } else if (userOp.paymaster?.toLowerCase() === lowerAddress) {
       return AccountAbstractionEntity.paymaster
-    } else if (this.entryPointAddress.toLowerCase() === lowerAddress) {
+    } else if (this.entryPointAddress === lowerAddress) {
       return AccountAbstractionEntity.entryPoint
-    } else if (this.senderCreatorAddress.toLowerCase() === lowerAddress) {
+    } else if (this.senderCreatorAddress === lowerAddress) {
       return AccountAbstractionEntity.senderCreator
     }
     return address
@@ -246,6 +254,10 @@ export class ERC7562Parser {
     delegatecallStorageAddress: string
   ): void {
     const address: string = erc7562Call.to
+    if (address === this.entryPointAddress && erc7562Call.from === this.entryPointAddress) {
+      // don't enforce rules self-call (it's an "innerHandleOp" that slipped into the trace)
+      return
+    }
     this.contractAddresses.push(address)
     this._detectEntityChange(userOp, erc7562Call)
     this._checkOp011(erc7562Call, recursionDepth, delegatecallStorageAddress)
@@ -277,7 +289,7 @@ export class ERC7562Parser {
     recursionDepth: number,
     delegatecallStorageAddress: string
   ): void {
-    if (erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase()) {
+    if (erc7562Call.to.toLowerCase() === this.entryPointAddress) {
       // Currently inside the EntryPoint deposit code, no access control applies here
       return
     }
@@ -403,7 +415,7 @@ export class ERC7562Parser {
       if (
         address.toLowerCase() !== userOp.sender.toLowerCase() &&
         // address.toLowerCase() !== AA_ENTRY_POINT &&
-        address.toLowerCase() !== this.entryPointAddress.toLowerCase() &&
+        address.toLowerCase() !== this.entryPointAddress &&
         erc7562Call.contractSize[address].contractSize <= 2) {
         illegalZeroCodeAccess = erc7562Call.contractSize[address]
         illegalZeroCodeAccess.address = address
@@ -466,7 +478,7 @@ export class ERC7562Parser {
     delegatecallStorageAddress: string
   ): void {
     for (const addr of erc7562Call.extCodeAccessInfo) {
-      if (addr.toLowerCase() === this.entryPointAddress.toLowerCase()) {
+      if (addr.toLowerCase() === this.entryPointAddress) {
         this._violationDetected({
           address,
           delegatecallStorageAddress,
@@ -608,8 +620,8 @@ export class ERC7562Parser {
     delegatecallStorageAddress: string
   ): void {
     if (
-      erc7562Call.to.toLowerCase() === this.entryPointAddress.toLowerCase() ||
-      erc7562Call.to.toLowerCase() === this.nonceManagerAddress?.toLowerCase()
+      erc7562Call.to.toLowerCase() === this.entryPointAddress ||
+      erc7562Call.to.toLowerCase() === this.nonceManagerAddress
     ) {
       // Currently inside system code, no access control applies here
       return

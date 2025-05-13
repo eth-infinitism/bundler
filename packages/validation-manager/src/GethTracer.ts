@@ -1,5 +1,5 @@
 import Debug from 'debug'
-import { BigNumber } from 'ethers'
+import { BigNumber, BigNumberish } from 'ethers'
 import { Deferrable } from '@ethersproject/properties'
 import { JsonRpcProvider, TransactionRequest } from '@ethersproject/providers'
 import { resolveProperties } from 'ethers/lib/utils'
@@ -34,7 +34,11 @@ type LogTracerFunc = () => LogTracer
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable<TransactionRequest>, options: TraceOptions, prestateTracerProvider?: JsonRpcProvider): Promise<TraceResult | any> {
-  const tx1 = await resolveProperties(tx)
+  const tx1 = await resolveProperties(tx) as any
+  if (tx1.gasLimit != null) {
+    tx1.gas = gethHex(tx1.gasLimit)
+    delete tx1.gasLimit
+  }
   let traceOptions: TraceOptions
   if (prestateTracerProvider != null) {
     traceOptions = tracer2string(options)
@@ -75,6 +79,10 @@ export async function debug_traceCall (provider: JsonRpcProvider, tx: Deferrable
   })
   // return applyTracer(ret, options)
   return ret
+}
+
+export function gethHex (n: BigNumberish): string {
+  return BigNumber.from(n).toHexString().replace(/0x0(.)/, '0x$1')
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
