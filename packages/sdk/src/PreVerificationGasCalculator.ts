@@ -173,19 +173,7 @@ export class PreVerificationGasCalculator {
     const userOpShareOfStipend = this.config.transactionGasStipend / this.config.expectedBundleSize
 
     if (this.config.useEip7623) {
-      // EIP-7623 gas calculation:
-      // during testing, totalGasUsed passes in entire transaction "gasUsed"
-      // during validation, we can only account for gas we know the account will pay, that is actual validation and 10% of execution gas.
-      // (since account pays these 10% even if it uses nothing)
-      let calculatedGasUsed: number
-      if (gasOptions?.totalGasUsed != null) {
-      // don't calculate: use the given parameter (from transaction receipt)
-        calculatedGasUsed = gasOptions.totalGasUsed
-      } else {
-        calculatedGasUsed =
-          BigNumber.from(userOp.callGasLimit ?? 0).add(userOp.paymasterPostOpGasLimit ?? 0).div(10)
-            .add(gasOptions?.verificationGasUsed ?? 0).toNumber()
-      }
+      const calculatedGasUsed = this._getUserOpGasUsed(userOp, gasOptions)
 
       const preVerficationGas = this._eip7623transactionGasCost(
         userOpShareOfStipend,
@@ -199,6 +187,16 @@ export class PreVerificationGasCalculator {
       return this.config.standardTokenGasCost * tokenCount +
         userOpShareOfStipend + userOpShareOfBundleCost + userOpSpecificOverhead
     }
+  }
+
+  // during testing, totalGasUsed passes in the entire transaction "gasUsed" (from the transaction receipt)
+  // during validation, collect only the gas known to be paid: the actual validation and 10% of execution gas.
+  _getUserOpGasUsed (userOp: UserOperation, gasOptions: GasOptions): number {
+    if (gasOptions?.totalGasUsed != null) {
+      return gasOptions.totalGasUsed
+    }
+    return BigNumber.from(userOp.callGasLimit ?? 0).add(userOp.paymasterPostOpGasLimit ?? 0).div(10)
+      .add(gasOptions?.verificationGasUsed ?? 0).toNumber()
   }
 
   // Based on the formula in https://eips.ethereum.org/EIPS/eip-7623#specification
