@@ -53,6 +53,11 @@ export interface PreVerificationGasCalculatorConfig {
   readonly tokensPerNonzeroByte: number
 
   /**
+   * gas cost of EIP-7702 authorization. PER_EMPTY_ACCOUNT_COST
+   * (this amount is taken even if the account is already deployed)
+   */
+  readonly eip7702AuthGas: number
+  /**
    * The expected average size of a bundle in current network conditions.
    * This value is used to split the bundle gas overhead between all ops.
    */
@@ -95,6 +100,7 @@ export const MainnetConfig: PreVerificationGasCalculatorConfig = {
   useEip7623: true,
   floorPerTokenGasCost: 10,
   tokensPerNonzeroByte: 4,
+  eip7702AuthGas: 25000,
   expectedBundleSize: 1,
   estimationSignatureSize: 65,
   estimationPaymasterDataSize: 0
@@ -150,6 +156,10 @@ export class PreVerificationGasCalculator {
 
     let callDataOverhead = 0
     let perUserOpOverhead = this.config.perUserOpGasOverhead
+    if (userOp.eip7702Auth != null) {
+      perUserOpOverhead += this.config.eip7702AuthGas
+    }
+
     if (bytesToHex(arrayify(userOp.callData)).startsWith(EXECUTE_USEROP_METHOD_SIG)) {
       perUserOpOverhead += this.config.execUserOpGasOverhead +
           this.config.execUserOpPerWordGasOverhead * userOpWordsLength
