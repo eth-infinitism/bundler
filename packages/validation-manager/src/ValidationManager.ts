@@ -454,17 +454,17 @@ export class ValidationManager implements IValidationManager {
     // but now we need to repeat the check, with actual validation gas used.
 
     const preVerificationGas = BigNumber.from(userOp.preVerificationGas).toNumber()
-    const verificationGas =
+    const verificationGasUsed =
       BigNumber.from(validationResult.returnInfo.preOpGas).sub(preVerificationGas).toNumber()
 
     const {
       isPreVerificationGasValid,
       minRequiredPreVerificationGas
     } =
-      this.preVerificationGasCalculator.validatePreVerificationGas(userOp, { verificationGas })
+      this.preVerificationGasCalculator.validatePreVerificationGas(userOp, { verificationGasUsed })
     requireCond(isPreVerificationGasValid,
       `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${preVerificationGas}
-      (verificationGas=${verificationGas}, exec=${userOp.callGasLimit as unknown as string})`,
+      (verificationGas=${verificationGasUsed}, exec=${userOp.callGasLimit as unknown as string})`,
       ValidationErrors.InvalidFields)
   }
 
@@ -556,7 +556,7 @@ export class ValidationManager implements IValidationManager {
         isPreVerificationGasValid,
         minRequiredPreVerificationGas
       } =
-        this.preVerificationGasCalculator.validatePreVerificationGas(operation as UserOperation, { verificationGas: MAX_VERIFICATION_GAS_USED })
+        this.preVerificationGasCalculator.validatePreVerificationGas(operation as UserOperation, { verificationGasUsed: MAX_VERIFICATION_GAS_USED })
       requireCond(isPreVerificationGasValid,
         `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${parseInt(preVerificationGas as string)}`,
         ValidationErrors.InvalidFields)

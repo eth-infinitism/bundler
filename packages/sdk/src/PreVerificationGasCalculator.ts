@@ -93,9 +93,9 @@ export const MainnetConfig: PreVerificationGasCalculatorConfig = {
   transactionGasStipend: 21000,
   fixedGasOverhead: 9830,
   perUserOpGasOverhead: 7260,
-  execUserOpGasOverhead: 1610,
+  executeUserOpGasOverhead: 1610,
   perUserOpWordGasOverhead: 9.5,
-  execUserOpPerWordGasOverhead: 8.2,
+  executeUserOpPerWordGasOverhead: 8.2,
   standardTokenGasCost: 4,
   useEip7623: true,
   floorPerTokenGasCost: 10,
@@ -161,8 +161,8 @@ export class PreVerificationGasCalculator {
     }
 
     if (bytesToHex(arrayify(userOp.callData)).startsWith(EXECUTE_USEROP_METHOD_SIG)) {
-      perUserOpOverhead += this.config.execUserOpGasOverhead +
-          this.config.execUserOpPerWordGasOverhead * userOpWordsLength
+      perUserOpOverhead += this.config.executeUserOpGasOverhead +
+          this.config.executeUserOpPerWordGasOverhead * userOpWordsLength
     } else {
       callDataOverhead += Math.ceil(hexDataLength(userOp.callData) / 32) * this.config.perUserOpWordGasOverhead
     }
@@ -173,18 +173,18 @@ export class PreVerificationGasCalculator {
     const userOpShareOfStipend = this.config.transactionGasStipend / this.config.expectedBundleSize
 
     if (this.config.useEip7623) {
-      // always take 10% of execution gas (we don't know how much gas is really used, but account always pays at least this 10%
-      // add to it known verification gas used.
-      // NOTE: this value is used during transaction calculation, but we eventually reduce it, since it is by EntryPoint gas
-      // calculations, not via preVerificationGas.
+      // EIP-7623 gas calculation:
+      // during testing, totalGasUsed passes in entire transaction "gasUsed"
+      // during validation, we can only account for gas we know the account will pay, that is actual validation and 10% of execution gas.
+      // (since account pays these 10% even if it uses nothing)
       let calculatedGasUsed: number
       if (gasOptions?.totalGasUsed != null) {
       // don't calculate: use the given parameter (from transaction receipt)
         calculatedGasUsed = gasOptions.totalGasUsed
       } else {
         calculatedGasUsed =
-        BigNumber.from(userOp.callGasLimit ?? 0).add(userOp.paymasterPostOpGasLimit ?? 0).div(10)
-          .add(gasOptions?.verificationGas ?? 0).toNumber()
+          BigNumber.from(userOp.callGasLimit ?? 0).add(userOp.paymasterPostOpGasLimit ?? 0).div(10)
+            .add(gasOptions?.verificationGasUsed ?? 0).toNumber()
       }
 
       const preVerficationGas = this._eip7623transactionGasCost(
@@ -193,8 +193,9 @@ export class PreVerificationGasCalculator {
         userOpShareOfBundleCost + userOpSpecificOverhead + calculatedGasUsed
       ) - calculatedGasUsed
 
-      return preVg
+      return preVerficationGas
     } else {
+      // Not using EIP-7623
       return this.config.standardTokenGasCost * tokenCount +
         userOpShareOfStipend + userOpShareOfBundleCost + userOpSpecificOverhead
     }

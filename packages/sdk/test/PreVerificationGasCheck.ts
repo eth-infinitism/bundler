@@ -45,12 +45,13 @@ const calcConfig: Omit<PreVerificationGasCalculatorConfig, 'expectedBundleSize'>
   fixedGasOverhead: 9830,
   perUserOpGasOverhead: 7263,
   perUserOpWordGasOverhead: 9.5,
-  execUserOpPerWordGasOverhead: 18,
-  execUserOpGasOverhead: 1440,
+  executeUserOpPerWordGasOverhead: 18,
+  executeUserOpGasOverhead: 1440,
   standardTokenGasCost: 4,
   useEip7623: true,
   floorPerTokenGasCost: 10,
   tokensPerNonzeroByte: 4,
+  eip7702AuthGas: 25000,
   estimationSignatureSize: 65,
   estimationPaymasterDataSize: 0
 }
