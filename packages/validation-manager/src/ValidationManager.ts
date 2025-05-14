@@ -8,8 +8,6 @@ import { PreVerificationGasCalculator, PreVerificationGasCalculatorConfig } from
 import {
   AddressZero,
   CodeHashGetter__factory,
-  EIP7702Authorization,
-  EIP_7702_MARKER_CODE,
   EIP_7702_MARKER_INIT_CODE,
   EntryPoint__factory,
   IAccount__factory,
@@ -215,8 +213,9 @@ export class ValidationManager implements IValidationManager {
     const prevg = this.preVerificationGasCalculator._calculate(userOp, {})
     const tx = {
       to: this.entryPoint.address,
+      data,
+      authorizationList: userOp.eip7702Auth == null ? null : [userOp.eip7702Auth],
       gas: sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit).toNumber(),
-      data
     }
 
     try {
@@ -233,7 +232,6 @@ export class ValidationManager implements IValidationManager {
           throw new RpcError('AA34: Invalid Paymaster signature', ValidationErrors.InvalidSignature)
         }
 
-        console.log('decodedError=', decodedError)
         if (EXPECTED_INNER_HANDLE_OP_FAILURES.has(decodedError)) {
           // this is not an error. it is a marker the UserOp-under-test passed successfully
           return
@@ -246,7 +244,7 @@ export class ValidationManager implements IValidationManager {
 
   async _geth_traceCall_SimulateValidation (
     operation: OperationBase,
-    stateOverride: { [address: string]: { code: string } }
+    stateOverride: { [address: string]: { code: string } } = {}
   ): Promise<[ValidationResult, ERC7562Call | null, BundlerTracerResult | null]> {
     const userOp = operation as UserOperation
     const provider = this.entryPoint.provider as JsonRpcProvider
@@ -266,8 +264,9 @@ export class ValidationManager implements IValidationManager {
       from: AddressZero,
       to: this.entryPoint.address,
       data: handleOpsData,
-      gasLimit: simulationGas
-    }, {
+      gasLimit: simulationGas,
+      authorizationList: userOp.eip7702Auth == null ? null : [userOp.eip7702Auth]
+    } as any, {
       tracer,
       stateOverrides: stateOverride
     },
@@ -367,12 +366,11 @@ export class ValidationManager implements IValidationManager {
         requireCond(getEip7702AuthorizationSigner(authorizationList[0]).toLowerCase() === userOp.sender.toLowerCase(), 'Authorization signer is not sender', ValidationErrors.InvalidFields)
       }
     }
-    const stateOverrideForEip7702 = await this.getAuthorizationsStateOverride(authorizationList)
     let storageMap: StorageMap = {}
     if (!this.unsafe) {
       let erc7562Call: ERC7562Call | null
       let bundlerTracerResult: BundlerTracerResult | null
-      [res, erc7562Call, bundlerTracerResult] = await this._geth_traceCall_SimulateValidation(userOp, stateOverrideForEip7702).catch(e => {
+      [res, erc7562Call, bundlerTracerResult] = await this._geth_traceCall_SimulateValidation(userOp).catch(e => {
         throw e
       })
       // console.log('tracer res')
@@ -466,35 +464,6 @@ export class ValidationManager implements IValidationManager {
       `preVerificationGas too low: expected at least ${minRequiredPreVerificationGas}, provided only ${preVerificationGas}
       (verificationGas=${verificationGasUsed}, exec=${userOp.callGasLimit as unknown as string})`,
       ValidationErrors.InvalidFields)
-  }
-
-  async getAuthorizationsStateOverride (
-    authorizations: EIP7702Authorization[] = []
-  ): Promise<{ [address: string]: { code: string } }> {
-    const stateOverride: { [address: string]: { code: string } } = {}
-    for (const authorization of authorizations) {
-      const authSigner = getEip7702AuthorizationSigner(authorization)
-      const nonce = await this.provider.getTransactionCount(authSigner)
-      const authNonce: any = authorization.nonce
-      if (nonce !== BigNumber.from(authNonce.replace(/0x$/, '0x0')).toNumber()) {
-        continue
-      }
-      const currentDelegateeCode = await this.provider.getCode(authSigner)
-      const newDelegateeCode = EIP_7702_MARKER_CODE + authorization.address.slice(2)
-      const noCurrentDelegation = currentDelegateeCode.length <= 2
-      // TODO: do not send such authorizations to 'handleOps' as it is a waste of gas
-      const changeDelegation = newDelegateeCode !== currentDelegateeCode
-      if (noCurrentDelegation || changeDelegation) {
-        debug('Adding 7702 state override:', {
-          address: authSigner,
-          code: newDelegateeCode
-        })
-        stateOverride[authSigner] = {
-          code: newDelegateeCode
-        }
-      }
-    }
-    return stateOverride
   }
 
   async getCodeHashes (addresses: string[]): Promise<ReferencedCodeHashes> {
