@@ -9,7 +9,7 @@ import {
   deepHexlify,
   deployEntryPoint
 } from '@account-abstraction/utils'
-import { supportsDebugTraceCall, ValidationManager } from '@account-abstraction/validation-manager'
+import { ERC7562Parser, supportsDebugTraceCall, ValidationManager } from '@account-abstraction/validation-manager'
 import { PreVerificationGasCalculator, MainnetConfig } from '@account-abstraction/sdk'
 
 import { BundlerServer } from '../src/BundlerServer'
@@ -22,7 +22,6 @@ import { ExecutionManager } from '../src/modules/ExecutionManager'
 import { MethodHandlerERC4337 } from '../src/MethodHandlerERC4337'
 import { BundlerConfig } from '../src/BundlerConfig'
 import { DepositManager } from '../src/modules/DepositManager'
-import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
 import { ethers } from 'hardhat'
 
 describe('BundleServer', function () {

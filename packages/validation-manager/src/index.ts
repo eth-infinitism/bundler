@@ -12,6 +12,7 @@ import { ValidateUserOpResult } from './IValidationManager'
 import { ValidationManager } from './ValidationManager'
 import { ERC7562Parser } from './ERC7562Parser'
 
+export * from './ERC7562Parser'
 export * from './ValidationManager'
 export * from './ValidationManagerRIP7560'
 export * from './IValidationManager'
