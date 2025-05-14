@@ -32,7 +32,7 @@
     "@ethereumjs/common": "^5.0.0-alpha.1",
     "@ethereumjs/rlp": "^5.0.2",
     "@ethereumjs/tx": "^6.0.0-alpha.1",
-    "@ethereumjs/util": "^10.0.0",
+    "@ethereumjs/util": "^10.0.0-alpha.1",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@types/cors": "^2.8.12",
