@@ -16,7 +16,6 @@ import {
   IEntryPoint,
   IPaymaster__factory,
   OperationBase,
-  PackedUserOperation,
   ReferencedCodeHashes,
   RpcError,
   StakeInfo,
@@ -55,23 +54,6 @@ const debug = Debug('aa.mgr.validate')
 const VALID_UNTIL_FUTURE_SECONDS = 30
 
 const HEX_REGEX = /^0x[a-fA-F\d]*$/i
-
-const BYTES32_ALLONES = '0x'.padEnd(66, 'f')
-
-// a "flag" UserOperation that triggers "AA94" revert error.
-// It is injected to the end of the bundle in order for the 'handleOps' transaction tracing to stop wothout performing the ececution,
-// which may be expensive and is not necessary.
-const EOL_USEROP: PackedUserOperation = {
-  sender: AddressZero,
-  nonce: 0,
-  initCode: '0x',
-  callData: '0x',
-  accountGasLimits: BYTES32_ALLONES,
-  preVerificationGas: 0,
-  gasFees: BYTES32_ALLONES,
-  paymasterAndData: '0x',
-  signature: '0x'
-}
 
 // during simulation, we pass gas enough for simulation, and little extra.
 // so either execution fails on OOG, (AA95) or the entire HandleOps fail on wrong beneficiary
