@@ -229,10 +229,11 @@ export class ValidationManager implements IValidationManager {
     // build a batch with 2 UserOps: the one under test, and a "flag" UserOp that triggers "AA94" revert error,
     // and stops the validation.
     // That is, if we end up with FailedOp(1) with "AA94", it means the UserOp-under-test passed successfully.
-    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp), EOL_USEROP], AddressZero])
+    const data = this.entryPoint.interface.encodeFunctionData('handleOps', [[packUserOp(userOp)], AddressZero])
+    const prevg = this.preVerificationGasCalculator._calculate(userOp, {})
     const tx = {
       to: this.entryPoint.address,
-      gas: sum(userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit),
+      gas: sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit).toNumber(),
       data
     }
 
