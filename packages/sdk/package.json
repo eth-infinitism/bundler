@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@account-abstraction/utils": "^0.8.0",
+    "@ethereumjs/util": "^10.0.0",
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/networks": "^5.7.0",
     "@ethersproject/properties": "^5.7.0",
