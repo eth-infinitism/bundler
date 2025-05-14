@@ -77,7 +77,7 @@ export interface GasOptions {
    * if set, assume this gas is actually used by verification of the UserOperation.
    * (as checked during UserOperation simulation)
    */
-  verificationGas?: number
+  verificationGasUsed?: number
 
   /**
    * if set, this is the gas used by the entire UserOperation - including verification and execution.
