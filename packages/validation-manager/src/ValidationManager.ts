@@ -215,7 +215,7 @@ export class ValidationManager implements IValidationManager {
       to: this.entryPoint.address,
       data,
       authorizationList: userOp.eip7702Auth == null ? null : [userOp.eip7702Auth],
-      gas: sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit).toNumber(),
+      gas: sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit).toNumber()
     }
 
     try {
