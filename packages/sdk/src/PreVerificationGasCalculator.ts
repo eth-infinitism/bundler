@@ -27,7 +27,7 @@ export interface PreVerificationGasCalculatorConfig {
   /**
    * extra per-userop overhead, if callData starts with "executeUserOp" method signature.
    */
-  readonly execUserOpGasOverhead: number
+  readonly executeUserOpGasOverhead: number
   /**
    * extra per-word overhead, if callData starts with "executeUserOp" method signature.
    */
