@@ -31,7 +31,7 @@ export interface PreVerificationGasCalculatorConfig {
   /**
    * extra per-word overhead, if callData starts with "executeUserOp" method signature.
    */
-  readonly execUserOpPerWordGasOverhead: number
+  readonly executeUserOpPerWordGasOverhead: number
   /**
    * The gas cost of a single "token" (zero byte) of the ABI-encoded UserOperation.
    */
