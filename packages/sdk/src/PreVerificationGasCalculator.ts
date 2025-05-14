@@ -187,7 +187,7 @@ export class PreVerificationGasCalculator {
           .add(gasOptions?.verificationGas ?? 0).toNumber()
       }
 
-      const preVg = this._eip7623transactionGasCost(
+      const preVerficationGas = this._eip7623transactionGasCost(
         userOpShareOfStipend,
         tokenCount,
         userOpShareOfBundleCost + userOpSpecificOverhead + calculatedGasUsed
