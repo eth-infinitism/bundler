@@ -1,5 +1,9 @@
 import { encodeUserOp, UserOperation } from '@account-abstraction/utils'
-import { arrayify, hexlify } from 'ethers/lib/utils'
+import { arrayify, hexDataLength, hexlify } from 'ethers/lib/utils'
+import { bytesToHex } from '@ethereumjs/util'
+import { BigNumber, BytesLike } from 'ethers'
+
+const EXECUTE_USEROP_METHOD_SIG = '0x8dd7712f'
 
 export interface PreVerificationGasCalculatorConfig {
   /**
@@ -7,25 +11,52 @@ export interface PreVerificationGasCalculatorConfig {
    */
   readonly transactionGasStipend: number
   /**
-   * Gas overhead is added to entire 'handleOp' bundle.
+   * Gas overhead is added to entire 'handleOp' bundle (on top of the transactionGasStipend).
    */
   readonly fixedGasOverhead: number
   /**
    * Gas overhead per UserOperation is added on top of the above fixed per-bundle.
    */
   readonly perUserOpGasOverhead: number
+
   /**
-   * Gas overhead per single "word" (32 bytes) of an ABI-encoding of the UserOperation.
+   * Gas overhead per single "word" (32 bytes) in callData.
+   * (all validation fields are covered by verification gas checks)
    */
   readonly perUserOpWordGasOverhead: number
   /**
-   * The gas cost of a single zero byte an ABI-encoding of the UserOperation.
+   * extra per-userop overhead, if callData starts with "executeUserOp" method signature.
    */
-  readonly zeroByteGasCost: number
+  readonly executeUserOpGasOverhead: number
   /**
-   * The gas cost of a single zero byte an ABI-encoding of the UserOperation.
+   * extra per-word overhead, if callData starts with "executeUserOp" method signature.
    */
-  readonly nonZeroByteGasCost: number
+  readonly executeUserOpPerWordGasOverhead: number
+  /**
+   * The gas cost of a single "token" (zero byte) of the ABI-encoded UserOperation.
+   */
+  readonly standardTokenGasCost: number
+
+  /**
+   * should we enable EIP-7623 gas-based calculation.
+   */
+  readonly useEip7623: boolean
+
+  /**
+   * The EIP-7623 floor gas cost of a single token.
+   */
+  readonly floorPerTokenGasCost: number
+
+  /**
+   * The number of non-zero bytes that are counted as a single token (EIP-7623).
+   */
+  readonly tokensPerNonzeroByte: number
+
+  /**
+   * gas cost of EIP-7702 authorization. PER_EMPTY_ACCOUNT_COST
+   * (this amount is taken even if the account is already deployed)
+   */
+  readonly eip7702AuthGas: number
   /**
    * The expected average size of a bundle in current network conditions.
    * This value is used to split the bundle gas overhead between all ops.
@@ -41,13 +72,35 @@ export interface PreVerificationGasCalculatorConfig {
   readonly estimationPaymasterDataSize: number
 }
 
+export interface GasOptions {
+  /**
+   * if set, assume this gas is actually used by verification of the UserOperation.
+   * (as checked during UserOperation simulation)
+   */
+  verificationGasUsed?: number
+
+  /**
+   * if set, this is the gas used by the entire UserOperation - including verification and execution.
+   * that is, ignore verificationGas and also the 10% penalty on execution gas.
+   * This value is only used for testing purposes.
+   * It can only be used reliably from a transaction receipt, after the transaction was executed.
+   * Note that setting zero value here disables EIP-7623 gas calculation (it overrides taking both verificationGas and callGasLimit into account).
+   */
+  totalGasUsed?: number
+}
+
 export const MainnetConfig: PreVerificationGasCalculatorConfig = {
   transactionGasStipend: 21000,
-  fixedGasOverhead: 38000,
-  perUserOpGasOverhead: 11000,
-  perUserOpWordGasOverhead: 4,
-  zeroByteGasCost: 4,
-  nonZeroByteGasCost: 16,
+  fixedGasOverhead: 9830,
+  perUserOpGasOverhead: 7260,
+  executeUserOpGasOverhead: 1610,
+  perUserOpWordGasOverhead: 9.5,
+  executeUserOpPerWordGasOverhead: 8.2,
+  standardTokenGasCost: 4,
+  useEip7623: true,
+  floorPerTokenGasCost: 10,
+  tokensPerNonzeroByte: 4,
+  eip7702AuthGas: 25000,
   expectedBundleSize: 1,
   estimationSignatureSize: 65,
   estimationPaymasterDataSize: 0
@@ -68,11 +121,13 @@ export class PreVerificationGasCalculator {
    * If the proposed value is lower that the one expected by the bundler the UserOperation may not be profitable.
    * Notice that in order to participate in a P2P UserOperations mempool all bundlers must use the same configuration.
    * @param userOp - the complete and signed UserOperation received from the user.
+   * @param gasOptions - apply EIP-7623 gas calculation.
    */
   validatePreVerificationGas (
-    userOp: UserOperation
+    userOp: UserOperation,
+    gasOptions: GasOptions
   ): { isPreVerificationGasValid: boolean, minRequiredPreVerificationGas: number } {
-    const minRequiredPreVerificationGas = this._calculate(userOp)
+    const minRequiredPreVerificationGas = this._calculate(userOp, gasOptions)
     return {
       minRequiredPreVerificationGas,
       isPreVerificationGasValid: minRequiredPreVerificationGas <= parseInt((userOp.preVerificationGas as any).toString())
@@ -84,29 +139,82 @@ export class PreVerificationGasCalculator {
    * Value of the 'preVerificationGas' is the cost overhead that cannot be calculated precisely or accessed on-chain.
    * It depends on blockchain parameters that are defined by the protocol for all transactions.
    * @param userOp - the UserOperation object that may be missing the 'signature' and 'paymasterData' fields.
+   @param gasOptions - apply EIP-7623 gas calculation.
    */
   estimatePreVerificationGas (
-    userOp: Partial<UserOperation>
+    userOp: Partial<UserOperation>,
+    gasOptions: GasOptions
   ): number {
     const filledUserOp = this._fillUserOpWithDummyData(userOp)
-    return this._calculate(filledUserOp)
+    return this._calculate(filledUserOp, gasOptions)
   }
 
-  _calculate (userOp: UserOperation): number {
+  _calculate (userOp: UserOperation, gasOptions: GasOptions): number {
     const packedUserOp = arrayify(encodeUserOp(userOp, false))
     const userOpWordsLength = (packedUserOp.length + 31) / 32
-    const callDataCost = packedUserOp
-      .map(
-        x => x === 0 ? this.config.zeroByteGasCost : this.config.nonZeroByteGasCost)
-      .reduce(
-        (sum, x) => sum + x
-      )
-    const userOpDataWordsOverhead = userOpWordsLength * this.config.perUserOpWordGasOverhead
+    const tokenCount = this._countTokens(packedUserOp)
 
-    const userOpSpecificOverhead = callDataCost + userOpDataWordsOverhead + this.config.perUserOpGasOverhead
+    let callDataOverhead = 0
+    let perUserOpOverhead = this.config.perUserOpGasOverhead
+    if (userOp.eip7702Auth != null) {
+      perUserOpOverhead += this.config.eip7702AuthGas
+    }
+
+    if (bytesToHex(arrayify(userOp.callData)).startsWith(EXECUTE_USEROP_METHOD_SIG)) {
+      perUserOpOverhead += this.config.executeUserOpGasOverhead +
+          this.config.executeUserOpPerWordGasOverhead * userOpWordsLength
+    } else {
+      callDataOverhead += Math.ceil(hexDataLength(userOp.callData) / 32) * this.config.perUserOpWordGasOverhead
+    }
+
+    const userOpSpecificOverhead = perUserOpOverhead + callDataOverhead
     const userOpShareOfBundleCost = this.config.fixedGasOverhead / this.config.expectedBundleSize
 
-    return Math.round(userOpSpecificOverhead + userOpShareOfBundleCost)
+    const userOpShareOfStipend = this.config.transactionGasStipend / this.config.expectedBundleSize
+
+    if (this.config.useEip7623) {
+      const calculatedGasUsed = this._getUserOpGasUsed(userOp, gasOptions)
+
+      const preVerficationGas = this._eip7623transactionGasCost(
+        userOpShareOfStipend,
+        tokenCount,
+        userOpShareOfBundleCost + userOpSpecificOverhead + calculatedGasUsed
+      ) - calculatedGasUsed
+
+      return preVerficationGas
+    } else {
+      // Not using EIP-7623
+      return this.config.standardTokenGasCost * tokenCount +
+        userOpShareOfStipend + userOpShareOfBundleCost + userOpSpecificOverhead
+    }
+  }
+
+  // during testing, totalGasUsed passes in the entire transaction "gasUsed" (from the transaction receipt)
+  // during validation, collect only the gas known to be paid: the actual validation and 10% of execution gas.
+  _getUserOpGasUsed (userOp: UserOperation, gasOptions: GasOptions): number {
+    if (gasOptions?.totalGasUsed != null) {
+      return gasOptions.totalGasUsed
+    }
+    return BigNumber.from(userOp.callGasLimit ?? 0).add(userOp.paymasterPostOpGasLimit ?? 0).div(10)
+      .add(gasOptions?.verificationGasUsed ?? 0).toNumber()
+  }
+
+  // Based on the formula in https://eips.ethereum.org/EIPS/eip-7623#specification
+  _eip7623transactionGasCost (stipendGasCost: number, tokenGasCount: number, executionGasCost: number): number {
+    return Math.round(
+      stipendGasCost +
+      Math.max(
+        this.config.standardTokenGasCost * tokenGasCount +
+        executionGasCost
+        ,
+        this.config.floorPerTokenGasCost * tokenGasCount
+      ))
+  }
+
+  _countTokens (bytes: BytesLike): number {
+    return arrayify(bytes).map(
+      x => x === 0 ? 1 : this.config.tokensPerNonzeroByte
+    ).reduce((sum, x) => sum + x)
   }
 
   _fillUserOpWithDummyData (userOp: Partial<UserOperation>): UserOperation {
