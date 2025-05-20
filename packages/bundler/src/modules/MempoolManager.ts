@@ -190,12 +190,12 @@ export class MempoolManager {
   getSortedForInclusion (): MempoolEntry[] {
     const copy = Array.from(this.mempool)
 
-    function cost (op: OperationBase): number {
-      // TODO: need to consult basefee and maxFeePerGas
+    function getUserOpGasPrice (op: OperationBase): number {
+      // TODO: min(op.maxFeePerGas, baseFee + op.maxPriorityFeePerGas)
       return BigNumber.from(op.maxPriorityFeePerGas).toNumber()
     }
 
-    copy.sort((a, b) => cost(a.userOp) - cost(b.userOp))
+    copy.sort((next, prev) => getUserOpGasPrice(prev.userOp) - getUserOpGasPrice(next.userOp))
     return copy
   }
 
