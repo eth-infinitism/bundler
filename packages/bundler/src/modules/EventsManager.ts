@@ -39,9 +39,16 @@ export class EventsManager {
     if (this.lastBlock === undefined) {
       this.lastBlock = Math.max(1, await this.entryPoint.provider.getBlockNumber() - 1000)
     }
-    const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, this.lastBlock)
-    for (const ev of events) {
-      this.handleEvent(ev)
+    try {
+      const events = await this.entryPoint.queryFilter({ address: this.entryPoint.address }, this.lastBlock)
+      for (const ev of events) {
+        this.handleEvent(ev)
+      }
+    } catch (e) {
+      // if we processed latest block, then "lastBlock" is set to one above, so the new geth 15.9 error can safely be ignored.
+      if (!(e as Error).message.includes('invalid block range params')) {
+        throw e
+      }
     }
   }
 
