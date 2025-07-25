@@ -1,5 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers'
 
+import { hexValue } from '@ethersproject/bytes'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import Debug from 'debug'
 
@@ -215,7 +216,7 @@ export class ValidationManager implements IValidationManager {
       to: this.entryPoint.address,
       data,
       authorizationList: userOp.eip7702Auth == null ? null : [userOp.eip7702Auth],
-      gas: sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit).toNumber()
+      gas: hexValue(sum(prevg, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit))
     }
 
     try {
