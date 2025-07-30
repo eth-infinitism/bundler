@@ -403,6 +403,7 @@ export class ValidationManager implements IValidationManager {
         returnInfo: {
           // NOTE: this is an exageration. but we need simulation to calculate actual required preOpGas.
           preOpGas: sum(userOp.preVerificationGas, userOp.verificationGasLimit, userOp.paymasterVerificationGasLimit),
+          prefund: 0,
           sigFailed: false,
           validAfter: 0,
           validUntil: 0
