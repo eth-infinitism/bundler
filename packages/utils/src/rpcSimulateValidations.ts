@@ -3,6 +3,7 @@ import EntryPointSimulationsJson from '@account-abstraction/contracts/artifacts/
 
 import { EntryPointSimulations__factory, IEntryPointSimulations } from './types'
 import { UserOperation } from './interfaces/UserOperation'
+import {getAuthorizationList} from "./Utils";
 
 export const entryPointSimulationsInterface = EntryPointSimulations__factory.createInterface()
 
@@ -17,7 +18,8 @@ export function simulationRpcParams (methodName: string, entryPointAddress: stri
   const data = entryPointSimulationsInterface.encodeFunctionData(methodName as any, [packUserOp(userOp), ...extraParams] as any)
   const tx = {
     to: entryPointAddress,
-    data
+    data,
+    authorizationList: getAuthorizationList(userOp)
   }
   const stateOverride = {
     [entryPointAddress]: {
