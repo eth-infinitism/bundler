@@ -335,8 +335,8 @@ export class BundleManager implements IBundleManager {
     mainLoop:
     for (const entry of entries) {
       const maxBundleSizeNum = BigNumber.from(maxBundleSize ?? 0).toNumber()
-      if (maxBundleSizeNum !== 0 && entries.length >= maxBundleSizeNum) {
-        debug('exiting after maxBundleSize is reached', maxBundleSize, entries.length)
+      if (maxBundleSizeNum !== 0 && bundle.length >= maxBundleSizeNum) {
+        debug('exiting after maxBundleSize is reached', maxBundleSize, bundle.length)
         break
       }
       if (

@@ -189,5 +189,10 @@ describe('#BundlerManager', () => {
       assert.equal(mempool.length, 1)
       assert.equal(mempool[0].userOp.sender, wallet2.address)
     })
+
+    it('should respect maxBundleSize limit based on assembled bundle size (Issue #261)', async function () {
+      const [bundle] = await bundleMgr.createBundle(0, 0, 1)
+      expect(bundle.length).to.be.at.most(1)
+    })
   })
 })
