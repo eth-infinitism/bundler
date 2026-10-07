@@ -14,9 +14,16 @@ const decodeRevertReasonContracts = new Interface([
  * @param nullIfNoMatch true to return null if not found. otherwise, return input data as-is
  */
 export function decodeRevertReason (data: string | Error, nullIfNoMatch = true): string | null {
+  const orig = data
   if (typeof data !== 'string') {
     const err = data as any
-    data = (err.data?.data ?? err.data ?? err.error.data) as string
+    data = (err?.data?.data ?? err?.data ?? err?.error?.data) as string
+  }
+  if (data == null || typeof data !== 'string' || !data.startsWith('0x') || data.length < 10) {
+    if (!nullIfNoMatch) {
+      return typeof orig === 'string' ? orig : ((orig as any)?.message ?? null)
+    }
+    return null
   }
   const methodSig = data.slice(0, 10)
   const dataParams = '0x' + data.slice(10)
